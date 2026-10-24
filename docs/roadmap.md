@@ -197,6 +197,25 @@ done. What remains, in order:
 
 ## Smaller known gaps
 
+- **10-bit and 12-bit images load, and then look almost black.** Measured,
+  in `HighBitDepthTests`. A camera delivers 10 or 12 bits inside a 16-bit
+  container, so the values stop at 1023 or 4095 rather than 65535, and
+  nothing in the file says which. Two separate problems follow:
+
+  1. **The Image File node defaults to `ImreadModes.AnyColor`**, which is
+     8-bit, so the extra bits are discarded on load unless the read mode is
+     changed to `Unchanged` or `AnyDepth`. The dropdown is there; the
+     default is wrong for anybody who has a high-depth camera.
+  2. **The display assumes a full 16-bit range.** `MatImageConverter`
+     divides by 257, which is right for true 16-bit and takes a 12-bit peak
+     to 16/255 and a 10-bit peak to 4/255 - six and two per cent of full
+     scale. It reads as a lighting fault rather than a software one.
+
+  The converter cannot guess: scaling by the brightest pixel would make a
+  genuinely dark 16-bit frame jump to full scale. The fix is for
+  `ImageData` to carry the significant bit count, set by the source that
+  knows it, and for the converter and the histogram to scale by that.
+
 - **Histogram handles 8-bit only.** Other depths warn and pass through.
 - **One ROI at a time.** A node with more than one region parameter exposes
   only the first to the viewer.
