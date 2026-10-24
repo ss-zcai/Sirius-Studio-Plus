@@ -12,6 +12,7 @@ somewhere else.
 ## Running it
 
 ```bash
+git clone https://github.com/ss-zcai/Sirius-Studio-Plus.git
 dotnet run --project src/Sirius.Studio.App
 ```
 
@@ -48,7 +49,31 @@ python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml \
 ```
 
 **Close the app before rebuilding.** Windows locks its DLLs while it runs, and
-the build fails with "being used by another process".
+the build fails with "being used by another process". The build reports this
+as an error, but a copy launched from a *different* output folder fails the
+same way while the build otherwise succeeds - so the running application
+keeps its old DLLs and the change appears not to have worked.
+
+### Adding an icon
+
+Two steps, in order. The first restyles hand-drawn artwork into the house
+style and copies it into the live set; the second regenerates the XAML
+dictionary the application actually loads.
+
+```bash
+python tools/install_extension.py
+python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml   "res/ui icons" "res/toolbox icons" "res/toolbar icons"
+```
+
+Drop the SVG in `res/phosphor-icons/Extension/`, add a line to `INSTALL` in
+`tools/install_extension.py` naming the resource key it supplies, and run
+both. A key supplied from the hand-drawn set should be removed from the
+`PHOSPHOR` map above it rather than left as a dead entry.
+
+Only the part of the Phosphor library the pipeline reads is in this
+repository - `Extension/` and `SVGs/regular/`, about a megabyte. The fonts,
+the PNG renders and the flat SVGs are another 72 MB that nothing here opens;
+download the full set separately if you want them.
 
 ## Packaging a build
 

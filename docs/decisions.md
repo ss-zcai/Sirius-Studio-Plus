@@ -1663,3 +1663,97 @@ orange-slice as fruit, chart-line-up as a trend rather than a fitted line.
 They are hand-drawn now, installed through `tools/install_extension.py` like
 the rest, and the three Phosphor entries are gone rather than left as dead
 map lines.
+
+## 48. A readout belongs to the thing it describes
+
+The image dimensions moved out of the main status bar and into each
+viewer's own.
+
+They were never "the" image size. The shell read them from whichever viewer
+panel happened to be first in its list:
+
+```csharp
+panels.OfType<ViewerPanelViewModel>()
+      .FirstOrDefault(panel => panel.SizeText is not null)?.SizeText;
+```
+
+With one viewer open that looked correct. With two it showed one of them
+and gave no clue which - and since Crop, Resize and Region of Interest all
+change the size, the number on screen routinely described a different
+picture than the one being looked at. A window-level readout for a
+per-panel fact cannot be right; the only question was how long it would
+take to notice.
+
+The panels had been computing `SizeText` individually the whole time. It
+was only ever displayed in the wrong place, which is why the fix removed
+code rather than adding it: the shell's `ImageSizeText` property is gone
+rather than left bound to nothing.
+
+### Order matters in a status bar
+
+Size reads first, then the cursor position, then the pixel value. The last
+two reserve a fixed width so the bar does not jitter as their digits
+change, and while they came first those reservations were two blank gaps
+with the size stranded in the middle of them whenever the pointer was
+elsewhere - which is most of the time. The one readout that is always
+present goes at the edge; the reserved space trails behind it where it
+cannot be seen.
+
+## 49. A vector is however many numbers it needs
+
+The Vector node had an X field and a Y field. Two is the wrong number as
+soon as anything wants three: a kernel is two, an RGB offset is three, a
+per-channel threshold is however many channels the frame has. It is one
+text box now - "3, 3" or "3, 3, 1" - which takes any count, and is quicker
+to type and to read than a column of boxes that would have to appear and
+disappear as the count changed.
+
+`Vector2` is replaced by `NumberVector`. Nothing else used it; the roadmap
+had already noted it had no consumer, which made this free to change and is
+still the honest state of it - the node produces a value nothing reads yet.
+
+Reading past the end gives zero rather than throwing, because what counts
+as the right number of components depends entirely on what is reading them.
+A consumer asks for what it needs and complains in its own words, where
+this could only ever say "3 is not 2".
+
+### Lenient about separators, strict about numbers
+
+Typing "3, 3, 1" passes through "3, 3," on the way. A node that went to
+Warning on that keystroke would be complaining at somebody who is doing
+nothing wrong, so a trailing separator reads as the components before it.
+Text that cannot be read at all still warns - and warns rather than
+throwing, because a half-typed vector is a normal state for a text box to
+be in and failing the whole pass over it would be unusable.
+
+This was wrong in the tests before it was right in the code: the first
+version refused a trailing comma, and the test asserting that was the thing
+that had to change.
+
+Recipes that stored X and Y as separate parameters fold into the component
+list on load, in either order, through the same legacy-parameter mechanism
+that already handles renamed bounds and rectangle parts.
+
+### Why Integer and Float were not merged at the same time
+
+The question was whether one Number node with a type dropdown would mean
+more checking when connecting to other ports. It would mean none, and the
+reason is worth recording because it is not obvious from the node list:
+
+- `VisionGraph.IsCompatible` returns true for **any** two numeric types, so
+  an `int` output already connects to a `double` input and the reverse.
+- `EvalContext.Param<T>` already calls `Convert.ChangeType`, with a comment
+  saying exactly why: "an integer output can drive a double parameter
+  without an adapter node".
+
+So the distinction is already invisible at both the connection and the
+evaluation boundary. Which cuts deeper than the question asked: a dropdown
+that switched the *port type* would be machinery with no observable effect,
+and mutating `OutputPort.DataType` on a node that is already wired is the
+one way to actually introduce the fragility the question was worried about.
+
+What is worth building is one node whose output is always `double`, with a
+dropdown over how the value is *entered* - whole numbers or free. That is a
+presentation choice, nothing moves, and the two nodes become one in the
+toolbox. It needs a legacy type key mapping, so it is left on the roadmap
+rather than done in passing.
