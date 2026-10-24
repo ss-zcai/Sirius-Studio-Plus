@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**41 nodes** across 10 categories.
+**42 nodes** across 10 categories.
 
 - **Source** — Blank Image, Float, Image File, Image Sequence, Integer, Vector
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -19,7 +19,7 @@ Socket shapes: square = image, circle = everything else.
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
 - **Morphology** — Advanced Morphology, Dilate, Erode
 - **Blob** — Find Blobs, Select Shape, Shape Style
-- **Fitting** — Find Circle, Fit Circle, Fit Ellipse, Fit Line
+- **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line
 - **Transformation** — Polar to Linear
 - **Analysis** — Histogram, Line Profile, Shape Table
 - **Output** — Image Viewer
@@ -897,6 +897,42 @@ Casts radial calipers through a ring and fits a circle to the edges they find.
 | Polarity | `EdgePolarity` | ComboBox | - |
 | Edge | `EdgeChoice` | ComboBox | - |
 | Direction | `RadialDirection` | ComboBox | - |
+| Reject Above | `Number` | Slider | 0 to 6 |
+
+### Find Line
+
+`fitting.findline`
+
+Casts calipers across a rectangle and fits a line to the edges they find.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Region | `Rectangle` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Line | `Shapes` | circle | - |
+| Points | `Shapes` | circle | - |
+| Angle | `Number` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Region | `Rectangle` | Rect | - |
+| Calipers | `Integer` | Slider | 2 to 500 |
+| Caliper Width | `Integer` | Slider | 1 to 101, odd only |
+| Sampling | `Number` | Slider | 0.1 to 2 |
+| Smoothing | `Integer` | Slider | 1 to 51, odd only |
+| Min Contrast | `Number` | Slider | 0 to 255 |
+| Polarity | `EdgePolarity` | ComboBox | - |
+| Edge | `EdgeChoice` | ComboBox | - |
+| Direction | `ScanDirection` | ComboBox | - |
 | Reject Above | `Number` | Slider | 0 to 6 |
 
 ### Fit Circle

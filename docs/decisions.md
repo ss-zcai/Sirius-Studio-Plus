@@ -1825,3 +1825,60 @@ is what makes a sub-pixel claim testable at all.
 
 The lesson is older than this tool: a consistent error that matches a
 plausible bug is still worth measuring against a known truth before fixing.
+
+## 51. Find Line, and the sub-pixel estimator that was wrong
+
+Find Line is Find Circle's calipers aimed along a rectangle instead of
+around a ring. The region is an `OrientedRect` - the same type the Region
+of Interest node uses - so it is typed as "x, y, w, h, angle" and inherits
+the drawing and turning the viewer already does for ROIs. Scans are spaced
+along the region's length and cross its width, which means the region is
+placed with its long axis running *along* the expected edge.
+
+`LineFit` is total least squares by the scatter matrix, not an ordinary
+y-on-x regression. The ordinary one minimises vertical error and cannot
+express a vertical line at all - and a caliper line finder aimed at a
+vertical edge is not an edge case, it is half of all uses.
+
+### The parabola was the wrong estimator
+
+Find Circle's caliper interpolated its sub-pixel position with a parabola
+through the derivative peak and its two neighbours. Against the circle's
+anti-aliased edges that measured exact, and it shipped.
+
+Find Line's first failure was an edge placed at y = 190.5 - exactly between
+two pixel rows. Every pixel is then fully dark or fully light, so the image
+holds a perfectly hard step; smoothing turns a hard step into a straight
+ramp; and the derivative of a straight ramp is a flat plateau rather than a
+peak. A parabola through three equal numbers says nothing, and the code
+took the first of them, putting the edge at the plateau's leading corner.
+
+Patching that to find the plateau's centre by exact equality worked at
+smoothing 5 and failed at 7, because the plateau's members are computed by
+separate summations and agree to within rounding rather than bit for bit.
+Measured against a known edge, the error grew with the window: nothing at
+5, three quarters of a pixel at 11, two and a quarter at 21.
+
+The estimator is a **centroid** now - the intensity-weighted centre of the
+derivative across the run either side of the peak that stays above half its
+height. It assumes nothing about the shape of the top. Over a symmetric
+plateau it returns the middle, over a rounded peak the peak, over an
+asymmetric blur the balance point, which is what an edge position means.
+Measured across smoothing widths 1 to 21 and three edge positions the error
+is now zero everywhere, against up to 2.25 pixels before.
+
+The differences are central rather than forward at the same time. A forward
+difference sits half a sample along from the index it is stored at, and
+every reading then needs that half added back - a correction that was
+written once, correctly, and would have been missed the next time the peak
+finding changed. It just had been.
+
+### Two tests that were wrong, in opposite directions
+
+`An_empty_region_is_an_error` expected the node to reject a zero-area
+region. It could not: `OrientedRect` clamps both sides to at least one
+pixel, so the guard being tested was unreachable. The guard is gone and the
+test asserts the clamp instead.
+
+And the hard-step case now runs at three smoothing widths rather than one,
+because one width is what let the parabola through in the first place.

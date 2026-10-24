@@ -134,13 +134,17 @@ whose stamped version disagrees with its name.
 The plan is `interactive-tools-plan.md`. Step 1 - port-bound previews - is
 done. What remains, in order:
 
-1. **A Draw button on geometry parameters**, opening the preview of the
-   input the geometry is measured in and arming drawing on it.
-2. **Find Line.** The caliper core exists now - `Caliper.TryFind`, built
-   for Find Circle, does peak picking by polarity and contrast with
-   sub-pixel interpolation, and `CircleFit.FitRobust` shows the rejection
-   pattern a line fit wants. What is left is where the scans go: along a
-   rectangle rather than around a ring.
+1. **Arming the Draw button.** It already opens the preview of the input
+   the geometry is measured in - `MainViewModel.DrawRegionCommand` - but
+   stops there: the viewer opens with its pointer tool active and the
+   operator still has to pick the region tool by hand. What is missing is
+   the arming, which wants a decision about what the viewer does when the
+   drawing is finished.
+2. **Find Line is done.** Calipers across an `OrientedRect` - the same
+   type the ROI node uses, so the region can be drawn and turned with the
+   machinery that already exists - fitted by total least squares with
+   outlier rejection. Measured error against a known edge is zero across
+   smoothing widths 1 to 21.
 3. **Geometry parameters** - `Shape`-valued, with handle editing and
    serialisation. The `Shape` vocabulary built for blob *output* is the one
    a search region needs as *input*. This is also what retires

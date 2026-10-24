@@ -130,17 +130,75 @@ public static class Caliper
         if (bestIndex < 0)
             return false;
 
-        // Sub-pixel: a parabola through the peak and its neighbours. The
-        // derivative of a step blurred by the lens and by the smoothing
-        // above is close enough to parabolic near its top that this is
-        // worth a good fraction of a pixel, which is the whole reason a
-        // caliper beats thresholding.
-        var offset = bestIndex + Vertex(derivative, bestIndex);
+        // Sub-pixel by the centroid of the derivative across the peak's
+        // own support, rather than by a parabola through three samples.
+        //
+        // A parabola assumes a rounded top. A perfectly hard step - a
+        // thresholded image, or an edge falling exactly between two pixels
+        // - smooths into a straight ramp whose derivative is a flat
+        // plateau, where three samples say nothing and the answer lands on
+        // whichever end was looked at first. Measured against a known edge
+        // that cost half the smoothing width, growing with it: nothing at
+        // width 5, three quarters of a pixel at 11, two and a quarter at
+        // 21.
+        //
+        // A centroid has no such assumption. Over a symmetric plateau it
+        // returns the middle; over a rounded peak it returns the peak; over
+        // an asymmetric blur it returns the balance point, which is what an
+        // edge position means.
+        var offset = Centroid(derivative, bestIndex);
 
-        // The derivative sits between samples i and i+1, so its position is
-        // half a sample further along than its index.
-        hit = new CaliperHit((offset + 0.5) * spacing, derivative[bestIndex]);
+        hit = new CaliperHit(offset * spacing, derivative[bestIndex]);
         return true;
+    }
+
+    /// <summary>
+    /// The intensity-weighted centre of the derivative peak containing
+    /// <paramref name="index"/>.
+    /// </summary>
+    /// <remarks>
+    /// The support is the run either side of the peak that stays above
+    /// half its height - the usual half-maximum rule. Stopping there
+    /// rather than at a zero crossing keeps a neighbouring edge's tail out
+    /// of the average, which would otherwise drag the reading towards it.
+    /// </remarks>
+    private static double Centroid(double[] values, int index)
+    {
+        var peak = Math.Abs(values[index]);
+
+        if (peak <= 0)
+            return index;
+
+        var half = peak / 2;
+
+        var first = index;
+        while (first > 0 && Math.Abs(values[first - 1]) >= half &&
+               Math.Sign(values[first - 1]) == Math.Sign(values[index]))
+        {
+            first--;
+        }
+
+        var last = index;
+        while (last < values.Length - 1 && Math.Abs(values[last + 1]) >= half &&
+               Math.Sign(values[last + 1]) == Math.Sign(values[index]))
+        {
+            last++;
+        }
+
+        double weighted = 0, total = 0;
+
+        for (var i = first; i <= last; i++)
+        {
+            var weight = Math.Abs(values[i]) - (half / 2);
+
+            if (weight <= 0)
+                continue;
+
+            weighted += i * weight;
+            total += weight;
+        }
+
+        return total > 0 ? weighted / total : index;
     }
 
     private static bool Accepts(EdgePolarity polarity, double derivative) => polarity switch
@@ -163,24 +221,6 @@ public static class Caliper
         return value >= 0
             ? value >= previous && value >= next
             : value <= previous && value <= next;
-    }
-
-    /// <summary>
-    /// Where the parabola through three samples peaks, relative to the
-    /// middle one, clamped to the interval it can meaningfully describe.
-    /// </summary>
-    private static double Vertex(double[] values, int index)
-    {
-        if (index <= 0 || index >= values.Length - 1)
-            return 0;
-
-        double a = values[index - 1], b = values[index], c = values[index + 1];
-        var denominator = a - (2 * b) + c;
-
-        if (Math.Abs(denominator) < 1e-12)
-            return 0;
-
-        return Math.Clamp(0.5 * (a - c) / denominator, -0.5, 0.5);
     }
 
     /// <summary>
@@ -229,15 +269,27 @@ public static class Caliper
     }
 
     /// <summary>
-    /// Forward differences, so element i is the step between samples i and
-    /// i+1, divided by the spacing to give intensity per pixel.
+    /// Central differences, so element i is the slope <em>at</em> sample i
+    /// rather than between i and i+1.
     /// </summary>
+    /// <remarks>
+    /// Centred on purpose. A forward difference sits half a sample along
+    /// from the index it is stored at, and every reading then needs that
+    /// half back - a correction that is easy to write once and easy to
+    /// forget when the peak finding changes. The ends keep a one-sided
+    /// difference, which is only ever the edge of the scan.
+    /// </remarks>
     private static double[] Differentiate(float[] samples, double spacing)
     {
-        var result = new double[Math.Max(0, samples.Length - 1)];
+        var result = new double[samples.Length];
 
-        for (var i = 0; i < result.Length; i++)
-            result[i] = (samples[i + 1] - samples[i]) / spacing;
+        for (var i = 0; i < samples.Length; i++)
+        {
+            var low = Math.Max(0, i - 1);
+            var high = Math.Min(samples.Length - 1, i + 1);
+
+            result[i] = high == low ? 0 : (samples[high] - samples[low]) / ((high - low) * spacing);
+        }
 
         return result;
     }
