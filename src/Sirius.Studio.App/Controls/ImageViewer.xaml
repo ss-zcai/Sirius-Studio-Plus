@@ -139,6 +139,21 @@
                         <Image Source="{StaticResource Icon.ph_measure_profile}" Width="17" Height="17" />
                     </ToggleButton>
 
+                    <!--
+                        Draws a Find Circle's search band. Hidden unless a
+                        node that has one is selected: it writes a
+                        parameter, so with nothing to write to it would be
+                        a tool that silently does nothing.
+                    -->
+                    <ToggleButton x:Name="RingToolButton"
+                                  Style="{StaticResource ViewerToolButton}"
+                                  Tag="Ring"
+                                  Visibility="Collapsed"
+                                  ToolTip="Search band — click the centre, then the edge, then the width"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_fit_circle}" Width="17" Height="17" />
+                    </ToggleButton>
+
                     <Border Style="{StaticResource ToolbarDivider}" />
 
                     <!--
@@ -232,6 +247,18 @@
                            StrokeThickness="1"
                            Fill="#22F59E0B"
                            Visibility="Collapsed" />
+
+                <!--
+                    The annular search band a Find Circle scans. Drawn as a
+                    single path with two circles and an even-odd fill, so
+                    the shading is the band itself rather than the disc -
+                    two separate ellipses would shade the hole as well.
+                -->
+                <Path x:Name="RingShape"
+                      Stroke="#38BDF8"
+                      StrokeThickness="1"
+                      Fill="#2238BDF8"
+                      Visibility="Collapsed" />
 
                 <Canvas x:Name="HandleLayer" Visibility="Collapsed" />
 

@@ -866,10 +866,7 @@ Casts radial calipers through a ring and fits a circle to the edges they find.
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
-| CentreX | `Number` | circle | optional |
-| CentreY | `Number` | circle | optional |
-| InnerRadius | `Number` | circle | optional |
-| OuterRadius | `Number` | circle | optional |
+| Band | `Ring` | circle | optional |
 
 **Outputs**
 
@@ -883,10 +880,7 @@ Casts radial calipers through a ring and fits a circle to the edges they find.
 
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
-| Centre X | `Number` | TextBox | - |
-| Centre Y | `Number` | TextBox | - |
-| Inner Radius | `Number` | TextBox | - |
-| Outer Radius | `Number` | TextBox | - |
+| Band | `Ring` | Ring | - |
 | Start Angle | `Number` | Slider | -360 to 360 |
 | Sweep | `Number` | Slider | 1 to 360 |
 | Calipers | `Integer` | Slider | 3 to 720 |

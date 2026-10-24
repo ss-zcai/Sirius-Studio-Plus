@@ -48,6 +48,7 @@ public sealed class MainViewModel : ObservableObject
     private bool _isRunning;
     private bool _canPaste;
     private ParameterViewModel? _activeRegionParameter;
+    private ParameterViewModel? _activeRingParameter;
     private int _addedNodeCount;
 
     public MainViewModel()
@@ -291,6 +292,13 @@ public sealed class MainViewModel : ObservableObject
 
     public bool HasActiveRegion => _activeRegionParameter is not null;
 
+    /// <summary>The selected node's search band, pushed to every viewer.</summary>
+    public ParameterViewModel? ActiveRingParameter
+    {
+        get => _activeRingParameter;
+        private set => SetProperty(ref _activeRingParameter, value);
+    }
+
     public string Title =>
         (IsModified ? "*" : string.Empty) +
         (_currentFilePath is null
@@ -426,6 +434,9 @@ public sealed class MainViewModel : ObservableObject
                 .FirstOrDefault(parameter =>
                     parameter.Kind is ParamEditor.Region or ParamEditor.Rect);
 
+            ActiveRingParameter = Editor.SelectedNode?.Parameters
+                .FirstOrDefault(parameter => parameter.Kind is ParamEditor.Ring);
+
             SelectedNodePreviews = Editor.SelectedNode is { } selected
                 ? PreviewablePorts(selected.Node).Select(PreviewOption.For).ToArray()
                 : [];
@@ -434,7 +445,10 @@ public sealed class MainViewModel : ObservableObject
             // of the node's input, and a region cannot be dragged on a
             // panel that was never told there is one.
             foreach (var panel in NodePanels.OfType<ImagePanelViewModel>())
+            {
                 panel.RegionParameter = ActiveRegionParameter;
+                panel.RingParameter = ActiveRingParameter;
+            }
         };
 
         NodePanels.Clear();

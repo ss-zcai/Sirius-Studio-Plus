@@ -7,6 +7,7 @@ using System.Windows.Media.Imaging;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Shapes;
+using Sirius.Core.Nodes;
 using Sirius.Core.Graph;
 using Sirius.Core.Shapes;
 using Sirius.Studio.App.Diagnostics;
@@ -278,6 +279,29 @@ public partial class ImageViewer : UserControl
         typeof(ImageViewer),
         new PropertyMetadata(null));
 
+    /// <summary>
+    /// The annular search band on show, bound to whichever node owns it.
+    /// </summary>
+    /// <remarks>
+    /// Two-way, like the region of interest: the operator draws it here
+    /// and the node that reads it is the one that keeps it.
+    /// </remarks>
+    public static readonly DependencyProperty RingProperty = DependencyProperty.Register(
+        nameof(Ring),
+        typeof(Ring),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(
+            default(Ring),
+            FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+            OnRingChanged));
+
+    /// <summary>Whether a band may be drawn and is worth showing.</summary>
+    public static readonly DependencyProperty IsRingEnabledProperty = DependencyProperty.Register(
+        nameof(IsRingEnabled),
+        typeof(bool),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(false, OnRingChanged));
+
     public static readonly DependencyProperty ShapesProperty = DependencyProperty.Register(
         nameof(Shapes),
         typeof(ShapeSet),
@@ -320,6 +344,18 @@ public partial class ImageViewer : UserControl
     {
         get => (double)GetValue(RoiAngleProperty);
         set => SetValue(RoiAngleProperty, value);
+    }
+
+    public Ring Ring
+    {
+        get => (Ring)GetValue(RingProperty);
+        set => SetValue(RingProperty, value);
+    }
+
+    public bool IsRingEnabled
+    {
+        get => (bool)GetValue(IsRingEnabledProperty);
+        set => SetValue(IsRingEnabledProperty, value);
     }
 
     public bool IsRoiEnabled
@@ -453,6 +489,14 @@ public partial class ImageViewer : UserControl
     {
         get => (IReadOnlyList<MeasurementRecord>?)GetValue(MeasurementsProperty);
         set => SetValue(MeasurementsProperty, value);
+    }
+
+    private static void OnRingChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var viewer = (ImageViewer)d;
+
+        viewer.UpdateRingVisual();
+        viewer.SyncRingTool();
     }
 
     private static void OnShapesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
@@ -948,6 +992,11 @@ public partial class ImageViewer : UserControl
                 e.Handled = true;
                 break;
 
+            case Key.Escape when _ringClicks.Count > 0:
+                ResetRing();
+                e.Handled = true;
+                break;
+
             case Key.Escape when _pending.Count > 0:
                 ResetCapture();
                 RedrawMeasurements();
@@ -1146,6 +1195,157 @@ public partial class ImageViewer : UserControl
         {
             _publishing = false;
         }
+    }
+
+    /// <summary>
+    /// Clicks collected so far while placing a band: the centre, then a
+    /// point on the edge.
+    /// </summary>
+    private readonly List<Point> _ringClicks = new();
+
+    /// <summary>Where the pointer is while a band is half-placed.</summary>
+    private Point? _ringPreview;
+
+    /// <summary>How many clicks the band gesture takes.</summary>
+    public const int RingClicks = 3;
+
+    /// <summary>
+    /// Advances the band gesture with a click, and finishes it on the third.
+    /// </summary>
+    /// <remarks>
+    /// Centre, then a point on the edge, then a point giving the width
+    /// either side of that edge - which is how somebody describes a search
+    /// band out loud, and means the second click can be put straight onto
+    /// the feature being looked for rather than onto an inner radius that
+    /// has to be guessed below it.
+    /// </remarks>
+    private void AddRingClick(Point image)
+    {
+        _ringClicks.Add(image);
+
+        if (_ringClicks.Count < RingClicks)
+        {
+            UpdateRingVisual();
+            UpdateHint();
+            return;
+        }
+
+        var centre = _ringClicks[0];
+        var mean = Distance(centre, _ringClicks[1]);
+        var half = Math.Abs(Distance(centre, _ringClicks[2]) - mean);
+
+        _ringClicks.Clear();
+        _ringPreview = null;
+
+        // Written through the property so the two-way binding carries it to
+        // the node; the visual follows from the property changing, not the
+        // other way round.
+        Ring = Core.Nodes.Ring.FromMean(centre.X, centre.Y, mean, half);
+
+        UpdateHint();
+    }
+
+    /// <summary>The band as it would be if the gesture ended here.</summary>
+    private Ring? PendingRing()
+    {
+        if (_ringClicks.Count == 0 || _ringPreview is not { } pointer)
+            return null;
+
+        var centre = _ringClicks[0];
+
+        if (_ringClicks.Count == 1)
+        {
+            // Only a centre so far, so the pointer is the edge and the band
+            // is shown hairline - wide enough to see, narrow enough not to
+            // suggest a width has been chosen.
+            var radius = Distance(centre, pointer);
+            return Core.Nodes.Ring.FromMean(centre.X, centre.Y, radius, 0.5);
+        }
+
+        var mean = Distance(centre, _ringClicks[1]);
+        var half = Math.Abs(Distance(centre, pointer) - mean);
+
+        return Core.Nodes.Ring.FromMean(centre.X, centre.Y, mean, half);
+    }
+
+    private static double Distance(Point a, Point b)
+    {
+        var dx = a.X - b.X;
+        var dy = a.Y - b.Y;
+
+        return Math.Sqrt((dx * dx) + (dy * dy));
+    }
+
+    /// <summary>
+    /// Offers the band tool only where there is a band to write.
+    /// </summary>
+    /// <remarks>
+    /// And takes it away again when there is not, putting the pointer
+    /// back - a tool left selected after the node it belonged to was
+    /// deselected would swallow clicks meant for something else.
+    /// </remarks>
+    private void SyncRingTool()
+    {
+        if (!_templateReady)
+            return;
+
+        RingToolButton.Visibility = IsRingEnabled ? Visibility.Visible : Visibility.Collapsed;
+
+        if (IsRingEnabled || ActiveTool != ViewerTool.Ring)
+            return;
+
+        ResetRing();
+
+        foreach (var button in ToolButtons())
+            button.IsChecked = (button.Tag as string) == nameof(ViewerTool.None);
+
+        ActiveTool = ViewerTool.None;
+    }
+
+    /// <summary>Abandons a half-placed band.</summary>
+    private void ResetRing()
+    {
+        if (_ringClicks.Count == 0 && _ringPreview is null)
+            return;
+
+        _ringClicks.Clear();
+        _ringPreview = null;
+        UpdateRingVisual();
+        UpdateHint();
+    }
+
+    /// <summary>
+    /// Draws the band - the one being placed if there is one, otherwise the
+    /// one the node holds.
+    /// </summary>
+    private void UpdateRingVisual()
+    {
+        if (!_templateReady)
+            return;
+
+        var ring = PendingRing() ?? Ring;
+        var visible = IsRingEnabled && ring.OuterRadius > 0;
+
+        RingShape.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+        if (!visible)
+            return;
+
+        var outer = new EllipseGeometry(
+            new Point(ring.CentreX, ring.CentreY), ring.OuterRadius, ring.OuterRadius);
+
+        var inner = new EllipseGeometry(
+            new Point(ring.CentreX, ring.CentreY), ring.InnerRadius, ring.InnerRadius);
+
+        // EvenOdd, so the hole is a hole: a GeometryGroup filled Nonzero
+        // would shade the whole disc and hide the part being inspected.
+        RingShape.Data = new GeometryGroup
+        {
+            FillRule = FillRule.EvenOdd,
+            Children = { outer, inner },
+        };
+
+        RingShape.StrokeThickness = ScreenPixel;
     }
 
     private void ResetCapture()
@@ -1364,6 +1564,18 @@ public partial class ImageViewer : UserControl
             return;
         }
 
+        if (ActiveTool == ViewerTool.Ring)
+        {
+            HintText.Text = _ringClicks.Count switch
+            {
+                0 => "Click the centre of the circle",
+                1 => "Click on the edge you are looking for",
+                _ => "Click to set how far either side to search",
+            };
+
+            return;
+        }
+
         var name = Measurement.DisplayName(ActiveTool);
 
         HintText.Text = _dragAnchored
@@ -1574,6 +1786,16 @@ public partial class ImageViewer : UserControl
         {
             return;
         }
+        else if (ActiveTool == ViewerTool.Ring)
+        {
+            // Its own click handling rather than the measurement gesture
+            // sequence: this writes a parameter instead of leaving an
+            // annotation, so nothing should be added to _measurements and
+            // nothing should be selectable afterwards.
+            AddRingClick(ClampToImage(_dragStartImage));
+            e.Handled = true;
+            return;
+        }
         else if (ActiveTool != ViewerTool.None && ShowMeasurements)
         {
             if (!BeginMeasureStep(ClampToImage(_dragStartImage)))
@@ -1771,6 +1993,7 @@ public partial class ImageViewer : UserControl
             }
         }
 
+        TrackRingPreview(image);
         UpdateReadout(image);
         e.Handled = true;
     }
@@ -1795,6 +2018,16 @@ public partial class ImageViewer : UserControl
         _editIndex = -1;
         Surface.ReleaseMouseCapture();
         e.Handled = true;
+    }
+
+    /// <summary>Keeps the half-placed band following the pointer.</summary>
+    private void TrackRingPreview(Point image)
+    {
+        if (ActiveTool != ViewerTool.Ring || _ringClicks.Count == 0)
+            return;
+
+        _ringPreview = image;
+        UpdateRingVisual();
     }
 
     private void OnMouseLeave(object sender, MouseEventArgs e)

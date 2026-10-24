@@ -159,6 +159,50 @@ public sealed class OrientedRectJsonConverter : JsonConverter<OrientedRect>
     }
 }
 
+/// <summary>
+/// A <see cref="Ring"/> as its four numbers.
+/// </summary>
+public sealed class RingJsonConverter : JsonConverter<Ring>
+{
+    public override Ring Read(
+        ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        double x = 0, y = 0, inner = 0, outer = 1;
+
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException("Expected an object for Ring.");
+
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+        {
+            if (reader.TokenType != JsonTokenType.PropertyName)
+                continue;
+
+            var name = reader.GetString();
+            reader.Read();
+
+            switch (name)
+            {
+                case "x": x = reader.GetDouble(); break;
+                case "y": y = reader.GetDouble(); break;
+                case "inner": inner = reader.GetDouble(); break;
+                case "outer": outer = reader.GetDouble(); break;
+            }
+        }
+
+        return new Ring(x, y, inner, outer);
+    }
+
+    public override void Write(Utf8JsonWriter writer, Ring value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("x", value.CentreX);
+        writer.WriteNumber("y", value.CentreY);
+        writer.WriteNumber("inner", value.InnerRadius);
+        writer.WriteNumber("outer", value.OuterRadius);
+        writer.WriteEndObject();
+    }
+}
+
 public sealed class SizeJsonConverter : JsonConverter<Size>
 {
     public override Size Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

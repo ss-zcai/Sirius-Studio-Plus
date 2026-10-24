@@ -50,10 +50,7 @@ public enum RadialDirection
     Description = "Casts radial calipers through a ring and fits a circle to the edges they find.")]
 public sealed class FindCircleNode : VisionNode
 {
-    private double _centreX = 500;
-    private double _centreY = 500;
-    private double _innerRadius = 80;
-    private double _outerRadius = 140;
+    private Ring _band = new(500, 500, 80, 140);
     private double _startAngle;
     private double _sweepAngle = 360;
     private int _caliperCount = 48;
@@ -95,34 +92,14 @@ public sealed class FindCircleNode : VisionNode
 
     // ---- where to look -------------------------------------------------
 
-    [Param("Centre X", Group = "Ring", Connectable = true,
-        Description = "Where the ring is centred. Need only be close; the fit finds the true centre.")]
-    public double CentreX
+    [Param("Band",
+        Editor = ParamEditor.Ring,
+        Connectable = true,
+        Description = "Search band as x, y, inner, outer. Draw it on the image: centre, then the edge, then the width.")]
+    public Ring Band
     {
-        get => _centreX;
-        set => SetParam(ref _centreX, value);
-    }
-
-    [Param("Centre Y", Group = "Ring", Connectable = true)]
-    public double CentreY
-    {
-        get => _centreY;
-        set => SetParam(ref _centreY, value);
-    }
-
-    [Param("Inner Radius", Group = "Ring", Min = 0, Connectable = true,
-        Description = "Where each caliper starts. The edge must lie between this and the outer radius.")]
-    public double InnerRadius
-    {
-        get => _innerRadius;
-        set => SetParam(ref _innerRadius, Math.Max(0, value));
-    }
-
-    [Param("Outer Radius", Group = "Ring", Min = 0, Connectable = true)]
-    public double OuterRadius
-    {
-        get => _outerRadius;
-        set => SetParam(ref _outerRadius, Math.Max(0, value));
+        get => _band;
+        set => SetParam(ref _band, value);
     }
 
     [Param("Start Angle", Group = "Ring", Min = -360, Max = 360, Step = 1,
@@ -220,20 +197,13 @@ public sealed class FindCircleNode : VisionNode
         if (!context.TryGet<ImageData>(ImageIn, out var image))
             throw new InvalidOperationException("No image is connected.");
 
-        var centreX = context.Param(nameof(CentreX), _centreX);
-        var centreY = context.Param(nameof(CentreY), _centreY);
-        var inner = context.Param(nameof(InnerRadius), _innerRadius);
-        var outer = context.Param(nameof(OuterRadius), _outerRadius);
-
-        if (outer <= inner)
-        {
-            throw new InvalidOperationException(
-                $"The outer radius ({outer:0.##}) must be larger than the inner one ({inner:0.##}).");
-        }
+        // Ring orders and widens on construction, so there is no
+        // inside-out or zero-width band to check for here.
+        var band = context.Param(nameof(Band), _band);
 
         using var sampler = LineProfileSource.From(image);
 
-        var points = Scan(context, sampler, centreX, centreY, inner, outer);
+        var points = Scan(context, sampler, band);
 
         if (points.Count < CircleFit.MinimumPoints)
         {
@@ -268,14 +238,13 @@ public sealed class FindCircleNode : VisionNode
     /// <summary>
     /// Casts the calipers and collects the edges they find.
     /// </summary>
-    private List<Point2> Scan(
-        EvalContext context,
-        LineProfileSource sampler,
-        double centreX,
-        double centreY,
-        double inner,
-        double outer)
+    private List<Point2> Scan(EvalContext context, LineProfileSource sampler, Ring band)
     {
+        var centreX = band.CentreX;
+        var centreY = band.CentreY;
+        var inner = band.InnerRadius;
+        var outer = band.OuterRadius;
+
         var points = new List<Point2>(_caliperCount);
 
         // The last caliper lands on the first when the sweep is a full

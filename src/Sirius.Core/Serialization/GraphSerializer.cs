@@ -46,6 +46,7 @@ public static class GraphSerializer
         options.Converters.Add(new RectangleJsonConverter());
         options.Converters.Add(new ValueRangeJsonConverter());
         options.Converters.Add(new OrientedRectJsonConverter());
+        options.Converters.Add(new RingJsonConverter());
         options.Converters.Add(new SizeJsonConverter());
         options.Converters.Add(new PointJsonConverter());
         options.Converters.Add(new ColorJsonConverter());
@@ -451,6 +452,43 @@ public static class GraphSerializer
         return true;
     }
 
+    /// <summary>
+    /// Folds Find Circle's old centre and radius parameters into its ring.
+    /// </summary>
+    /// <remarks>
+    /// The node had four numbers and now has one value, for the same
+    /// reason the region of interest went from five to one: it is a single
+    /// decision drawn in a single gesture. Recipes written in between
+    /// would otherwise open with the node back at its default.
+    /// </remarks>
+    private static bool TryApplyLegacyRingPart(
+        VisionNode node, NodeDescriptor descriptor, string name, JsonElement element)
+    {
+        if (name is not ("CentreX" or "CentreY" or "InnerRadius" or "OuterRadius"))
+            return false;
+
+        var parameter = descriptor.Parameters.FirstOrDefault(p => p.ValueType == typeof(Ring));
+
+        if (parameter is null || !element.TryGetDouble(out var number))
+            return false;
+
+        var current = parameter.GetValue(node) is Ring ring ? ring : default;
+
+        // Written through the initialiser rather than the constructor, so
+        // the ordering it applies does not fight a half-applied pair - the
+        // four arrive one at a time and the middle states are nonsense.
+        parameter.SetValue(node, name switch
+        {
+            "CentreX" => current with { CentreX = number },
+            "CentreY" => current with { CentreY = number },
+            "InnerRadius" => current with { InnerRadius = number },
+            "OuterRadius" => current with { OuterRadius = number },
+            _ => current,
+        });
+
+        return true;
+    }
+
     private static void ApplyParameters(
         VisionNode node,
         NodeDescriptor descriptor,
@@ -468,6 +506,9 @@ public static class GraphSerializer
                 continue;
 
             if (parameter is null && TryApplyLegacyVectorPart(node, descriptor, name, element))
+                continue;
+
+            if (parameter is null && TryApplyLegacyRingPart(node, descriptor, name, element))
                 continue;
 
             if (parameter is null)

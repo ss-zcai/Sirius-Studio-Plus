@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Drawing;
 using System.Windows.Media.Imaging;
 using Sirius.Core.Graph;
+using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
 using Sirius.Studio.App.Diagnostics;
 using Sirius.Studio.App.Imaging;
@@ -30,6 +31,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     private BitmapSource? _image;
     private string? _sizeText;
     private ParameterViewModel? _regionParameter;
+    private ParameterViewModel? _ringParameter;
     private ShapeSet? _shapes;
     private ShapeSet? _pendingShapes;
     private LineProfileSource? _profileSource;
@@ -327,6 +329,43 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     public bool IsRoiEnabled => _regionParameter is not null;
 
     /// <summary>
+    /// The selected node's search band, if it has one.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="RegionParameter"/> rather than one
+    /// "geometry parameter" of either kind: a node can have both - a Find
+    /// Circle inside a region of interest - and the viewer draws and edits
+    /// them with different gestures.
+    /// </remarks>
+    public ParameterViewModel? RingParameter
+    {
+        get => _ringParameter;
+        set
+        {
+            if (SetProperty(ref _ringParameter, Accepts(value) ? value : null))
+            {
+                OnPropertyChanged(nameof(Ring));
+                OnPropertyChanged(nameof(IsRingEnabled));
+            }
+        }
+    }
+
+    public bool IsRingEnabled => _ringParameter is not null;
+
+    public Ring Ring
+    {
+        get => _ringParameter?.RingValue ?? default;
+        set
+        {
+            if (_ringParameter is null || _ringParameter.RingValue == value)
+                return;
+
+            _ringParameter.RingValue = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
     /// How far the region is turned, in degrees. Zero for a plain
     /// rectangle, which has no angle to offer.
     /// </summary>
@@ -372,6 +411,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     {
         OnPropertyChanged(nameof(Roi));
         OnPropertyChanged(nameof(RoiAngle));
+        OnPropertyChanged(nameof(Ring));
     }
 }
 

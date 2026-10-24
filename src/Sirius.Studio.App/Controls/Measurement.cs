@@ -32,6 +32,18 @@ public enum ViewerTool
     CircleThreePoint,
 
     /// <summary>
+    /// Draws an annular search band: centre, then the edge, then the
+    /// width either side of it.
+    /// </summary>
+    /// <remarks>
+    /// Not a measurement - it writes a parameter rather than leaving an
+    /// annotation - but it shares the tool strip and the click handling,
+    /// because to the operator it is the same kind of act: pick the tool,
+    /// click on the image, something appears.
+    /// </remarks>
+    Ring,
+
+    /// <summary>
     /// Intensity sampled along a line, charted beneath the image.
     /// </summary>
     /// <remarks>
@@ -134,6 +146,7 @@ public sealed class Measurement
         ViewerTool.CircleCentre => "Circle (centre)",
         ViewerTool.CircleThreePoint => "Circle (3 point)",
         ViewerTool.LineProfile => "Line profile",
+        ViewerTool.Ring => "Search band",
         _ => "Pointer",
     };
 

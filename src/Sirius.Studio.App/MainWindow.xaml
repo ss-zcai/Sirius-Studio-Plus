@@ -772,6 +772,35 @@
                                                             </Button>
                                                         </Grid>
 
+                                                        <!--
+                                                            A search band, drawn the way somebody
+                                                            describes one: the centre, then the edge
+                                                            being looked for, then how far either
+                                                            side to search for it.
+                                                        -->
+                                                        <Grid Visibility="{Binding IsRing, Converter={StaticResource BoolToVisibility}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBox Grid.Column="0"
+                                                                     Text="{Binding RingText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                                     ToolTip="Centre x, centre y, inner radius, outer radius" />
+
+                                                            <Button Grid.Column="1"
+                                                                    MinWidth="0"
+                                                                    Width="24"
+                                                                    Margin="4,0,0,0"
+                                                                    Padding="0"
+                                                                    ToolTip="Draw this band on the node's input image"
+                                                                    Command="{Binding DataContext.DrawRegionCommand,
+                                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <Image Source="{StaticResource Icon.ph_fit_circle}" Width="14" Height="14" />
+                                                            </Button>
+                                                        </Grid>
+
                                                         <CheckBox IsChecked="{Binding BoolValue, Mode=TwoWay}"
                                                                   Visibility="{Binding IsCheckBox, Converter={StaticResource BoolToVisibility}}" />
 

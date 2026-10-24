@@ -2,6 +2,7 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Sirius.Core.Graph;
+using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
 using Sirius.Vision;
 using Sirius.Vision.Nodes;
@@ -125,10 +126,7 @@ public class FindCircleTests
 
         var (circle, points, status, message) = Run(image, node =>
         {
-            node.CentreX = 200;
-            node.CentreY = 200;
-            node.InnerRadius = 80;
-            node.OuterRadius = 120;
+            node.Band = new Ring(200, 200, 80, 120);
         });
 
         Assert.Equal(NodeStatus.Ready, status);
@@ -151,10 +149,8 @@ public class FindCircleTests
 
         var (circle, _, _, message) = Run(image, node =>
         {
-            node.CentreX = x + 3;          // deliberately off: the fit should recover
-            node.CentreY = y - 3;
-            node.InnerRadius = radius - 20;
-            node.OuterRadius = radius + 20;
+            // Centre deliberately off: the fit should recover the true one.
+            node.Band = new Ring(x + 3, y - 3, radius - 20, radius + 20);
         });
 
         Assert.NotNull(circle);
@@ -174,10 +170,7 @@ public class FindCircleTests
 
         var (circle, _, _, _) = Run(image, node =>
         {
-            node.CentreX = 208;
-            node.CentreY = 193;
-            node.InnerRadius = 70;
-            node.OuterRadius = 130;
+            node.Band = new Ring(208, 193, 70, 130);
         });
 
         Assert.NotNull(circle);
@@ -198,10 +191,7 @@ public class FindCircleTests
 
         var (circle, points, status, _) = Run(image, node =>
         {
-            node.CentreX = 200;
-            node.CentreY = 200;
-            node.InnerRadius = 80;
-            node.OuterRadius = 120;
+            node.Band = new Ring(200, 200, 80, 120);
             node.Direction = RadialDirection.Outward;
             node.Polarity = EdgePolarity.DarkToLight;
         });
@@ -218,10 +208,7 @@ public class FindCircleTests
 
         var (circle, _, _, _) = Run(image, node =>
         {
-            node.CentreX = 200;
-            node.CentreY = 200;
-            node.InnerRadius = 80;
-            node.OuterRadius = 120;
+            node.Band = new Ring(200, 200, 80, 120);
             node.Direction = RadialDirection.Outward;
             node.Polarity = EdgePolarity.LightToDark;
         });
@@ -242,10 +229,7 @@ public class FindCircleTests
 
         var (circle, _, _, _) = Run(image, node =>
         {
-            node.CentreX = 200;
-            node.CentreY = 200;
-            node.InnerRadius = 80;
-            node.OuterRadius = 120;
+            node.Band = new Ring(200, 200, 80, 120);
             node.Direction = RadialDirection.Inward;
             node.Polarity = EdgePolarity.DarkToLight;
         });
@@ -263,10 +247,7 @@ public class FindCircleTests
 
         var (circle, points, _, _) = Run(image, node =>
         {
-            node.CentreX = 200;
-            node.CentreY = 200;
-            node.InnerRadius = 80;
-            node.OuterRadius = 120;
+            node.Band = new Ring(200, 200, 80, 120);
             node.StartAngle = 0;
             node.SweepAngle = 90;
             node.CaliperCount = 20;
@@ -301,10 +282,7 @@ public class FindCircleTests
 
         var with = Run(image, node =>
         {
-            node.CentreX = 200;
-            node.CentreY = 200;
-            node.InnerRadius = 80;
-            node.OuterRadius = 125;
+            node.Band = new Ring(200, 200, 80, 125);
             node.RejectSigma = 2.0;
         });
 
@@ -325,10 +303,7 @@ public class FindCircleTests
 
         var (circle, points, status, message) = Run(image, node =>
         {
-            node.CentreX = 200;
-            node.CentreY = 200;
-            node.InnerRadius = 20;
-            node.OuterRadius = 60;       // entirely inside the disc
+            node.Band = new Ring(200, 200, 20, 60);       // entirely inside the disc
             node.MinimumContrast = 5;
         });
 
@@ -338,19 +313,32 @@ public class FindCircleTests
         Assert.Contains("No edge", message!, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A band typed inside-out is corrected rather than rejected, because
+    /// <see cref="Ring"/> orders its radii on construction - so the node
+    /// needs no check and an operator who typed the radii the other way
+    /// round still gets their circle.
+    /// </summary>
+    /// <remarks>
+    /// This test used to expect an error. It could not happen: the guard
+    /// it was testing became unreachable the moment the four loose numbers
+    /// became one ordered value. The second time that has happened here,
+    /// and the pattern is the same both times - a type that makes a state
+    /// unrepresentable leaves behind a check that looks load-bearing.
+    /// </remarks>
     [Fact]
-    public void An_inverted_band_is_an_error()
+    public void An_inverted_band_is_corrected()
     {
         using var image = Disc(200, 200, 100);
 
-        var (_, _, status, message) = Run(image, node =>
+        var (circle, _, status, _) = Run(image, node =>
         {
-            node.InnerRadius = 120;
-            node.OuterRadius = 80;
+            node.Band = new Ring(200, 200, 120, 80);
         });
 
-        Assert.Equal(NodeStatus.Error, status);
-        Assert.Contains("outer radius", message!, StringComparison.Ordinal);
+        Assert.Equal(NodeStatus.Ready, status);
+        Assert.NotNull(circle);
+        Assert.True(Math.Abs(circle!.Radius - 100) < 0.2);
     }
 
     /// <summary>
@@ -364,10 +352,7 @@ public class FindCircleTests
 
         var (circle, _, status, _) = Run(image, node =>
         {
-            node.CentreX = 200;
-            node.CentreY = 200;
-            node.InnerRadius = 80;
-            node.OuterRadius = 120;
+            node.Band = new Ring(200, 200, 80, 120);
             node.MinimumContrast = 20;
         });
 

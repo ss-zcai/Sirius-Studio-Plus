@@ -125,6 +125,8 @@ public sealed class ParameterViewModel : ObservableObject
 
     public bool IsRect => Kind == ParamEditor.Rect;
 
+    public bool IsRing => Kind == ParamEditor.Ring;
+
     public bool IsFilePath => Kind == ParamEditor.FilePath;
 
     public bool IsSequence => Kind == ParamEditor.Sequence;
@@ -179,6 +181,7 @@ public sealed class ParameterViewModel : ObservableObject
         ParamEditor.Region,
         ParamEditor.Range,
         ParamEditor.Rect,
+        ParamEditor.Ring,
         ParamEditor.FilePath,
         ParamEditor.Sequence,
         ParamEditor.Colour,
@@ -522,6 +525,32 @@ public sealed class ParameterViewModel : ObservableObject
         {
             if (OrientedRect.TryParse(value, out var parsed))
                 RectValue = parsed;
+
+            OnPropertyChanged();
+        }
+    }
+
+    public Ring RingValue
+    {
+        get => Raw is Ring ring ? ring : default;
+        set
+        {
+            if (RingValue != value)
+                Raw = value;
+        }
+    }
+
+    /// <summary>
+    /// The band as "x, y, inner, outer". Rejected text leaves the value
+    /// alone rather than guessing, and the box reverts to what is there.
+    /// </summary>
+    public string RingText
+    {
+        get => RingValue.ToString();
+        set
+        {
+            if (Ring.TryParse(value, out var parsed))
+                RingValue = parsed;
 
             OnPropertyChanged();
         }
