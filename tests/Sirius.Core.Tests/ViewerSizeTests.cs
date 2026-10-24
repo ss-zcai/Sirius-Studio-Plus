@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 using Sirius.Core.Graph;
 using Sirius.Studio.App.Controls;
 using Sirius.Studio.App.ViewModels;
@@ -130,6 +131,40 @@ public class ViewerSizeTests
             var label = (TextBlock)viewer.FindName("SizeText")!;
 
             Assert.Equal("100 x 50 x 1", label.Text);
+        });
+
+    /// <summary>
+    /// The size reads first, then the cursor position, then the pixel
+    /// value.
+    /// </summary>
+    /// <remarks>
+    /// Order matters here for a reason that only shows when the pointer is
+    /// elsewhere: the position and pixel readouts reserve a fixed width so
+    /// the bar does not jitter as their digits change, and while they came
+    /// first those reservations were two blank gaps with the size label
+    /// stranded in the middle of them.
+    /// </remarks>
+    [Fact]
+    public void The_size_reads_before_the_cursor_readouts() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var viewer = new ImageViewer { ImageSizeText = "100 x 50 x 1" };
+
+            viewer.Measure(new Size(900, 700));
+            viewer.Arrange(new Rect(0, 0, 900, 700));
+            viewer.UpdateLayout();
+
+            var bar = (DockPanel)VisualTreeHelper.GetParent((TextBlock)viewer.FindName("SizeText")!);
+
+            var order = bar.Children
+                .OfType<TextBlock>()
+                .Where(child => DockPanel.GetDock(child) == Dock.Left)
+                .Select(child => child.Name)
+                .ToArray();
+
+            Assert.Equal(new[] { "SizeText", "PositionText", "PixelText" }, order);
         });
 
     /// <summary>

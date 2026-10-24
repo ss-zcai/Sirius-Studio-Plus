@@ -260,6 +260,27 @@
                 BorderThickness="0,1,0,0"
                 Padding="8,3">
             <DockPanel LastChildFill="False">
+                <!--
+                    The size of the frame this viewer is showing, which is
+                    not the size of the frame any other viewer is showing -
+                    a Crop or an ROI between them changes it, and that is
+                    exactly when somebody wants to read it.
+
+                    First, because it is the only one of the three that is
+                    there when the pointer is not. The two readouts after it
+                    reserve a fixed width so the bar does not jitter as the
+                    digits change, and with those reserved spaces ahead of
+                    it the size label sat marooned in the middle of an empty
+                    bar whenever the mouse was anywhere else.
+                -->
+                <TextBlock x:Name="SizeText"
+                           DockPanel.Dock="Left"
+                           Margin="0,0,18,0"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           Foreground="{StaticResource Text.Secondary}"
+                           Text="{Binding ImageSizeText, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+
                 <TextBlock x:Name="PositionText"
                            DockPanel.Dock="Left"
                            MinWidth="150"
@@ -273,19 +294,6 @@
                            FontFamily="Consolas"
                            FontSize="11"
                            Foreground="{StaticResource Text.Secondary}" />
-
-                <!--
-                    The size of the frame this viewer is showing, which is
-                    not the size of the frame any other viewer is showing -
-                    a Crop or an ROI between them changes it, and that is
-                    exactly when somebody wants to read it.
-                -->
-                <TextBlock x:Name="SizeText"
-                           DockPanel.Dock="Left"
-                           FontFamily="Consolas"
-                           FontSize="11"
-                           Foreground="{StaticResource Text.Secondary}"
-                           Text="{Binding ImageSizeText, RelativeSource={RelativeSource AncestorType=UserControl}}" />
 
                 <!--
                     The reading, tinted in code to match the annotation it came
