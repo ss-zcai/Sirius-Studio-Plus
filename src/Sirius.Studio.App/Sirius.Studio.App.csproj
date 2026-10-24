@@ -32,6 +32,15 @@
 
   <ItemGroup>
     <Resource Include="Assets\Icons\**\*.svg" />
+
+    <!--
+      The same file ApplicationIcon uses, also embedded as a resource so the
+      About box can show it. ApplicationIcon alone puts the icon in the
+      executable's Win32 header, where the shell and the title bar read it
+      but WPF cannot: there is no pack URI for it. Linked rather than copied,
+      so there is one icon on disk and no second one to forget to update.
+    -->
+    <Resource Include="..\..\res\Sirius Stu.ico" Link="Assets\AppIcon.ico" />
   </ItemGroup>
 
   <!--

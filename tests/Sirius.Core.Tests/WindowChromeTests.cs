@@ -12,8 +12,11 @@ namespace Sirius.Core.Tests;
 /// one itself. The main window did and nothing else did, which is the kind
 /// of omission that is invisible until somebody opens the second window.
 /// </remarks>
+[Collection(WpfCollection.Name)]
 public class WindowChromeTests
 {
+    public WindowChromeTests(WpfTestHost host) => _ = host;
+
     private static string Source => Repository.AppSource;
 
     public static TheoryData<string> Windows
@@ -47,6 +50,62 @@ public class WindowChromeTests
     [Fact]
     public void There_are_windows_to_check() =>
         Assert.NotEmpty(Directory.GetFiles(Source, "*Window.xaml.cs"));
+
+    /// <summary>
+    /// About shows the product's own icon, at a usable size.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It showed the Run node's play triangle - a toolbar action standing in
+    /// as a logo, on the one screen whose whole job is to say what this
+    /// application is.
+    /// </para>
+    /// <para>
+    /// The size is the part worth asserting. An .ico holds several frames,
+    /// and a decoder left to choose can hand back the 16-pixel one, which
+    /// builds cleanly, raises nothing, and looks like a thumbnail that
+    /// failed to load once it is scaled up to 40.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void About_shows_the_application_icon() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var source = new System.Windows.Media.Imaging.BitmapImage();
+            source.BeginInit();
+            source.UriSource = new Uri(
+                "pack://application:,,,/SiriusStudioPlus;component/Assets/AppIcon.ico",
+                UriKind.Absolute);
+            source.DecodePixelWidth = 256;
+            source.EndInit();
+
+            Assert.True(
+                source.PixelWidth >= 64,
+                $"the About icon decoded at {source.PixelWidth}px, which will look soft at 40");
+
+            var xaml = File.ReadAllText(Path.Combine(Source, "AboutWindow.xaml"));
+
+            Assert.Contains("Assets/AppIcon.ico", xaml, StringComparison.Ordinal);
+            Assert.DoesNotContain("Icon.ph_run", xaml, StringComparison.Ordinal);
+        });
+
+    /// <summary>
+    /// One icon on disk, used for both the executable and the About box, so
+    /// there is no second copy to forget to update.
+    /// </summary>
+    [Fact]
+    public void The_window_icon_and_the_about_icon_are_the_same_file()
+    {
+        var project = File.ReadAllText(Path.Combine(Source, "Sirius.Studio.App.csproj"));
+
+        Assert.Contains("<ApplicationIcon>", project, StringComparison.Ordinal);
+
+        var icons = project.Split("Sirius Stu.ico").Length - 1;
+
+        Assert.True(icons >= 2, "the About box should reuse the ApplicationIcon file, not a copy");
+    }
 
     /// <summary>
     /// The one dialog that was a stock MessageBox is a window now. The

@@ -16,11 +16,27 @@
     -->
     <StackPanel Margin="20" TextElement.Foreground="{StaticResource Text.Primary}">
         <StackPanel Orientation="Horizontal">
-            <Image Source="{StaticResource Icon.ph_run}"
-                   Width="28"
-                   Height="28"
+            <!--
+                The product's own icon, not a glyph from the node set. This
+                was the Run node's play triangle, which is a toolbar action
+                rather than a logo - and on the one screen whose whole job
+                is to say what this application is.
+
+                DecodePixelWidth asks for the large frame: an .ico holds
+                several, and the decoder left to itself can hand back the
+                16-pixel one, which looks like a thumbnail that failed to
+                load once it is scaled up.
+            -->
+            <Image Width="40"
+                   Height="40"
                    VerticalAlignment="Top"
-                   Margin="0,2,12,0" />
+                   Margin="0,0,14,0"
+                   RenderOptions.BitmapScalingMode="HighQuality">
+                <Image.Source>
+                    <BitmapImage UriSource="pack://application:,,,/Assets/AppIcon.ico"
+                                 DecodePixelWidth="256" />
+                </Image.Source>
+            </Image>
 
             <StackPanel>
                 <TextBlock Text="Sirius Studio Plus" FontSize="18" FontWeight="SemiBold" />
