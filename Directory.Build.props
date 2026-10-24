@@ -1,0 +1,22 @@
+<Project>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!-- Emgu.CV ships architecture-specific native binaries; x64 only. -->
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier Condition="'$(OutputType)' == 'WinExe'">win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+
+    <Product>Sirius Studio Plus</Product>
+    <Company>Sigma Squares (Beijing) Tech Co Ltd</Company>
+    <Version>1.0.1</Version>
+  </PropertyGroup>
+
+</Project>

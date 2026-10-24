@@ -1,0 +1,30 @@
+# Build output
+bin/
+obj/
+dist/
+
+# Published packages are rebuilt from a tag; they are ~100 MB each.
+*.zip
+
+# IDE
+.vs/
+*.user
+
+# Local layout written by the app
+panels.log
+
+# Vendored Phosphor library: only the parts the icon pipeline reads are
+# tracked. tools/install_extension.py takes its sources from
+# res/phosphor-icons/Extension (hand-drawn, ours) and
+# res/phosphor-icons/SVGs/regular, which together are about 1 MB. The
+# fonts, the PNG renders and the flat SVGs are another 72 MB and 25,000
+# files that nothing in this repository opens - and the whole library is a
+# download away if it is ever wanted.
+res/phosphor-icons/Fonts/
+res/phosphor-icons/PNGs/
+res/phosphor-icons/SVGs Flat/
+res/phosphor-icons/SVGs/*
+!res/phosphor-icons/SVGs/regular/
+
+# Written by Claude Code; machine-local permissions, not project settings.
+.claude/settings.local.json

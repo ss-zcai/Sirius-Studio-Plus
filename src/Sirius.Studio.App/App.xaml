@@ -1,0 +1,16 @@
+<Application x:Class="Sirius.Studio.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Default control templates for the Nodify editor. -->
+                <ResourceDictionary Source="pack://application:,,,/Nodify;component/Themes/Styles/Controls.xaml" />
+                <!-- Generated from res/ by tools/svg2xaml.py -->
+                <ResourceDictionary Source="Themes/Icons.xaml" />
+                <ResourceDictionary Source="Themes/Dark.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

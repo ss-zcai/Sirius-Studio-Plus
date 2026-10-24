@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Sirius.Studio.App</RootNamespace>
+    <AssemblyName>SiriusStudioPlus</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <!-- Only English resources ship; the satellite packs add ~10 MB. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dirkster.AvalonDock" />
+    <PackageReference Include="Dirkster.AvalonDock.Themes.VS2013" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lets tests exercise helpers like the measurement geometry without
+         making them public API. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sirius.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sirius.Core\Sirius.Core.csproj" />
+    <ProjectReference Include="..\Sirius.Vision\Sirius.Vision.csproj" />
+    <ProjectReference Include="..\Sirius.NodeEditor\Sirius.NodeEditor.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Icons\**\*.svg" />
+  </ItemGroup>
+
+  <!--
+    Files that have to travel with a published build.
+
+    The node reference goes under docs/ beside the executable because that is
+    the first place Help looks; without it a packaged build tells the tester
+    to run a dotnet command, which is no use to them.
+
+    The notices are not optional. The icon set is derived from Phosphor,
+    whose MIT terms require the licence to accompany every copy, and the
+    Emgu.CV position needs to be visible to whoever is holding a build rather
+    than recorded only in the repository.
+  -->
+  <ItemGroup>
+    <Content Include="..\..\docs\node-reference.md"
+             Link="docs\node-reference.md"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD-PARTY-NOTICES.txt"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\res\ui icons\LICENSE-phosphor.txt"
+             Link="LICENSE-phosphor.txt"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

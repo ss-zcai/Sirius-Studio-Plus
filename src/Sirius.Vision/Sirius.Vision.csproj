@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Sirius.Vision</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Emgu.CV" />
+    <!-- Flows transitively to the app and test projects so natives get copied. -->
+    <PackageReference Include="Emgu.CV.runtime.windows" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lets tests exercise helpers like kernel parsing without making them public API. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sirius.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sirius.Core\Sirius.Core.csproj" />
+  </ItemGroup>
+
+</Project>

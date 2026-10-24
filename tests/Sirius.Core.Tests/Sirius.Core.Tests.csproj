@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      net8.0-windows + WPF so the app's view-models can be tested. The product
+      is Windows-only regardless (WPF shell, win-x64 OpenCV natives), and the
+      view-models under test instantiate no UI elements, so no STA thread or
+      dispatcher is required.
+    -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Sirius.Core.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sirius.Core\Sirius.Core.csproj" />
+    <ProjectReference Include="..\..\src\Sirius.Vision\Sirius.Vision.csproj" />
+    <ProjectReference Include="..\..\src\Sirius.Studio.App\Sirius.Studio.App.csproj" />
+  </ItemGroup>
+
+</Project>

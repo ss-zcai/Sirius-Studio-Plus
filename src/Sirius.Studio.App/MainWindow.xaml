@@ -1,0 +1,1024 @@
+<Window x:Class="Sirius.Studio.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:nodify="https://miroiu.github.io/nodify"
+        xmlns:vm="clr-namespace:Sirius.Studio.App.ViewModels"
+        xmlns:controls="clr-namespace:Sirius.Studio.App.Controls"
+        xmlns:avalonDock="https://github.com/Dirkster99/AvalonDock"
+        xmlns:themes="clr-namespace:AvalonDock.Themes;assembly=AvalonDock.Themes.VS2013"
+        Title="{Binding Title}"
+        Height="900"
+        Width="1600"
+        WindowStartupLocation="CenterScreen"
+        Activated="OnWindowActivated"
+        Background="{StaticResource Surface.Background}">
+
+    <!--
+        Undo, cut, copy, paste and select-all go through WPF's own
+        ApplicationCommands rather than through KeyBindings on this window.
+        A window-level KeyBinding on Ctrl+C fires wherever the focus is, so
+        renaming a node and copying part of the name would copy the node
+        instead - which is the sort of thing that is maddening and hard to
+        describe. Routed as commands, a focused TextBox handles them itself
+        and they only reach the window when nothing closer wants them.
+
+        The gestures come with the commands, so they are not repeated here.
+    -->
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Undo"
+                        Executed="OnEditCommand"
+                        CanExecute="OnEditCommandCanExecute" />
+        <CommandBinding Command="ApplicationCommands.Redo"
+                        Executed="OnEditCommand"
+                        CanExecute="OnEditCommandCanExecute" />
+        <CommandBinding Command="ApplicationCommands.Cut"
+                        Executed="OnEditCommand"
+                        CanExecute="OnEditCommandCanExecute" />
+        <CommandBinding Command="ApplicationCommands.Copy"
+                        Executed="OnEditCommand"
+                        CanExecute="OnEditCommandCanExecute" />
+        <CommandBinding Command="ApplicationCommands.Paste"
+                        Executed="OnEditCommand"
+                        CanExecute="OnEditCommandCanExecute" />
+        <CommandBinding Command="ApplicationCommands.SelectAll"
+                        Executed="OnEditCommand"
+                        CanExecute="OnEditCommandCanExecute" />
+    </Window.CommandBindings>
+
+    <Window.InputBindings>
+        <KeyBinding Key="N" Modifiers="Ctrl" Command="{Binding NewGraphCommand}" />
+        <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding OpenGraphCommand}" />
+        <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveGraphCommand}" />
+        <KeyBinding Key="F5" Command="{Binding RunCommand}" />
+        <KeyBinding Key="Delete" Command="{Binding DeleteSelectionCommand}" />
+
+        <!-- The second redo gesture, which Windows applications also take. -->
+        <KeyBinding Key="Z" Modifiers="Ctrl+Shift" Command="ApplicationCommands.Redo" />
+        <KeyBinding Key="D" Modifiers="Ctrl" Command="{Binding DuplicateCommand}" />
+    </Window.InputBindings>
+
+    <!--
+        Text colour for the whole window, inherited rather than forced by an
+        implicit TextBlock style - that would also repaint popup content, which
+        sits on light chrome in its own visual tree.
+    -->
+    <Grid TextElement.Foreground="{StaticResource Text.Primary}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Menu strip -->
+        <Border Grid.Row="0" Background="{StaticResource Surface.Panel}">
+            <Menu>
+                <MenuItem Header="_File">
+                    <MenuItem Header="_New Project"
+                              InputGestureText="Ctrl+N"
+                              Command="{Binding NewGraphCommand}" />
+                    <MenuItem Header="_Open Project…"
+                              InputGestureText="Ctrl+O"
+                              Command="{Binding OpenGraphCommand}" />
+                    <MenuItem Header="Save Project _As…"
+                              Command="{Binding SaveGraphAsCommand}" />
+                    <MenuItem Header="_Save Project…"
+                              InputGestureText="Ctrl+S"
+                              Command="{Binding SaveGraphCommand}" />
+                    <Separator />
+                    <MenuItem Header="E_xit" Click="OnExitClick" />
+                </MenuItem>
+
+                <MenuItem Header="_Edit">
+                    <!--
+                        Headers follow the stack, so the menu says what it
+                        will undo: "Undo Move Threshold", not "Undo". Knowing
+                        which step is next back is most of the value of
+                        having undo at all.
+                    -->
+                    <MenuItem Header="{Binding UndoText}"
+                              InputGestureText="Ctrl+Z"
+                              Command="{Binding UndoCommand}">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource Icon.ph_undo}" Width="14" Height="14" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="{Binding RedoText}"
+                              InputGestureText="Ctrl+Y"
+                              Command="{Binding RedoCommand}">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource Icon.ph_redo}" Width="14" Height="14" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+
+                    <Separator />
+
+                    <MenuItem Header="Cu_t"
+                              InputGestureText="Ctrl+X"
+                              Command="{Binding CutCommand}">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource Icon.ph_cut}" Width="14" Height="14" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="_Copy"
+                              InputGestureText="Ctrl+C"
+                              Command="{Binding CopyCommand}">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource Icon.ph_copy}" Width="14" Height="14" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="_Paste"
+                              InputGestureText="Ctrl+V"
+                              Command="{Binding PasteCommand}">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource Icon.ph_paste}" Width="14" Height="14" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="D_uplicate"
+                              InputGestureText="Ctrl+D"
+                              Command="{Binding DuplicateCommand}" />
+
+                    <Separator />
+
+                    <MenuItem Header="Select _All"
+                              InputGestureText="Ctrl+A"
+                              Command="{Binding SelectAllCommand}" />
+                    <MenuItem Header="_Delete Selection"
+                              InputGestureText="Del"
+                              Command="{Binding DeleteSelectionCommand}" />
+
+                    <Separator />
+
+                    <!--
+                        Colours the whole selection, which is what the
+                        per-node swatches on the properties panel cannot do -
+                        marking up a branch means marking several at once.
+                    -->
+                    <!--
+                        The swatch is drawn by a HeaderTemplate rather than
+                        put in the Icon slot. A Setter.Value holding an
+                        element hands every item the *same* element, and an
+                        element has one visual parent - so the last item in
+                        the list took the swatch and the other seven showed
+                        nothing. A template is instantiated per item.
+                    -->
+                    <MenuItem Header="Node _Style" ItemsSource="{Binding AccentOptions}">
+                        <MenuItem.ItemContainerStyle>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Command"
+                                        Value="{Binding DataContext.SetAccentCommand,
+                                                RelativeSource={RelativeSource AncestorType=Window}}" />
+                                <Setter Property="CommandParameter" Value="{Binding Accent}" />
+                                <Setter Property="HeaderTemplate"
+                                        Value="{StaticResource AccentItemTemplate}" />
+                            </Style>
+                        </MenuItem.ItemContainerStyle>
+                    </MenuItem>
+
+                    <Separator />
+
+                    <MenuItem Header="_Run Graph"
+                              InputGestureText="F5"
+                              Command="{Binding RunCommand}" />
+                </MenuItem>
+
+                <MenuItem Header="_View">
+                    <MenuItem Header="_Toolbox" Tag="toolbox" Click="OnShowPanelClick" />
+                    <MenuItem Header="_Properties" Tag="properties" Click="OnShowPanelClick" />
+                    <Separator />
+                    <MenuItem Header="_Reset Layout" Click="OnResetLayoutClick" />
+                </MenuItem>
+
+                <MenuItem Header="_Help">
+                    <MenuItem Header="Node _Reference…" Click="OnNodeReferenceClick" />
+                    <MenuItem Header="_UI Gallery…" Click="OnGalleryClick" />
+                    <Separator />
+                    <MenuItem Header="_About Sirius Studio Plus…" Click="OnAboutClick" />
+                </MenuItem>
+            </Menu>
+        </Border>
+
+        <!--
+            Toolbar. A plain panel rather than a ToolBar control, whose chrome
+            (gripper, overflow button) carries its own theming that would have
+            to be unpicked. Grouped with separators so further groups -
+            measurement tools, view options - slot in without rework.
+        -->
+        <Border Grid.Row="1"
+                Background="{StaticResource Surface.Panel}"
+                BorderBrush="{StaticResource Surface.Border}"
+                BorderThickness="0,1,0,1"
+                Padding="6,4">
+            <StackPanel Orientation="Horizontal">
+                <!-- Project -->
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="New project (Ctrl+N)"
+                        Command="{Binding NewGraphCommand}">
+                    <Image Source="{StaticResource Icon.ph_new}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Open project (Ctrl+O)"
+                        Command="{Binding OpenGraphCommand}">
+                    <Image Source="{StaticResource Icon.ph_open}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Save project (Ctrl+S)"
+                        Command="{Binding SaveGraphCommand}">
+                    <Image Source="{StaticResource Icon.ph_save}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Save project as…"
+                        Command="{Binding SaveGraphAsCommand}">
+                    <Image Source="{StaticResource Icon.ph_save_as}" Width="18" Height="18" />
+                </Button>
+
+                <Separator />
+
+                <!-- History. Tooltips name the step, as the menu does. -->
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="{Binding UndoText}"
+                        Command="{Binding UndoCommand}">
+                    <Image Source="{StaticResource Icon.ph_undo}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="{Binding RedoText}"
+                        Command="{Binding RedoCommand}">
+                    <Image Source="{StaticResource Icon.ph_redo}" Width="18" Height="18" />
+                </Button>
+
+                <Separator />
+
+                <!-- Clipboard -->
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Cut the selected nodes (Ctrl+X)"
+                        Command="{Binding CutCommand}">
+                    <Image Source="{StaticResource Icon.ph_cut}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Copy the selected nodes (Ctrl+C)"
+                        Command="{Binding CopyCommand}">
+                    <Image Source="{StaticResource Icon.ph_copy}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Paste nodes (Ctrl+V)"
+                        Command="{Binding PasteCommand}">
+                    <Image Source="{StaticResource Icon.ph_paste}" Width="18" Height="18" />
+                </Button>
+
+                <Separator />
+
+                <!--
+                    The styler, built like the viewer's colour picker: a
+                    swatch and a name, and what it shows is what the
+                    selection currently is. The descriptions live in the
+                    Edit menu's tooltips - a dropdown is for picking a
+                    colour you already know, not for reading about eight.
+                -->
+                <Image Source="{StaticResource Icon.ph_style}"
+                       Width="18"
+                       Height="18"
+                       Margin="4,0,2,0"
+                       VerticalAlignment="Center"
+                       Opacity="{Binding HasNodeSelection, Converter={StaticResource EnabledToOpacity}}" />
+
+                <ComboBox Width="110"
+                          Margin="2,0"
+                          VerticalAlignment="Center"
+                          ToolTip="Colour the selected nodes"
+                          IsEnabled="{Binding HasNodeSelection}"
+                          ItemsSource="{Binding AccentOptions}"
+                          SelectedItem="{Binding SelectedAccentOption, Mode=TwoWay}"
+                          ItemTemplate="{StaticResource AccentItemTemplate}" />
+
+                <Separator />
+
+                <!-- Execution -->
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Run everything again (F5) — timing appears in the status bar"
+                        Command="{Binding RunCommand}">
+                    <Image Source="{StaticResource Icon.ph_run}" Width="18" Height="18" />
+                </Button>
+
+                <TextBlock Text="running…"
+                           Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource Accent}"
+                           Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+        </Border>
+
+        <!--
+            IDE-style docking. Every panel can be dragged to another edge,
+            tabbed with a sibling, floated into its own window, or closed and
+            re-opened from the View menu. The layout is persisted between runs;
+            see MainWindow.xaml.cs.
+
+            The graph is a LayoutDocument rather than an anchorable because it
+            is the thing being worked on - documents hold the centre of the
+            workspace and cannot be auto-hidden to an edge.
+        -->
+        <avalonDock:DockingManager x:Name="Docking"
+                                   Grid.Row="2"
+                                   AllowMixedOrientation="True"
+                                   Background="{StaticResource Surface.Background}">
+            <avalonDock:DockingManager.Theme>
+                <themes:Vs2013DarkTheme />
+            </avalonDock:DockingManager.Theme>
+
+            <avalonDock:LayoutRoot>
+                <avalonDock:LayoutPanel Orientation="Horizontal">
+
+                    <avalonDock:LayoutAnchorablePane DockWidth="230">
+                        <avalonDock:LayoutAnchorable Title="Toolbox"
+                                                     ContentId="toolbox"
+                                                     CanClose="False">
+                        <!--
+                            Accordion toolbox: one category open at a time, enforced by
+                            MainViewModel. Each entry is a drag source - drop it on the graph
+                            to create that node where it lands.
+                        -->
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding Palette}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:PaletteGroupViewModel}">
+                                        <Expander Header="{Binding DisplayName}"
+                                                  IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                                            <ItemsControl ItemsSource="{Binding Items}" Margin="0,2,0,6">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:PaletteItemViewModel}">
+                                                        <Border Background="Transparent"
+                                                                Padding="10,4,8,4"
+                                                                Cursor="Hand"
+                                                                ToolTip="{Binding Description}"
+                                                                PreviewMouseLeftButtonDown="OnToolboxItemMouseDown"
+                                                                PreviewMouseMove="OnToolboxItemMouseMove">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Image Source="{Binding IconKey, Converter={StaticResource IconKeyToImage}}"
+                                                                       Width="16"
+                                                                       Height="16"
+                                                                       Margin="0,0,8,0"
+                                                                       VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Expander>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        </avalonDock:LayoutAnchorable>
+                    </avalonDock:LayoutAnchorablePane>
+
+                    <avalonDock:LayoutPanel Orientation="Vertical">
+
+                        <avalonDock:LayoutDocumentPane>
+                            <avalonDock:LayoutDocument Title="Graph"
+                                                       ContentId="graph"
+                                                       CanClose="False">
+                        <nodify:NodifyEditor x:Name="GraphEditor"
+                                     AllowDrop="True"
+                                     DragOver="OnGraphDragOver"
+                                     Drop="OnGraphDrop"
+                                     MouseDoubleClick="OnGraphDoubleClick"
+                                             Background="{StaticResource Surface.Canvas}"
+                                             ItemsSource="{Binding Editor.Nodes}"
+                                             Connections="{Binding Editor.Connections}"
+                                             PendingConnection="{Binding Editor.PendingConnection}"
+                                             SelectedItems="{Binding Editor.SelectedItems}"
+                                             SelectedConnections="{Binding Editor.SelectedConnections}"
+                                             CanSelectMultipleConnections="True"
+                                             ConnectionStartedCommand="{Binding Editor.StartConnectionCommand}"
+                                             ConnectionCompletedCommand="{Binding Editor.CompleteConnectionCommand}"
+                                             DisconnectConnectorCommand="{Binding Editor.DisconnectCommand}"
+                                             RemoveConnectionCommand="{Binding Editor.RemoveConnectionCommand}"
+                                             GridCellSize="20">
+
+                            <nodify:NodifyEditor.ItemContainerStyle>
+                                <Style TargetType="nodify:ItemContainer">
+                                    <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
+                                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+
+                                    <!--
+                                        The stock selection outline has square corners, leaving gaps
+                                        against the node's rounded ones. Drawn here so the radii match.
+                                    -->
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="nodify:ItemContainer">
+                                                <Grid>
+                                                    <!--
+                                                        Behind the content on purpose: sockets straddle the node
+                                                        border, so an outline drawn on top would cut across them.
+                                                    -->
+                                                    <Border x:Name="SelectionOutline"
+                                                            Margin="-2"
+                                                            CornerRadius="6"
+                                                            BorderBrush="#FBBF24"
+                                                            BorderThickness="2"
+                                                            IsHitTestVisible="False"
+                                                            Visibility="Collapsed" />
+                                                    <ContentPresenter />
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="SelectionOutline" Property="Visibility" Value="Visible" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </nodify:NodifyEditor.ItemContainerStyle>
+
+                            <nodify:NodifyEditor.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:NodeViewModel}">
+                                    <nodify:Node Input="{Binding Inputs}"
+                                                 Output="{Binding Outputs}"
+                                                 Opacity="{Binding Enabled, Converter={StaticResource EnabledToOpacity}}"
+                                                 ContentPadding="0"
+                                                 ContentBrush="Transparent"
+                                                 Background="{Binding AccentStyle.Background}"
+                                                 BorderBrush="{Binding AccentStyle.Border}"
+                                                 Foreground="{Binding AccentStyle.Text}"
+                                                 BorderThickness="1"
+                                                 ToolTip="{Binding Description}">
+
+                                        <nodify:Node.Header>
+                                            <Grid Margin="2,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <Image Grid.Column="0"
+                                                       Source="{Binding IconKey, Converter={StaticResource IconKeyToImage}}"
+                                                       Width="15"
+                                                       Height="15"
+                                                       Margin="0,0,7,0"
+                                                       VerticalAlignment="Center" />
+
+                                                <!--
+                                                    Tag marks the caption, so a double click here starts a rename
+                                                    while a double click elsewhere on the node opens its panel.
+                                                -->
+                                                <Grid Grid.Column="1">
+                                                    <TextBlock Tag="NodeTitle"
+                                                               Text="{Binding Title}"
+                                                               FontWeight="SemiBold"
+                                                               VerticalAlignment="Center"
+                                                               ToolTip="Double-click to rename"
+                                                               Visibility="{Binding IsEditingName, Converter={StaticResource InverseBoolToVisibility}}" />
+
+                                                    <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                             FontWeight="SemiBold"
+                                                             MinWidth="90"
+                                                             Padding="2,0"
+                                                             LostFocus="OnNodeNameEditorLostFocus"
+                                                             KeyDown="OnNodeNameEditorKeyDown"
+                                                             IsVisibleChanged="OnNodeNameEditorVisibleChanged"
+                                                             Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}}" />
+                                                </Grid>
+
+                                                <!--
+                                                    Status indicator, top right: grey idle, green ready,
+                                                    amber warning, red error. The message itself lives in
+                                                    the properties panel.
+                                                -->
+                                                <Ellipse Grid.Column="2"
+                                                         Width="8"
+                                                         Height="8"
+                                                         Margin="10,0,2,0"
+                                                         VerticalAlignment="Center"
+                                                         Fill="{Binding Status, Converter={StaticResource StatusToBrush}}"
+                                                         ToolTip="{Binding StatusMessage}" />
+                                            </Grid>
+                                        </nodify:Node.Header>
+
+                                        <nodify:Node.InputConnectorTemplate>
+                                            <DataTemplate DataType="{x:Type vm:ConnectorViewModel}">
+                                                <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                                  IsConnected="{Binding IsConnected, Mode=OneWay}"
+                                                                  ToolTip="{Binding ToolTipText}"
+                                                                  Template="{StaticResource InputSocketTemplate}" />
+                                            </DataTemplate>
+                                        </nodify:Node.InputConnectorTemplate>
+
+                                        <nodify:Node.OutputConnectorTemplate>
+                                            <DataTemplate DataType="{x:Type vm:ConnectorViewModel}">
+                                                <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                                   IsConnected="{Binding IsConnected, Mode=OneWay}"
+                                                                   ToolTip="{Binding ToolTipText}"
+                                                                   Template="{StaticResource OutputSocketTemplate}" />
+                                            </DataTemplate>
+                                        </nodify:Node.OutputConnectorTemplate>
+                                    </nodify:Node>
+                                </DataTemplate>
+                            </nodify:NodifyEditor.ItemTemplate>
+
+                            <nodify:NodifyEditor.ConnectionTemplate>
+                                <DataTemplate DataType="{x:Type vm:ConnectionViewModel}">
+                                    <!--
+                                        Tag carries the editor view-model so the context
+                                        menu can reach its commands: a ContextMenu lives
+                                        in its own visual tree and cannot walk up to the
+                                        Window.
+                                    -->
+                                    <nodify:Connection Source="{Binding Source.Anchor}"
+                                                       Target="{Binding Target.Anchor}"
+                                                       ToolTip="{Binding Description}"
+                                                       IsSelectable="True"
+                                                       IsSelected="{Binding IsSelected, Mode=TwoWay}"
+                                                       DisconnectCommand="{Binding DataContext.Editor.RemoveConnectionCommand,
+                                                                           RelativeSource={RelativeSource AncestorType=Window}}"
+                                                       Tag="{Binding DataContext.Editor,
+                                                             RelativeSource={RelativeSource AncestorType=Window}}">
+                                        <!--
+                                            Stroke and thickness live in the style, not
+                                            as attributes: a locally set value outranks
+                                            a style trigger, so hover and selected
+                                            states could never take effect.
+                                        -->
+                                        <nodify:Connection.Style>
+                                            <Style TargetType="nodify:Connection">
+                                                <Setter Property="Stroke" Value="{StaticResource Accent}" />
+                                                <Setter Property="StrokeThickness" Value="2" />
+
+                                                <!--
+                                                    OutlineThickness is both the glow and the
+                                                    clickable band, so one value serves both.
+                                                    At 3.5px against a 2.5px selected stroke the
+                                                    glow is a thin rim rather than a band - the
+                                                    colour change carries the selection, the glow
+                                                    only softens its edge. Lower than this and
+                                                    the wire becomes awkward to click.
+                                                    Transparent rather than null at rest:
+                                                    transparent is hit-testable in WPF,
+                                                    null is not.
+                                                -->
+                                                <Setter Property="OutlineBrush" Value="Transparent" />
+                                                <Setter Property="OutlineThickness" Value="3.5" />
+
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Stroke" Value="#BFDBFE" />
+                                                        <Setter Property="StrokeThickness" Value="2.5" />
+                                                        <Setter Property="OutlineBrush" Value="#5560A5FA" />
+                                                    </Trigger>
+
+                                                    <!-- Selected: amber, to read clearly against the blue idle state -->
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter Property="Stroke" Value="#FBBF24" />
+                                                        <Setter Property="StrokeThickness" Value="2.5" />
+                                                        <Setter Property="OutlineBrush" Value="#88FBBF24" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </nodify:Connection.Style>
+
+                                        <nodify:Connection.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Delete Connection"
+                                                          Command="{Binding PlacementTarget.Tag.RemoveConnectionCommand,
+                                                                    RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                            </ContextMenu>
+                                        </nodify:Connection.ContextMenu>
+                                    </nodify:Connection>
+                                </DataTemplate>
+                            </nodify:NodifyEditor.ConnectionTemplate>
+
+                            <nodify:NodifyEditor.PendingConnectionTemplate>
+                                <DataTemplate DataType="{x:Type vm:PendingConnectionViewModel}">
+                                    <nodify:PendingConnection Source="{Binding Source}"
+                                                              Target="{Binding Target}"
+                                                              AllowOnlyConnectors="True"
+                                                              EnablePreview="True"
+                                                              EnableSnapping="True" />
+                                </DataTemplate>
+                            </nodify:NodifyEditor.PendingConnectionTemplate>
+                        </nodify:NodifyEditor>
+                            </avalonDock:LayoutDocument>
+                        </avalonDock:LayoutDocumentPane>
+
+                        <!--
+                            Viewer, histogram and line-profile panels are
+                            created at runtime, one per node; the pane that
+                            holds them is built below the graph on first use.
+                            See MainWindow.xaml.cs.
+                        -->
+
+                    </avalonDock:LayoutPanel>
+
+                    <avalonDock:LayoutAnchorablePane DockWidth="300">
+                        <avalonDock:LayoutAnchorable Title="Properties"
+                                                     ContentId="properties"
+                                                     CanClose="False">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="PROPERTIES" Style="{StaticResource SectionHeader}" />
+
+                            <TextBlock DockPanel.Dock="Top"
+                                       Text="Select a node on the canvas to edit its properties."
+                                       Foreground="{StaticResource Text.Secondary}"
+                                       FontStyle="Italic"
+                                       TextWrapping="Wrap"
+                                       Margin="8,0,8,8"
+                                       Visibility="{Binding Editor.SelectedNode, Converter={StaticResource VisibleWhenNull}}" />
+
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          DataContext="{Binding Editor.SelectedNode}">
+                                <StackPanel Margin="8,0,8,8">
+                                    <Grid Margin="0,0,0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Editable: the node name is also its panel title where it has one. -->
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                 FontWeight="SemiBold"
+                                                 FontSize="14"
+                                                 ToolTip="Rename this node" />
+
+                                        <Button Grid.Column="1"
+                                                Content="?"
+                                                MinWidth="0"
+                                                Width="26"
+                                                Margin="4,0,0,0"
+                                                Padding="0"
+                                                FontWeight="SemiBold"
+                                                ToolTip="What this tool does, and what goes in and out of it"
+                                                Click="OnNodeHelpClick" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding TypeName}" Foreground="{StaticResource Text.Secondary}" FontSize="10" Margin="0,0,0,8" />
+
+                                    <!-- Bypass. Lives here rather than on the node itself. -->
+                                    <CheckBox Content="Enabled"
+                                              IsChecked="{Binding Enabled, Mode=TwoWay}"
+                                              ToolTip="Clear to bypass this node, passing its input straight through"
+                                              Margin="0,0,0,12" />
+
+                                    <ItemsControl ItemsSource="{Binding Parameters}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:ParameterViewModel}">
+                                                <StackPanel Margin="0,0,0,10">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   Foreground="{StaticResource Text.Secondary}"
+                                                                   FontSize="11"
+                                                                   ToolTip="{Binding Description}" />
+                                                        <!-- Shown while an upstream node supplies this value -->
+                                                        <TextBlock Text="  (driven by connection)"
+                                                                   FontSize="11"
+                                                                   FontStyle="Italic"
+                                                                   Foreground="#FBBF24"
+                                                                   Visibility="{Binding IsDriven, Converter={StaticResource BoolToVisibility}}" />
+                                                    </StackPanel>
+                                                    
+                                                    <!--
+                                                        Editors are disabled while a wire drives the parameter, so the
+                                                        inspector cannot be used to set a value that evaluation ignores.
+                                                    -->
+                                                    <ContentControl IsEnabled="{Binding IsEditable}" Focusable="False">
+                                                        <ContentControl.Template>
+                                                            <ControlTemplate TargetType="ContentControl">
+                                                                <ContentPresenter />
+                                                            </ControlTemplate>
+                                                        </ContentControl.Template>
+                                                        <StackPanel>
+
+                                                        <!-- Slider: numeric parameter with a declared Min/Max -->
+                                                        <Grid Visibility="{Binding IsSlider, Converter={StaticResource BoolToVisibility}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="52" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Slider Grid.Column="0"
+                                                                    Minimum="{Binding Minimum}"
+                                                                    Maximum="{Binding Maximum}"
+                                                                    TickFrequency="{Binding Step}"
+                                                                    IsSnapToTickEnabled="True"
+                                                                    Value="{Binding NumericValue, Mode=TwoWay}"
+                                                                    VerticalAlignment="Center" />
+                                                            <TextBox Grid.Column="1"
+                                                                     Text="{Binding NumericText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                                     Margin="4,0,0,0" />
+                                                        </Grid>
+
+                                                        <!--
+                                                            Range: one track, two handles, a box at
+                                                            each end. A band is one decision, so it
+                                                            gets one control - six sliders for a
+                                                            colour range left the pairing to be
+                                                            worked out from the labels.
+                                                        -->
+                                                        <Grid Visibility="{Binding IsRange, Converter={StaticResource BoolToVisibility}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="44" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="44" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBox Grid.Column="0"
+                                                                     Text="{Binding RangeLowText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                                     ToolTip="Lowest value that passes. Blank for no limit."
+                                                                     Margin="0,0,4,0" />
+
+                                                            <controls:RangeSlider Grid.Column="1"
+                                                                                  Minimum="{Binding Minimum}"
+                                                                                  Maximum="{Binding Maximum}"
+                                                                                  Step="{Binding Step}"
+                                                                                  IsLogarithmic="{Binding IsLogarithmic}"
+                                                                                  Low="{Binding RangeLow, Mode=TwoWay}"
+                                                                                  High="{Binding RangeHigh, Mode=TwoWay}"
+                                                                                  VerticalAlignment="Center" />
+
+                                                            <TextBox Grid.Column="2"
+                                                                     Text="{Binding RangeHighText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                                     ToolTip="Highest value that passes. Blank for no limit."
+                                                                     Margin="4,0,0,0" />
+                                                        </Grid>
+
+                                                        <!--
+                                                            Rect: one line of numbers, and a
+                                                            button that opens the image the
+                                                            region is measured in so it can be
+                                                            dragged there instead of typed.
+                                                        -->
+                                                        <Grid Visibility="{Binding IsRect, Converter={StaticResource BoolToVisibility}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBox Grid.Column="0"
+                                                                     Text="{Binding RectText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                                     ToolTip="Centre x, centre y, width, height, angle" />
+
+                                                            <Button Grid.Column="1"
+                                                                    MinWidth="0"
+                                                                    Width="24"
+                                                                    Margin="4,0,0,0"
+                                                                    Padding="0"
+                                                                    ToolTip="Draw this region on the node's input image"
+                                                                    Command="{Binding DataContext.DrawRegionCommand,
+                                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <Image Source="{StaticResource Icon.ph_roi}" Width="14" Height="14" />
+                                                            </Button>
+                                                        </Grid>
+
+                                                        <CheckBox IsChecked="{Binding BoolValue, Mode=TwoWay}"
+                                                                  Visibility="{Binding IsCheckBox, Converter={StaticResource BoolToVisibility}}" />
+
+                                                        <ComboBox ItemsSource="{Binding Options}"
+                                                                  SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
+                                                                  Visibility="{Binding IsComboBox, Converter={StaticResource BoolToVisibility}}" />
+
+                                                        <!-- Region: four boxes; drawable on the viewer in a later phase -->
+                                                        <UniformGrid Columns="4"
+                                                                     Visibility="{Binding IsRegion, Converter={StaticResource BoolToVisibility}}">
+                                                            <TextBox Text="{Binding RegionX, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="X" Margin="0,0,2,0" />
+                                                            <TextBox Text="{Binding RegionY, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Y" Margin="0,0,2,0" />
+                                                            <TextBox Text="{Binding RegionWidth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Width" Margin="0,0,2,0" />
+                                                            <TextBox Text="{Binding RegionHeight, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Height" />
+                                                        </UniformGrid>
+
+                                                        <!--
+                                                            File path: text box plus a browse button.
+                                                            MinWidth is cleared because the Button style
+                                                            sets 64 to line ordinary buttons up, and
+                                                            MinWidth beats Width - the button would be a
+                                                            wide rectangle beside a one-line field.
+                                                        -->
+                                                        <Grid Visibility="{Binding IsFilePath, Converter={StaticResource BoolToVisibility}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBox Grid.Column="0"
+                                                                     Text="{Binding TextValue, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                                     ToolTip="{Binding TextValue}"
+                                                                     VerticalContentAlignment="Center" />
+                                                            <Button Grid.Column="1"
+                                                                    Content="..."
+                                                                    Width="26"
+                                                                    MinWidth="0"
+                                                                    Margin="4,0,0,0"
+                                                                    Padding="0"
+                                                                    Command="{Binding BrowseCommand}"
+                                                                    ToolTip="Browse for a file" />
+                                                        </Grid>
+
+                                                        <!--
+                                                            Colour: swatches, with the hex beside them
+                                                            for anything not in the list. The name is
+                                                            drawn in its own colour, which is why the
+                                                            items are bound rather than hand-written -
+                                                            a generated item inherits the theme
+                                                            foreground, a hand-written TextBlock does
+                                                            not reliably do so in the closed box.
+                                                        -->
+                                                        <Grid Visibility="{Binding IsColour, Converter={StaticResource BoolToVisibility}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="92" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <ComboBox Grid.Column="0"
+                                                                      ItemsSource="{Binding ColourOptions}"
+                                                                      SelectedItem="{Binding SelectedColour, Mode=TwoWay}"
+                                                                      ToolTip="Standard colours">
+                                                                <ComboBox.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <Rectangle Width="11"
+                                                                                       Height="11"
+                                                                                       Margin="0,0,6,0"
+                                                                                       VerticalAlignment="Center"
+                                                                                       Stroke="#4A4D52"
+                                                                                       StrokeThickness="1"
+                                                                                       Fill="{Binding Swatch}" />
+                                                                            <TextBlock Text="{Binding Name}"
+                                                                                       Foreground="{Binding Text}" />
+                                                                        </StackPanel>
+                                                                    </DataTemplate>
+                                                                </ComboBox.ItemTemplate>
+                                                            </ComboBox>
+
+                                                            <TextBox Grid.Column="1"
+                                                                     Margin="4,0,0,0"
+                                                                     VerticalContentAlignment="Center"
+                                                                     FontFamily="Consolas"
+                                                                     ToolTip="Any colour, as #RRGGBB or #AARRGGBB"
+                                                                     Text="{Binding TextValue, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                                                        </Grid>
+
+                                                        <!--
+                                                            Sequence: step through a folder of images. The
+                                                            buttons clear MinWidth, which the Button style
+                                                            sets to 64 so ordinary buttons line up.
+                                                        -->
+                                                        <StackPanel Visibility="{Binding IsSequence, Converter={StaticResource BoolToVisibility}}">
+                                                            <DockPanel>
+                                                                <Button DockPanel.Dock="Left"
+                                                                        Content="&#x25C0;"
+                                                                        Width="30"
+                                                                        MinWidth="0"
+                                                                        Margin="0"
+                                                                        Padding="0"
+                                                                        Command="{Binding PreviousCommand}"
+                                                                        ToolTip="Previous image" />
+
+                                                                <Button DockPanel.Dock="Right"
+                                                                        Content="&#x25B6;"
+                                                                        Width="30"
+                                                                        MinWidth="0"
+                                                                        Margin="0"
+                                                                        Padding="0"
+                                                                        Command="{Binding NextCommand}"
+                                                                        ToolTip="Next image" />
+
+                                                                <TextBlock Text="{Binding SequenceText}"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center"
+                                                                           FontFamily="Consolas"
+                                                                           FontSize="11" />
+                                                            </DockPanel>
+
+                                                            <TextBlock Text="{Binding SequenceItem}"
+                                                                       Margin="0,3,0,0"
+                                                                       FontSize="10"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       ToolTip="{Binding SequenceItem}"
+                                                                       Foreground="{StaticResource Text.Secondary}" />
+                                                        </StackPanel>
+
+                                                        <TextBox Text="{Binding TextValue, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                                 Visibility="{Binding IsTextBox, Converter={StaticResource BoolToVisibility}}" />
+                                                        </StackPanel>
+                                                    </ContentControl>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="This node has no parameters."
+                                               Foreground="{StaticResource Text.Secondary}"
+                                               FontStyle="Italic"
+                                               Visibility="{Binding HasParameters, Converter={StaticResource InverseBoolToVisibility}}" />
+
+                                    <!--
+                                        Status lives here rather than on the node, so the
+                                        canvas stays readable and long messages have room
+                                        to wrap. The node keeps only its colour dot.
+                                    -->
+                                    <Border Margin="0,16,0,0"
+                                            Padding="8"
+                                            CornerRadius="3"
+                                            Background="#1A1B1E"
+                                            BorderBrush="{StaticResource Surface.Border}"
+                                            BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="STATUS"
+                                                       Foreground="{StaticResource Text.Secondary}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,6" />
+
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="8"
+                                                         Height="8"
+                                                         VerticalAlignment="Center"
+                                                         Margin="0,0,6,0"
+                                                         Fill="{Binding Status, Converter={StaticResource StatusToBrush}}" />
+                                                <TextBlock Text="{Binding Status}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding TimingText}"
+                                                           Margin="10,0,0,0"
+                                                           Foreground="{StaticResource Text.Secondary}" />
+                                            </StackPanel>
+
+                                            <TextBlock Text="{Binding StatusMessage}"
+                                                       Margin="0,6,0,0"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="#F59E0B"
+                                                       Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibility}}" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!--
+                                        Below the status rather than above the
+                                        parameters: these open a window, they
+                                        do not change the recipe, so they do
+                                        not belong in the list of things that
+                                        do.
+                                    -->
+                                    <Border Margin="0,10,0,0"
+                                            Padding="8"
+                                            CornerRadius="3"
+                                            Background="#1A1B1E"
+                                            BorderBrush="{StaticResource Surface.Border}"
+                                            BorderThickness="1"
+                                            Visibility="{Binding DataContext.HasPreviews,
+                                                         RelativeSource={RelativeSource AncestorType=Window},
+                                                         Converter={StaticResource BoolToVisibility}}">
+                                        <StackPanel>
+                                            <TextBlock Text="PREVIEW"
+                                                       Foreground="{StaticResource Text.Secondary}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,6" />
+
+                                            <ItemsControl ItemsSource="{Binding DataContext.SelectedNodePreviews,
+                                                                        RelativeSource={RelativeSource AncestorType=Window}}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel Orientation="Horizontal" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="{Binding Label}"
+                                                                ToolTip="{Binding Description}"
+                                                                Margin="0,0,6,0"
+                                                                Padding="8,2"
+                                                                Command="{Binding DataContext.PreviewPortCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </DockPanel>
+                        </avalonDock:LayoutAnchorable>
+                    </avalonDock:LayoutAnchorablePane>
+
+                </avalonDock:LayoutPanel>
+            </avalonDock:LayoutRoot>
+        </avalonDock:DockingManager>
+
+        <!-- Status bar -->
+        <Border Grid.Row="3"
+                Background="{StaticResource Surface.Panel}"
+                BorderBrush="{StaticResource Surface.Border}"
+                BorderThickness="0,1,0,0"
+                Padding="8,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding StatusText}" Foreground="{StaticResource Text.Secondary}" />
+                <TextBlock Grid.Column="1" Text="{Binding ImageSizeText}" Foreground="{StaticResource Text.Secondary}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

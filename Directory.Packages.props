@@ -1,0 +1,33 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Node graph canvas (MIT) -->
+    <PackageVersion Include="Nodify" Version="7.3.0" />
+
+    <!-- Docking / tool windows, IDE-style layouts (MS-PL) -->
+    <PackageVersion Include="Dirkster.AvalonDock" Version="4.74.1" />
+    <PackageVersion Include="Dirkster.AvalonDock.Themes.VS2013" Version="4.74.1" />
+
+    <!-- MVVM primitives: ObservableObject, RelayCommand (MIT) -->
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+
+    <!--
+      OpenCV binding. Pinned to the latest 4.x line: the 5.0.0 package is very
+      new and the 4.x API surface matches the code being ported from
+      Sirius.Studio (which used 4.3).
+      NOTE: Emgu CV is dual-licensed GPLv3 / commercial - see docs/decisions.md.
+    -->
+    <PackageVersion Include="Emgu.CV" Version="4.13.0.5924" />
+    <PackageVersion Include="Emgu.CV.runtime.windows" Version="4.13.0.5924" />
+
+    <!-- Test stack -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,215 @@
+<Window x:Class="Sirius.Studio.App.GalleryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="UI Gallery"
+        Height="820"
+        Width="920"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Surface.Background}">
+
+    <!--
+        Every themed control in one place, so the shell's appearance can be
+        reviewed without hunting for a panel that happens to use each one.
+        Each group shows normal, interacted and disabled states, since a style
+        is usually wrong in one state rather than all of them.
+    -->
+    <Grid TextElement.Foreground="{StaticResource Text.Primary}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{StaticResource Surface.Panel}"
+                BorderBrush="{StaticResource Surface.Border}"
+                BorderThickness="0,0,0,1"
+                Padding="16,10">
+            <StackPanel>
+                <TextBlock Text="UI Gallery" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock Text="Every control the shell styles, in its normal and disabled states."
+                           Foreground="{StaticResource Text.Secondary}"
+                           Margin="0,2,0,0" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+
+                    <GroupBox Header="SLIDERS">
+                        <StackPanel>
+                            <TextBlock Text="Value" Foreground="{StaticResource Text.Secondary}" FontSize="11" />
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="52" />
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0" Maximum="255" Value="128" />
+                                <TextBox Grid.Column="1" Text="128.00" Margin="4,0,0,0" />
+                            </Grid>
+
+                            <TextBlock Text="At the ends" Foreground="{StaticResource Text.Secondary}" FontSize="11" />
+                            <Slider Minimum="0" Maximum="100" Value="0" Margin="0,0,0,6" />
+                            <Slider Minimum="0" Maximum="100" Value="100" Margin="0,0,0,10" />
+
+                            <TextBlock Text="Disabled" Foreground="{StaticResource Text.Secondary}" FontSize="11" />
+                            <Slider Minimum="0" Maximum="100" Value="40" IsEnabled="False" />
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="TEXT INPUT">
+                        <StackPanel>
+                            <TextBox Text="Editable value" Margin="0,0,0,8" />
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="C:\images\part.tif" />
+                                <Button Grid.Column="1" Content="..." Width="26" MinWidth="0" Margin="4,0,0,0" Padding="0" />
+                            </Grid>
+                            <TextBox Text="Disabled" IsEnabled="False" />
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="CHOICE">
+                        <StackPanel>
+                            <CheckBox Content="Enabled" IsChecked="True" Margin="0,0,0,8" />
+                            <CheckBox Content="Unchecked" Margin="0,0,0,8" />
+                            <CheckBox Content="Disabled" IsChecked="True" IsEnabled="False" Margin="0,0,0,12" />
+
+                            <RadioButton Content="First option" IsChecked="True" Margin="0,0,0,8" />
+                            <RadioButton Content="Second option" Margin="0,0,0,8" />
+                            <RadioButton Content="Disabled" IsEnabled="False" />
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="DROP-DOWN">
+                        <StackPanel>
+                            <ComboBox SelectedIndex="0" Margin="0,0,0,8">
+                                <ComboBoxItem Content="Binary" />
+                                <ComboBoxItem Content="BinaryInv" />
+                                <ComboBoxItem Content="Truncate" />
+                                <ComboBoxItem Content="ToZero" />
+                            </ComboBox>
+                            <ComboBox SelectedIndex="0" IsEnabled="False">
+                                <ComboBoxItem Content="Disabled" />
+                            </ComboBox>
+                        </StackPanel>
+                    </GroupBox>
+
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+
+                    <GroupBox Header="BUTTONS">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <Button Content="Normal" />
+                                <Button Content="Another" />
+                                <Button Content="Disabled" IsEnabled="False" />
+                            </StackPanel>
+
+                            <TextBlock Text="Toolbar (icon only)"
+                                       Foreground="{StaticResource Text.Secondary}"
+                                       FontSize="11"
+                                       Margin="0,0,0,4" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource ToolbarButton}" ToolTip="New">
+                                    <Image Source="{StaticResource Icon.ph_new}" Width="18" Height="18" />
+                                </Button>
+                                <Button Style="{StaticResource ToolbarButton}" ToolTip="Open">
+                                    <Image Source="{StaticResource Icon.ph_open}" Width="18" Height="18" />
+                                </Button>
+                                <Button Style="{StaticResource ToolbarButton}" ToolTip="Save">
+                                    <Image Source="{StaticResource Icon.ph_save}" Width="18" Height="18" />
+                                </Button>
+                                <Button Style="{StaticResource ToolbarButton}" ToolTip="Run">
+                                    <Image Source="{StaticResource Icon.ph_run}" Width="18" Height="18" />
+                                </Button>
+                                <Button Style="{StaticResource ToolbarButton}" ToolTip="Disabled" IsEnabled="False">
+                                    <Image Source="{StaticResource Icon.ph_open_image}" Width="18" Height="18" />
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="STATUS COLOURS">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Ellipse Width="9" Height="9" Fill="#6B7280" VerticalAlignment="Center" />
+                                <TextBlock Text="Idle" Margin="8,0,20,0" />
+                                <Ellipse Width="9" Height="9" Fill="#22C55E" VerticalAlignment="Center" />
+                                <TextBlock Text="Ready" Margin="8,0,20,0" />
+                                <Ellipse Width="9" Height="9" Fill="#F59E0B" VerticalAlignment="Center" />
+                                <TextBlock Text="Warning" Margin="8,0,20,0" />
+                                <Ellipse Width="9" Height="9" Fill="#EF4444" VerticalAlignment="Center" />
+                                <TextBlock Text="Error" Margin="8,0,0,0" />
+                            </StackPanel>
+                            <TextBlock Text="Input 'In' is not connected." Foreground="#F59E0B" />
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="PORT COLOURS">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Width="13" Height="13" CornerRadius="1" Background="#60A5FA" />
+                                <TextBlock Text="Image (square)" Margin="8,0,20,0" />
+                                <Border Width="13" Height="13" CornerRadius="7" Background="#FBBF24" />
+                                <TextBlock Text="Number" Margin="8,0,0,0" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="13" Height="13" CornerRadius="7" Background="#A78BFA" />
+                                <TextBlock Text="Histogram" Margin="8,0,20,0" />
+                                <Border Width="13" Height="13" CornerRadius="7" Background="#F472B6" />
+                                <TextBlock Text="Profile" Margin="8,0,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="PROGRESS AND SCROLLING">
+                        <StackPanel>
+                            <ProgressBar Value="35" Maximum="100" Margin="0,0,0,12" />
+                            <ScrollViewer Height="86"
+                                          VerticalScrollBarVisibility="Visible"
+                                          Background="#1A1B1E">
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="Scroll to see the bar" />
+                                    <TextBlock Text="Line two" />
+                                    <TextBlock Text="Line three" />
+                                    <TextBlock Text="Line four" />
+                                    <TextBlock Text="Line five" />
+                                    <TextBlock Text="Line six" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="GROUPING">
+                        <StackPanel>
+                            <Expander Header="Collapsible section" IsExpanded="True">
+                                <StackPanel Margin="10,6,0,6">
+                                    <TextBlock Text="Expanded content" />
+                                </StackPanel>
+                            </Expander>
+                            <TabControl Margin="0,10,0,0" Height="70">
+                                <TabItem Header="First">
+                                    <TextBlock Text="First tab" Margin="8" />
+                                </TabItem>
+                                <TabItem Header="Second">
+                                    <TextBlock Text="Second tab" Margin="8" />
+                                </TabItem>
+                            </TabControl>
+                        </StackPanel>
+                    </GroupBox>
+
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</Window>

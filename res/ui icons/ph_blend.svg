@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" data-name="ph_blend">
+  <g opacity=".5"><polygon points="16 104 128 168 240 104 128 40 16 104" fill="none" stroke="#333" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/><polyline points="16 144 128 208 240 144" fill="none" stroke="#333" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <polygon points="16 104 128 168 240 104 128 40 16 104" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><polyline points="16 144 128 208 240 144" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

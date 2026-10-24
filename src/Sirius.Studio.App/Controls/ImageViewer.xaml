@@ -1,0 +1,295 @@
+<UserControl x:Class="Sirius.Studio.App.Controls.ImageViewer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Sirius.Studio.App.ViewModels"
+             ClipToBounds="True"
+             Focusable="True"
+             Background="#17181A">
+
+    <UserControl.Resources>
+        <!-- Vertical rule between toolbar groups. -->
+        <Style x:Key="ToolbarDivider" TargetType="Border">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Margin" Value="4,3" />
+            <Setter Property="Background" Value="{StaticResource Surface.Border}" />
+        </Style>
+
+        <!-- Colour swatch in the picker. -->
+        <Style x:Key="Swatch" TargetType="Rectangle">
+            <Setter Property="Width" Value="11" />
+            <Setter Property="Height" Value="11" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Stroke" Value="#4A4D52" />
+            <Setter Property="StrokeThickness" Value="1" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--
+            Toolbar. Zoom first, then the measurement tools, then what applies to
+            a measurement once placed: zoom changes how you look, a tool changes
+            what the next drag does, and mixing the two invites mis-clicks.
+        -->
+        <Border Grid.Row="0"
+                Background="{StaticResource Surface.Panel}"
+                BorderBrush="{StaticResource Surface.Border}"
+                BorderThickness="0,0,0,1"
+                Padding="4,3">
+            <DockPanel>
+                <TextBlock x:Name="ZoomText"
+                           DockPanel.Dock="Right"
+                           VerticalAlignment="Center"
+                           Margin="8,0,6,0"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           Foreground="{StaticResource Text.Secondary}" />
+
+                <!--
+                    One line always. A ToolBar rather than a panel because
+                    what is wanted here is precisely what it does: lay out
+                    what fits and move the rest into a menu, reparenting them
+                    as the width changes. Wrapping instead cost a second row
+                    of chrome on every viewer, which on a small screen with
+                    three viewers open is most of the window.
+                -->
+                <ToolBar x:Name="Tools">
+                    <Button Style="{StaticResource ToolbarButton}" ToolTip="Zoom in" Click="OnZoomInClick">
+                        <Image Source="{StaticResource Icon.ph_zoom_in}" Width="17" Height="17" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" ToolTip="Zoom out" Click="OnZoomOutClick">
+                        <Image Source="{StaticResource Icon.ph_zoom_out}" Width="17" Height="17" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" ToolTip="Fit to window" Click="OnFitClick">
+                        <Image Source="{StaticResource Icon.ph_zoom_fit}" Width="17" Height="17" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" ToolTip="Actual size (1:1)" Click="OnActualSizeClick">
+                        <Image Source="{StaticResource Icon.ph_zoom_actual}" Width="17" Height="17" />
+                    </Button>
+
+                    <Border Style="{StaticResource ToolbarDivider}" />
+
+                    <!-- Tag carries the tool each button selects. -->
+                    <ToggleButton x:Name="PointerTool"
+                                  Style="{StaticResource ViewerToolButton}"
+                                  Tag="None"
+                                  IsChecked="True"
+                                  ToolTip="Pointer — pan, select measurements, edit regions"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_pointer}" Width="17" Height="17" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ViewerToolButton}"
+                                  Tag="PointToPoint"
+                                  ToolTip="Point to point — drag from one point to the other"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_measure_p2p}" Width="17" Height="17" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ViewerToolButton}"
+                                  Tag="PointToLine"
+                                  ToolTip="Point to line — click the point, then drag along the line"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_measure_p2l}" Width="17" Height="17" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ViewerToolButton}"
+                                  Tag="LineToLineParallel"
+                                  ToolTip="Parallel lines — drag across the gap; reference lines mark both edges"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_measure_parallel}" Width="17" Height="17" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ViewerToolButton}"
+                                  Tag="LineToLineAngled"
+                                  ToolTip="Line to line — drag each line; reports closest approach and angle"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_measure_l2l}" Width="17" Height="17" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ViewerToolButton}"
+                                  Tag="Angle"
+                                  ToolTip="Angle — vertex first, then a point on each arm"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_measure_angle}" Width="17" Height="17" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ViewerToolButton}"
+                                  Tag="CircleCentre"
+                                  ToolTip="Circle from centre — drag from the centre out to the edge"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_measure_circle}" Width="17" Height="17" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ViewerToolButton}"
+                                  Tag="CircleThreePoint"
+                                  ToolTip="Circle through three points — click three points on the curve"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_measure_circle3}" Width="17" Height="17" />
+                    </ToggleButton>
+
+                    <!--
+                        Profiles the image this viewer is showing, so the line
+                        and the pixels it reads are unambiguously the same
+                        thing - which coordinates typed into a node are not.
+                    -->
+                    <ToggleButton Style="{StaticResource ViewerToolButton}"
+                                  Tag="LineProfile"
+                                  ToolTip="Line profile — drag a line to chart intensity along it"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_measure_profile}" Width="17" Height="17" />
+                    </ToggleButton>
+
+                    <Border Style="{StaticResource ToolbarDivider}" />
+
+                    <!--
+                        Show and hide the two kinds of overlay. Separately,
+                        because they answer different questions: what did the
+                        graph find, and what did I measure myself.
+
+                        No Tag, which is how the tool buttons tell themselves
+                        apart from these - they share a parent and the tool
+                        group is found by scanning it.
+                    -->
+                    <ToggleButton x:Name="ShowShapesButton"
+                                  Style="{StaticResource ViewerToolButton}"
+                                  IsChecked="True"
+                                  ToolTip="Show results from the graph"
+                                  Click="OnToggleShapesClick">
+                        <Image Source="{StaticResource Icon.ph_show_shapes}" Width="17" Height="17" />
+                    </ToggleButton>
+
+                    <ToggleButton x:Name="ShowMeasurementsButton"
+                                  Style="{StaticResource ViewerToolButton}"
+                                  IsChecked="True"
+                                  ToolTip="Show measurements drawn by hand"
+                                  Click="OnToggleMeasurementsClick">
+                        <Image Source="{StaticResource Icon.ph_show_measurements}" Width="17" Height="17" />
+                    </ToggleButton>
+
+                    <Border Style="{StaticResource ToolbarDivider}" />
+
+                    <!--
+                        Applies to new measurements, and to the selected one, so a
+                        reading lost against the image can be changed after the fact.
+
+                        Bound to the shared palette, so a measurement and an
+                        annotation set to the same green actually match. Each
+                        label is drawn in its own colour; black is written in
+                        grey, since on this panel it would be invisible.
+                    -->
+                    <ComboBox x:Name="ColourPicker"
+                              Style="{DynamicResource {x:Type ComboBox}}"
+                              Width="118"
+                              Margin="2,0"
+                              VerticalAlignment="Center"
+                              ToolTip="Measurement colour"
+                              ItemsSource="{Binding Source={x:Static vm:StandardColours.All}}"
+                              SelectionChanged="OnColourChanged">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Rectangle Style="{StaticResource Swatch}" Fill="{Binding Swatch}" />
+                                    <TextBlock Text="{Binding Name}" Foreground="{Binding Text}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <Button Style="{StaticResource ToolbarButton}"
+                            ToolTip="Delete the selected measurement (Del)"
+                            Click="OnDeleteClick">
+                        <Image Source="{StaticResource Icon.ph_delete}" Width="16" Height="16" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}"
+                            ToolTip="Clear all measurements"
+                            Click="OnClearClick">
+                        <Image Source="{StaticResource Icon.ph_clear}" Width="15" Height="15" />
+                    </Button>
+                </ToolBar>
+            </DockPanel>
+        </Border>
+
+        <!-- Canvas -->
+        <Grid x:Name="Surface" Grid.Row="1" ClipToBounds="True" Background="#17181A">
+            <!--
+                `Scene` is positioned in image-pixel coordinates and carries the
+                zoom/pan matrix, so overlay geometry can be placed at raw pixel
+                positions without any per-element scaling maths.
+            -->
+            <Canvas x:Name="Scene" RenderTransformOrigin="0,0">
+                <Canvas.RenderTransform>
+                    <MatrixTransform x:Name="SceneTransform" />
+                </Canvas.RenderTransform>
+
+                <Image x:Name="DisplayImage"
+                       RenderOptions.BitmapScalingMode="NearestNeighbor"
+                       Canvas.Left="0"
+                       Canvas.Top="0" />
+
+                <!-- Region of interest, shown while a Region parameter is active -->
+                <Rectangle x:Name="RoiShape"
+                           Stroke="#F59E0B"
+                           StrokeThickness="1"
+                           Fill="#22F59E0B"
+                           Visibility="Collapsed" />
+
+                <Canvas x:Name="HandleLayer" Visibility="Collapsed" />
+
+                <!--
+                    Geometry from the graph. Its own layer, under the
+                    measurements: these are results, redrawn on every pass and
+                    not editable, while measurements belong to the operator.
+                -->
+                <Canvas x:Name="ShapeLayer" />
+
+                <!-- Measurement geometry, in image coordinates like everything else here -->
+                <Canvas x:Name="MeasureLayer" />
+            </Canvas>
+
+            <TextBlock x:Name="EmptyHint"
+                       Text="Open an image to begin."
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#9AA0A6" />
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2"
+                Background="{StaticResource Surface.Panel}"
+                BorderBrush="{StaticResource Surface.Border}"
+                BorderThickness="0,1,0,0"
+                Padding="8,3">
+            <DockPanel LastChildFill="False">
+                <TextBlock x:Name="PositionText"
+                           DockPanel.Dock="Left"
+                           MinWidth="150"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           Foreground="{StaticResource Text.Secondary}" />
+
+                <TextBlock x:Name="PixelText"
+                           DockPanel.Dock="Left"
+                           MinWidth="150"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           Foreground="{StaticResource Text.Secondary}" />
+
+                <!--
+                    The reading, tinted in code to match the annotation it came
+                    from so it can be told apart when several are on screen.
+                -->
+                <TextBlock x:Name="MeasurementText"
+                           DockPanel.Dock="Right"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           Foreground="#FBBF24" />
+
+                <TextBlock x:Name="HintText"
+                           DockPanel.Dock="Right"
+                           Margin="0,0,16,0"
+                           FontSize="11"
+                           Foreground="{StaticResource Text.Secondary}" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

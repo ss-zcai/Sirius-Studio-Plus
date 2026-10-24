@@ -1,0 +1,136 @@
+<Window x:Class="Sirius.Studio.App.NodeHelpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="About this tool"
+        Height="620"
+        Width="520"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Surface.Background}">
+
+    <!--
+        Everything here is read off the node itself, so it cannot disagree
+        with the tool it describes. Opened from the properties panel rather
+        than shown inline: the panel is already long on a node like Find
+        Blobs, and this is read once and then not again.
+    -->
+    <Grid TextElement.Foreground="{StaticResource Text.Primary}" Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                <TextBlock Text="{Binding Category}"
+                           Foreground="{StaticResource Text.Secondary}"
+                           FontSize="11" />
+                <TextBlock Text="  ·  "
+                           Foreground="{StaticResource Text.Secondary}"
+                           FontSize="11" />
+                <TextBlock Text="{Binding TypeKey}"
+                           Foreground="{StaticResource Text.Secondary}"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           ToolTip="What a saved recipe records for this tool" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding Summary}"
+                       TextWrapping="Wrap"
+                       Margin="0,10,0,0" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- Inputs -->
+                <StackPanel Visibility="{Binding HasInputs, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="INPUTS" Style="{StaticResource SectionHeader}" Margin="0,0,0,4" />
+                    <ItemsControl ItemsSource="{Binding Inputs}" Margin="0,0,0,14">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Type}"
+                                               Foreground="{StaticResource Text.Secondary}"
+                                               FontFamily="Consolas" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding Note}"
+                                               Margin="8,0,0,0"
+                                               FontStyle="Italic"
+                                               Foreground="{StaticResource Text.Secondary}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Outputs -->
+                <StackPanel Visibility="{Binding HasOutputs, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="OUTPUTS" Style="{StaticResource SectionHeader}" Margin="0,0,0,4" />
+                    <ItemsControl ItemsSource="{Binding Outputs}" Margin="0,0,0,14">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Type}"
+                                               Foreground="{StaticResource Text.Secondary}"
+                                               FontFamily="Consolas" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Parameters -->
+                <StackPanel Visibility="{Binding HasParameters, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="PARAMETERS" Style="{StaticResource SectionHeader}" Margin="0,0,0,4" />
+                    <ItemsControl ItemsSource="{Binding Parameters}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,0,0,10">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Type}"
+                                                   Margin="8,0,0,0"
+                                                   FontFamily="Consolas"
+                                                   Foreground="{StaticResource Text.Secondary}" />
+                                        <TextBlock Text="{Binding Range}"
+                                                   Margin="8,0,0,0"
+                                                   Foreground="{StaticResource Text.Secondary}"
+                                                   Visibility="{Binding HasRange, Converter={StaticResource BoolToVisibility}}" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Description}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,2,0,0"
+                                               Foreground="{StaticResource Text.Secondary}"
+                                               Visibility="{Binding HasDescription, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="2"
+                Content="Close"
+                HorizontalAlignment="Right"
+                Margin="0,12,0,0"
+                IsCancel="True"
+                IsDefault="True"
+                Click="OnCloseClick" />
+    </Grid>
+</Window>
