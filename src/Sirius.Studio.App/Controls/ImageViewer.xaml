@@ -275,6 +275,19 @@
                            Foreground="{StaticResource Text.Secondary}" />
 
                 <!--
+                    The size of the frame this viewer is showing, which is
+                    not the size of the frame any other viewer is showing -
+                    a Crop or an ROI between them changes it, and that is
+                    exactly when somebody wants to read it.
+                -->
+                <TextBlock x:Name="SizeText"
+                           DockPanel.Dock="Left"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           Foreground="{StaticResource Text.Secondary}"
+                           Text="{Binding ImageSizeText, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+
+                <!--
                     The reading, tinted in code to match the annotation it came
                     from so it can be told apart when several are on screen.
                 -->

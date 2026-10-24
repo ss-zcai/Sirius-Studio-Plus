@@ -1011,14 +1011,15 @@
                 BorderBrush="{StaticResource Surface.Border}"
                 BorderThickness="0,1,0,0"
                 Padding="8,4">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="{Binding StatusText}" Foreground="{StaticResource Text.Secondary}" />
-                <TextBlock Grid.Column="1" Text="{Binding ImageSizeText}" Foreground="{StaticResource Text.Secondary}" />
-            </Grid>
+            <!--
+                The image size used to sit on the right of this bar, read
+                from whichever viewer panel happened to be first. With two
+                viewers open it showed one of them and said nothing about
+                which, and after a Crop or an ROI it belonged to a
+                different picture than the one being looked at. Each viewer
+                carries its own now.
+            -->
+            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource Text.Secondary}" />
         </Border>
     </Grid>
 </Window>

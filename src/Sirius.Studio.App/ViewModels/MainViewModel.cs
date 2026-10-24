@@ -41,7 +41,6 @@ public sealed class MainViewModel : ObservableObject
     private HistogramData? _histogram;
     private ProfileData? _profile;
     private string _statusText = "Ready";
-    private string? _imageSizeText;
     private string? _currentFilePath;
 
     /// <summary>The recipe as it was when last saved or opened.</summary>
@@ -267,12 +266,6 @@ public sealed class MainViewModel : ObservableObject
     {
         get => _statusText;
         private set => SetProperty(ref _statusText, value);
-    }
-
-    public string? ImageSizeText
-    {
-        get => _imageSizeText;
-        private set => SetProperty(ref _imageSizeText, value);
     }
 
     public bool IsRunning
@@ -954,11 +947,9 @@ public sealed class MainViewModel : ObservableObject
     private async Task UpdateOutputsAsync(CancellationToken cancellationToken)
     {
         var panels = NodePanels.ToArray();
+
         if (panels.Length == 0)
-        {
-            ImageSizeText = null;
             return;
-        }
 
         await Task.Run(
             () =>
@@ -973,10 +964,6 @@ public sealed class MainViewModel : ObservableObject
 
         foreach (var panel in panels)
             panel.Commit();
-
-        ImageSizeText = panels
-            .OfType<ViewerPanelViewModel>()
-            .FirstOrDefault(panel => panel.SizeText is not null)?.SizeText;
     }
 
     /// <summary>

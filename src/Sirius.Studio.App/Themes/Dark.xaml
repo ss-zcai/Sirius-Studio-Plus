@@ -472,6 +472,7 @@
 
     <DataTemplate DataType="{x:Type vm:ImagePanelViewModel}">
         <controls:ImageViewer ImageSource="{Binding Image}"
+                              ImageSizeText="{Binding SizeText}"
                               Measurements="{Binding Measurements, Mode=TwoWay}"
                               Roi="{Binding Roi, Mode=TwoWay}"
                               RoiAngle="{Binding RoiAngle, Mode=TwoWay}"
@@ -499,6 +500,7 @@
 
             <controls:ImageViewer Grid.Row="0"
                                   ImageSource="{Binding Image}"
+                                  ImageSizeText="{Binding SizeText}"
                                   Measurements="{Binding Measurements, Mode=TwoWay}"
                                   Roi="{Binding Roi, Mode=TwoWay}"
                                   RoiAngle="{Binding RoiAngle, Mode=TwoWay}"

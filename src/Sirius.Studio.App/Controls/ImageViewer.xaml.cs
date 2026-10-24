@@ -262,6 +262,22 @@ public partial class ImageViewer : UserControl
             FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
             OnMeasurementsChanged));
 
+    /// <summary>
+    /// The dimensions of the frame on show, as "2448 x 2048 x 3".
+    /// </summary>
+    /// <remarks>
+    /// Per viewer rather than per window. The shell used to put this in the
+    /// main status bar, taking it from whichever viewer panel happened to
+    /// be first - so with two viewers open it showed one of them and gave
+    /// no clue which, and after a Crop or an ROI the number on screen
+    /// belonged to a different picture than the one being looked at.
+    /// </remarks>
+    public static readonly DependencyProperty ImageSizeTextProperty = DependencyProperty.Register(
+        nameof(ImageSizeText),
+        typeof(string),
+        typeof(ImageViewer),
+        new PropertyMetadata(null));
+
     public static readonly DependencyProperty ShapesProperty = DependencyProperty.Register(
         nameof(Shapes),
         typeof(ShapeSet),
@@ -426,6 +442,12 @@ public partial class ImageViewer : UserControl
     /// </summary>
     private static void OnProfileSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
         ((ImageViewer)d).UpdateProfile();
+
+    public string? ImageSizeText
+    {
+        get => (string?)GetValue(ImageSizeTextProperty);
+        set => SetValue(ImageSizeTextProperty, value);
+    }
 
     public IReadOnlyList<MeasurementRecord>? Measurements
     {
