@@ -136,16 +136,22 @@ done. What remains, in order:
 
 1. **A Draw button on geometry parameters**, opening the preview of the
    input the geometry is measured in and arming drawing on it.
-2. **Find Line.** Calipers over `LineProfileSource`, which already does the
-   sub-pixel band sampling a caliper is; the new parts are peak picking by
-   polarity and contrast, and a fit with outlier rejection.
+2. **Find Line.** The caliper core exists now - `Caliper.TryFind`, built
+   for Find Circle, does peak picking by polarity and contrast with
+   sub-pixel interpolation, and `CircleFit.FitRobust` shows the rejection
+   pattern a line fit wants. What is left is where the scans go: along a
+   rectangle rather than around a ring.
 3. **Geometry parameters** - `Shape`-valued, with handle editing and
    serialisation. The `Shape` vocabulary built for blob *output* is the one
    a search region needs as *input*. This is also what retires
    `ActiveRegionParameter`, the mechanism that pushes the selected node's
    region to every viewer and lets a region be drawn in the wrong
    coordinate space.
-4. **Find Circle and Find Curve** on the same caliper core.
+4. **Find Curve** on the same caliper core. **Find Circle is done** - a
+   centre and a band, radial calipers through it, a circle fitted to the
+   edges with outlier rejection, accurate to better than a fifth of a pixel
+   against a known edge. It still wants its ring drawn on the viewer rather
+   than typed, which is item 3 above.
 5. **Partial evaluation** - evaluate a tool and its ancestors only, so
    dragging a caliper does not re-run the whole recipe on every frame.
 

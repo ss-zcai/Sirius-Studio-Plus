@@ -248,7 +248,7 @@ public sealed class FitCircleNode : ShapeFitNode
         // enclosing circle is decided by three extreme points and so is
         // pulled about by a single bad one, which is the opposite of what
         // fitting is for.
-        var (centre, radius) = LeastSquaresCircle(points);
+        var (centre, radius) = CircleFit.FitForNode(points);
 
         if (double.IsNaN(radius) || radius <= 0)
             return null;
@@ -273,56 +273,6 @@ public sealed class FitCircleNode : ShapeFitNode
     private static double Distance(Point2 a, Point2 b) =>
         Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
 
-    /// <summary>
-    /// Kasa's algebraic circle fit.
-    /// </summary>
-    /// <remarks>
-    /// Minimising the algebraic rather than the geometric residual, which
-    /// makes it a linear solve in three unknowns instead of an iteration.
-    /// It biases slightly small on a short arc; on the near-complete
-    /// outlines a blob produces, the difference is well under the pixel
-    /// noise it is fitting through.
-    /// </remarks>
-    private static (Point2 Centre, double Radius) LeastSquaresCircle(
-        IReadOnlyList<Point2> points)
-    {
-        double sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, sxz = 0, syz = 0, sz = 0;
-        var n = points.Count;
-
-        foreach (var point in points)
-        {
-            var z = (point.X * point.X) + (point.Y * point.Y);
-
-            sx += point.X;
-            sy += point.Y;
-            sxx += point.X * point.X;
-            syy += point.Y * point.Y;
-            sxy += point.X * point.Y;
-            sxz += point.X * z;
-            syz += point.Y * z;
-            sz += z;
-        }
-
-        // The normal equations, solved by Cramer's rule.
-        var a11 = (2 * ((sx * sx) - (n * sxx)));
-        var a12 = (2 * ((sx * sy) - (n * sxy)));
-        var a22 = (2 * ((sy * sy) - (n * syy)));
-        var b1 = (sx * sz) - (n * sxz);
-        var b2 = (sy * sz) - (n * syz);
-
-        var determinant = (a11 * a22) - (a12 * a12);
-
-        if (Math.Abs(determinant) < 1e-9)
-            return (default, double.NaN);
-
-        var cx = ((b1 * a22) - (b2 * a12)) / determinant;
-        var cy = ((a11 * b2) - (a12 * b1)) / determinant;
-
-        var radius = Math.Sqrt(
-            ((sxx + syy) - (2 * cx * sx) - (2 * cy * sy)) / n + (cx * cx) + (cy * cy));
-
-        return (new Point2(cx, cy), radius);
-    }
 }
 
 /// <summary>Fits an ellipse to the points of each shape.</summary>

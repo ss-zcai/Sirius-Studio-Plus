@@ -1757,3 +1757,71 @@ dropdown over how the value is *entered* - whole numbers or free. That is a
 presentation choice, nothing moves, and the two nodes become one in the
 toolbox. It needs a legacy type key mapping, so it is left on the roadmap
 rather than done in passing.
+
+## 50. Find Circle: calipers through a ring
+
+A circle finder that is told roughly where to look, rather than one that
+searches. Given a centre and an inner and outer radius, it casts radial
+scans through the band, finds the intensity step along each, and fits a
+circle to the points.
+
+The same answer Find Blobs and Fit Circle already give together, arrived at
+directly - and the comparison is the interesting part, because both stay.
+
+**Where the ring wins.** Blob finding thresholds the whole frame, labels
+every connected region, measures them all and discards what is not wanted.
+This visits a few dozen short lines and never looks at the rest of the
+image. It is also steadier under uneven lighting: a threshold is one number
+for the entire frame and a gradient across the field defeats it, while a
+caliper only asks that the edge be locally the steepest thing along its own
+scan, which stays true when one side of the part is brighter than the other.
+
+**Where it loses.** It finds the circle it was pointed at. Find Blobs finds
+circles nobody knew were there. The ring is the whole of the tool's prior,
+which is why a badly placed one returns nothing rather than something
+wrong - a property worth having, and the reason the node warns about a
+missed band instead of fitting through noise.
+
+### The caliper is its own thing
+
+`Caliper.TryFind` takes samples and returns a sub-pixel edge; it does no
+sampling of its own. `LineProfileSource.Sample` already walks a line at a
+chosen spacing, averages across a band and interpolates - which is exactly
+a caliper's sampling, and already used by the profile chart. Find Line and
+Find Curve differ only in where the lines go, so the primitive is shared
+from the start rather than extracted later.
+
+Three details in it are load-bearing:
+
+- **Peaks, not steep places.** An edge is where the derivative *turns*.
+  Taking the first sample over a contrast threshold makes a long ramp
+  report an arbitrary point part-way up it, and a slightly different ramp
+  report a different one.
+- **Odd, centred smoothing.** An even window biases every reading half a
+  sample in the scan direction. On a circle that is a radius wrong by a
+  consistent amount, which reads as a calibration error rather than a bug.
+- **Parabolic interpolation** of the derivative peak. Without it the best
+  possible is half a pixel; with it the measured error against a known edge
+  is zero.
+
+### The tests had the bug, not the code
+
+The first version drew its test circles with `CvInvoke.Circle` and measured
+against the radius it had asked for. Every reading came out about 0.56
+pixels large, consistently, across radii - exactly the shape of a
+half-sample offset error, and the obvious conclusion was that the caliper
+had one.
+
+It did not. A filled circle of radius R rasterises to cover pixels out to
+roughly R + 0.5, so the intensity edge in the drawn image genuinely is half
+a pixel outside the nominal radius. The truth was wrong, not the
+measurement.
+
+Confirmed by a separate probe against an analytically rendered disc, whose
+intensity ramps across exactly one pixel so the 50% crossing is at the
+stated radius by construction: error 0.0000 at two radii, and 0.13 at one
+deliberately placed between samples. The tests render that way now, which
+is what makes a sub-pixel claim testable at all.
+
+The lesson is older than this tool: a consistent error that matches a
+plausible bug is still worth measuring against a known truth before fixing.
