@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Media.Imaging;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
+using Sirius.Studio.App.Controls;
 using Sirius.Core.Shapes;
 using Sirius.Studio.App.Diagnostics;
 using Sirius.Studio.App.Imaging;
@@ -39,11 +40,29 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     private bool _isProfilingEnabled;
     private IReadOnlyList<MeasurementRecord> _measurements = [];
     private bool _writingMeasurements;
+    private ViewerTool _activeTool = ViewerTool.None;
 
-    protected ImagePanelViewModel(VisionNode node, ShapeSelectionService selection)
+    /// <param name="measurementView">
+    /// Which of the node's pictures this panel shows, for keying
+    /// measurements. Empty for a Viewer node's own panel.
+    /// </param>
+    /// <remarks>
+    /// The view is taken as a constructor argument rather than read from
+    /// an overridable property, and that is not a style preference. This
+    /// constructor reads the node's measurements, reading them asks each
+    /// one whether it belongs to this view, and a virtual property
+    /// answering that question runs the override before the derived
+    /// constructor has assigned the field it reads - so opening a preview
+    /// of a node that already had measurements on it threw a
+    /// NullReferenceException. It only threw once there were measurements,
+    /// because with none the predicate is never invoked.
+    /// </remarks>
+    protected ImagePanelViewModel(
+        VisionNode node, ShapeSelectionService selection, string measurementView)
         : base(node)
     {
         _selection = selection;
+        _measurementView = measurementView ?? string.Empty;
 
         _selection.Changed += (_, port) =>
         {
@@ -89,7 +108,10 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     /// measurements. Empty for a Viewer node's own panel, which has only
     /// the one.
     /// </summary>
-    protected virtual string MeasurementView => string.Empty;
+    private readonly string _measurementView;
+
+    /// <summary>Exposed for tests; set once, at construction.</summary>
+    internal string MeasurementView => _measurementView;
 
     /// <summary>
     /// Measurements drawn on this panel, stored on the node so they are
@@ -352,6 +374,22 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
 
     public bool IsRingEnabled => _ringParameter is not null;
 
+    /// <summary>
+    /// The tool this panel's viewer has in hand.
+    /// </summary>
+    /// <remarks>
+    /// Two-way, so the shell can arm one. A Draw button that opened the
+    /// right picture and then left the operator to find the right tool on
+    /// the strip would be doing half its job - and the half it skipped is
+    /// the one somebody who has not used the application before cannot
+    /// guess.
+    /// </remarks>
+    public ViewerTool ActiveTool
+    {
+        get => _activeTool;
+        set => SetProperty(ref _activeTool, value);
+    }
+
     public Ring Ring
     {
         get => _ringParameter?.RingValue ?? default;
@@ -427,7 +465,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
 public sealed class ViewerPanelViewModel : ImagePanelViewModel
 {
     public ViewerPanelViewModel(ViewerNode node, ShapeSelectionService selection)
-        : base(node, selection) => Source = node;
+        : base(node, selection, string.Empty) => Source = node;
 
     public ViewerNode Source { get; }
 

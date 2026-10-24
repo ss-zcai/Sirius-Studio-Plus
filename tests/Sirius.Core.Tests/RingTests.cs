@@ -243,6 +243,67 @@ public class RingTests
     }
 
     /// <summary>
+    /// The Draw button opens a preview that knows about the band and has
+    /// the tool already in hand.
+    /// </summary>
+    /// <remarks>
+    /// Both halves were missing. OpenPreview passed the region parameter
+    /// to a new preview and not the ring one, so the viewer was never told
+    /// it had a band to draw and the tool stayed hidden - the button
+    /// appeared to do nothing. And a Draw button that opens the right
+    /// picture but leaves the operator to find the right tool on the strip
+    /// is doing half its job.
+    /// </remarks>
+    [Fact]
+    public void The_draw_button_opens_a_preview_ready_to_draw()
+    {
+        OnStaThread(() =>
+        {
+            var model = new MainViewModel();
+            var item = model.Palette
+                .SelectMany(group => group.Items)
+                .First(entry => entry.DisplayName == "Find Circle");
+
+            var node = model.AddNodeAt(item, new Point(40, 40))!;
+            var band = node.Parameters.Single(p => p.Kind == ParamEditor.Ring);
+
+            model.DrawRegionCommand.Execute(band);
+
+            var preview = Assert.Single(model.NodePanels.OfType<PreviewPanelViewModel>());
+
+            Assert.True(preview.IsRingEnabled, "the preview was not told it has a band");
+            Assert.Equal(ViewerTool.Ring, preview.ActiveTool);
+        });
+    }
+
+    /// <summary>
+    /// Drawing on the preview writes through to the node, which is the
+    /// whole point of the gesture.
+    /// </summary>
+    [Fact]
+    public void Drawing_a_band_writes_it_to_the_node()
+    {
+        OnStaThread(() =>
+        {
+            var model = new MainViewModel();
+            var item = model.Palette
+                .SelectMany(group => group.Items)
+                .First(entry => entry.DisplayName == "Find Circle");
+
+            var node = model.AddNodeAt(item, new Point(40, 40))!;
+            var band = node.Parameters.Single(p => p.Kind == ParamEditor.Ring);
+
+            model.DrawRegionCommand.Execute(band);
+
+            var preview = model.NodePanels.OfType<PreviewPanelViewModel>().Single();
+
+            preview.Ring = Ring.FromMean(640, 480, 100, 25);
+
+            Assert.Equal(new Ring(640, 480, 75, 125), ((FindCircleNode)node.Node).Band);
+        });
+    }
+
+    /// <summary>
     /// The editor row and the draw button exist, and the viewer binds the
     /// band - the control having the property is no use if nothing fills
     /// it.

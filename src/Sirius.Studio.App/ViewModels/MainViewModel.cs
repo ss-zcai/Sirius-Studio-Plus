@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Sirius.Studio.App.Controls;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Sirius.Core.Graph;
@@ -87,8 +88,14 @@ public sealed class MainViewModel : ObservableObject
             var input = node.Node.Inputs.FirstOrDefault(
                 port => port.DataType == typeof(ImageData));
 
-            if (input is not null)
-                OpenPreview(node.Node, input);
+            if (input is null)
+                return;
+
+            // A band is drawn with a tool; a rectangle is dragged straight
+            // onto the image, so only the first needs arming.
+            var arm = parameter.Kind == ParamEditor.Ring ? ViewerTool.Ring : ViewerTool.None;
+
+            OpenPreview(node.Node, input, arm);
         });
         DeleteSelectionCommand = new RelayCommand(() => Editor.DeleteSelectionCommand.Execute(null));
 
@@ -1116,7 +1123,15 @@ public sealed class MainViewModel : ObservableObject
     /// Keyed by node and port, so asking twice focuses what is there instead
     /// of stacking a second window on it.
     /// </remarks>
-    public PreviewPanelViewModel? OpenPreview(VisionNode node, Port port)
+    public PreviewPanelViewModel? OpenPreview(VisionNode node, Port port) =>
+        OpenPreview(node, port, ViewerTool.None);
+
+    /// <param name="arm">
+    /// A tool to put in the viewer's hand, for the Draw buttons - which
+    /// otherwise open the right picture and leave the operator to find the
+    /// right tool on the strip.
+    /// </param>
+    public PreviewPanelViewModel? OpenPreview(VisionNode node, Port port, ViewerTool arm)
     {
         ArgumentNullException.ThrowIfNull(node);
         ArgumentNullException.ThrowIfNull(port);
@@ -1130,6 +1145,11 @@ public sealed class MainViewModel : ObservableObject
 
         if (existing is not null)
         {
+            // Already open: still arm it, since the button was pressed to
+            // draw something and not merely to look.
+            if (arm != ViewerTool.None)
+                existing.ActiveTool = arm;
+
             PanelFocusRequested?.Invoke(this, existing.ContentId);
             return existing;
         }
@@ -1144,6 +1164,8 @@ public sealed class MainViewModel : ObservableObject
         {
             // So a preview opened by the Draw button can be drawn on at once.
             RegionParameter = ActiveRegionParameter,
+            RingParameter = ActiveRingParameter,
+            ActiveTool = arm,
         };
 
         AttachProfiling(preview);

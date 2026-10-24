@@ -47,7 +47,7 @@ public sealed class PreviewPanelViewModel : ImagePanelViewModel
         Port port,
         InputPort? backdrop,
         ShapeSelectionService selection)
-        : base(node, selection)
+        : base(node, selection, port.Name)
     {
         _port = port;
         _backdrop = backdrop;
@@ -85,13 +85,6 @@ public sealed class PreviewPanelViewModel : ImagePanelViewModel
         : new GridLength(0);
 
     protected override string ContentIdPrefix => "preview";
-
-    /// <summary>
-    /// Keyed by port, for the same reason <see cref="ContentId"/> is: a
-    /// preview of an input and one of an output show different pixels, so a
-    /// line drawn on one does not belong on the other.
-    /// </summary>
-    protected override string MeasurementView => _port.Name;
 
     /// <summary>
     /// Identity carries the port as well as the node, so a preview of an

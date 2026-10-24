@@ -241,6 +241,70 @@ public class MeasurementPersistenceTests
         _ = graph;
     }
 
+    /// <summary>
+    /// Opening a preview of a node that already has measurements works.
+    /// </summary>
+    /// <remarks>
+    /// It did not. The base constructor reads the node's measurements, and
+    /// reading them asks each one whether it belongs to this view - which
+    /// was a virtual property, so the override ran before the derived
+    /// constructor had assigned the port it reads, and threw a
+    /// NullReferenceException.
+    ///
+    /// It threw only once there were measurements to ask about, because
+    /// with none the predicate is never invoked. So every preview worked
+    /// until somebody drew on one, and then that node's previews stopped
+    /// opening - with the button appearing to do nothing, since the
+    /// exception surfaced in a dialog the shell suppresses after the
+    /// first.
+    /// </remarks>
+    [Fact]
+    public void A_preview_opens_on_a_node_that_already_has_measurements()
+    {
+        var (graph, _, tool) = Build();
+        using var scheduler = CreateScheduler(graph);
+
+        tool.Measurements =
+        [
+            Line(1, 1, 10, 10, tool.ImageIn.Name),
+            Line(2, 2, 20, 20, "Out"),
+            Line(3, 3, 30, 30),
+        ];
+
+        var preview = Preview(tool, tool.ImageIn);
+
+        // And it sees its own view's measurement, not the other two.
+        var mine = Assert.Single(preview.Measurements);
+        Assert.Equal(tool.ImageIn.Name, mine.View);
+
+        preview.Dispose();
+        _ = graph;
+    }
+
+    /// <summary>
+    /// Every panel kind reports the view it was built for, which is what
+    /// the filtering keys on.
+    /// </summary>
+    [Fact]
+    public void A_panel_knows_its_view_from_construction()
+    {
+        var (graph, _, tool) = Build();
+        using var scheduler = CreateScheduler(graph);
+
+        var input = Preview(tool, tool.ImageIn);
+        var output = Preview(tool, tool.ImageOut);
+        var viewer = new ViewerPanelViewModel(new ViewerNode(), new ShapeSelectionService());
+
+        Assert.Equal(tool.ImageIn.Name, input.MeasurementView);
+        Assert.Equal(tool.ImageOut.Name, output.MeasurementView);
+        Assert.Equal(string.Empty, viewer.MeasurementView);
+
+        input.Dispose();
+        output.Dispose();
+        viewer.Dispose();
+        _ = graph;
+    }
+
     [Fact]
     public void A_panel_sees_what_was_loaded_onto_its_node()
     {
