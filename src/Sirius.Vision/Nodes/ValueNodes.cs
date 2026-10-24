@@ -137,43 +137,60 @@ public sealed class FloatNode : VisionNode
 }
 
 /// <summary>
-/// A two-component value, such as a kernel size or an offset.
+/// A list of numbers travelling as one value - a size, an offset, a kernel
+/// extent, a per-channel setting.
 /// </summary>
+/// <remarks>
+/// One text box rather than a numeric field per component. It was a pair of
+/// X and Y fields, and two is the wrong number as soon as anything wants
+/// three: a kernel is two, an RGB offset is three, a per-channel threshold
+/// is however many channels the frame has. Fields would have to be added
+/// and removed as the count changed, and "3, 3, 1" is quicker to type and
+/// quicker to read than three boxes.
+/// </remarks>
 [VisionNode(
     "Vector",
     TypeKey = "source.vector",
     Category = NodeCategory.Source,
     Icon = "ph_vector",
-    Description = "A pair of numbers, for sizes and offsets.")]
+    Description = "A list of numbers, for sizes, offsets and per-channel settings.")]
 public sealed class VectorNode : VisionNode
 {
-    private double _x = 3;
-    private double _y = 3;
+    private string _components = "3, 3";
 
     public VectorNode()
     {
-        VectorOut = AddOutput<Vector2>("Out");
+        VectorOut = AddOutput<NumberVector>("Out");
     }
 
     public OutputPort VectorOut { get; }
 
-    [Param("X", Step = 0.01)]
-    public double X
+    [Param("Components",
+        Description = "Numbers separated by commas or spaces, such as \"3, 3\" or \"3, 3, 1\".")]
+    public string Components
     {
-        get => _x;
-        set => SetParam(ref _x, value);
+        get => _components;
+        set => SetParam(ref _components, value ?? string.Empty);
     }
 
-    [Param("Y", Step = 0.01)]
-    public double Y
+    /// <summary>The parsed value, or empty when the text does not read.</summary>
+    public NumberVector Value => NumberVector.Parse(_components);
+
+    /// <summary>Read-only echo, so the inspector can show what was understood.</summary>
+    public string Formatted => Value.ToString();
+
+    protected override void OnEvaluate(EvalContext context)
     {
-        get => _y;
-        set => SetParam(ref _y, value);
+        if (!NumberVector.TryParse(_components, out var vector))
+        {
+            // Reported rather than thrown: a half-typed vector is a normal
+            // state for a text box to be in, and failing the whole pass
+            // while somebody is still typing would be unusable.
+            context.Warn($"'{_components}' is not a list of numbers.");
+            context.Set(VectorOut, NumberVector.Empty);
+            return;
+        }
+
+        context.Set(VectorOut, vector);
     }
-
-    /// <summary>Read-only echo of the pair, so the inspector shows "(3, 3)".</summary>
-    public string Formatted => new Vector2(_x, _y).ToString();
-
-    protected override void OnEvaluate(EvalContext context) =>
-        context.Set(VectorOut, new Vector2(_x, _y));
 }

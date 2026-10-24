@@ -138,26 +138,31 @@ public class ValueNodeTests
     }
 
     [Fact]
-    public async Task Vector_publishes_both_components()
+    public async Task Vector_publishes_every_component()
     {
         var graph = new VisionGraph();
-        var node = new VectorNode { X = 3, Y = 5 };
+        var node = new VectorNode { Components = "3, 5" };
         graph.Add(node);
 
         using var scheduler = CreateScheduler(graph);
         await scheduler.RunAsync();
 
-        var vector = Assert.IsType<Vector2>(scheduler.GetOutput(node.VectorOut));
+        var vector = Assert.IsType<NumberVector>(scheduler.GetOutput(node.VectorOut));
         Assert.Equal(3, vector.X);
         Assert.Equal(5, vector.Y);
-        Assert.Equal((3, 5), vector.ToInt());
+        Assert.Equal(new[] { 3, 5 }, vector.ToInt());
     }
 
+    /// <summary>
+    /// Formatted as it is typed, so the text box round-trips. It used to
+    /// read "(3, 3)", which is not something that can be typed back in.
+    /// </summary>
     [Fact]
-    public void A_vector_reads_as_a_pair()
+    public void A_vector_reads_as_its_own_text()
     {
-        Assert.Equal("(3, 3)", new Vector2(3, 3).ToString());
-        Assert.Equal("(0.5, 2.25)", new Vector2(0.5, 2.25).ToString());
+        Assert.Equal("3, 3", new NumberVector([3, 3]).ToString());
+        Assert.Equal("0.5, 2.25", new NumberVector([0.5, 2.25]).ToString());
+        Assert.Equal("3, 3, 1", new NumberVector([3, 3, 1]).ToString());
     }
 
     [Fact]

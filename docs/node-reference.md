@@ -129,20 +129,19 @@ A whole number that can drive parameters on other nodes.
 
 `source.vector`
 
-A pair of numbers, for sizes and offsets.
+A list of numbers, for sizes, offsets and per-channel settings.
 
 **Outputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| Out | `Vector2` | circle | - |
+| Out | `NumberVector` | circle | - |
 
 **Parameters**
 
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
-| X | `Number` | TextBox | - |
-| Y | `Number` | TextBox | - |
+| Components | `Text` | TextBox | - |
 
 ## Basic
 

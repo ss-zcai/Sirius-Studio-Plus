@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sirius.Core.Graph;
@@ -412,6 +413,44 @@ public static class GraphSerializer
             $"'{node.Name}': colour '{record.Accent}' is not one this build has; using the default.");
     }
 
+    /// <summary>
+    /// Folds a Vector node's old X and Y parameters into its component list.
+    /// </summary>
+    /// <remarks>
+    /// The node had a numeric field per component and now has one text box,
+    /// because two components stopped being enough. Recipes written before
+    /// that would otherwise open with the node back at its default and no
+    /// indication that anything had been dropped.
+    /// </remarks>
+    private static bool TryApplyLegacyVectorPart(
+        VisionNode node, NodeDescriptor descriptor, string name, JsonElement element)
+    {
+        if (name is not ("X" or "Y"))
+            return false;
+
+        var parameter = descriptor.Parameters.FirstOrDefault(p => p.Name == "Components");
+
+        if (parameter is null || parameter.ValueType != typeof(string))
+            return false;
+
+        if (!element.TryGetDouble(out var number))
+            return false;
+
+        // Read back and rewritten, so X and Y land in the same list whichever
+        // order the file happens to list them in.
+        var parts = (parameter.GetValue(node) as string ?? string.Empty)
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+
+        while (parts.Count < 2)
+            parts.Add("0");
+
+        parts[name == "X" ? 0 : 1] = number.ToString("0.###", CultureInfo.InvariantCulture);
+
+        parameter.SetValue(node, string.Join(", ", parts));
+        return true;
+    }
+
     private static void ApplyParameters(
         VisionNode node,
         NodeDescriptor descriptor,
@@ -426,6 +465,9 @@ public static class GraphSerializer
                 continue;
 
             if (parameter is null && TryApplyLegacyRectPart(node, descriptor, name, element))
+                continue;
+
+            if (parameter is null && TryApplyLegacyVectorPart(node, descriptor, name, element))
                 continue;
 
             if (parameter is null)
