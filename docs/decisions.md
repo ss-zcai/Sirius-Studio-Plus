@@ -1882,3 +1882,72 @@ test asserts the clamp instead.
 
 And the hard-step case now runs at three smoothing widths rather than one,
 because one width is what let the parabola through in the first place.
+
+## 52. Number, Matrix, Text, Label
+
+Four value nodes, asked for together because they are one idea: things
+that are not images flowing through a recipe and ending up readable on a
+picture.
+
+### Number: the dropdown is about entry, not type
+
+Integer and Float became one node. The type dropdown chooses how the value
+is *entered*; the output is always a double.
+
+The question when this was first raised was whether merging would mean
+more checking at connection time. It means none, and the reason is worth
+repeating because it is not visible from the node list:
+`VisionGraph.IsCompatible` already returns true for any two numeric types,
+and `EvalContext.Param` already calls `Convert.ChangeType` on read. The
+distinction was invisible downstream before this change.
+
+Which cuts deeper than the question asked. A dropdown that switched the
+*port's* type would be machinery with no observable effect - and mutating
+`OutputPort.DataType` on a node that is already wired is the one way to
+make that choice genuinely dangerous. What the setting buys is the
+editor, through a new `StepSource` on `ParamAttribute` mirroring
+`MinSource` and `MaxSource`.
+
+**It deliberately does not round.** The first version rounded in the
+setter, and a test caught what that means: a recipe storing 7.5 loaded
+back as 8. Rounding there silently alters a value arriving from a file or
+a wire - a data change disguised as a display preference, and a direct
+contradiction of what the setting claims to do. Whole-number entry is
+enforced by the slider's step, where the operator can see it happening.
+
+### Matrix: a vector is the one-row case
+
+Vector became Matrix rather than gaining a sibling. One row is 1xN, one
+column is Nx1, and either is a matrix - so two types would have meant
+every future consumer of vectors being taught matrices separately.
+
+The text form - numbers by spaces or commas, rows by semicolons - was not
+designed to match the 2D Filter's kernel. It was already the filter's
+format. That filter is now the first real consumer: a kernel can arrive
+on a wire, and the matrix's own size wins over the Kernel Size setting,
+because a matrix knows how big it is and a second number kept in step by
+hand is a setting whose only job is to be wrong. Non-square and
+even-sized kernels are refused by name rather than left to OpenCV's
+assertion.
+
+A ragged grid is refused outright. It is a typing mistake rather than a
+shape worth representing, and accepting one would push the question onto
+every consumer.
+
+### Label: most of it already existed
+
+`Shape.Label` has been drawn by the viewer since the beginning, and the
+Measure node uses it. So the Label node's whole job is to make a shape to
+hang text on: one per shape wired into it, at each shape's own centre, or
+a bare point at a given position when nothing is.
+
+That makes the chain work end to end - find a circle, measure to another,
+write the reading on the picture - which is covered by a test that builds
+exactly that graph.
+
+### No migration, by agreement
+
+Integer, Float and Vector are gone rather than mapped. The project is in
+first testing, and the serialiser already reports an unknown node type as
+a warning and loads the rest of the recipe - so an old file opens with
+the unsupported nodes listed rather than failing.

@@ -254,24 +254,33 @@ done. What remains, in order:
 
 ---
 
-## Value nodes, and labels
+## Value nodes, and labels - done
 
 Asked for together, because they are one idea: values that are not images
-flowing through a recipe and ending up readable on a picture.
+flowing through a recipe and ending up readable on a picture. All four
+shipped; what is left of the idea is below.
 
-- **One Number node** in place of Integer and Float, with a dropdown over
-  how the value is entered rather than over what type crosses the wire.
-  Analysis in `decisions.md` entry 49: it costs nothing in connection
-  checks, because every numeric type is already interchangeable. Needs a
-  legacy type key mapping so existing recipes open.
-- **A Matrix node**, with Vector as the 1xN or Nx1 case of it rather than
-  a separate thing. `NumberVector` already takes any number of components
-  and is the row; a matrix is rows of those. The pay-off is that a 2D
-  Filter's kernel could come from a wire instead of only from its own
-  editor, which is the first real consumer either type would have.
-- **A String node**, and text as a value a port can carry.
-- **A Label node** - takes a number, a string or a matrix and draws it on
-  the image at a point or beside a shape. Half of this exists already:
-  `Shape.Label` is drawn by the viewer, and the Measure node uses it. What
-  is missing is a node that makes a label out of a value that did not come
-  from a shape.
+- **Number** replaces Integer and Float. The dropdown chooses how the
+  value is entered, not what crosses the wire - see `decisions.md` entry
+  52 for why a port-type switch would have been machinery with no
+  observable effect.
+- **Matrix** replaces Vector, with a vector as the 1xN or Nx1 case. The
+  2D Filter's kernel can arrive on a wire, which is the first real
+  consumer either type ever had.
+- **Text** publishes a string.
+- **Label** draws a number or a line of text on the image - one per shape
+  wired into it, or at a given point.
+
+Still open in that direction:
+
+- **A matrix editor.** A Matrix is typed as text today, which is fine for
+  a 3x3 kernel and tiresome for anything larger. A grid editor is the
+  obvious next step, and `ParamEditor` already has the shape of a place
+  to put one.
+- **Text parameters driven by a wire.** A Text node can drive the Label's
+  caption, because that parameter is `Connectable`. Nothing else takes
+  text that way yet - a file path or an output name would be the first
+  real uses.
+- **Matrix arithmetic**, if anything ever needs it. There is no Add or
+  Multiply for matrices, and inventing them before something consumes one
+  would be guessing at what shape they should take.

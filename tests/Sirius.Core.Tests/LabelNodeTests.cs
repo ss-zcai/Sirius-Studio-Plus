@@ -1,0 +1,327 @@
+using Sirius.Core.Graph;
+using Sirius.Core.Shapes;
+using Sirius.Vision.Nodes;
+using Xunit;
+
+namespace Sirius.Core.Tests;
+
+/// <summary>
+/// Writing a value onto the image.
+/// </summary>
+/// <remarks>
+/// How a number gets from the graph onto the picture: a measurement, a
+/// count, a code read from somewhere - anything that has to be seen by
+/// whoever is looking at the result rather than only consumed by the next
+/// node.
+///
+/// Built on <c>Shape.Label</c>, which the viewer has drawn all along, so
+/// the node's job is only to make a shape to hang the text on.
+/// </remarks>
+public class LabelNodeTests
+{
+    public LabelNodeTests() => TestCatalog.Ensure();
+
+    /// <summary>Publishes a fixed shape set, standing in for a find tool.</summary>
+    private sealed class ShapeSourceNode : VisionNode
+    {
+        public ShapeSourceNode(params Shape[] shapes)
+        {
+            Set = new ShapeSet(shapes, 640, 480);
+            ShapesOut = AddOutput<ShapeSet>("Out");
+        }
+
+        public ShapeSet Set { get; }
+
+        public OutputPort ShapesOut { get; }
+
+        protected override void OnEvaluate(EvalContext context) => context.Set(ShapesOut, Set);
+    }
+
+    private static ShapeSet Run(Action<LabelNode> configure, params Shape[] attached)
+    {
+        var graph = new VisionGraph();
+        var label = new LabelNode();
+        configure(label);
+        graph.Add(label);
+
+        if (attached.Length > 0)
+        {
+            var source = new ShapeSourceNode(attached);
+            graph.Add(source);
+            graph.TryConnect(source.ShapesOut, label.ShapesIn);
+        }
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        return (ShapeSet)scheduler.GetOutput(label.ShapesOut)!;
+    }
+
+    // ---- what it writes --------------------------------------------------------
+
+    [Fact]
+    public void It_writes_text_at_a_point()
+    {
+        var set = Run(node =>
+        {
+            node.Text = "PASS";
+            node.X = 120;
+            node.Y = 80;
+        });
+
+        var point = Assert.IsType<PointShape>(Assert.Single(set.Shapes));
+
+        Assert.Equal("PASS", point.Label);
+        Assert.Equal(new Point2(120, 80), point.At);
+    }
+
+    /// <summary>
+    /// With nothing written, the number is - which is what makes a
+    /// measurement wired straight in useful without also typing a format.
+    /// </summary>
+    [Fact]
+    public void A_blank_text_writes_the_number()
+    {
+        var set = Run(node =>
+        {
+            node.Number = 12.3456;
+            node.Decimals = 2;
+        });
+
+        Assert.Equal("12.35", ((PointShape)set.Shapes[0]).Label);
+    }
+
+    [Fact]
+    public void Text_wins_over_the_number()
+    {
+        var set = Run(node =>
+        {
+            node.Text = "OK";
+            node.Number = 99;
+        });
+
+        Assert.Equal("OK", ((PointShape)set.Shapes[0]).Label);
+    }
+
+    [Theory]
+    [InlineData(0, "12")]
+    [InlineData(1, "12.3")]
+    [InlineData(4, "12.3456")]
+    public void The_decimals_setting_is_honoured(int decimals, string expected)
+    {
+        var set = Run(node =>
+        {
+            node.Number = 12.3456;
+            node.Decimals = decimals;
+        });
+
+        Assert.Equal(expected, ((PointShape)set.Shapes[0]).Label);
+    }
+
+    // ---- labelling shapes -------------------------------------------------------
+
+    /// <summary>
+    /// One label per shape, at each shape's own centre - so a reading can
+    /// be written on every blob rather than once beside the lot.
+    /// </summary>
+    [Fact]
+    public void It_labels_every_shape_wired_in()
+    {
+        var set = Run(
+            node => node.Text = "x",
+            new CircleShape(new Point2(10, 20), 5),
+            new CircleShape(new Point2(100, 200), 5));
+
+        Assert.Equal(2, set.Count);
+        Assert.All(set.Shapes, shape => Assert.Equal("x", shape.Label));
+
+        Assert.Equal(new Point2(10, 20), ((PointShape)set.Shapes[0]).At);
+        Assert.Equal(new Point2(100, 200), ((PointShape)set.Shapes[1]).At);
+    }
+
+    /// <summary>
+    /// The labels belong to the frame the shapes came from, or they would
+    /// be dropped by a viewer checking they match the picture.
+    /// </summary>
+    [Fact]
+    public void Labels_keep_the_frame_of_the_shapes_they_mark()
+    {
+        var set = Run(node => node.Text = "x", new CircleShape(new Point2(10, 20), 5));
+
+        Assert.Equal(640, set.FrameWidth);
+        Assert.Equal(480, set.FrameHeight);
+    }
+
+    /// <summary>
+    /// The position is only consulted when nothing is wired in; with
+    /// shapes present it would be an answer to a question nobody asked.
+    /// </summary>
+    [Fact]
+    public void The_position_is_ignored_when_shapes_are_wired_in()
+    {
+        var set = Run(
+            node =>
+            {
+                node.Text = "x";
+                node.X = 999;
+                node.Y = 999;
+            },
+            new CircleShape(new Point2(10, 20), 5));
+
+        Assert.Equal(new Point2(10, 20), ((PointShape)Assert.Single(set.Shapes)).At);
+    }
+
+    /// <summary>
+    /// A producer's own centroid beats the middle of a bounding box, the
+    /// same way a measurement between two shapes takes it.
+    /// </summary>
+    [Fact]
+    public void It_writes_at_a_published_centroid()
+    {
+        var lopsided = new PolygonShape(
+        [
+            new Point2(0, 0), new Point2(100, 0), new Point2(100, 10), new Point2(0, 10),
+        ])
+        {
+            Metrics = new Dictionary<string, double>
+            {
+                [ShapeMetric.CentroidX] = 20,
+                [ShapeMetric.CentroidY] = 5,
+            },
+        };
+
+        var set = Run(node => node.Text = "x", lopsided);
+
+        Assert.Equal(new Point2(20, 5), ((PointShape)set.Shapes[0]).At);
+    }
+
+    [Fact]
+    public void An_empty_set_wired_in_falls_back_to_the_position()
+    {
+        var set = Run(node =>
+        {
+            node.Text = "none";
+            node.X = 5;
+            node.Y = 6;
+        });
+
+        Assert.Equal(new Point2(5, 6), ((PointShape)Assert.Single(set.Shapes)).At);
+    }
+
+    // ---- colour -------------------------------------------------------------------
+
+    [Fact]
+    public void It_takes_a_colour()
+    {
+        var set = Run(node =>
+        {
+            node.Text = "x";
+            node.Colour = "#FF0000";
+        });
+
+        Assert.Equal(0xFFFF0000, set.Shapes[0].Colour);
+    }
+
+    /// <summary>
+    /// A colour that does not read warns and falls back rather than
+    /// failing the node - losing the whole label over a typo in a hex
+    /// string would be a poor trade.
+    /// </summary>
+    [Fact]
+    public void A_bad_colour_warns_and_falls_back()
+    {
+        var graph = new VisionGraph();
+        var label = new LabelNode { Text = "x", Colour = "not a colour" };
+        graph.Add(label);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal(NodeStatus.Warning, label.Status);
+        Assert.NotNull(((ShapeSet)scheduler.GetOutput(label.ShapesOut)!).Shapes[0].Colour);
+    }
+
+    // ---- text on a wire -------------------------------------------------------------
+
+    /// <summary>
+    /// A Text node drives the label, which is the pair working together:
+    /// one place to write a caption, used wherever it is needed.
+    /// </summary>
+    [Fact]
+    public void A_text_node_can_drive_the_label()
+    {
+        var graph = new VisionGraph();
+        var text = new TextNode { Text = "Serial 1234" };
+        var label = new LabelNode();
+
+        graph.Add(text);
+        graph.Add(label);
+
+        var port = label.Inputs.Single(p => p.Name == nameof(LabelNode.Text));
+        Assert.True(graph.TryConnect(text.TextOut, port).Success);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var set = (ShapeSet)scheduler.GetOutput(label.ShapesOut)!;
+
+        Assert.Equal("Serial 1234", set.Shapes[0].Label);
+    }
+
+    [Fact]
+    public void A_text_node_publishes_its_text()
+    {
+        var graph = new VisionGraph();
+        var node = new TextNode { Text = "hello" };
+        graph.Add(node);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal("hello", scheduler.GetOutput(node.TextOut));
+    }
+
+    /// <summary>
+    /// And a measurement drives it, which is the whole chain: find
+    /// something, measure it, write the reading on the picture.
+    /// </summary>
+    [Fact]
+    public void A_measurement_can_drive_the_label()
+    {
+        var graph = new VisionGraph();
+        var a = new ShapeSourceNode(new CircleShape(new Point2(0, 0), 10));
+        var b = new ShapeSourceNode(new CircleShape(new Point2(3, 4), 10));
+        var measure = new MeasureNode();
+        var label = new LabelNode { Decimals = 1 };
+
+        foreach (var node in new VisionNode[] { a, b, measure, label })
+            graph.Add(node);
+
+        graph.TryConnect(a.ShapesOut, measure.FirstIn);
+        graph.TryConnect(b.ShapesOut, measure.SecondIn);
+
+        var number = label.Inputs.Single(p => p.Name == nameof(LabelNode.Number));
+        Assert.True(graph.TryConnect(measure.ValueOut, number).Success);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var set = (ShapeSet)scheduler.GetOutput(label.ShapesOut)!;
+
+        Assert.Equal("5.0", set.Shapes[0].Label);
+    }
+
+    private static GraphScheduler CreateScheduler(VisionGraph graph)
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            return new GraphScheduler(graph);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
+}
