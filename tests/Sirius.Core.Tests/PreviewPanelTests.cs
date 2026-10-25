@@ -1,4 +1,4 @@
-using Sirius.Core.Graph;
+﻿using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
 using Sirius.Studio.App.ViewModels;
@@ -75,7 +75,7 @@ public class PreviewPanelTests
     [Fact]
     public void A_node_with_no_image_offers_nothing()
     {
-        var value = new IntegerNode();
+        var value = new NumberNode();
 
         Assert.Empty(MainViewModel.PreviewablePorts(value));
         Assert.Null(MainViewModel.DefaultPreviewPort(value));
@@ -247,10 +247,10 @@ public class PreviewPanelTests
     {
         var shell = new MainViewModel();
         var node = shell.Editor.AddNode(
-            NodeCatalog.All.First(d => d.DisplayName == "Integer"),
+            NodeCatalog.All.First(d => d.DisplayName == "Number"),
             new System.Windows.Point(0, 0));
 
-        var value = (IntegerNode)node.Node;
+        var value = (NumberNode)node.Node;
 
         Assert.Null(shell.OpenPreview(value, value.ValueOut));
         Assert.Empty(shell.NodePanels.OfType<PreviewPanelViewModel>());
@@ -425,3 +425,5 @@ public class PreviewPanelTests
         Assert.Empty(shell.NodePanels.OfType<PreviewPanelViewModel>());
     }
 }
+
+

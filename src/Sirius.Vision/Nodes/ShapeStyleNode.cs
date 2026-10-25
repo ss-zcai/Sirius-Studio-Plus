@@ -213,10 +213,15 @@ public sealed class ShapeStyleNode : VisionNode
     /// a presentation detail, and losing the whole result over a typo in a
     /// hex string would be a poor trade.
     /// </remarks>
-    private static uint ParseColour(string text, EvalContext context)
+    /// <param name="fallback">
+    /// What to use when the text does not read. Shared with the Label
+    /// node, which wants white rather than this node's violet - one
+    /// parser, because two would eventually disagree about what
+    /// "#FFF" means.
+    /// </param>
+    internal static uint ParseColour(
+        string text, EvalContext context, uint fallback = 0xFFA78BFAu)
     {
-        const uint fallback = 0xFFA78BFAu;
-
         var trimmed = (text ?? string.Empty).Trim().TrimStart('#');
 
         if (trimmed.Length == 6 &&

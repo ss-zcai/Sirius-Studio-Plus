@@ -11,9 +11,9 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**43 nodes** across 10 categories.
+**44 nodes** across 10 categories.
 
-- **Source** — Blank Image, Float, Image File, Image Sequence, Integer, Vector
+- **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
 - **Combine** — Blend, Logic, Mask
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
@@ -22,7 +22,7 @@ Socket shapes: square = image, circle = everything else.
 - **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line
 - **Transformation** — Polar to Linear
 - **Analysis** — Histogram, Line Profile, Measure, Shape Table
-- **Output** — Image Viewer
+- **Output** — Image Viewer, Label
 
 ## Source
 
@@ -45,26 +45,6 @@ Produces a blank grayscale image of a fixed size.
 | Width | `Integer` | Slider | 1 to 8192 |
 | Height | `Integer` | Slider | 1 to 8192 |
 | Value | `Integer` | Slider | 0 to 255 |
-
-### Float
-
-`source.float`
-
-A real number that can drive parameters on other nodes.
-
-**Outputs**
-
-| Port | Type | Shape | Required |
-| --- | --- | --- | --- |
-| Out | `Number` | circle | - |
-
-**Parameters**
-
-| Name | Type | Editor | Range |
-| --- | --- | --- | --- |
-| Value | `Number` | Slider | set by Minimum / Maximum |
-| Min | `Number` | TextBox | - |
-| Max | `Number` | TextBox | - |
 
 ### Image File
 
@@ -105,43 +85,62 @@ Steps through the images in a folder, one per evaluation.
 | Frame | `Integer` | Sequence | - |
 | Read Mode | `ImreadModes` | ComboBox | - |
 
-### Integer
+### Matrix
 
-`source.integer`
+`source.matrix`
 
-A whole number that can drive parameters on other nodes.
-
-**Outputs**
-
-| Port | Type | Shape | Required |
-| --- | --- | --- | --- |
-| Out | `Integer` | circle | - |
-
-**Parameters**
-
-| Name | Type | Editor | Range |
-| --- | --- | --- | --- |
-| Value | `Integer` | Slider | set by Minimum / Maximum |
-| Min | `Integer` | TextBox | - |
-| Max | `Integer` | TextBox | - |
-
-### Vector
-
-`source.vector`
-
-A list of numbers, for sizes, offsets and per-channel settings.
+A grid of numbers, rows separated by ';'. One row is a vector.
 
 **Outputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| Out | `NumberVector` | circle | - |
+| Out | `NumberMatrix` | circle | - |
 
 **Parameters**
 
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
-| Components | `Text` | TextBox | - |
+| Values | `Text` | TextBox | - |
+
+### Number
+
+`source.number`
+
+A number that can drive parameters on other nodes.
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Out | `Number` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Type | `NumberEntry` | ComboBox | - |
+| Value | `Number` | Slider | set by Minimum / Maximum |
+| Min | `Number` | TextBox | - |
+| Max | `Number` | TextBox | - |
+
+### Text
+
+`source.text`
+
+A line of text, for labels and text parameters.
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Out | `Text` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Text | `Text` | TextBox | - |
 
 ## Basic
 
@@ -527,6 +526,7 @@ Convolves the image with a custom kernel.
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
+| Kernel | `NumberMatrix` | circle | optional |
 
 **Outputs**
 
@@ -1155,4 +1155,37 @@ Terminal node; its input is shown in its own image panel.
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Shapes | `Shapes` | circle | optional |
+
+### Label
+
+`output.label`
+
+Draws a number or a line of text on the image.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| At | `Shapes` | circle | optional |
+| Text | `Text` | circle | optional |
+| Number | `Number` | circle | optional |
+| X | `Number` | circle | optional |
+| Y | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Out | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Text | `Text` | TextBox | - |
+| Number | `Number` | TextBox | - |
+| Decimals | `Integer` | Slider | 0 to 6 |
+| X | `Number` | TextBox | - |
+| Y | `Number` | TextBox | - |
+| Colour | `Text` | Colour | - |
 

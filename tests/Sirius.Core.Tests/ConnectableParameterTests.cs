@@ -1,4 +1,4 @@
-using Emgu.CV;
+﻿using Emgu.CV;
 using Sirius.Core.Graph;
 using Sirius.Core.Serialization;
 using Sirius.Vision;
@@ -98,7 +98,7 @@ public class ConnectableParameterTests
     {
         var graph = new VisionGraph();
         var source = new ConstantImageNode { Width = 64, Height = 64, Value = 200 };
-        var level = new FloatNode { Maximum = 255, Value = 220 };
+        var level = new NumberNode { Maximum = 255, Value = 220 };
         var threshold = new ThresholdNode { Threshold = 100, MaxValue = 255 };
 
         graph.Add(source);
@@ -120,7 +120,7 @@ public class ConnectableParameterTests
     {
         var graph = new VisionGraph();
         var source = new ConstantImageNode { Width = 32, Height = 32, Value = 200 };
-        var level = new FloatNode { Maximum = 255, Value = 220 };
+        var level = new NumberNode { Maximum = 255, Value = 220 };
         var threshold = new ThresholdNode { MaxValue = 255 };
 
         graph.Add(source);
@@ -147,7 +147,7 @@ public class ConnectableParameterTests
     public void Numeric_types_are_interchangeable_across_a_connection()
     {
         var graph = new VisionGraph();
-        var level = new FloatNode();
+        var level = new NumberNode();
         var threshold = new ThresholdNode();
         graph.Add(level);
         graph.Add(threshold);
@@ -174,7 +174,7 @@ public class ConnectableParameterTests
     public void Parameter_connections_survive_a_save_and_load()
     {
         var graph = new VisionGraph();
-        var level = new FloatNode { Maximum = 255, Value = 77 };
+        var level = new NumberNode { Maximum = 255, Value = 77 };
         var threshold = new ThresholdNode();
         graph.Add(level);
         graph.Add(threshold);
@@ -217,3 +217,4 @@ public class ConnectableParameterTests
         Assert.Equal("In", connection.Target.Name);
     }
 }
+

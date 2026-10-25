@@ -88,6 +88,9 @@ public sealed class ParameterViewModel : ObservableObject
 
             if (e.PropertyName == descriptor.Attribute.MaxSource)
                 OnPropertyChanged(nameof(Maximum));
+
+            if (e.PropertyName == descriptor.Attribute.StepSource)
+                OnPropertyChanged(nameof(Step));
         };
     }
 
@@ -301,9 +304,11 @@ public sealed class ParameterViewModel : ObservableObject
         return value is null ? null : System.Convert.ToDouble(value);
     }
 
-    public double Step => _descriptor.Attribute.HasStep
-        ? _descriptor.Attribute.Step
-        : IsIntegral ? 1 : 0.01;
+    public double Step =>
+        ReadBound(_descriptor.Attribute.StepSource)
+        ?? (_descriptor.Attribute.HasStep
+            ? _descriptor.Attribute.Step
+            : IsIntegral ? 1 : 0.01);
 
     /// <summary>
     /// How this parameter's number is written.

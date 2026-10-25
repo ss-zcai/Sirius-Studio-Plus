@@ -32,6 +32,8 @@ public sealed class Filter2DNode : ImageFilterNode
     private double _scale = 1;
     private double _offset;
 
+    public Filter2DNode() => MatrixIn = AddInput<NumberMatrix>("Kernel", isRequired: false);
+
     [Param("Kernel Size", Min = 3, Max = 15, Step = 2, OddOnly = true, Editor = ParamEditor.Slider)]
     public int KernelSize
     {
@@ -61,17 +63,61 @@ public sealed class Filter2DNode : ImageFilterNode
         set => SetParam(ref _offset, value);
     }
 
-    protected override void Apply(ImageData source, Mat destination, EvalContext context)
+    /// <summary>
+    /// A kernel from a wire, which overrides the one typed here.
+    /// </summary>
+    /// <remarks>
+    /// The first real consumer of a Matrix: a kernel is exactly a small
+    /// grid of numbers, and until now one could only be typed into this
+    /// node. Wired, it can be shared between filters, or built by
+    /// something upstream.
+    ///
+    /// Its own size wins over Kernel Size, because a matrix knows how big
+    /// it is and asking the operator to keep a second number in step with
+    /// it would be a setting whose only job is to be wrong.
+    /// </remarks>
+    public InputPort MatrixIn { get; }
+
+    /// <summary>
+    /// The kernel to convolve with, from the wire when one is attached
+    /// and from the text box otherwise.
+    /// </summary>
+    private (IReadOnlyList<double> Values, int Size) Resolve(EvalContext context)
     {
+        if (context.Get<NumberMatrix>(MatrixIn) is { Count: > 0 } matrix)
+        {
+            if (!matrix.IsSquare)
+            {
+                throw new InvalidOperationException(
+                    $"A convolution kernel must be square; this one is " +
+                    $"{matrix.Rows}x{matrix.Columns}.");
+            }
+
+            if (matrix.Rows % 2 == 0)
+            {
+                throw new InvalidOperationException(
+                    $"A convolution kernel needs an odd size so it has a centre pixel; " +
+                    $"this one is {matrix.Rows}x{matrix.Columns}.");
+            }
+
+            return (matrix.Values, matrix.Rows);
+        }
+
         var values = ParseKernel(_kernel, _kernelSize, out var error);
 
-        if (values is null)
-            throw new InvalidOperationException(error);
+        return values is null
+            ? throw new InvalidOperationException(error)
+            : (values, _kernelSize);
+    }
 
-        using var kernel = new Matrix<float>(_kernelSize, _kernelSize);
-        for (var row = 0; row < _kernelSize; row++)
-        for (var column = 0; column < _kernelSize; column++)
-            kernel.Data[row, column] = (float)(values[(row * _kernelSize) + column] * _scale);
+    protected override void Apply(ImageData source, Mat destination, EvalContext context)
+    {
+        var (values, size) = Resolve(context);
+
+        using var kernel = new Matrix<float>(size, size);
+        for (var row = 0; row < size; row++)
+        for (var column = 0; column < size; column++)
+            kernel.Data[row, column] = (float)(values[(row * size) + column] * _scale);
 
         // Filter2D will not allocate its destination - it requires one already
         // matching the source in size and channel count, and fails with a size

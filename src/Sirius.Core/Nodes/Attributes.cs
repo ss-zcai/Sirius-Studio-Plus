@@ -216,6 +216,17 @@ public sealed class ParamAttribute : Attribute
     /// <summary>Name of another parameter supplying this one's upper bound.</summary>
     public string? MaxSource { get; set; }
 
+    /// <summary>
+    /// Name of another property supplying this one's step.
+    /// </summary>
+    /// <remarks>
+    /// The same idea as <see cref="MinSource"/>, for the case where how
+    /// finely a value can be set depends on what kind of value it is: a
+    /// Number node set to whole numbers steps by one, and the same node
+    /// set to decimals does not.
+    /// </remarks>
+    public string? StepSource { get; set; }
+
     public bool HasMin => !double.IsNaN(Min);
 
     public bool HasMax => !double.IsNaN(Max);

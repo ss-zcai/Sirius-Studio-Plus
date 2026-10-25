@@ -1,4 +1,4 @@
-using Sirius.Core.Graph;
+﻿using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Serialization;
 using Sirius.Studio.App.ViewModels;
@@ -33,20 +33,20 @@ public class ValueNodeTests
     public async Task Integer_publishes_a_whole_number()
     {
         var graph = new VisionGraph();
-        var node = new IntegerNode { Maximum = 500, Value = 42 };
+        var node = new NumberNode { Maximum = 500, Value = 42 };
         graph.Add(node);
 
         using var scheduler = CreateScheduler(graph);
         await scheduler.RunAsync();
 
-        Assert.Equal(42, scheduler.GetOutput(node.ValueOut));
+        Assert.Equal(42d, scheduler.GetOutput(node.ValueOut));
     }
 
     [Fact]
     public async Task Float_publishes_a_real_number()
     {
         var graph = new VisionGraph();
-        var node = new FloatNode { Maximum = 10, Value = 2.5 };
+        var node = new NumberNode { Maximum = 10, Value = 2.5 };
         graph.Add(node);
 
         using var scheduler = CreateScheduler(graph);
@@ -58,7 +58,7 @@ public class ValueNodeTests
     [Fact]
     public void A_value_is_held_inside_its_range()
     {
-        var node = new IntegerNode { Minimum = 10, Maximum = 20 };
+        var node = new NumberNode { Minimum = 10, Maximum = 20 };
 
         node.Value = 500;
         Assert.Equal(20, node.Value);
@@ -74,7 +74,7 @@ public class ValueNodeTests
     [Fact]
     public void Narrowing_the_range_pulls_the_value_in()
     {
-        var node = new IntegerNode { Maximum = 255, Value = 200 };
+        var node = new NumberNode { Maximum = 255, Value = 200 };
 
         node.Maximum = 100;
 
@@ -88,7 +88,7 @@ public class ValueNodeTests
     [Fact]
     public void An_inverted_range_is_tolerated_while_it_is_being_typed()
     {
-        var node = new IntegerNode { Minimum = 0, Maximum = 100, Value = 50 };
+        var node = new NumberNode { Minimum = 0, Maximum = 100, Value = 50 };
 
         node.Minimum = 200; // above Max, until Max is typed too
 
@@ -103,7 +103,7 @@ public class ValueNodeTests
     {
         var graph = new VisionGraph();
         var source = new ConstantImageNode { Width = 32, Height = 32, Value = 200 };
-        var level = new FloatNode { Maximum = 255, Value = 220 };
+        var level = new NumberNode { Maximum = 255, Value = 220 };
         var threshold = new ThresholdNode { MaxValue = 255 };
 
         graph.Add(source);
@@ -124,7 +124,7 @@ public class ValueNodeTests
     public async Task An_integer_can_drive_a_double_parameter()
     {
         var graph = new VisionGraph();
-        var level = new IntegerNode { Maximum = 255, Value = 90 };
+        var level = new NumberNode { Maximum = 255, Value = 90 };
         var threshold = new ThresholdNode();
         graph.Add(level);
         graph.Add(threshold);
@@ -138,43 +138,46 @@ public class ValueNodeTests
     }
 
     [Fact]
-    public async Task Vector_publishes_every_component()
+    public async Task Matrix_publishes_every_value()
     {
         var graph = new VisionGraph();
-        var node = new VectorNode { Components = "3, 5" };
+        var node = new MatrixNode { Values = "3, 5" };
         graph.Add(node);
 
         using var scheduler = CreateScheduler(graph);
         await scheduler.RunAsync();
 
-        var vector = Assert.IsType<NumberVector>(scheduler.GetOutput(node.VectorOut));
-        Assert.Equal(3, vector.X);
-        Assert.Equal(5, vector.Y);
-        Assert.Equal(new[] { 3, 5 }, vector.ToInt());
+        var matrix = Assert.IsType<NumberMatrix>(scheduler.GetOutput(node.MatrixOut));
+
+        Assert.Equal(1, matrix.Rows);
+        Assert.Equal(2, matrix.Columns);
+        Assert.True(matrix.IsVector);
+        Assert.Equal(new double[] { 3, 5 }, matrix.Values);
     }
 
     /// <summary>
-    /// Formatted as it is typed, so the text box round-trips. It used to
-    /// read "(3, 3)", which is not something that can be typed back in.
+    /// Formatted as it is typed, so the text box round-trips. The old
+    /// Vector read "(3, 3)", which is not something that can be typed
+    /// back in.
     /// </summary>
     [Fact]
-    public void A_vector_reads_as_its_own_text()
+    public void A_matrix_reads_as_its_own_text()
     {
-        Assert.Equal("3, 3", new NumberVector([3, 3]).ToString());
-        Assert.Equal("0.5, 2.25", new NumberVector([0.5, 2.25]).ToString());
-        Assert.Equal("3, 3, 1", new NumberVector([3, 3, 1]).ToString());
+        Assert.Equal("3, 3", NumberMatrix.Row(3, 3).ToString());
+        Assert.Equal("0.5, 2.25", NumberMatrix.Row(0.5, 2.25).ToString());
+        Assert.Equal("1, 0; 0, 1", new NumberMatrix(2, 2, [1, 0, 0, 1]).ToString());
     }
 
     [Fact]
     public void A_vector_cannot_be_wired_into_a_numeric_parameter()
     {
         var graph = new VisionGraph();
-        var vector = new VectorNode();
+        var vector = new MatrixNode();
         var threshold = new ThresholdNode();
         graph.Add(vector);
         graph.Add(threshold);
 
-        var result = graph.TryConnect(vector.VectorOut, threshold.FindInput("Threshold")!);
+        var result = graph.TryConnect(vector.MatrixOut, threshold.FindInput("Threshold")!);
 
         Assert.False(result.Success);
         Assert.Equal(ConnectionRejection.TypeMismatch, result.Reason);
@@ -184,24 +187,36 @@ public class ValueNodeTests
     public void Value_nodes_round_trip_through_a_saved_recipe()
     {
         var graph = new VisionGraph();
-        graph.Add(new IntegerNode { Minimum = 5, Maximum = 400, Value = 123 });
-        graph.Add(new FloatNode { Minimum = -1, Maximum = 3, Value = 1.5 });
-        graph.Add(new VectorNode { X = 7, Y = 9 });
+        graph.Add(new NumberNode { Minimum = 5, Maximum = 400, Value = 123 });
+        graph.Add(new NumberNode
+        {
+            Entry = NumberEntry.Decimal,
+            Minimum = -1,
+            Maximum = 3,
+            Value = 1.5,
+        });
+        graph.Add(new MatrixNode { Values = "7, 9" });
 
         var loaded = GraphSerializer.Deserialize(GraphSerializer.Serialize(graph));
 
         Assert.False(loaded.HasWarnings);
 
-        var integer = loaded.Graph.Nodes.OfType<IntegerNode>().Single();
-        Assert.Equal(123, integer.Value);
-        Assert.Equal(400, integer.Maximum);
+        var numbers = loaded.Graph.Nodes.OfType<NumberNode>().ToArray();
+        Assert.Equal(2, numbers.Length);
 
-        var real = loaded.Graph.Nodes.OfType<FloatNode>().Single();
-        Assert.Equal(1.5, real.Value);
+        Assert.Equal(123, numbers[0].Value);
+        Assert.Equal(400, numbers[0].Maximum);
+        Assert.Equal(NumberEntry.Integer, numbers[0].Entry);
 
-        var vector = loaded.Graph.Nodes.OfType<VectorNode>().Single();
-        Assert.Equal(7, vector.X);
-        Assert.Equal(9, vector.Y);
+        // The entry type travels with the value. Without it a decimal
+        // node would come back as a whole-number one, and the next nudge
+        // of its slider would quietly round the value.
+        Assert.Equal(1.5, numbers[1].Value);
+        Assert.Equal(NumberEntry.Decimal, numbers[1].Entry);
+
+        var matrix = loaded.Graph.Nodes.OfType<MatrixNode>().Single();
+        Assert.Equal("7, 9", matrix.Values);
+        Assert.Equal(new double[] { 7, 9 }, matrix.Value.Values);
     }
 
     /// <summary>
@@ -223,7 +238,7 @@ public class ValueNodeTests
 
         var loaded = GraphSerializer.Deserialize(json);
 
-        var node = Assert.IsType<FloatNode>(loaded.Graph.Nodes.Single());
+        var node = Assert.IsType<NumberNode>(loaded.Graph.Nodes.Single());
         Assert.Equal(7.5, node.Value);
     }
 
@@ -259,8 +274,8 @@ public class ValueNodeTests
     [Fact]
     public void The_slider_range_follows_the_min_and_max_parameters()
     {
-        var node = new IntegerNode { Minimum = 10, Maximum = 90 };
-        var descriptor = node.Descriptor.Parameters.Single(p => p.Name == nameof(IntegerNode.Value));
+        var node = new NumberNode { Minimum = 10, Maximum = 90 };
+        var descriptor = node.Descriptor.Parameters.Single(p => p.Name == nameof(NumberNode.Value));
         var parameter = new ParameterViewModel(node, descriptor);
 
         Assert.Equal(10, parameter.Minimum);
@@ -275,3 +290,6 @@ public class ValueNodeTests
         Assert.Contains(nameof(ParameterViewModel.Maximum), raised);
     }
 }
+
+
+
