@@ -90,6 +90,24 @@ public partial class ImageViewer : UserControl
 
         /// <summary>Dragging a placed measurement bodily.</summary>
         MoveMeasurement,
+
+        /// <summary>Sliding the whole search band.</summary>
+        MoveRing,
+
+        /// <summary>Dragging the band's inner edge.</summary>
+        ResizeRingInner,
+
+        /// <summary>Dragging the band's outer edge.</summary>
+        ResizeRingOuter,
+    }
+
+    /// <summary>What part of a search band a point is over.</summary>
+    private enum RingPart
+    {
+        None,
+        Inside,
+        Inner,
+        Outer,
     }
 
     [Flags]
@@ -1302,6 +1320,91 @@ public partial class ImageViewer : UserControl
         ActiveTool = ViewerTool.None;
     }
 
+    /// <summary>
+    /// Which part of the band a screen point grabs.
+    /// </summary>
+    /// <remarks>
+    /// The circles are their own handles. Separate knobs would have to be
+    /// placed somewhere on a shape that is the same all the way round, and
+    /// wherever they went they would be in the way of the feature being
+    /// inspected - the thing the band is drawn around.
+    ///
+    /// The edges win over the inside, so a narrow band can still be
+    /// resized rather than only moved.
+    /// </remarks>
+    private RingPart HitTestRing(Point screen) => HitTestRingAt(ScreenToImage(screen));
+
+    /// <summary>
+    /// The same test in image coordinates, which is where the geometry
+    /// lives and where it can be checked without a laid-out control.
+    /// </summary>
+    private RingPart HitTestRingAt(Point image)
+    {
+        if (!IsRingEnabled || _ringClicks.Count > 0)
+            return RingPart.None;
+
+        var ring = Ring;
+
+        if (ring.OuterRadius <= 0)
+            return RingPart.None;
+
+        var distance = Distance(new Point(ring.CentreX, ring.CentreY), image);
+        var tolerance = Math.Max(HandleTolerance * ScreenPixel, 3);
+
+        if (Math.Abs(distance - ring.OuterRadius) <= tolerance)
+            return RingPart.Outer;
+
+        if (Math.Abs(distance - ring.InnerRadius) <= tolerance)
+            return RingPart.Inner;
+
+        // Anywhere within the band itself moves it. Not the hole: that is
+        // where the part being measured is, and a click there is far more
+        // likely meant for the image than for the band.
+        return distance > ring.InnerRadius && distance < ring.OuterRadius
+            ? RingPart.Inside
+            : RingPart.None;
+    }
+
+    /// <summary>The band as it was when the current drag began.</summary>
+    private Ring _dragStartRing;
+
+    /// <summary>Applies a drag to the band.</summary>
+    /// <remarks>
+    /// Resizing moves one edge and leaves the other, which is what
+    /// dragging an edge means. Ring's constructor reorders if they cross,
+    /// so dragging the inner edge past the outer one swaps them rather
+    /// than inverting the band.
+    /// </remarks>
+    private void DragRing(DragMode mode, Point image)
+    {
+        var centre = new Point(_dragStartRing.CentreX, _dragStartRing.CentreY);
+
+        switch (mode)
+        {
+            case DragMode.MoveRing:
+                Ring = _dragStartRing.WithCentre(
+                    _dragStartRing.CentreX + (image.X - _dragStartImage.X),
+                    _dragStartRing.CentreY + (image.Y - _dragStartImage.Y));
+                break;
+
+            case DragMode.ResizeRingInner:
+                Ring = new Ring(
+                    _dragStartRing.CentreX,
+                    _dragStartRing.CentreY,
+                    Distance(centre, image),
+                    _dragStartRing.OuterRadius);
+                break;
+
+            case DragMode.ResizeRingOuter:
+                Ring = new Ring(
+                    _dragStartRing.CentreX,
+                    _dragStartRing.CentreY,
+                    _dragStartRing.InnerRadius,
+                    Distance(centre, image));
+                break;
+        }
+    }
+
     /// <summary>Abandons a half-placed band.</summary>
     private void ResetRing()
     {
@@ -1814,6 +1917,20 @@ public partial class ImageViewer : UserControl
             _editIndex = handle;
             _dragMode = DragMode.MovePoint;
         }
+        else if (HitTestRing(_dragStartScreen) is var part and not RingPart.None)
+        {
+            // Before the region, because a node with both has its band
+            // drawn inside its region and the band is the smaller, more
+            // specific target.
+            _dragStartRing = Ring;
+
+            _dragMode = part switch
+            {
+                RingPart.Inner => DragMode.ResizeRingInner,
+                RingPart.Outer => DragMode.ResizeRingOuter,
+                _ => DragMode.MoveRing,
+            };
+        }
         else if (IsRoiEnabled && HitTestRoi(_dragStartScreen) is var edge and not Edge.None)
         {
             _activeEdge = edge;
@@ -1938,6 +2055,12 @@ public partial class ImageViewer : UserControl
 
             case DragMode.MoveMeasurement:
                 MoveSelected(image);
+                break;
+
+            case DragMode.MoveRing:
+            case DragMode.ResizeRingInner:
+            case DragMode.ResizeRingOuter:
+                DragRing(_dragMode, image);
                 break;
 
             case DragMode.DrawRoi:
@@ -2524,6 +2647,20 @@ public partial class ImageViewer : UserControl
         {
             Surface.Cursor = Cursors.SizeAll;
             return;
+        }
+
+        // The band's own circles are its handles, so the cursor is the only
+        // thing that says they can be grabbed.
+        switch (HitTestRing(screen))
+        {
+            case RingPart.Inner:
+            case RingPart.Outer:
+                Surface.Cursor = Cursors.SizeNWSE;
+                return;
+
+            case RingPart.Inside:
+                Surface.Cursor = Cursors.SizeAll;
+                return;
         }
 
         if (!IsRoiEnabled)

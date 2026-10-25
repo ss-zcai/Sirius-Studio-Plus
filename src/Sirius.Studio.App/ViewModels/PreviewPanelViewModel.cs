@@ -143,10 +143,19 @@ public sealed class PreviewPanelViewModel : ImagePanelViewModel
     /// the result as though it did - and not another node's anything.
     /// </remarks>
     protected override bool Accepts(ParameterViewModel? parameter) =>
-        parameter is null ||
-        (ReferenceEquals(parameter.Node, Node) &&
-         _port is InputPort &&
-         _port.DataType == typeof(ImageData));
+        parameter is null || IsOwnInput(parameter);
+
+    /// <summary>
+    /// A band belongs only to the preview of the node that owns it, showing
+    /// the very image it is measured in.
+    /// </summary>
+    protected override bool AcceptsRing(ParameterViewModel? parameter) =>
+        parameter is null || IsOwnInput(parameter);
+
+    private bool IsOwnInput(ParameterViewModel parameter) =>
+        ReferenceEquals(parameter.Node, Node) &&
+        _port is InputPort &&
+        _port.DataType == typeof(ImageData);
 
     protected override (ImageData? Image, ShapeSet? Shapes) Read(GraphScheduler scheduler)
     {

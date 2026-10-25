@@ -364,7 +364,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         get => _ringParameter;
         set
         {
-            if (SetProperty(ref _ringParameter, Accepts(value) ? value : null))
+            if (SetProperty(ref _ringParameter, AcceptsRing(value) ? value : null))
             {
                 OnPropertyChanged(nameof(Ring));
                 OnPropertyChanged(nameof(IsRingEnabled));
@@ -443,6 +443,25 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     /// showing and refuses the ones that are not in its space.
     /// </remarks>
     protected virtual bool Accepts(ParameterViewModel? parameter) => true;
+
+    /// <summary>
+    /// Whether a search band may be drawn and shown on this panel.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// No, by default - which is the opposite of <see cref="Accepts"/> and
+    /// deliberately so. A Viewer node is where results are looked at, and
+    /// a search band drawn over them is clutter belonging to a different
+    /// job: it was appearing on every viewer in the recipe at once, simply
+    /// because a node that owns one happened to be selected.
+    /// </para>
+    /// <para>
+    /// Only the preview of the owning node's own input says yes. That is
+    /// the one picture the band is measured in, and the one place editing
+    /// it makes sense.
+    /// </para>
+    /// </remarks>
+    protected virtual bool AcceptsRing(ParameterViewModel? parameter) => parameter is null;
 
     /// <summary>Re-reads the region after it was changed elsewhere.</summary>
     public void RefreshRegion()
