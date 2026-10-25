@@ -169,10 +169,16 @@ done. What remains, in order:
 - **Remapping shapes through Crop, Resize and Polar.** A `ShapeSet` reports
   that its frame no longer matches; it cannot follow the image through a
   geometry change.
-- **Measurement in the graph.** The viewer measures interactively, but
-  nothing emits a number a recipe can pass or fail on. This is not a
-  region-drawing problem: it needs a way to *reference* two tools' outputs -
-  "the line from Find Line 1, the circle from Find Circle 2".
+- **Measurement in the graph is done.** The Measure node takes two shape
+  sets and reads a distance or an angle between them, publishing the
+  number and an annotation drawn the way a hand-drawn measurement looks.
+  The reference mechanism this was waiting for turned out not to be
+  needed: wiring two producers into two inputs says "the line from Find
+  Line 1, the circle from Find Circle 2" in the vocabulary the graph
+  already had.
+- **Limit checks**, so a measured number can pass or fail a part rather
+  than only being reported. The number exists now; nothing compares it to
+  a tolerance or carries a verdict out of the recipe.
 - **Calibration.** Every reading is in pixels. The scale belongs to the
   recipe, not the viewer.
 - **Circular and polygonal regions.** Rectangles are handled at any angle.
@@ -245,3 +251,27 @@ done. What remains, in order:
 - Diagnostics are opt-in via `SIRIUS_PANEL_LOG=1`, writing to
   `%AppData%\SiriusStudioPlus\panels.log`. An unreachable panel is always
   logged.
+
+---
+
+## Value nodes, and labels
+
+Asked for together, because they are one idea: values that are not images
+flowing through a recipe and ending up readable on a picture.
+
+- **One Number node** in place of Integer and Float, with a dropdown over
+  how the value is entered rather than over what type crosses the wire.
+  Analysis in `decisions.md` entry 49: it costs nothing in connection
+  checks, because every numeric type is already interchangeable. Needs a
+  legacy type key mapping so existing recipes open.
+- **A Matrix node**, with Vector as the 1xN or Nx1 case of it rather than
+  a separate thing. `NumberVector` already takes any number of components
+  and is the row; a matrix is rows of those. The pay-off is that a 2D
+  Filter's kernel could come from a wire instead of only from its own
+  editor, which is the first real consumer either type would have.
+- **A String node**, and text as a value a port can carry.
+- **A Label node** - takes a number, a string or a matrix and draws it on
+  the image at a point or beside a shape. Half of this exists already:
+  `Shape.Label` is drawn by the viewer, and the Measure node uses it. What
+  is missing is a node that makes a label out of a value that did not come
+  from a shape.

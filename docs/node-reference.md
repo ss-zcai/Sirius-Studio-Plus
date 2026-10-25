@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**42 nodes** across 10 categories.
+**43 nodes** across 10 categories.
 
 - **Source** — Blank Image, Float, Image File, Image Sequence, Integer, Vector
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -21,7 +21,7 @@ Socket shapes: square = image, circle = everything else.
 - **Blob** — Find Blobs, Select Shape, Shape Style
 - **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line
 - **Transformation** — Polar to Linear
-- **Analysis** — Histogram, Line Profile, Shape Table
+- **Analysis** — Histogram, Line Profile, Measure, Shape Table
 - **Output** — Image Viewer
 
 ## Source
@@ -1099,6 +1099,35 @@ Intensity sampled along a line, for the profile panel.
 | Sample Spacing | `Number` | TextBox | - |
 | Thickness | `Integer` | Slider | 1 to 101, odd only |
 | Interpolation | `ProfileInterpolation` | ComboBox | - |
+
+### Measure
+
+`analysis.measure`
+
+Reads a distance or angle between two shapes and annotates it.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| A | `Shapes` | circle | yes |
+| B | `Shapes` | circle | yes |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Value | `Number` | circle | - |
+| Annotation | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Measure | `MeasureKind` | ComboBox | - |
+| Decimals | `Integer` | Slider | 0 to 6 |
+| Units | `Text` | TextBox | - |
+| Label | `Yes/No` | CheckBox | - |
 
 ### Shape Table
 
