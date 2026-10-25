@@ -57,6 +57,31 @@ public abstract record Shape
     public string? Label { get; init; }
 
     /// <summary>
+    /// The label's height in image pixels, or null for a fixed size on
+    /// screen.
+    /// </summary>
+    /// <remarks>
+    /// Which of the two is wanted depends on what the label is for. A
+    /// reading a person is squinting at while they pan around wants to stay
+    /// the same size on screen, the way the measuring tools' readings do.
+    /// A caption that belongs to the picture - written on a part, kept in a
+    /// saved image, printed on a report - wants to sit at a fixed size in
+    /// the image, so zooming out shrinks it along with everything else.
+    /// Set this for the second; leave it null for the first.
+    /// </remarks>
+    public double? LabelSize { get; init; }
+
+    /// <summary>
+    /// The typeface to draw the label in, or null for the viewer's own.
+    /// </summary>
+    /// <remarks>
+    /// A family name rather than a chosen font, because the viewer is the
+    /// only part of this that knows what a font is; a name a machine does
+    /// not have falls back to the default rather than failing.
+    /// </remarks>
+    public string? LabelFont { get; init; }
+
+    /// <summary>
     /// Stroke width in image pixels, or null to let the viewer choose.
     /// </summary>
     /// <remarks>

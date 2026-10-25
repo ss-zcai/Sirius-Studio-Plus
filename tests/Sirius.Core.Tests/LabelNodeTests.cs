@@ -241,6 +241,88 @@ public class LabelNodeTests
         Assert.NotNull(((ShapeSet)scheduler.GetOutput(label.ShapesOut)!).Shapes[0].Colour);
     }
 
+    // ---- how it is written ----------------------------------------------------------
+
+    /// <summary>
+    /// The size travels with the label, in image pixels, so the caption
+    /// stays the same size on the picture however the viewer is zoomed.
+    /// </summary>
+    [Fact]
+    public void It_publishes_the_size_it_was_given()
+    {
+        var set = Run(node =>
+        {
+            node.Text = "x";
+            node.Size = 48;
+        });
+
+        Assert.Equal(48, set.Shapes[0].LabelSize);
+    }
+
+    [Theory]
+    [InlineData(LabelTypeface.Monospace, "Consolas")]
+    [InlineData(LabelTypeface.Sans, "Segoe UI")]
+    [InlineData(LabelTypeface.Serif, "Georgia")]
+    public void The_typeface_travels_as_a_family_name(LabelTypeface typeface, string family)
+    {
+        var set = Run(node =>
+        {
+            node.Text = "x";
+            node.Typeface = typeface;
+        });
+
+        Assert.Equal(family, set.Shapes[0].LabelFont);
+    }
+
+    /// <summary>
+    /// Labels on shapes carry it too, not only the one placed at X, Y -
+    /// the two paths through the node had drifted apart before.
+    /// </summary>
+    [Fact]
+    public void Labels_on_shapes_are_written_the_same_way()
+    {
+        var set = Run(
+            node =>
+            {
+                node.Text = "x";
+                node.Size = 36;
+                node.Typeface = LabelTypeface.Serif;
+            },
+            new CircleShape(new Point2(10, 20), 5),
+            new CircleShape(new Point2(30, 40), 5));
+
+        Assert.All(set.Shapes, shape =>
+        {
+            Assert.Equal(36, shape.LabelSize);
+            Assert.Equal("Georgia", shape.LabelFont);
+        });
+    }
+
+    /// <summary>
+    /// A label with no height is nothing to look at, and a vast one is a
+    /// mistyped figure rather than an intention.
+    /// </summary>
+    [Theory]
+    [InlineData(0, 4)]
+    [InlineData(-10, 4)]
+    [InlineData(5000, 400)]
+    public void The_size_is_held_to_something_drawable(double asked, double expected)
+    {
+        var node = new LabelNode { Size = asked };
+
+        Assert.Equal(expected, node.Size);
+    }
+
+    /// <summary>
+    /// The socket is called Shapes because that is what goes in it. It
+    /// was called At, which said what it was for without saying what it
+    /// took, and the first question anybody asked of the node was what
+    /// that input wanted.
+    /// </summary>
+    [Fact]
+    public void The_shapes_socket_says_what_it_takes() =>
+        Assert.Equal("Shapes", new LabelNode().ShapesIn.Name);
+
     // ---- text on a wire -------------------------------------------------------------
 
     /// <summary>

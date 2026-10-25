@@ -56,6 +56,29 @@ public class ShapeLabelTests
             .GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!
             .Invoke(viewer, null);
 
+    /// <summary>The label's height in image pixels, as drawn.</summary>
+    /// <remarks>
+    /// The badge is laid out at a fixed font size and then scaled into
+    /// place by one factor, so its height in the image is the two
+    /// multiplied - which is the number that either does or does not
+    /// change when the picture is zoomed.
+    /// </remarks>
+    private static double HeightInImage(Border label)
+    {
+        var text = (TextBlock)label.Child;
+
+        return ((ScaleTransform)label.RenderTransform).ScaleX * text.FontSize;
+    }
+
+    private static void Zoom(ImageViewer viewer, double factor)
+    {
+        typeof(ImageViewer)
+            .GetMethod("ZoomAt", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(viewer, [new Point(250, 250), factor]);
+
+        viewer.UpdateLayout();
+    }
+
     private static Canvas Layer(ImageViewer viewer, string name) =>
         (Canvas)viewer.FindName(name);
 
@@ -193,5 +216,104 @@ public class ShapeLabelTests
 
             Assert.Equal(handText.FontFamily, graphText.FontFamily);
             Assert.Equal(handText.FontSize, graphText.FontSize);
+        });
+
+    // ---- how big it is ---------------------------------------------------
+
+    /// <summary>
+    /// A label that asked for a height in image pixels keeps it when the
+    /// picture is zoomed, the way everything else drawn on the image does.
+    /// A caption belongs to the picture; it should not swell as you zoom
+    /// out of the thing it is written on.
+    /// </summary>
+    [Fact]
+    public void A_sized_label_zooms_with_the_image() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var viewer = Laid(new CircleShape(new Point2(200, 200), 40)
+            {
+                Label = "42",
+                LabelSize = 30,
+            });
+
+            Assert.Equal(30, HeightInImage(TheLabel(viewer)), 6);
+
+            Zoom(viewer, 4);
+
+            Assert.Equal(30, HeightInImage(TheLabel(viewer)), 6);
+        });
+
+    /// <summary>
+    /// Without a size it holds still on screen instead, which is what a
+    /// reading being squinted at while panning around wants.
+    /// </summary>
+    [Fact]
+    public void An_unsized_label_holds_its_size_on_screen() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var viewer = Laid(new CircleShape(new Point2(200, 200), 40) { Label = "42" });
+
+            var before = HeightInImage(TheLabel(viewer));
+
+            Zoom(viewer, 4);
+
+            // Four times the zoom, so a quarter of the image to cover the
+            // same square of screen.
+            Assert.Equal(before / 4, HeightInImage(TheLabel(viewer)), 6);
+        });
+
+    /// <summary>A size of zero would collapse the badge; it is ignored.</summary>
+    [Fact]
+    public void A_size_of_nothing_falls_back_to_the_screen_size() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var sized = Laid(new CircleShape(new Point2(200, 200), 40)
+            {
+                Label = "42",
+                LabelSize = 0,
+            });
+
+            var plain = Laid(new CircleShape(new Point2(200, 200), 40) { Label = "42" });
+
+            Assert.Equal(HeightInImage(TheLabel(plain)), HeightInImage(TheLabel(sized)), 6);
+        });
+
+    // ---- what it is written in -------------------------------------------
+
+    [Fact]
+    public void It_is_written_in_the_typeface_the_shape_asked_for() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var viewer = Laid(new CircleShape(new Point2(200, 200), 40)
+            {
+                Label = "42",
+                LabelFont = "Georgia",
+            });
+
+            var text = (TextBlock)TheLabel(viewer).Child;
+
+            Assert.Equal("Georgia", text.FontFamily.Source);
+        });
+
+    /// <summary>
+    /// A shape that names nothing gets the viewer's own, rather than
+    /// whatever WPF would inherit from the window.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void A_shape_that_names_no_typeface_gets_the_default(string? font) =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var viewer = Laid(new CircleShape(new Point2(200, 200), 40)
+            {
+                Label = "42",
+                LabelFont = font,
+            });
+
+            var text = (TextBlock)TheLabel(viewer).Child;
+
+            Assert.Equal("Consolas", text.FontFamily.Source);
         });
 }

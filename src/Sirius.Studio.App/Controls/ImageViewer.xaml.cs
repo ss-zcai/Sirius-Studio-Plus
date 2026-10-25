@@ -887,7 +887,16 @@ public partial class ImageViewer : UserControl
     {
         var centre = ShapeGeometry.Centre(shape);
 
-        PlaceLabel(ShapeLayer, text, new Point(centre.X, centre.Y), brush, emphasised: false);
+        // A shape that asked for a height in image pixels is drawn at that
+        // height, so it zooms with the picture it is written on. Everything
+        // else keeps the fixed size on screen the measuring tools use.
+        var scale = shape.LabelSize is { } size and > 0
+            ? size / LabelFontSize
+            : ScreenPixel;
+
+        PlaceLabel(
+            ShapeLayer, text, new Point(centre.X, centre.Y), brush,
+            emphasised: false, scale, shape.LabelFont);
     }
 
     private void ReportShapeFrame(ShapeSet set, bool matches)
@@ -2533,7 +2542,17 @@ public partial class ImageViewer : UserControl
     /// font size.
     /// </remarks>
     private void DrawLabel(string text, Point anchor, Brush brush, bool selected) =>
-        PlaceLabel(MeasureLayer, text, anchor, brush, selected);
+        PlaceLabel(MeasureLayer, text, anchor, brush, selected, ScreenPixel, font: null);
+
+    /// <summary>
+    /// The size a label is laid out at, before it is scaled into place.
+    /// </summary>
+    /// <remarks>
+    /// The padding, the border and the clearance from the anchor are all
+    /// fixed against this, so one factor sets the whole badge and a label
+    /// keeps its proportions whichever size it ends up.
+    /// </remarks>
+    private const double LabelFontSize = 11;
 
     /// <summary>
     /// Adds one reading to a layer, boxed and counter-scaled.
@@ -2543,10 +2562,10 @@ public partial class ImageViewer : UserControl
     /// result carries, so the two cannot drift apart: a reading looks the
     /// same whether a person placed it or the graph produced it.
     /// </remarks>
-    private void PlaceLabel(Canvas layer, string text, Point anchor, Brush brush, bool emphasised)
+    private void PlaceLabel(
+        Canvas layer, string text, Point anchor, Brush brush, bool emphasised,
+        double pixel, string? font)
     {
-        var pixel = ScreenPixel;
-
         var label = new Border
         {
             Background = new SolidColorBrush(Color.FromArgb(0xD8, 0x17, 0x18, 0x1A)),
@@ -2561,8 +2580,9 @@ public partial class ImageViewer : UserControl
             {
                 Text = text,
                 Foreground = brush,
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 11,
+                FontFamily = new FontFamily(
+                    string.IsNullOrWhiteSpace(font) ? "Consolas" : font),
+                FontSize = LabelFontSize,
             },
         };
 

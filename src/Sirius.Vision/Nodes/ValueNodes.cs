@@ -14,6 +14,26 @@ public enum NumberEntry
     Decimal,
 }
 
+/// <summary>The typeface a label is written in.</summary>
+/// <remarks>
+/// Three choices rather than every font installed. A label is read off a
+/// picture at whatever size the image happens to be shown at, so the
+/// useful distinction is the shape of the letters, not the name of the
+/// family; and a recipe naming a font this machine has and the next one
+/// does not would draw something different on each.
+/// </remarks>
+public enum LabelTypeface
+{
+    /// <summary>Even-width figures, so a column of readings lines up.</summary>
+    Monospace,
+
+    /// <summary>Plain letterforms, for words.</summary>
+    Sans,
+
+    /// <summary>Serifed, for a caption meant to be read as prose.</summary>
+    Serif,
+}
+
 /// <summary>
 /// A number, for driving connectable parameters on other nodes.
 /// </summary>
@@ -239,17 +259,25 @@ public sealed class LabelNode : VisionNode
     private double _x = 50;
     private double _y = 50;
     private string _colour = "#E6E6E6";
+    private LabelTypeface _typeface = LabelTypeface.Monospace;
+    private double _size = 24;
 
     public LabelNode()
     {
-        ShapesIn = AddInput<ShapeSet>("At", isRequired: false);
+        ShapesIn = AddInput<ShapeSet>("Shapes", isRequired: false);
         ShapesOut = AddOutput<ShapeSet>("Out");
     }
 
     /// <summary>
-    /// Shapes to label, one each. Optional: without them the label is
-    /// placed at the given position.
+    /// Shapes to label, one each, written at each shape's own centre.
+    /// Optional: without them the label is placed at X, Y.
     /// </summary>
+    /// <remarks>
+    /// Called "At" at first, which said what it was for without saying
+    /// what to plug into it - the first question anybody asked of it was
+    /// what it took. It takes shapes, so it is called Shapes, matching the
+    /// sockets on the viewer that take the same thing.
+    /// </remarks>
     public InputPort ShapesIn { get; }
 
     public OutputPort ShapesOut { get; }
@@ -301,6 +329,21 @@ public sealed class LabelNode : VisionNode
         set => SetParam(ref _colour, value ?? string.Empty);
     }
 
+    [Param("Typeface", Group = "Type", Description = "The shape of the letters.")]
+    public LabelTypeface Typeface
+    {
+        get => _typeface;
+        set => SetParam(ref _typeface, value);
+    }
+
+    [Param("Size", Group = "Type", Min = 4, Max = 400, Step = 1, Logarithmic = true,
+        Description = "Height in image pixels, so the label zooms with the picture.")]
+    public double Size
+    {
+        get => _size;
+        set => SetParam(ref _size, Math.Clamp(value, 4, 400));
+    }
+
     protected override void OnEvaluate(EvalContext context)
     {
         var text = context.Param(nameof(Text), _text);
@@ -323,6 +366,8 @@ public sealed class LabelNode : VisionNode
                 {
                     Label = text,
                     Colour = colour,
+                    LabelSize = _size,
+                    LabelFont = FamilyOf(_typeface),
                 })
                 .ToArray();
 
@@ -339,6 +384,33 @@ public sealed class LabelNode : VisionNode
 
         context.Set(
             ShapesOut,
-            new ShapeSet([new PointShape(at) { Label = text, Colour = colour }], 0, 0));
+            new ShapeSet(
+                [
+                    new PointShape(at)
+                    {
+                        Label = text,
+                        Colour = colour,
+                        LabelSize = _size,
+                        LabelFont = FamilyOf(_typeface),
+                    },
+                ],
+                0,
+                0));
     }
+
+    /// <summary>
+    /// The family name a typeface choice asks the viewer for.
+    /// </summary>
+    /// <remarks>
+    /// Named families rather than WPF's generic aliases, which resolve
+    /// through a per-machine mapping and so are the thing this enum exists
+    /// to avoid. These three ship with Windows; a viewer that cannot find
+    /// one falls back to its own.
+    /// </remarks>
+    internal static string FamilyOf(LabelTypeface typeface) => typeface switch
+    {
+        LabelTypeface.Sans => "Segoe UI",
+        LabelTypeface.Serif => "Georgia",
+        _ => "Consolas",
+    };
 }

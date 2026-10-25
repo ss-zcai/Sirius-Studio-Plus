@@ -1166,7 +1166,7 @@ Draws a number or a line of text on the image.
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| At | `Shapes` | circle | optional |
+| Shapes | `Shapes` | circle | optional |
 | Text | `Text` | circle | optional |
 | Number | `Number` | circle | optional |
 | X | `Number` | circle | optional |
@@ -1188,4 +1188,6 @@ Draws a number or a line of text on the image.
 | X | `Number` | TextBox | - |
 | Y | `Number` | TextBox | - |
 | Colour | `Text` | Colour | - |
+| Typeface | `LabelTypeface` | ComboBox | - |
+| Size | `Number` | Slider | 4 to 400 |
 
