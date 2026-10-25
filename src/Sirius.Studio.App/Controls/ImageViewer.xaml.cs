@@ -1810,30 +1810,36 @@ public partial class ImageViewer : UserControl
 
         var image = ScreenToImage(screen);
         var tolerance = PickTolerance * ScreenPixel;
+        var at = new Point2(image.X, image.Y);
 
         int? best = null;
-        var bestArea = double.MaxValue;
+        var bestDistance = double.MaxValue;
 
         for (var i = 0; i < set.Count; i++)
         {
-            var bounds = set.Shapes[i].Bounds;
+            var shape = set.Shapes[i];
+            var bounds = shape.Bounds;
 
-            var inside =
+            // Cheap reject first: a point outside the box cannot be near
+            // the outline, and this is the test that keeps a set of
+            // thousands affordable.
+            var near =
                 image.X >= bounds.X - tolerance && image.X <= bounds.Right + tolerance &&
                 image.Y >= bounds.Y - tolerance && image.Y <= bounds.Bottom + tolerance;
 
-            if (!inside)
+            if (!near)
                 continue;
 
-            // The smallest box containing the point is the one meant, when a
-            // blob happens to sit inside another's bounds.
-            var area = Math.Max(bounds.Area, 1);
+            // Then the outline itself. The box alone made a large shape
+            // claim every click inside it - a fitted circle across the
+            // whole part swallowed the part and everything drawn on it.
+            var distance = ShapeHitTest.DistanceToOutline(shape, at);
 
-            if (area < bestArea)
-            {
-                best = i;
-                bestArea = area;
-            }
+            if (distance > tolerance || distance >= bestDistance)
+                continue;
+
+            best = i;
+            bestDistance = distance;
         }
 
         return best;
