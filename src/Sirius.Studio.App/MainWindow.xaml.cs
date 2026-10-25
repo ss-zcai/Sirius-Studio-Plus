@@ -44,6 +44,8 @@ public partial class MainWindow : Window
 
     private readonly string _layoutPath;
 
+    private readonly string _placementPath;
+
     private readonly ObservableCollection<PanelViewModel>? _nodePanels;
 
     /// <summary>Dockable panels created for panel-producing nodes, by ContentId.</summary>
@@ -61,6 +63,14 @@ public partial class MainWindow : Window
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "SiriusStudioPlus",
             "layout.xml");
+
+        _placementPath = Path.Combine(
+            Path.GetDirectoryName(_layoutPath)!,
+            "window.json");
+
+        // Before the window is shown, so it opens where it was rather than
+        // appearing centred and then jumping.
+        WindowPlacement.Read(_placementPath)?.ApplyTo(this, WindowPlacement.Desktop);
 
         // The title bar is drawn by Windows, not WPF, so it has to be told
         // separately to use the dark variant.
@@ -352,6 +362,7 @@ public partial class MainWindow : Window
         }
 
         SaveLayout();
+        WindowPlacement.Of(this).Write(_placementPath);
     }
 
     private void RestoreLayout() => RestoreLayout(_layoutPath);

@@ -628,9 +628,26 @@
                                        Margin="8,0,8,8"
                                        Visibility="{Binding Editor.SelectedNode, Converter={StaticResource VisibleWhenNull}}" />
 
+                            <!--
+                                Collapsed outright with nothing selected, rather
+                                than left bound to null. The name box, the help
+                                button, Enabled, "no parameters" and an empty
+                                Status panel all still drew, which is a page of
+                                controls that do nothing offering to be used;
+                                the one line above says all there is to say.
+                            -->
                             <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                          DataContext="{Binding Editor.SelectedNode}">
-                                <StackPanel Margin="8,0,8,8">
+                                          Visibility="{Binding Editor.SelectedNode,
+                                                       Converter={StaticResource NullToVisibility}}">
+                                <!--
+                                    The selected node is the context for
+                                    everything inside; it is set here rather
+                                    than on the ScrollViewer so the line above
+                                    can still see the view model that says
+                                    whether there is one.
+                                -->
+                                <StackPanel Margin="8,0,8,8"
+                                            DataContext="{Binding Editor.SelectedNode}">
                                     <Grid Margin="0,0,0,2">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
