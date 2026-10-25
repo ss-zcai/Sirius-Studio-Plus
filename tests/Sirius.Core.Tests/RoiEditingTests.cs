@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Studio.App.ViewModels;
@@ -34,11 +34,9 @@ public class RoiEditingTests
     [Fact]
     public void A_panel_offers_the_regions_angle()
     {
-        var (_, rect) = Roi();
-        var panel = new ViewerPanelViewModel(new ViewerNode(), new ShapeSelectionService())
-        {
-            RegionParameter = rect,
-        };
+        var (node, rect) = Roi();
+        var panel = Preview(node, node.ImageIn);
+        panel.RegionParameter = rect;
 
         Assert.Equal(30, panel.RoiAngle);
     }
@@ -47,10 +45,8 @@ public class RoiEditingTests
     public void Turning_it_on_the_panel_reaches_the_node()
     {
         var (node, rect) = Roi();
-        var panel = new ViewerPanelViewModel(new ViewerNode(), new ShapeSelectionService())
-        {
-            RegionParameter = rect,
-        };
+        var panel = Preview(node, node.ImageIn);
+        panel.RegionParameter = rect;
 
         panel.RoiAngle = -45;
 
@@ -65,10 +61,8 @@ public class RoiEditingTests
     public void Turning_it_leaves_where_and_how_big_alone()
     {
         var (node, rect) = Roi();
-        var panel = new ViewerPanelViewModel(new ViewerNode(), new ShapeSelectionService())
-        {
-            RegionParameter = rect,
-        };
+        var panel = Preview(node, node.ImageIn);
+        panel.RegionParameter = rect;
 
         panel.RoiAngle = 75;
 
@@ -84,10 +78,15 @@ public class RoiEditingTests
 
         Assert.True(region is not null, "Crop no longer has a region parameter; pick another node");
 
-        var panel = new ViewerPanelViewModel(new ViewerNode(), new ShapeSelectionService())
+        var imageIn = crop.Inputs.First(p => p.DataType == typeof(ImageData));
+        var panel = new PreviewPanelViewModel(crop, imageIn, null, new ShapeSelectionService())
         {
             RegionParameter = new ParameterViewModel(crop, region!),
         };
+
+        // The parameter really did land, so the zero below is the plain
+        // rectangle having no angle rather than the panel having no region.
+        Assert.True(panel.IsRoiEnabled);
 
         panel.RoiAngle = 45;
 
@@ -142,12 +141,21 @@ public class RoiEditingTests
     }
 
     /// <summary>
-    /// A viewer shows whatever is wired to it and cannot know whose
-    /// coordinates that is, so it still takes any region - the behaviour it
-    /// has always had, and what the Image Viewer workflow relies on.
+    /// A viewer takes no region at all.
     /// </summary>
+    /// <remarks>
+    /// It used to take any. A viewer shows whatever is wired to it and
+    /// cannot know whose coordinates that is, so accepting everything
+    /// looked like the safe choice - and the cost was an orange rectangle
+    /// over the results on every viewer in the recipe, belonging to
+    /// whichever node happened to be selected.
+    ///
+    /// A viewer is where results are looked at. Geometry is edited on the
+    /// preview of the input it is measured in, which is the one picture
+    /// where it means anything.
+    /// </remarks>
     [Fact]
-    public void A_viewer_panel_still_accepts_any_region()
+    public void A_viewer_panel_refuses_a_region()
     {
         var (_, rect) = Roi();
         var panel = new ViewerPanelViewModel(new ViewerNode(), new ShapeSelectionService())
@@ -155,6 +163,9 @@ public class RoiEditingTests
             RegionParameter = rect,
         };
 
-        Assert.True(panel.IsRoiEnabled);
+        Assert.False(panel.IsRoiEnabled);
+
+        panel.Dispose();
     }
 }
+

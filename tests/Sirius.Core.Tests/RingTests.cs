@@ -277,6 +277,46 @@ public class RingTests
     }
 
     /// <summary>
+    /// The pick button opens a preview that was closed, rather than doing
+    /// nothing because one used to exist.
+    /// </summary>
+    /// <remarks>
+    /// Closing a preview removes its view-model - a preview exists because
+    /// somebody opened it, so the panel sweep must not bring it back by
+    /// itself - which means the button has to be able to make a new one.
+    /// </remarks>
+    [Theory]
+    [InlineData("Find Circle", ParamEditor.Ring)]
+    [InlineData("Region of Interest", ParamEditor.Rect)]
+    public void The_pick_button_reopens_a_closed_preview(string nodeName, ParamEditor kind)
+    {
+        OnStaThread(() =>
+        {
+            var model = new MainViewModel();
+            var item = model.Palette
+                .SelectMany(group => group.Items)
+                .First(entry => entry.DisplayName == nodeName);
+
+            var node = model.AddNodeAt(item, new Point(40, 40))!;
+            var geometry = node.Parameters.First(p => p.Kind == kind);
+
+            model.DrawRegionCommand.Execute(geometry);
+            Assert.Single(model.NodePanels.OfType<PreviewPanelViewModel>());
+
+            // What closing one does: the window drops the view-model.
+            var opened = model.NodePanels.OfType<PreviewPanelViewModel>().Single();
+            model.NodePanels.Remove(opened);
+            opened.Dispose();
+
+            Assert.Empty(model.NodePanels.OfType<PreviewPanelViewModel>());
+
+            model.DrawRegionCommand.Execute(geometry);
+
+            Assert.Single(model.NodePanels.OfType<PreviewPanelViewModel>());
+        });
+    }
+
+    /// <summary>
     /// Drawing on the preview writes through to the node, which is the
     /// whole point of the gesture.
     /// </summary>

@@ -442,26 +442,31 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     /// panel has always had. A preview knows exactly which port it is
     /// showing and refuses the ones that are not in its space.
     /// </remarks>
-    protected virtual bool Accepts(ParameterViewModel? parameter) => true;
+    /// <remarks>
+    /// No, by default, for both kinds. A Viewer node is where results are
+    /// looked at, and a region or a band drawn over them is clutter from a
+    /// different job - it was appearing on every viewer in the recipe at
+    /// once, simply because a node that owns one happened to be selected.
+    /// Only the preview of the owning node's own input says yes: the one
+    /// picture the geometry is measured in, and the one place editing it
+    /// makes sense.
+    ///
+    /// This retires the broadcast half of ActiveRegionParameter, which the
+    /// roadmap had down as a thing geometry parameters would eventually
+    /// undo. The parameter is still pushed to the panels; they are simply
+    /// the ones entitled to it now.
+    /// </remarks>
+    protected virtual bool Accepts(ParameterViewModel? parameter) => parameter is null;
 
     /// <summary>
     /// Whether a search band may be drawn and shown on this panel.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// No, by default - which is the opposite of <see cref="Accepts"/> and
-    /// deliberately so. A Viewer node is where results are looked at, and
-    /// a search band drawn over them is clutter belonging to a different
-    /// job: it was appearing on every viewer in the recipe at once, simply
-    /// because a node that owns one happened to be selected.
-    /// </para>
-    /// <para>
-    /// Only the preview of the owning node's own input says yes. That is
-    /// the one picture the band is measured in, and the one place editing
-    /// it makes sense.
-    /// </para>
+    /// Separate from <see cref="Accepts"/> only because a node can have
+    /// both and they are answered about different parameters; the rule is
+    /// the same.
     /// </remarks>
-    protected virtual bool AcceptsRing(ParameterViewModel? parameter) => parameter is null;
+    protected virtual bool AcceptsRing(ParameterViewModel? parameter) => Accepts(parameter);
 
     /// <summary>Re-reads the region after it was changed elsewhere.</summary>
     public void RefreshRegion()

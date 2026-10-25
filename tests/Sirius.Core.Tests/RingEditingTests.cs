@@ -4,6 +4,7 @@ using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Studio.App.Controls;
 using Sirius.Studio.App.ViewModels;
+using Sirius.Vision;
 using Sirius.Vision.Nodes;
 using Xunit;
 
@@ -306,6 +307,58 @@ public class RingEditingTests
 
         Assert.NotNull(preview.RingParameter);
         Assert.True(preview.IsRingEnabled);
+
+        preview.Dispose();
+    }
+
+    /// <summary>
+    /// A region of interest is scoped the same way a band is.
+    /// </summary>
+    /// <remarks>
+    /// It was not: the region was pushed to every viewer by design, which
+    /// predates port-bound previews. The result was the same clutter -
+    /// an orange rectangle over the results on a viewer that had nothing
+    /// to do with the node being edited.
+    /// </remarks>
+    [Fact]
+    public void A_viewer_panel_refuses_a_region()
+    {
+        var graph = new VisionGraph();
+        var viewerNode = new ViewerNode();
+        var roi = new RegionOfInterestNode();
+        graph.Add(viewerNode);
+        graph.Add(roi);
+
+        var panel = new ViewerPanelViewModel(viewerNode, new ShapeSelectionService());
+        var region = new NodeViewModel(roi).Parameters
+            .First(p => p.Kind is ParamEditor.Region or ParamEditor.Rect);
+
+        panel.RegionParameter = region;
+
+        Assert.Null(panel.RegionParameter);
+        Assert.False(panel.IsRoiEnabled);
+
+        panel.Dispose();
+    }
+
+    [Fact]
+    public void The_owning_nodes_input_preview_accepts_a_region()
+    {
+        var graph = new VisionGraph();
+        var roi = new RegionOfInterestNode();
+        graph.Add(roi);
+
+        var imageIn = roi.Inputs.First(p => p.DataType == typeof(ImageData));
+        var preview = new PreviewPanelViewModel(
+            roi, imageIn, null, new ShapeSelectionService());
+
+        var region = new NodeViewModel(roi).Parameters
+            .First(p => p.Kind is ParamEditor.Region or ParamEditor.Rect);
+
+        preview.RegionParameter = region;
+
+        Assert.NotNull(preview.RegionParameter);
+        Assert.True(preview.IsRoiEnabled);
 
         preview.Dispose();
     }
