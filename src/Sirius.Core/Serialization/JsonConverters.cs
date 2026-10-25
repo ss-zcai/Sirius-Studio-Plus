@@ -160,6 +160,47 @@ public sealed class OrientedRectJsonConverter : JsonConverter<OrientedRect>
 }
 
 /// <summary>
+/// A <see cref="Sirius.Core.Shapes.Point2"/> as its two numbers.
+/// </summary>
+public sealed class Point2JsonConverter : JsonConverter<Sirius.Core.Shapes.Point2>
+{
+    public override Sirius.Core.Shapes.Point2 Read(
+        ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        double x = 0, y = 0;
+
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException("Expected an object for Point.");
+
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+        {
+            if (reader.TokenType != JsonTokenType.PropertyName)
+                continue;
+
+            var name = reader.GetString();
+            reader.Read();
+
+            switch (name)
+            {
+                case "x": x = reader.GetDouble(); break;
+                case "y": y = reader.GetDouble(); break;
+            }
+        }
+
+        return new Sirius.Core.Shapes.Point2(x, y);
+    }
+
+    public override void Write(
+        Utf8JsonWriter writer, Sirius.Core.Shapes.Point2 value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("x", value.X);
+        writer.WriteNumber("y", value.Y);
+        writer.WriteEndObject();
+    }
+}
+
+/// <summary>
 /// A <see cref="Ring"/> as its four numbers.
 /// </summary>
 public sealed class RingJsonConverter : JsonConverter<Ring>

@@ -98,6 +98,22 @@ public sealed class EvalContext
         if (value is T typed)
             return typed;
 
+        // A point is a two-value vector, so a Matrix can drive one. Length
+        // is checked here rather than at connect time, where a matrix does
+        // not yet have one.
+        if (typeof(T) == typeof(Shapes.Point2) && value is Nodes.NumberMatrix matrix)
+        {
+            if (matrix.Count != 2)
+            {
+                Warn($"'{parameterName}' needs two numbers for a point, but was given " +
+                     $"{matrix.Rows}x{matrix.Columns}; using the editor value.");
+
+                return fallback;
+            }
+
+            return (T)(object)new Shapes.Point2(matrix.At(0), matrix.At(1));
+        }
+
         try
         {
             return (T)System.Convert.ChangeType(value, typeof(T), CultureInfo.InvariantCulture);

@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
+using Sirius.Core.Shapes;
 
 namespace Sirius.Studio.App.ViewModels;
 
@@ -407,6 +408,18 @@ public sealed class ParameterViewModel : ObservableObject
         {
             try
             {
+                // A compound value reads itself; Convert.ChangeType cannot,
+                // and would reject every keystroke in the box.
+                if (_descriptor.ValueType == typeof(Point2))
+                {
+                    if (Point2.TryParse(value, out var point))
+                        Raw = point;
+                    else
+                        RaiseValueChanged();
+
+                    return;
+                }
+
                 Raw = _descriptor.ValueType == typeof(string)
                     ? value
                     : System.Convert.ChangeType(value, _descriptor.ValueType);

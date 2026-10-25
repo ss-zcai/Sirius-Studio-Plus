@@ -76,6 +76,41 @@ public class SerializationTests
     }
 
     [Fact]
+    public void Point_parameters_round_trip()
+    {
+        var graph = new VisionGraph();
+        graph.Add(new LabelNode { Position = new Sirius.Core.Shapes.Point2(12.5, -34) });
+
+        var loaded = GraphSerializer.Deserialize(GraphSerializer.Serialize(graph));
+
+        Assert.Equal(
+            new Sirius.Core.Shapes.Point2(12.5, -34),
+            loaded.Graph.Nodes.OfType<LabelNode>().Single().Position);
+    }
+
+    /// <summary>
+    /// A recipe saved when the label had an X and a Y loads, keeps
+    /// everything it can, and says what it could not use - which is what
+    /// a parameter rename is supposed to cost.
+    /// </summary>
+    [Fact]
+    public void A_label_saved_with_separate_coordinates_loads_with_a_warning()
+    {
+        var graph = new VisionGraph();
+        graph.Add(new LabelNode { Text = "PASS" });
+
+        var json = GraphSerializer.Serialize(graph)
+            .Replace("\"Text\": \"PASS\"", "\"Text\": \"PASS\", \"X\": 120, \"Y\": 80");
+
+        var loaded = GraphSerializer.Deserialize(json);
+        var label = loaded.Graph.Nodes.OfType<LabelNode>().Single();
+
+        Assert.Equal("PASS", label.Text);
+        Assert.Contains(loaded.Warnings, w => w.Contains("'X'", StringComparison.Ordinal));
+        Assert.Contains(loaded.Warnings, w => w.Contains("'Y'", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Enums_are_written_as_names_so_reordering_them_is_safe()
     {
         var graph = new VisionGraph();

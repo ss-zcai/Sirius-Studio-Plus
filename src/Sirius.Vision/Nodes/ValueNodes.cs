@@ -256,8 +256,7 @@ public sealed class LabelNode : VisionNode
     private string _text = string.Empty;
     private double _number;
     private int _decimals = 2;
-    private double _x = 50;
-    private double _y = 50;
+    private Point2 _position = new(50, 50);
     private string _colour = "#E6E6E6";
     private LabelTypeface _typeface = LabelTypeface.Monospace;
     private double _size = 24;
@@ -307,19 +306,21 @@ public sealed class LabelNode : VisionNode
         set => SetParam(ref _decimals, Math.Clamp(value, 0, 6));
     }
 
-    [Param("X", Group = "Position", Connectable = true,
-        Description = "Where to write it when nothing is wired into At.")]
-    public double X
+    /// <summary>
+    /// Where to write the label when nothing is wired into Shapes.
+    /// </summary>
+    /// <remarks>
+    /// One value rather than an X and a Y, for the reason the search band
+    /// is one Ring: it is a single decision, and two parameters are two
+    /// things that can be edited half-way. A two-value Matrix drives it,
+    /// so a position can be computed upstream.
+    /// </remarks>
+    [Param("Position", Connectable = true,
+        Description = "Where to write it when nothing is wired into Shapes: \"x, y\".")]
+    public Point2 Position
     {
-        get => _x;
-        set => SetParam(ref _x, value);
-    }
-
-    [Param("Y", Group = "Position", Connectable = true)]
-    public double Y
-    {
-        get => _y;
-        set => SetParam(ref _y, value);
+        get => _position;
+        set => SetParam(ref _position, value);
     }
 
     [Param("Colour", Editor = ParamEditor.Colour, Description = "Pick one, or type #RRGGBB.")]
@@ -378,9 +379,7 @@ public sealed class LabelNode : VisionNode
             return;
         }
 
-        var at = new Point2(
-            context.Param(nameof(X), _x),
-            context.Param(nameof(Y), _y));
+        var at = context.Param(nameof(Position), _position);
 
         context.Set(
             ShapesOut,

@@ -95,7 +95,7 @@ A grid of numbers, rows separated by ';'. One row is a vector.
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| Out | `NumberMatrix` | circle | - |
+| Out | `Matrix` | circle | - |
 
 **Parameters**
 
@@ -526,7 +526,7 @@ Convolves the image with a custom kernel.
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
-| Kernel | `NumberMatrix` | circle | optional |
+| Kernel | `Matrix` | circle | optional |
 
 **Outputs**
 
@@ -1169,8 +1169,7 @@ Draws a number or a line of text on the image.
 | Shapes | `Shapes` | circle | optional |
 | Text | `Text` | circle | optional |
 | Number | `Number` | circle | optional |
-| X | `Number` | circle | optional |
-| Y | `Number` | circle | optional |
+| Position | `Point` | circle | optional |
 
 **Outputs**
 
@@ -1185,8 +1184,7 @@ Draws a number or a line of text on the image.
 | Text | `Text` | TextBox | - |
 | Number | `Number` | TextBox | - |
 | Decimals | `Integer` | Slider | 0 to 6 |
-| X | `Number` | TextBox | - |
-| Y | `Number` | TextBox | - |
+| Position | `Point` | TextBox | - |
 | Colour | `Text` | Colour | - |
 | Typeface | `LabelTypeface` | ComboBox | - |
 | Size | `Number` | Slider | 4 to 400 |

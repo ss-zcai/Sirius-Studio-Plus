@@ -65,8 +65,7 @@ public class LabelNodeTests
         var set = Run(node =>
         {
             node.Text = "PASS";
-            node.X = 120;
-            node.Y = 80;
+            node.Position = new Point2(120, 80);
         });
 
         var point = Assert.IsType<PointShape>(Assert.Single(set.Shapes));
@@ -163,8 +162,7 @@ public class LabelNodeTests
             node =>
             {
                 node.Text = "x";
-                node.X = 999;
-                node.Y = 999;
+                node.Position = new Point2(999, 999);
             },
             new CircleShape(new Point2(10, 20), 5));
 
@@ -201,8 +199,7 @@ public class LabelNodeTests
         var set = Run(node =>
         {
             node.Text = "none";
-            node.X = 5;
-            node.Y = 6;
+            node.Position = new Point2(5, 6);
         });
 
         Assert.Equal(new Point2(5, 6), ((PointShape)Assert.Single(set.Shapes)).At);
@@ -239,6 +236,120 @@ public class LabelNodeTests
 
         Assert.Equal(NodeStatus.Warning, label.Status);
         Assert.NotNull(((ShapeSet)scheduler.GetOutput(label.ShapesOut)!).Shapes[0].Colour);
+    }
+
+    // ---- where it goes ---------------------------------------------------------------
+
+    /// <summary>
+    /// One parameter rather than an X and a Y. Two were two things that
+    /// could be edited half-way, and they shadowed the node's own canvas
+    /// coordinates - a test that meant to place a label had been quietly
+    /// dragging the node around the graph instead.
+    /// </summary>
+    [Fact]
+    public void The_position_is_one_value()
+    {
+        var node = new LabelNode();
+
+        Assert.Equal(new Point2(50, 50), node.Position);
+        Assert.Contains(node.Inputs, port => port.Name == nameof(LabelNode.Position));
+    }
+
+    [Theory]
+    [InlineData("100, 200", 100, 200)]
+    [InlineData("100,200", 100, 200)]
+    [InlineData("100 200", 100, 200)]
+    [InlineData("  -12.5 , 7  ", -12.5, 7)]
+    public void A_position_reads_what_people_type(string text, double x, double y)
+    {
+        Assert.True(Point2.TryParse(text, out var point));
+
+        Assert.Equal(new Point2(x, y), point);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("100")]
+    [InlineData("100, 200, 300")]
+    [InlineData("100, banana")]
+    public void A_position_that_is_not_two_numbers_is_refused(string? text) =>
+        Assert.False(Point2.TryParse(text, out _));
+
+    [Fact]
+    public void A_position_round_trips_through_its_own_text()
+    {
+        var original = new Point2(12.25, -3.5);
+
+        Assert.True(Point2.TryParse(original.ToString(), out var again));
+        Assert.Equal(original, again);
+    }
+
+    /// <summary>
+    /// A point is a two-value vector, so a Matrix drives one - which is
+    /// what lets a position be computed upstream rather than typed.
+    /// </summary>
+    [Fact]
+    public void A_matrix_can_drive_the_position()
+    {
+        var set = RunDriven("300, 400");
+
+        Assert.Equal(new Point2(300, 400), ((PointShape)Assert.Single(set.Shapes)).At);
+    }
+
+    [Fact]
+    public void A_column_vector_drives_it_too()
+    {
+        var set = RunDriven("300; 400");
+
+        Assert.Equal(new Point2(300, 400), ((PointShape)Assert.Single(set.Shapes)).At);
+    }
+
+    /// <summary>
+    /// A matrix that is not two numbers cannot be a point. The wire is
+    /// allowed - a matrix has no size until it has a value - so the node
+    /// says so when it reads it, and falls back rather than failing.
+    /// </summary>
+    [Theory]
+    [InlineData("1, 2, 3")]
+    [InlineData("1 2; 3 4")]
+    public void A_matrix_of_the_wrong_shape_warns_and_falls_back(string values)
+    {
+        var graph = new VisionGraph();
+        var matrix = new MatrixNode { Values = values };
+        var label = new LabelNode { Text = "x", Position = new Point2(7, 8) };
+
+        graph.Add(matrix);
+        graph.Add(label);
+
+        var port = label.Inputs.Single(p => p.Name == nameof(LabelNode.Position));
+        Assert.True(graph.TryConnect(matrix.MatrixOut, port).Success);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var set = (ShapeSet)scheduler.GetOutput(label.ShapesOut)!;
+
+        Assert.Equal(NodeStatus.Warning, label.Status);
+        Assert.Equal(new Point2(7, 8), ((PointShape)set.Shapes[0]).At);
+    }
+
+    private static ShapeSet RunDriven(string values)
+    {
+        var graph = new VisionGraph();
+        var matrix = new MatrixNode { Values = values };
+        var label = new LabelNode { Text = "x" };
+
+        graph.Add(matrix);
+        graph.Add(label);
+
+        var port = label.Inputs.Single(p => p.Name == nameof(LabelNode.Position));
+        Assert.True(graph.TryConnect(matrix.MatrixOut, port).Success);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        return (ShapeSet)scheduler.GetOutput(label.ShapesOut)!;
     }
 
     // ---- how it is written ----------------------------------------------------------

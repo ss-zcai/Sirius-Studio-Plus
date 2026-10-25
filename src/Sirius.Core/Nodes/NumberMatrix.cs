@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace Sirius.Vision;
+namespace Sirius.Core.Nodes;
 
 /// <summary>
 /// A rectangular grid of numbers travelling as one value - a kernel, a

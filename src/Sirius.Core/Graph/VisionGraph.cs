@@ -209,7 +209,22 @@ public sealed class VisionGraph : ObservableObject
     /// an exact match would force adapter nodes into graphs for no benefit.
     /// </remarks>
     private static bool IsCompatible(Type source, Type target) =>
-        target.IsAssignableFrom(source) || (IsNumeric(source) && IsNumeric(target));
+        target.IsAssignableFrom(source) ||
+        (IsNumeric(source) && IsNumeric(target)) ||
+        IsVectorForPoint(source, target);
+
+    /// <summary>
+    /// A matrix may drive a point, since a point is a two-value vector.
+    /// </summary>
+    /// <remarks>
+    /// Checked by type here and by length when it is read: a matrix knows
+    /// how many values it holds only once it has one, so refusing the wire
+    /// would mean refusing every matrix on the chance it is the wrong
+    /// shape. The node says so at evaluate time instead, the way a filter
+    /// does with a kernel that cannot convolve.
+    /// </remarks>
+    private static bool IsVectorForPoint(Type source, Type target) =>
+        source == typeof(Nodes.NumberMatrix) && target == typeof(Shapes.Point2);
 
     private static bool IsNumeric(Type type) =>
         Type.GetTypeCode(Nullable.GetUnderlyingType(type) ?? type) is

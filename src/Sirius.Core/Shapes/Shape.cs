@@ -1,6 +1,14 @@
+using System.Globalization;
+
 namespace Sirius.Core.Shapes;
 
 /// <summary>A point in image pixel coordinates.</summary>
+/// <remarks>
+/// Also what a node means by a position parameter. One type rather than a
+/// second one for parameters: a place on the image is a place on the
+/// image, whether a tool found it or an operator typed it, and two types
+/// would mean converting between them at every boundary.
+/// </remarks>
 public readonly record struct Point2(double X, double Y)
 {
     public static Point2 operator +(Point2 point, Point2 offset) =>
@@ -12,6 +20,32 @@ public readonly record struct Point2(double X, double Y)
         var dy = other.Y - Y;
         return Math.Sqrt((dx * dx) + (dy * dy));
     }
+
+    /// <summary>Reads "100, 200", or "100 200".</summary>
+    public static bool TryParse(string? text, out Point2 point)
+    {
+        point = default;
+
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        var parts = text.Split([',', ' ', '	'], StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length != 2)
+            return false;
+
+        if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x) ||
+            !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
+        {
+            return false;
+        }
+
+        point = new Point2(x, y);
+        return true;
+    }
+
+    public override string ToString() =>
+        string.Format(CultureInfo.InvariantCulture, "{0:0.##}, {1:0.##}", X, Y);
 }
 
 /// <summary>An axis-aligned rectangle in image pixel coordinates.</summary>

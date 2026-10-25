@@ -47,6 +47,7 @@ public static class GraphSerializer
         options.Converters.Add(new ValueRangeJsonConverter());
         options.Converters.Add(new OrientedRectJsonConverter());
         options.Converters.Add(new RingJsonConverter());
+        options.Converters.Add(new Point2JsonConverter());
         options.Converters.Add(new SizeJsonConverter());
         options.Converters.Add(new PointJsonConverter());
         options.Converters.Add(new ColorJsonConverter());

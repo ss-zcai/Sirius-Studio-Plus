@@ -1,4 +1,5 @@
 ﻿using Emgu.CV;
+using Sirius.Core.Nodes;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Sirius.Core.Graph;

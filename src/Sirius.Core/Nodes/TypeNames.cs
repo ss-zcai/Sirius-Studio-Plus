@@ -31,6 +31,8 @@ public static class TypeNames
         "HistogramData" => "Histogram",
         "ProfileData" => "Profile",
         "OrientedRect" => "Rectangle",
+        "Point2" => "Point",
+        "NumberMatrix" => "Matrix",
         "ValueRange" => "Range",
         "Rectangle" => "Region",
         "String" => "Text",
