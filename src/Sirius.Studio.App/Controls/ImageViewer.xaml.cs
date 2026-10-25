@@ -1365,6 +1365,42 @@ public partial class ImageViewer : UserControl
             : RingPart.None;
     }
 
+    /// <summary>
+    /// The resize cursor pointing along a bearing from a shape's centre.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A circle is grabbable all the way round, and the direction it
+    /// resizes in differs at every point of it. One fixed arrow was right
+    /// on two opposite quarters and visibly wrong on the other two - the
+    /// north-west/south-east arrow sitting on the north-east shoulder,
+    /// pointing across the edge rather than along the way it moves.
+    /// </para>
+    /// <para>
+    /// Rounded into eight 45-degree sectors, which collapse to the four
+    /// cursors Windows provides: the arrow for north-east is the same one
+    /// as for south-west, because it is a double-headed arrow and the two
+    /// are the same line.
+    /// </para>
+    /// <param name="degrees">
+    /// Bearing from the centre, measured with Y increasing downwards as
+    /// screen and image coordinates both do - so 90 is below the centre,
+    /// not above it.
+    /// </param>
+    /// </remarks>
+    internal static Cursor ResizeCursorFor(double degrees)
+    {
+        var sector = ((int)Math.Round(degrees / 45.0) % 4 + 4) % 4;
+
+        return sector switch
+        {
+            0 => Cursors.SizeWE,      // east or west
+            1 => Cursors.SizeNWSE,    // south-east or north-west
+            2 => Cursors.SizeNS,      // south or north
+            _ => Cursors.SizeNESW,    // south-west or north-east
+        };
+    }
+
     /// <summary>The band as it was when the current drag began.</summary>
     private Ring _dragStartRing;
 
@@ -2661,8 +2697,15 @@ public partial class ImageViewer : UserControl
         {
             case RingPart.Inner:
             case RingPart.Outer:
-                Surface.Cursor = Cursors.SizeNWSE;
+            {
+                var image = ScreenToImage(screen);
+                var ring = Ring;
+
+                Surface.Cursor = ResizeCursorFor(
+                    Math.Atan2(image.Y - ring.CentreY, image.X - ring.CentreX) * 180.0 / Math.PI);
+
                 return;
+            }
 
             case RingPart.Inside:
                 Surface.Cursor = Cursors.SizeAll;

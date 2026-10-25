@@ -204,6 +204,54 @@ public class RingEditingTests
             Assert.Equal(200, viewer.Ring.OuterRadius);
         });
 
+    // ---- the cursor on the edge ------------------------------------------------
+
+    /// <summary>
+    /// The resize arrow points the way the edge actually moves, which
+    /// differs at every point of a circle.
+    /// </summary>
+    /// <remarks>
+    /// One fixed arrow was right on two opposite quarters and visibly
+    /// wrong on the other two: the north-west/south-east arrow sat on the
+    /// north-east shoulder pointing across the edge instead of along it.
+    ///
+    /// Bearings are measured with Y increasing downwards, as screen and
+    /// image coordinates both do, so 90 is below the centre.
+    /// </remarks>
+    [Theory]
+    [InlineData(0, "SizeWE")]        // east
+    [InlineData(180, "SizeWE")]      // west
+    [InlineData(-180, "SizeWE")]
+    [InlineData(90, "SizeNS")]       // below
+    [InlineData(-90, "SizeNS")]      // above
+    [InlineData(45, "SizeNWSE")]     // lower right
+    [InlineData(-135, "SizeNWSE")]   // upper left
+    [InlineData(-45, "SizeNESW")]    // upper right
+    [InlineData(135, "SizeNESW")]    // lower left
+    public void The_resize_cursor_follows_the_edge(double degrees, string expected) =>
+        WpfTestHost.OnStaThread(() =>
+            Assert.Equal(expected, CursorName(ImageViewer.ResizeCursorFor(degrees))));
+
+    /// <summary>
+    /// Opposite points of the circle share an arrow, because a
+    /// double-headed arrow describes both ends of the same line.
+    /// </summary>
+    [Theory]
+    [InlineData(20)]
+    [InlineData(70)]
+    [InlineData(115)]
+    [InlineData(160)]
+    public void Opposite_sides_share_an_arrow(double degrees) =>
+        WpfTestHost.OnStaThread(() => Assert.Equal(
+            CursorName(ImageViewer.ResizeCursorFor(degrees)),
+            CursorName(ImageViewer.ResizeCursorFor(degrees - 180))));
+
+    private static string CursorName(System.Windows.Input.Cursor cursor) =>
+        typeof(System.Windows.Input.Cursors)
+            .GetProperties(BindingFlags.Public | BindingFlags.Static)
+            .First(p => ReferenceEquals(p.GetValue(null), cursor))
+            .Name;
+
     private static object DragMode(ImageViewer viewer, string name)
     {
         var type = typeof(ImageViewer)
