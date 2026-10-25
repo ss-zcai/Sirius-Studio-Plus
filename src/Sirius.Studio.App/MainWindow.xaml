@@ -821,8 +821,18 @@
                                                         <CheckBox IsChecked="{Binding BoolValue, Mode=TwoWay}"
                                                                   Visibility="{Binding IsCheckBox, Converter={StaticResource BoolToVisibility}}" />
 
-                                                        <ComboBox ItemsSource="{Binding Options}"
+                                                        <!--
+                                                            Editable only for the long lists, so
+                                                            a three-entry dropdown is still a
+                                                            dropdown. StaysOpenOnEdit keeps the
+                                                            list up while it narrows; without it
+                                                            the first keystroke closes it.
+                                                        -->
+                                                        <controls:FilterComboBox ItemsSource="{Binding Options}"
                                                                   SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
+                                                                  IsEditable="{Binding IsSearchable}"
+                                                                  IsTextSearchEnabled="False"
+                                                                  StaysOpenOnEdit="True"
                                                                   Visibility="{Binding IsComboBox, Converter={StaticResource BoolToVisibility}}" />
 
                                                         <!-- Region: four boxes; drawable on the viewer in a later phase -->
@@ -1029,9 +1039,16 @@
 
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
+                                                        <!--
+                                                            MinWidth cleared: the shared button
+                                                            minimum is sized for a dialog's OK,
+                                                            which left "In" padded out to look
+                                                            like a much longer word.
+                                                        -->
                                                         <Button Content="{Binding Label}"
                                                                 ToolTip="{Binding Description}"
-                                                                Margin="0,0,6,0"
+                                                                Margin="0,0,6,6"
+                                                                MinWidth="0"
                                                                 Padding="8,2"
                                                                 Command="{Binding DataContext.PreviewPortCommand,
                                                                           RelativeSource={RelativeSource AncestorType=Window}}"

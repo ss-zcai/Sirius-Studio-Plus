@@ -133,15 +133,26 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBox">
+                    <!--
+                        Two columns, so an editable field can own the text
+                        while the arrow stays clickable beside it.
+                    -->
                     <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="20" />
+                        </Grid.ColumnDefinitions>
+
                         <Border x:Name="Bd"
+                                Grid.ColumnSpan="2"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 SnapsToDevicePixels="True" />
 
                         <!-- Covers the whole field so a click anywhere opens it. -->
-                        <ToggleButton Focusable="False"
+                        <ToggleButton Grid.ColumnSpan="2"
+                                      Focusable="False"
                                       ClickMode="Press"
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                             <ToggleButton.Template>
@@ -152,7 +163,9 @@
                         </ToggleButton>
 
                         <!-- Not hit-testable, so clicks fall through to the toggle. -->
-                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                        <ContentPresenter x:Name="Chosen"
+                                          Grid.Column="0"
+                                          Margin="{TemplateBinding Padding}"
                                           Content="{TemplateBinding SelectionBoxItem}"
                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                           ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
@@ -161,7 +174,29 @@
                                           VerticalAlignment="Center"
                                           IsHitTestVisible="False" />
 
-                        <Path HorizontalAlignment="Right"
+                        <!--
+                            The part a ComboBox looks up by name when it is
+                            editable. Without it IsEditable does nothing at
+                            all: the control reports itself editable and
+                            there is nowhere to type.
+
+                            Declared after the ToggleButton so it takes the
+                            clicks over the text, leaving the rest of the
+                            field to the toggle.
+                        -->
+                        <TextBox x:Name="PART_EditableTextBox"
+                                 Grid.Column="0"
+                                 Margin="{TemplateBinding Padding}"
+                                 Padding="0"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Foreground="{TemplateBinding Foreground}"
+                                 CaretBrush="{TemplateBinding Foreground}"
+                                 VerticalContentAlignment="Center"
+                                 Visibility="Collapsed" />
+
+                        <Path Grid.Column="1"
+                              HorizontalAlignment="Right"
                               VerticalAlignment="Center"
                               Margin="0,0,8,0"
                               Data="M 0 0 L 4 4 L 8 0 Z"
@@ -169,6 +204,7 @@
                               IsHitTestVisible="False" />
 
                         <Popup x:Name="PART_Popup"
+                               Grid.ColumnSpan="2"
                                AllowsTransparency="True"
                                Placement="Bottom"
                                Focusable="False"
@@ -186,6 +222,11 @@
                     </Grid>
 
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsEditable" Value="True">
+                            <Setter TargetName="Chosen" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+                        </Trigger>
+
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
                         </Trigger>
@@ -197,6 +238,15 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!--
+        An implicit style is keyed on the exact type, so a derived combo box
+        finds none of this and arrives in the stock Windows grey. Declared
+        after the style it is based on, which a StaticResource can only see
+        once it has been read.
+    -->
+    <Style TargetType="{x:Type controls:FilterComboBox}"
+           BasedOn="{StaticResource {x:Type ComboBox}}" />
 
     <!--
         Templated rather than styled: the stock ComboBoxItem template paints its

@@ -923,6 +923,11 @@ public partial class MainWindow : Window
     /// where a graph gets marked up - working across a canvas, not having
     /// selected a node to edit it. Each item carries its own swatch, so the
     /// menu shows the colours rather than naming them.
+    ///
+    /// A swatch and a name, matching the dropdown on the toolbar. The
+    /// descriptions were also shown here, which made the menu twice as
+    /// wide as the node it belongs to for the sake of explaining colours
+    /// that the swatch beside each one already shows.
     /// </remarks>
     private static MenuItem BuildAccentMenu(NodeViewModel node)
     {
@@ -935,7 +940,6 @@ public partial class MainWindow : Window
                 Header = choice.Name,
                 IsCheckable = true,
                 IsChecked = choice.IsCurrent,
-                InputGestureText = choice.Description,
                 Icon = new Border
                 {
                     Width = 14,

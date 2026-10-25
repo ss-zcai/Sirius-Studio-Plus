@@ -123,6 +123,24 @@ public sealed class ParameterViewModel : ObservableObject
 
     public bool IsComboBox => Kind == ParamEditor.ComboBox;
 
+    /// <summary>
+    /// Whether the list is long enough that typing beats scrolling.
+    /// </summary>
+    /// <remarks>
+    /// Not every dropdown: a searchable one is editable, which means a
+    /// caret, a text box look, and the chance to type something that is
+    /// not on the list. That is a fair trade for a hundred colour
+    /// conversions and a poor one for three typefaces.
+    /// </remarks>
+    public bool IsSearchable => IsComboBox && Options.Count >= SearchableFrom;
+
+    /// <summary>
+    /// Where a list stops being readable at a glance. A dropdown shows
+    /// about this many without scrolling, so it is the point at which
+    /// finding an entry starts to mean hunting for it.
+    /// </summary>
+    internal const int SearchableFrom = 12;
+
     public bool IsRegion => Kind == ParamEditor.Region;
 
     public bool IsRange => Kind == ParamEditor.Range;
@@ -361,8 +379,17 @@ public sealed class ParameterViewModel : ObservableObject
         _descriptor.ValueType == typeof(byte);
 
     /// <summary>Available values for an enum parameter.</summary>
+    /// <remarks>
+    /// Distinct, because an enum may name the same value twice and
+    /// <c>Enum.GetValues</c> returns one entry per name. OpenCV's colour
+    /// conversions do it throughout - Bgra2Rgba and Rgba2Bgra are the same
+    /// number - so the list showed "Bgra2Rgba" twice, one of which could
+    /// never be the selected item and so could never appear chosen.
+    /// </remarks>
     public IReadOnlyList<object> Options =>
-        _descriptor.ValueType.IsEnum ? Enum.GetValues(_descriptor.ValueType).Cast<object>().ToArray() : Array.Empty<object>();
+        _descriptor.ValueType.IsEnum
+            ? Enum.GetValues(_descriptor.ValueType).Cast<object>().Distinct().ToArray()
+            : Array.Empty<object>();
 
     private object? Raw
     {
