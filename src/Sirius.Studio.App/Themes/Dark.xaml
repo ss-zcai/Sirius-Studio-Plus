@@ -1250,19 +1250,59 @@
         </ControlTemplate.Triggers>
     </ControlTemplate>
 
+    <!--
+        The left column is the icon gutter. It was a 22-unit margin on the
+        header with nothing drawn in it, so an item's Icon and its tick
+        were both set and neither appeared - the Style menu offered eight
+        colours and showed none of them, and the one already applied was
+        marked as current where it could not be seen.
+    -->
     <ControlTemplate x:Key="MenuSubmenuItemTemplate" TargetType="MenuItem">
         <Border x:Name="Bd" Background="{TemplateBinding Background}">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="22" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <ContentPresenter Grid.Column="0"
+
+                <!--
+                    A frame around the gutter marks the current item. An
+                    item carrying an icon keeps showing it - a swatch says
+                    which colour, the frame says it is the one in use - and
+                    one without gets the tick instead.
+                -->
+                <Border x:Name="Gutter"
+                        Grid.Column="0"
+                        Width="18"
+                        Height="18"
+                        CornerRadius="2"
+                        BorderThickness="1"
+                        BorderBrush="Transparent"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center">
+                    <Grid>
+                        <ContentPresenter ContentSource="Icon"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                        <Path x:Name="Tick"
+                              Data="M 0 4 L 3.5 7.5 L 9 1"
+                              Stroke="{TemplateBinding Foreground}"
+                              StrokeThickness="1.6"
+                              StrokeEndLineCap="Round"
+                              StrokeStartLineCap="Round"
+                              Visibility="Collapsed"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <ContentPresenter Grid.Column="1"
                                   ContentSource="Header"
                                   RecognizesAccessKey="True"
-                                  Margin="22,6,14,6"
+                                  Margin="4,6,14,6"
                                   TextElement.Foreground="{TemplateBinding Foreground}" />
-                <TextBlock Grid.Column="1"
+                <TextBlock Grid.Column="2"
                            Text="{TemplateBinding InputGestureText}"
                            Margin="0,6,16,6"
                            FontSize="11"
@@ -1270,6 +1310,18 @@
             </Grid>
         </Border>
         <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Gutter" Property="BorderBrush" Value="{StaticResource Text.Secondary}" />
+            </Trigger>
+
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="IsChecked" Value="True" />
+                    <Condition Property="Icon" Value="{x:Null}" />
+                </MultiTrigger.Conditions>
+                <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+            </MultiTrigger>
+
             <Trigger Property="IsHighlighted" Value="True">
                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource Accent}" />
                 <Setter Property="Foreground" Value="#10131A" />
@@ -1290,7 +1342,7 @@
                 <ContentPresenter Grid.Column="0"
                                   ContentSource="Header"
                                   RecognizesAccessKey="True"
-                                  Margin="22,6,14,6"
+                                  Margin="26,6,14,6"
                                   TextElement.Foreground="{TemplateBinding Foreground}" />
                 <Path Grid.Column="1"
                       Data="M 0 0 L 4 4 L 0 8 Z"
