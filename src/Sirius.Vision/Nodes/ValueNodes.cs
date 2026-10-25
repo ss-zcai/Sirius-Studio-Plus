@@ -227,7 +227,7 @@ public sealed class MatrixNode : VisionNode
     "Label",
     TypeKey = "output.label",
     Category = NodeCategory.Output,
-    Icon = "ph_measure_profile",
+    Icon = "ph_label",
     Description = "Draws a number or a line of text on the image.")]
 public sealed class LabelNode : VisionNode
 {

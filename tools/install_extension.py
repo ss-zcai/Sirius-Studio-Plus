@@ -61,6 +61,10 @@ PHOSPHOR = {
     # for them did not.
     "squares-four": "ph_matrix",
     "text-t": "ph_text",
+
+    # tag-simple rather than tag: the plain outline keeps its shape under
+    # the keyline at toolbox size, where tag's eyelet fills in.
+    "tag-simple": "ph_label",
 }
 
 # source file -> the resource key it supplies

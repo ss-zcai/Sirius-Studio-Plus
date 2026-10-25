@@ -876,25 +876,18 @@ public partial class ImageViewer : UserControl
         });
     }
 
+    /// <summary>A result's own label, drawn the way a measurement's is.</summary>
+    /// <remarks>
+    /// Anchored on the shape rather than on its bounding box. The box only
+    /// coincides with the shape when the shape is an axis-aligned rectangle:
+    /// for a diagonal line it put the reading out at a corner the line never
+    /// reaches, which read as a label belonging to nothing.
+    /// </remarks>
     private void DrawShapeLabel(string text, GraphShape shape, Brush brush)
     {
-        var pixel = ScreenPixel;
-        var bounds = shape.Bounds;
+        var centre = ShapeGeometry.Centre(shape);
 
-        var label = new TextBlock
-        {
-            Text = text,
-            Foreground = brush,
-            FontFamily = new FontFamily("Consolas"),
-            FontSize = 11,
-            IsHitTestVisible = false,
-            RenderTransform = new ScaleTransform(pixel, pixel),
-            RenderTransformOrigin = new Point(0, 0),
-        };
-
-        Canvas.SetLeft(label, bounds.X + bounds.Width + (4 * pixel));
-        Canvas.SetTop(label, bounds.Y);
-        ShapeLayer.Children.Add(label);
+        PlaceLabel(ShapeLayer, text, new Point(centre.X, centre.Y), brush, emphasised: false);
     }
 
     private void ReportShapeFrame(ShapeSet set, bool matches)
@@ -2539,7 +2532,18 @@ public partial class ImageViewer : UserControl
     /// with the image, which is why it is placed by transform rather than by
     /// font size.
     /// </remarks>
-    private void DrawLabel(string text, Point anchor, Brush brush, bool selected)
+    private void DrawLabel(string text, Point anchor, Brush brush, bool selected) =>
+        PlaceLabel(MeasureLayer, text, anchor, brush, selected);
+
+    /// <summary>
+    /// Adds one reading to a layer, boxed and counter-scaled.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the measurements drawn on the viewer and the labels a
+    /// result carries, so the two cannot drift apart: a reading looks the
+    /// same whether a person placed it or the graph produced it.
+    /// </remarks>
+    private void PlaceLabel(Canvas layer, string text, Point anchor, Brush brush, bool emphasised)
     {
         var pixel = ScreenPixel;
 
@@ -2547,7 +2551,7 @@ public partial class ImageViewer : UserControl
         {
             Background = new SolidColorBrush(Color.FromArgb(0xD8, 0x17, 0x18, 0x1A)),
             BorderBrush = brush,
-            BorderThickness = new Thickness(selected ? 1.4 : 0.8),
+            BorderThickness = new Thickness(emphasised ? 1.4 : 0.8),
             CornerRadius = new CornerRadius(2),
             Padding = new Thickness(4, 1, 4, 1),
             IsHitTestVisible = false,
@@ -2566,7 +2570,7 @@ public partial class ImageViewer : UserControl
         // clear of the line without drifting as the zoom changes.
         Canvas.SetLeft(label, anchor.X + (8 * pixel));
         Canvas.SetTop(label, anchor.Y - (20 * pixel));
-        MeasureLayer.Children.Add(label);
+        layer.Children.Add(label);
     }
 
     private static Line NewLine(Point a, Point b, Brush brush, double width) => new()
