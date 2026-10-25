@@ -44,7 +44,7 @@ public enum NumberEntry
     "Number",
     TypeKey = "source.number",
     Category = NodeCategory.Source,
-    Icon = "ph_integer",
+    Icon = "ph_number",
     Description = "A number that can drive parameters on other nodes.")]
 public sealed class NumberNode : VisionNode
 {
@@ -125,7 +125,7 @@ public sealed class NumberNode : VisionNode
     "Text",
     TypeKey = "source.text",
     Category = NodeCategory.Source,
-    Icon = "ph_measure_profile",
+    Icon = "ph_text",
     Description = "A line of text, for labels and text parameters.")]
 public sealed class TextNode : VisionNode
 {
@@ -162,7 +162,7 @@ public sealed class TextNode : VisionNode
     "Matrix",
     TypeKey = "source.matrix",
     Category = NodeCategory.Source,
-    Icon = "ph_vector",
+    Icon = "ph_matrix",
     Description = "A grid of numbers, rows separated by ';'. One row is a vector.")]
 public sealed class MatrixNode : VisionNode
 {

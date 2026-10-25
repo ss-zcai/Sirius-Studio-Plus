@@ -4,7 +4,7 @@ Usage, from the repository root:
 
     python tools/install_extension.py
     python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml \
-        "res/ui icons" "res/toolbox icons" "res/toolbar icons"
+        "res/ui icons"
 
 Source is ``res/phosphor-icons/Extension/``, which holds icons drawn in
 Phosphor's geometry - 256 canvas, stroke 16, round caps - but exported from
@@ -55,6 +55,12 @@ PHOSPHOR = {
     "clipboard-text": "ph_paste",
     "palette": "ph_style",
     "selection-all": "ph_select_all",
+
+    # The value nodes. A matrix is a grid, and text is a letter - both
+    # read at toolbox size in a way the measurement glyphs standing in
+    # for them did not.
+    "squares-four": "ph_matrix",
+    "text-t": "ph_text",
 }
 
 # source file -> the resource key it supplies
@@ -71,6 +77,7 @@ INSTALL = {
     "fit-circle.svg": "ph_fit_circle",
     "fit-ellipse.svg": "ph_fit_ellipse",
     "fit-line.svg": "ph_fit_line",
+    "numbers.svg": "ph_number",
 }
 
 KEYLINE_EXTRA = 32.0

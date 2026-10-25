@@ -45,7 +45,7 @@ rewrite of node bodies rather than an architectural one.
 dotnet test                                              # the whole suite
 dotnet run --project tools/NodeDocGen -- docs/node-reference.md
 python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml \
-  "res/ui icons" "res/toolbox icons" "res/toolbar icons"
+  "res/ui icons"
 ```
 
 **Close the app before rebuilding.** Windows locks its DLLs while it runs, and
@@ -62,7 +62,7 @@ dictionary the application actually loads.
 
 ```bash
 python tools/install_extension.py
-python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml   "res/ui icons" "res/toolbox icons" "res/toolbar icons"
+python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml   "res/ui icons"
 ```
 
 Drop the SVG in `res/phosphor-icons/Extension/`, add a line to `INSTALL` in

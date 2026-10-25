@@ -23,7 +23,7 @@ All three are converted into `Themes/Icons.xaml`, so every key stays
 resolvable and reverting any single icon is a one-word change:
 
 ```
-python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons" "res/toolbox icons" "res/toolbar icons"
+python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
 ```
 
 ## How Phosphor was restyled
