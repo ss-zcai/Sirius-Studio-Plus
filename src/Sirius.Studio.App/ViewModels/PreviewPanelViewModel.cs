@@ -105,7 +105,33 @@ public sealed class PreviewPanelViewModel : ImagePanelViewModel
     /// and a blob highlight together.
     /// </summary>
     protected override OutputPort? ShapeProducer =>
-        IsShapePort ? _port as OutputPort : null;
+        IsShapePort ? _port as OutputPort : PrimaryResultPort;
+
+    /// <summary>
+    /// The node's first shape output - its result, as opposed to whatever
+    /// evidence it also publishes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A preview of a node's image input shows what that node found in
+    /// that image, which is the picture somebody wants while setting a
+    /// tool up rather than the bare input. Keyed to the port those shapes
+    /// came from, so picking one here highlights its row in a Shape Table
+    /// reading the same wire.
+    /// </para>
+    /// <para>
+    /// One port, not all of them. Find Circle publishes its circle and
+    /// also the edge points behind it; drawing both would be useful and
+    /// would break the selection, because the indices of a merged set no
+    /// longer match either table and a wrong highlight is worse than none.
+    /// The result is what a preview is for, and the evidence can still be
+    /// wired to a viewer by anyone who wants to see it.
+    /// </para>
+    /// </remarks>
+    private OutputPort? PrimaryResultPort =>
+        _port is InputPort && _port.DataType == typeof(ImageData)
+            ? Node.Outputs.FirstOrDefault(output => output.DataType == typeof(ShapeSet))
+            : null;
 
     /// <summary>
     /// A region may be drawn here only if this preview is showing the very
@@ -131,7 +157,42 @@ public sealed class PreviewPanelViewModel : ImagePanelViewModel
                 ValueOf<ShapeSet>(scheduler));
         }
 
-        return (ValueOf<ImageData>(scheduler), null);
+        var image = ValueOf<ImageData>(scheduler);
+
+        return (image, ResultShapes(scheduler, image));
+    }
+
+    /// <summary>
+    /// What this node found in the image being previewed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Drawn over the input rather than left to be wired to a viewer, so
+    /// that setting a tool up is one window: draw the search band, see the
+    /// circle it found, adjust, see it again. Wiring the result somewhere
+    /// else to look at it is a round trip through the canvas for something
+    /// that belongs on the picture it was measured in.
+    /// </para>
+    /// <para>
+    /// Only sets whose frame matches the image are drawn. A node whose
+    /// shapes are measured in some other frame - a different size, a
+    /// different crop - would otherwise put geometry in the wrong place,
+    /// which reads as a bad result rather than as a mismatch.
+    /// </para>
+    /// </remarks>
+    private ShapeSet? ResultShapes(GraphScheduler scheduler, ImageData? image)
+    {
+        if (image is null || PrimaryResultPort is not { } port)
+            return null;
+
+        var shapes = scheduler.GetOutput<ShapeSet>(port);
+
+        // Drawn only if it belongs to this picture. The same set keyed to
+        // the same port is what lets the table and the image agree, so it
+        // has to be all of that set or none of it.
+        return shapes is { Count: > 0 } && shapes.MatchesFrame(image.Width, image.Height)
+            ? shapes
+            : null;
     }
 
     private bool IsShapePort => _port.DataType == typeof(ShapeSet);

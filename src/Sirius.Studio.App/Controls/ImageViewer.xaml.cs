@@ -1887,6 +1887,13 @@ public partial class ImageViewer : UserControl
         {
             UpdateReadout(image);
 
+            // The band is placed with clicks rather than a drag, so nothing
+            // is "being dragged" while it is half-placed and this is the
+            // only path its preview is updated from. Below the early return
+            // it never ran, and the band appeared only once the third click
+            // committed it.
+            TrackRingPreview(image);
+
             // Between steps of a multi-part measurement the cursor stands in
             // for the point not yet placed, so the shape is visible before it
             // is committed.

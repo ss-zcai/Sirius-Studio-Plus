@@ -40,6 +40,11 @@ public enum ScanDirection
     Description = "Casts calipers across a rectangle and fits a line to the edges they find.")]
 public sealed class FindLineNode : VisionNode
 {
+    /// <summary>Green for the result, amber for the evidence behind it.</summary>
+    private const uint Found = 0xFF22C55E;
+
+    private const uint Evidence = 0xFFFBBF24;
+
     private OrientedRect _region = new(300, 200, 240, 60, 0);
     private int _caliperCount = 24;
     private int _caliperWidth = 5;
@@ -286,6 +291,8 @@ public sealed class FindLineNode : VisionNode
 
             lines.Add(shape with
             {
+                Colour = Found,
+                StrokeWidth = 2,
                 Metrics = new Dictionary<string, double>
                 {
                     [ShapeMetric.CentroidX] = (shape.Start.X + shape.End.X) / 2,
@@ -303,7 +310,11 @@ public sealed class FindLineNode : VisionNode
         context.Set(
             PointsOut,
             new ShapeSet(
-                points.Select(p => (Shape)new PointShape(p)).ToArray(), image.Width, image.Height));
+                points
+                    .Select(p => (Shape)new PointShape(p) { Colour = Evidence })
+                    .ToArray(),
+                image.Width,
+                image.Height));
 
         context.Set(AngleOut, angle);
     }

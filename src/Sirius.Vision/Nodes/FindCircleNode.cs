@@ -50,6 +50,15 @@ public enum RadialDirection
     Description = "Casts radial calipers through a ring and fits a circle to the edges they find.")]
 public sealed class FindCircleNode : VisionNode
 {
+    /// <summary>The colour a found circle is drawn in - green for a result.</summary>
+    private const uint Found = 0xFF22C55E;
+
+    /// <summary>
+    /// The edge points, amber: diagnostic rather than result, and clearly
+    /// neither the blue band nor the green circle.
+    /// </summary>
+    private const uint Evidence = 0xFFFBBF24;
+
     private Ring _band = new(500, 500, 80, 140);
     private double _startAngle;
     private double _sweepAngle = 360;
@@ -324,6 +333,12 @@ public sealed class FindCircleNode : VisionNode
         {
             circles.Add(result.ToShape() with
             {
+                // Green, so the result is not mistaken for the blue band
+                // that was drawn to look for it. A producer may set a
+                // shape's colour, and the viewer uses it where one is set;
+                // a Shape Style node still overrides this downstream.
+                Colour = Found,
+                StrokeWidth = 2,
                 Metrics = new Dictionary<string, double>
                 {
                     [ShapeMetric.CentroidX] = result.Centre.X,
@@ -339,7 +354,12 @@ public sealed class FindCircleNode : VisionNode
 
         context.Set(
             PointsOut,
-            new ShapeSet(points.Select(p => (Shape)new PointShape(p)).ToArray(), width, height));
+            new ShapeSet(
+                points
+                    .Select(p => (Shape)new PointShape(p) { Colour = Evidence })
+                    .ToArray(),
+                width,
+                height));
 
         context.Set(RadiusOut, fit is { Success: true } found ? found.Radius : 0d);
     }
