@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands at **1.0.1**, and what is left.
+Where the product stands at **1.0.2**, and what is left.
 
 Companion to `decisions.md`, which records why things are the way they are,
 and `interactive-tools-plan.md`, which is the plan for the next large piece
@@ -26,18 +26,6 @@ release; this does.
 
 Small, known, and not yet done.
 
-- **The 1.0.1 package is stale.** `dist/` predates undo/redo, the clipboard,
-  node colours, themed dialogs, the growing shape sockets, the per-viewer
-  size readout and the hand-drawn fitting icons. Re-run `tools/pack.ps1`
-  before anybody tests from a zip again.
-- **Decide on merging Integer and Float** into one Number node. The
-  analysis is in `decisions.md` entry 49: it costs nothing in connection
-  checks, because `VisionGraph.IsCompatible` already treats every numeric
-  type as interchangeable and `EvalContext.Param` converts on read. What is
-  worth building is one node emitting `double` with a dropdown that
-  constrains *entry* to whole numbers - not one that changes the port type,
-  which would be machinery with no observable effect. Needs a legacy type
-  key mapping so existing recipes open.
 - **A `.gitattributes`.** The repository was created without one, so line
   endings are normalised per machine rather than per repository. Harmless
   today, confusing the first time two people work on it.
@@ -55,7 +43,7 @@ Small, known, and not yet done.
 order, a dirty-tracked cancellable scheduler with explicit buffer ownership,
 `.sgraph` serialisation with legacy migrations.
 
-**40 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
+**44 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis and Output - including masking from an
 image or a shape, image logic and eleven blend modes, colour-space
 conversion, and circle, ellipse and line fits that report their residual.
@@ -134,12 +122,12 @@ whose stamped version disagrees with its name.
 The plan is `interactive-tools-plan.md`. Step 1 - port-bound previews - is
 done. What remains, in order:
 
-1. **Arming the Draw button.** It already opens the preview of the input
-   the geometry is measured in - `MainViewModel.DrawRegionCommand` - but
-   stops there: the viewer opens with its pointer tool active and the
-   operator still has to pick the region tool by hand. What is missing is
-   the arming, which wants a decision about what the viewer does when the
-   drawing is finished.
+1. **Arming the Draw button - done for a ring.**
+   `MainViewModel.DrawRegionCommand` opens the preview of the input the
+   geometry is measured in, and arms the ring tool when the parameter is
+   one. A rectangle still is not armed, because it is dragged straight
+   onto the image rather than placed with a tool - which is defensible
+   until a second kind of region needs a gesture of its own.
 2. **Find Line is done.** Calipers across an `OrientedRect` - the same
    type the ROI node uses, so the region can be drawn and turned with the
    machinery that already exists - fitted by total least squares with
@@ -154,8 +142,9 @@ done. What remains, in order:
 4. **Find Curve** on the same caliper core. **Find Circle is done** - a
    centre and a band, radial calipers through it, a circle fitted to the
    edges with outlier rejection, accurate to better than a fifth of a pixel
-   against a known edge. It still wants its ring drawn on the viewer rather
-   than typed, which is item 3 above.
+   against a known edge. Its ring is drawn on the viewer now, and can be
+   moved and resized there; what item 3 would add is holding it as a
+   `Shape` rather than as a `Ring` parameter of its own.
 5. **Partial evaluation** - evaluate a tool and its ancestors only, so
    dragging a caliper does not re-run the whole recipe on every frame.
 
