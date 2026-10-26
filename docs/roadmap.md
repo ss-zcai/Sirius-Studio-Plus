@@ -43,7 +43,7 @@ Small, known, and not yet done.
 order, a dirty-tracked cancellable scheduler with explicit buffer ownership,
 `.sgraph` serialisation with legacy migrations.
 
-**44 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
+**47 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis and Output - including masking from an
 image or a shape, image logic and eleven blend modes, colour-space
 conversion, and circle, ellipse and line fits that report their residual.
@@ -165,9 +165,16 @@ done. What remains, in order:
   needed: wiring two producers into two inputs says "the line from Find
   Line 1, the circle from Find Circle 2" in the vocabulary the graph
   already had.
-- **Limit checks**, so a measured number can pass or fail a part rather
-  than only being reported. The number exists now; nothing compares it to
-  a tolerance or carries a verdict out of the recipe.
+- **Limit checks are done.** Limit Check compares a number against a
+  band, a floor, a ceiling or a nominal with a tolerance, and publishes
+  a verdict three ways: a boolean for the graph, the incoming annotation
+  recoloured green or red, and the number passed through so a check can
+  sit mid-chain. The verdict leaves the recipe through `IJudgingNode`,
+  which the shell aggregates into the status line.
+
+  What is still missing is somewhere durable for it to go: a log, a
+  file, a signal out. A status line is read by whoever is standing
+  there and by nobody else.
 - **Calibration.** Every reading is in pixels. The scale belongs to the
   recipe, not the viewer.
 - **Circular and polygonal regions.** Rectangles are handled at any angle.
@@ -176,9 +183,20 @@ done. What remains, in order:
 
 ## Node library
 
-- **Text and code reading** - OCR, Barcode, Data Matrix, QR. Deliberately
-  not ported: both earlier builds left them as stubs, with Barcode returning
-  a hardcoded result. They need real decoders behind them.
+- **Text and code reading is done**, with real decoders behind it -
+  which is what it was waiting for, both earlier builds having shipped
+  stubs. Read Code uses ZXing (Code 39/93/128, ITF, Codabar, MSI, Data
+  Matrix, PDF-417, Aztec, QR, EAN/UPC) rather than OpenCV's barcode
+  module, which reads only EAN and UPC. Read Text uses Tesseract, which
+  was already compiled into the Emgu build; the fast English model ships
+  with the package.
+
+  Both take an `OrientedRect` and straighten the crop before reading, so
+  a code or a label on a turned part reads as if it were square on.
+
+  Still open in that direction: more languages than English, and a
+  grading output for 2D codes - print quality against ISO 15415 is what
+  a customer with a Data Matrix spec will eventually ask for.
 - **Template matching.**
 - **Camera acquisition.** Both earlier builds were file-only.
 - **Mean intensity over a region**, which belongs with the analysis nodes.
