@@ -25,6 +25,19 @@ public enum ShapeForm
 /// <summary>What is written beside each shape.</summary>
 public enum ShapeLabelling
 {
+    /// <summary>
+    /// Whatever the shape already carries, which is usually what is
+    /// wanted: a reading, a decoded code, a verdict.
+    /// </summary>
+    /// <remarks>
+    /// The default, because a styling node is asked for a colour and a
+    /// weight. None used to be the default and also erased the label,
+    /// so wiring a Shape Style in to recolour read text silently threw
+    /// the text away - the one thing the operator was looking at.
+    /// </remarks>
+    Keep,
+
+    /// <summary>Nothing. Clears a label the shape arrived with.</summary>
     None,
 
     /// <summary>Its position in the set, matching the table's row number.</summary>
@@ -60,7 +73,7 @@ public enum ShapeLabelling
 public sealed class ShapeStyleNode : VisionNode
 {
     private ShapeForm _form = ShapeForm.Outline;
-    private ShapeLabelling _labelling = ShapeLabelling.None;
+    private ShapeLabelling _labelling = ShapeLabelling.Keep;
     private ShapeMeasure _measure = ShapeMeasure.Area;
     private string _colour = "#A78BFA";
     private double _strokeWidth = 1.4;
@@ -127,12 +140,19 @@ public sealed class ShapeStyleNode : VisionNode
         {
             var source = set.Shapes[i];
 
+            // Reshaping makes a new shape, so everything not being
+            // restyled has to be carried over by hand - the label's
+            // typeface and size among it, or a caption sized in image
+            // pixels would snap back to a fixed size on screen the
+            // moment it was recoloured.
             styled.Add(Reshape(source) with
             {
                 Metrics = source.Metrics,
                 Colour = colour,
                 StrokeWidth = _strokeWidth,
                 Label = LabelFor(source, i),
+                LabelSize = source.LabelSize,
+                LabelFont = source.LabelFont,
             });
         }
 
@@ -197,6 +217,8 @@ public sealed class ShapeStyleNode : VisionNode
 
     private string? LabelFor(Shape shape, int index) => _labelling switch
     {
+        ShapeLabelling.Keep => shape.Label,
+
         ShapeLabelling.Index => (index + 1).ToString(System.Globalization.CultureInfo.CurrentCulture),
 
         ShapeLabelling.Measure when ShapeMeasures.MetricFor(_measure) is { } metric =>

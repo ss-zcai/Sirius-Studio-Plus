@@ -225,4 +225,127 @@ public class ShapeStyleTests
         Assert.Equal(400, styled.Shapes[0].Metric(ShapeMetric.Area));
         Assert.Equal(1600, styled.Shapes[1].Metric(ShapeMetric.Area));
     }
+
+    // ---- what styling must not destroy ------------------------------------
+
+    /// <summary>
+    /// Recolouring read text used to throw the text away. Labelling
+    /// defaulted to None, and None meant "write nothing", which also
+    /// meant "erase whatever is there" - so a Shape Style wired in to
+    /// change the colour of an OCR result removed the one thing the
+    /// operator was looking at.
+    /// </summary>
+    [Fact]
+    public void Styling_keeps_a_label_the_shape_arrived_with()
+    {
+        var set = Style(
+            node => node.Colour = "#FF0000",
+            new PointShape(new Point2(10, 20)) { Label = "R13763128" });
+
+        Assert.Equal("R13763128", set.Shapes[0].Label);
+        Assert.Equal(0xFFFF0000, set.Shapes[0].Colour);
+    }
+
+    [Fact]
+    public void Keeping_is_what_a_styler_does_by_default() =>
+        Assert.Equal(ShapeLabelling.Keep, new ShapeStyleNode().Labelling);
+
+    /// <summary>
+    /// None still clears one, which is what it is for; it is simply no
+    /// longer the default.
+    /// </summary>
+    [Fact]
+    public void None_clears_a_label()
+    {
+        var set = Style(
+            node => node.Labelling = ShapeLabelling.None,
+            new PointShape(new Point2(10, 20)) { Label = "R13763128" });
+
+        Assert.Null(set.Shapes[0].Label);
+    }
+
+    [Fact]
+    public void Index_still_replaces_it()
+    {
+        var set = Style(
+            node => node.Labelling = ShapeLabelling.Index,
+            new PointShape(new Point2(10, 20)) { Label = "R13763128" },
+            new PointShape(new Point2(30, 40)) { Label = "889071064827" });
+
+        Assert.Equal("1", set.Shapes[0].Label);
+        Assert.Equal("2", set.Shapes[1].Label);
+    }
+
+    /// <summary>
+    /// The typeface and size travel too. Reshaping builds a new shape,
+    /// so anything not carried over by hand is lost - and a caption
+    /// sized in image pixels would snap back to a fixed size on screen
+    /// the moment it was recoloured.
+    /// </summary>
+    [Theory]
+    [InlineData(ShapeForm.Outline)]
+    [InlineData(ShapeForm.BoundingBox)]
+    [InlineData(ShapeForm.Centre)]
+    public void Styling_keeps_how_the_label_is_written(ShapeForm form)
+    {
+        var set = Style(
+            node => node.Form = form,
+            new CircleShape(new Point2(50, 50), 20)
+            {
+                Label = "PASS",
+                LabelSize = 36,
+                LabelFont = "Georgia",
+            });
+
+        Assert.Equal("PASS", set.Shapes[0].Label);
+        Assert.Equal(36, set.Shapes[0].LabelSize);
+        Assert.Equal("Georgia", set.Shapes[0].LabelFont);
+    }
+
+    /// <summary>Styles a set through the real node.</summary>
+    private static ShapeSet Style(Action<ShapeStyleNode> configure, params Shape[] shapes)
+    {
+        var graph = new VisionGraph();
+        var source = new StyleSourceNode(shapes);
+        var style = new ShapeStyleNode();
+        configure(style);
+
+        graph.Add(source);
+        graph.Add(style);
+        graph.TryConnect(source.ShapesOut, style.ShapesIn);
+
+        using var scheduler = StyleScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        return (ShapeSet)scheduler.GetOutput(style.ShapesOut)!;
+    }
+
+    private sealed class StyleSourceNode : VisionNode
+    {
+        private readonly ShapeSet _set;
+
+        public StyleSourceNode(Shape[] shapes)
+        {
+            _set = new ShapeSet(shapes, 640, 480);
+            ShapesOut = AddOutput<ShapeSet>("Out");
+        }
+
+        public OutputPort ShapesOut { get; }
+
+        protected override void OnEvaluate(EvalContext context) => context.Set(ShapesOut, _set);
+    }
+
+    private static GraphScheduler StyleScheduler(VisionGraph graph)
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            return new GraphScheduler(graph);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
 }
