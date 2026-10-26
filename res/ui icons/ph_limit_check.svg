@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" data-name="ph_limit_check">
+  <g opacity=".5"><polyline points="88 136 112 160 168 104" fill="none" stroke="#333" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/><circle cx="128" cy="128" r="96" fill="none" stroke="#333" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <polyline points="88 136 112 160 168 104" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><circle cx="128" cy="128" r="96" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

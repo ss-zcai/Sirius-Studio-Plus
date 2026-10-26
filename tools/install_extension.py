@@ -65,6 +65,11 @@ PHOSPHOR = {
     # tag-simple rather than tag: the plain outline keeps its shape under
     # the keyline at toolbox size, where tag's eyelet fills in.
     "tag-simple": "ph_label",
+
+    # A limit check passes or fails a reading, so a tick in a ring - the
+    # gauge glyph reads as a dial, which is the measuring, not the
+    # judging.
+    "check-circle": "ph_limit_check",
 }
 
 # source file -> the resource key it supplies

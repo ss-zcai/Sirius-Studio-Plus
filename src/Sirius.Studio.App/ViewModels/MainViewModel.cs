@@ -939,7 +939,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private static string Describe(GraphRunResult result)
+    private string Describe(GraphRunResult result)
     {
         if (result.Error is not null)
             return result.Error;
@@ -948,7 +948,52 @@ public sealed class MainViewModel : ObservableObject
             return "Run cancelled.";
 
         var summary = $"Evaluated {result.Evaluated}, cached {result.Skipped} in {result.Duration.TotalMilliseconds:0} ms";
-        return result.Failed > 0 ? $"{summary} - {result.Failed} node(s) failed" : summary;
+
+        if (result.Failed > 0)
+            summary = $"{summary} - {result.Failed} node(s) failed";
+
+        return Verdict() is { } verdict ? $"{verdict}  -  {summary}" : summary;
+    }
+
+    /// <summary>
+    /// What the recipe decided about the part, or null when it decided
+    /// nothing because nothing in it judges.
+    /// </summary>
+    /// <remarks>
+    /// Put first in the status line, and in words rather than a count,
+    /// because it is the one thing in that line somebody standing at a
+    /// machine is reading. How long the run took is for whoever is
+    /// building the recipe.
+    ///
+    /// A disabled check is not counted. Bypassing a node is how a check
+    /// is temporarily set aside, and a verdict from one that was asked
+    /// not to run would be the opposite of what bypassing means.
+    /// </remarks>
+    private string? Verdict() => Verdict(
+        _graph.Nodes.Where(node => node.Enabled).OfType<IJudgingNode>(),
+        port => _scheduler.GetOutput(port));
+
+    /// <summary>
+    /// The wording, separated from where the checks come from so it can
+    /// be read back without running a recipe.
+    /// </summary>
+    internal static string? Verdict(
+        IEnumerable<IJudgingNode> checks, Func<OutputPort, object?> read)
+    {
+        var all = checks.ToArray();
+
+        if (all.Length == 0)
+            return null;
+
+        // Anything that is not a plain true fails, which covers a check
+        // downstream of a node that errored: its verdict was never
+        // computed, and "no answer" is not a pass.
+        var failed = all.Count(check => read(check.VerdictPort) is not true);
+
+        if (failed == 0)
+            return all.Length == 1 ? "PASS" : $"PASS ({all.Length} checks)";
+
+        return all.Length == 1 ? "FAIL" : $"FAIL ({failed} of {all.Length})";
     }
 
     /// <summary>

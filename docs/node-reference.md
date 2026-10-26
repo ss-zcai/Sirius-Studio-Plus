@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**44 nodes** across 10 categories.
+**45 nodes** across 10 categories.
 
 - **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -21,7 +21,7 @@ Socket shapes: square = image, circle = everything else.
 - **Blob** — Find Blobs, Select Shape, Shape Style
 - **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line
 - **Transformation** — Polar to Linear
-- **Analysis** — Histogram, Line Profile, Measure, Shape Table
+- **Analysis** — Histogram, Limit Check, Line Profile, Measure, Shape Table
 - **Output** — Image Viewer, Label
 
 ## Source
@@ -1069,6 +1069,44 @@ Per-channel intensity histogram for the histogram panel.
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
 | Bins | `Integer` | Slider | 2 to 256 |
+
+### Limit Check
+
+`analysis.limitCheck`
+
+Passes or fails a number against limits, and colours the measurement.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Annotation | `Shapes` | circle | optional |
+| Value | `Number` | circle | optional |
+| Minimum | `Number` | circle | optional |
+| Maximum | `Number` | circle | optional |
+| Nominal | `Number` | circle | optional |
+| Tolerance | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Pass | `Yes/No` | circle | - |
+| Value | `Number` | circle | - |
+| Annotation | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Value | `Number` | TextBox | - |
+| Check | `LimitKind` | ComboBox | - |
+| Minimum | `Number` | TextBox | - |
+| Maximum | `Number` | TextBox | - |
+| Nominal | `Number` | TextBox | - |
+| Tolerance | `Number` | TextBox | - |
+| Decimals | `Integer` | Slider | 0 to 6 |
+| Verdict | `Yes/No` | CheckBox | - |
 
 ### Line Profile
 
