@@ -85,6 +85,7 @@ $required = @(
     'docs/node-reference.md'
     'docs/release-notes.md'
     'cvextern.dll'
+    'tessdata/eng.traineddata'
 )
 
 $missing = $required | Where-Object { -not (Test-Path (Join-Path $staging $_)) }

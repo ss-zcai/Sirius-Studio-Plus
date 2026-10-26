@@ -31,6 +31,14 @@ ZXing.Net  (0.16.11)  -  Apache 2.0  -  https://github.com/micjahn/ZXing.Net
   managed: it adds no native binaries. The licence text ships beside this
   file as LICENSE-apache-2.0.txt, which also covers OpenCV above.
 
+Tesseract OCR  (5.3.4)  -  Apache 2.0  -  https://github.com/tesseract-ocr
+  Used by the Read Text node. The engine arrives compiled into Emgu's
+  native library rather than as a package of its own.
+
+  The English language data in tessdata/eng.traineddata is the "fast"
+  model from the tesseract-ocr/tessdata_fast repository, also Apache 2.0,
+  shipped unmodified.
+
 Phosphor Icons  -  MIT  -  https://phosphoricons.com
   The application's icon set is derived from Phosphor Regular: the artwork
   is restyled, the geometry is theirs. The full licence text ships beside

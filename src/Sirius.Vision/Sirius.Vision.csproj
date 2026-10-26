@@ -19,6 +19,18 @@
     </AssemblyAttribute>
   </ItemGroup>
 
+  <!--
+    Tesseract language data, beside the executable where Emgu looks for
+    it. The fast model: a tenth the size of the standard one, and the
+    difference on a printed part number is not worth 19 MB in every zip.
+    Apache 2.0, same as the engine.
+  -->
+  <ItemGroup>
+    <Content Include="../../res/tessdata/eng.traineddata"
+             Link="tessdata/eng.traineddata"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Sirius.Core\Sirius.Core.csproj" />
   </ItemGroup>
