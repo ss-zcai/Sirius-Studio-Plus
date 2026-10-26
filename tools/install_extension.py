@@ -70,6 +70,13 @@ PHOSPHOR = {
     # gauge glyph reads as a dial, which is the measuring, not the
     # judging.
     "check-circle": "ph_limit_check",
+
+    # Reading what is printed on a part. The barcode glyph stands for all
+    # the symbologies rather than only the 1D ones, because a node called
+    # Read Code reads whichever is in front of it; text-aa is letters,
+    # which is what the other one reads.
+    "barcode": "ph_read_code",
+    "text-aa": "ph_read_text",
 }
 
 # source file -> the resource key it supplies

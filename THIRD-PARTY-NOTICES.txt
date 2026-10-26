@@ -26,6 +26,11 @@ AvalonDock / Dirkster.AvalonDock  (4.74.1)  -  MIT
 CommunityToolkit.Mvvm  (8.4.2)  -  MIT
   https://github.com/CommunityToolkit/dotnet
 
+ZXing.Net  (0.16.11)  -  Apache 2.0  -  https://github.com/micjahn/ZXing.Net
+  A port of the ZXing barcode library, used by the Read Code node. Pure
+  managed: it adds no native binaries. The licence text ships beside this
+  file as LICENSE-apache-2.0.txt, which also covers OpenCV above.
+
 Phosphor Icons  -  MIT  -  https://phosphoricons.com
   The application's icon set is derived from Phosphor Regular: the artwork
   is restyled, the geometry is theirs. The full licence text ships beside

@@ -64,6 +64,8 @@
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\THIRD-PARTY-NOTICES.txt"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\LICENSE-apache-2.0.txt"
+             CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\res\ui icons\LICENSE-phosphor.txt"
              Link="LICENSE-phosphor.txt"
              CopyToOutputDirectory="PreserveNewest" />

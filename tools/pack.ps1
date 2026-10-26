@@ -81,6 +81,7 @@ $required = @(
     'SiriusStudioPlus.dll'
     'THIRD-PARTY-NOTICES.txt'
     'LICENSE-phosphor.txt'
+    'LICENSE-apache-2.0.txt'
     'docs/node-reference.md'
     'docs/release-notes.md'
     'cvextern.dll'

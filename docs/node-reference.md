@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**45 nodes** across 10 categories.
+**46 nodes** across 11 categories.
 
 - **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -22,6 +22,7 @@ Socket shapes: square = image, circle = everything else.
 - **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line
 - **Transformation** — Polar to Linear
 - **Analysis** — Histogram, Limit Check, Line Profile, Measure, Shape Table
+- **Text And Code Reading** — Read Code
 - **Output** — Image Viewer, Label
 
 ## Source
@@ -1178,6 +1179,39 @@ Lists shapes and their measurements in a table panel.
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Shapes` | circle | yes |
+
+## Text And Code Reading
+
+### Read Code
+
+`read.code`
+
+Reads barcodes and 2D codes inside a region.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Region | `Rectangle` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Text | `Text` | circle | - |
+| Codes | `Shapes` | circle | - |
+| Count | `Integer` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Region | `Rectangle` | Rect | - |
+| Symbology | `CodeSymbology` | ComboBox | - |
+| Read All | `Yes/No` | CheckBox | - |
+| Try Harder | `Yes/No` | CheckBox | - |
+| Label | `Yes/No` | CheckBox | - |
 
 ## Output
 

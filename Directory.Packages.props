@@ -24,6 +24,15 @@
     <PackageVersion Include="Emgu.CV" Version="4.13.0.5924" />
     <PackageVersion Include="Emgu.CV.runtime.windows" Version="4.13.0.5924" />
 
+    <!--
+      Barcode and 2D code decoding (Apache-2.0), pure managed with no native
+      binaries. OpenCV can read QR and the EAN/UPC family and nothing else -
+      no Code 128, Code 39, ITF or Data Matrix, which is most of what is
+      actually printed on a part. A permissive licence also matters here,
+      next to the one dependency that is not.
+    -->
+    <PackageVersion Include="ZXing.Net" Version="0.16.11" />
+
     <!-- Test stack -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
