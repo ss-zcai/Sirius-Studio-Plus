@@ -59,6 +59,9 @@
     <Content Include="..\..\docs\node-reference.md"
              Link="docs\node-reference.md"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\docs\release-notes.md"
+             Link="docs\release-notes.md"
+             CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\THIRD-PARTY-NOTICES.txt"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\res\ui icons\LICENSE-phosphor.txt"

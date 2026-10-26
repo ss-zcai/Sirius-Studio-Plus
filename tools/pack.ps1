@@ -82,6 +82,7 @@ $required = @(
     'THIRD-PARTY-NOTICES.txt'
     'LICENSE-phosphor.txt'
     'docs/node-reference.md'
+    'docs/release-notes.md'
     'cvextern.dll'
 )
 
