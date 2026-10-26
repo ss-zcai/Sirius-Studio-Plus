@@ -149,11 +149,12 @@ public class FilterComboBoxTests
         });
 
     /// <summary>
-    /// A ComboBox drops a selection that is filtered out of its list, so
-    /// searching for something else would quietly clear the parameter.
+    /// The list shows what matches and nothing else. Keeping the chosen
+    /// value in it put an entry at the top of a search that plainly did
+    /// not match what had been typed.
     /// </summary>
     [Fact]
-    public void A_search_that_excludes_the_chosen_value_does_not_clear_it() =>
+    public void A_search_shows_only_what_matches() =>
         WpfTestHost.OnStaThread(() =>
         {
             var combo = Laid("Bgr2Gray", "Bgr2Hsv", "Rgb2Gray");
@@ -161,9 +162,106 @@ public class FilterComboBoxTests
 
             combo.Filter("gray");
 
-            Assert.Equal("Bgr2Hsv", combo.SelectedItem);
-            Assert.Contains("Bgr2Hsv", Showing(combo));
+            Assert.Equal(["Bgr2Gray", "Rgb2Gray"], Showing(combo));
         });
+
+    /// <summary>
+    /// A ComboBox drops a selection that is filtered out of its list, so
+    /// a search for something else, abandoned, would have cleared the
+    /// parameter it was called on.
+    /// </summary>
+    [Fact]
+    public void A_search_abandoned_leaves_the_value_alone() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var combo = Laid("Bgr2Gray", "Bgr2Hsv", "Rgb2Gray");
+            combo.SelectedItem = "Bgr2Hsv";
+
+            combo.Filter("gray");
+            combo.Filter("");
+
+            Assert.Equal("Bgr2Hsv", combo.SelectedItem);
+        });
+
+    [Fact]
+    public void A_search_that_matches_nothing_still_leaves_it_alone() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var combo = Laid("Bgr2Gray", "Bgr2Hsv", "Rgb2Gray");
+            combo.SelectedItem = "Bgr2Hsv";
+
+            combo.Filter("zzz");
+
+            Assert.Empty(Showing(combo));
+
+            combo.Filter("");
+
+            Assert.Equal("Bgr2Hsv", combo.SelectedItem);
+        });
+
+    /// <summary>
+    /// Picking from a narrowed list is what the search was for, and the
+    /// pick has to survive the list being put back.
+    /// </summary>
+    [Fact]
+    public void Picking_from_a_narrowed_list_sticks() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var combo = Laid("Bgr2Gray", "Bgr2Hsv", "Rgb2Gray");
+            combo.SelectedItem = "Bgr2Hsv";
+
+            combo.Filter("rgb");
+            combo.SelectedItem = "Rgb2Gray";
+            combo.Filter("");
+
+            Assert.Equal("Rgb2Gray", combo.SelectedItem);
+        });
+
+    // ---- typing into it ---------------------------------------------------
+
+    /// <summary>
+    /// Typing a second letter used to put the chosen value back in the
+    /// box and search for that instead.
+    /// </summary>
+    /// <remarks>
+    /// Narrowing the list refreshes it, and a ComboBox answers a refresh
+    /// by writing its selected item over the editable text. The first
+    /// keystroke survived it and the second did not, which made the
+    /// search unusable for anything but a one-letter name.
+    /// </remarks>
+    [Fact]
+    public void Typing_a_second_letter_keeps_what_was_typed() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var combo = Laid("Bgr2Gray", "Bgr2Hsv", "Rgb2Hsv", "Hsv2Bgr");
+            combo.SelectedItem = "Bgr2Gray";
+
+            combo.Typed("h", 1);
+            combo.Typed("hs", 2);
+
+            Assert.Equal("hs", Editor(combo).Text);
+            Assert.Equal(["Bgr2Hsv", "Rgb2Hsv", "Hsv2Bgr"], Showing(combo));
+        });
+
+    /// <summary>
+    /// And the caret stays at the end of it, or every letter after the
+    /// first would land in front of the one before.
+    /// </summary>
+    [Fact]
+    public void The_caret_stays_where_the_typing_left_it() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var combo = Laid("Bgr2Gray", "Bgr2Hsv", "Hsv2Bgr");
+            combo.SelectedItem = "Bgr2Gray";
+
+            combo.Typed("hsv", 3);
+            combo.Typed("hsv2", 4);
+
+            Assert.Equal(4, Editor(combo).CaretIndex);
+        });
+
+    private static TextBox Editor(FilterComboBox combo) =>
+        (TextBox)combo.Template.FindName("PART_EditableTextBox", combo);
 
     // ---- which parameters get one ------------------------------------------
 

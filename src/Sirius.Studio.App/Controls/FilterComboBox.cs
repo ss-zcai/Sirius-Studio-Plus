@@ -27,6 +27,12 @@ public sealed class FilterComboBox : ComboBox
     /// <summary>Set while the control is editing its own text.</summary>
     private bool _settingText;
 
+    /// <summary>
+    /// What was chosen before the list was narrowed, held in case the
+    /// search hides it and then ends without anything being picked.
+    /// </summary>
+    private object? _chosen;
+
     static FilterComboBox() =>
         // Implicit styles are keyed on the exact type, so without this the
         // control would be themed as a plain ComboBox is not - that is, not
@@ -77,16 +83,30 @@ public sealed class FilterComboBox : ComboBox
     /// <summary>Narrows the list, or restores it when the text is cleared.</summary>
     internal void Filter(string? text)
     {
-        // The chosen value always stays in the list. Filtering it out makes
-        // the ComboBox drop the selection, so a search that happened to
-        // exclude the current value would quietly clear the parameter.
-        var selected = SelectedItem;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            Items.Filter = null;
+            Restore();
+            return;
+        }
 
-        Items.Filter = string.IsNullOrWhiteSpace(text)
-            ? null
-            : item => ReferenceEquals(item, selected) ||
-                      Equals(item, selected) ||
-                      Matches(item?.ToString(), text);
+        // Taken before the list narrows, because narrowing it past the
+        // chosen value is what makes the ComboBox drop the selection.
+        _chosen ??= SelectedItem;
+
+        Items.Filter = item => Matches(item?.ToString(), text);
+    }
+
+    /// <summary>
+    /// Puts back the value the search hid, if the search did not end in
+    /// a new one being picked.
+    /// </summary>
+    private void Restore()
+    {
+        if (_chosen is not null && SelectedItem is null)
+            SelectedItem = _chosen;
+
+        _chosen = null;
     }
 
     private void OnEditorTextChanged(object sender, TextChangedEventArgs e)
@@ -96,8 +116,52 @@ public sealed class FilterComboBox : ComboBox
         if (_settingText || !IsEditable || _editor is null || !_editor.IsKeyboardFocusWithin)
             return;
 
-        Filter(_editor.Text);
+        Typed(_editor.Text, _editor.CaretIndex);
         IsDropDownOpen = true;
+    }
+
+    /// <summary>
+    /// Narrows the list to what has been typed, and makes sure that is
+    /// still what the box says afterwards.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the event so it can be driven directly. Deciding
+    /// that a person typed this means asking whether the text box has
+    /// keyboard focus, and a window that is never shown never has it.
+    /// </remarks>
+    internal void Typed(string typed, int caret)
+    {
+        _settingText = true;
+
+        try
+        {
+            Filter(typed);
+
+            if (_editor is null)
+                return;
+
+            // Narrowing the list refreshes it, and a ComboBox answers a
+            // refresh by writing its selected item back over the box.
+            // Left alone, the second keystroke of a search replaced the
+            // search with the value already chosen.
+            if (!string.Equals(_editor.Text, typed, StringComparison.Ordinal))
+                _editor.Text = typed;
+
+            _editor.CaretIndex = Math.Min(caret, typed.Length);
+        }
+        finally
+        {
+            _settingText = false;
+        }
+    }
+
+    /// <summary>A real pick replaces whatever the search was holding.</summary>
+    protected override void OnSelectionChanged(SelectionChangedEventArgs e)
+    {
+        if (SelectedItem is not null)
+            _chosen = null;
+
+        base.OnSelectionChanged(e);
     }
 
     protected override void OnDropDownClosed(EventArgs e)
@@ -121,6 +185,7 @@ public sealed class FilterComboBox : ComboBox
         try
         {
             Items.Filter = null;
+            Restore();
 
             if (_editor is not null)
                 _editor.Text = SelectedItem?.ToString() ?? string.Empty;
