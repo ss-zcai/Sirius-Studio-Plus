@@ -47,6 +47,26 @@ public sealed class EvalContext
         return value as T;
     }
 
+    /// <summary>
+    /// Reads an input whose type is a value type, or null when nothing is
+    /// wired to it.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="Get{T}"/> because that one answers "or
+    /// null" with a reference, which a struct cannot be. The compound
+    /// types - a ring, a rectangle, a calibration - have reached nodes
+    /// as connectable parameters until now, where
+    /// <see cref="Param{T}"/> handles them; this is for the ones that
+    /// arrive as an ordinary port.
+    /// </remarks>
+    public T? GetValue<T>(InputPort port) where T : struct
+    {
+        if (!_inputs.TryGetValue(port, out var value))
+            throw new ArgumentException($"'{port.Name}' is not an input of node '{Node.Name}'.", nameof(port));
+
+        return value is T typed ? typed : null;
+    }
+
     /// <summary>Reads an input, reporting whether a usable value was present.</summary>
     public bool TryGet<T>(InputPort port, out T value) where T : class
     {

@@ -77,6 +77,11 @@ PHOSPHOR = {
     # which is what the other one reads.
     "barcode": "ph_read_code",
     "text-aa": "ph_read_text",
+
+    # Calibration is the ruler: it says what a pixel is worth. The
+    # measurement glyphs are about taking a reading, which is the step
+    # after this one.
+    "ruler": "ph_calibrate",
 }
 
 # source file -> the resource key it supplies

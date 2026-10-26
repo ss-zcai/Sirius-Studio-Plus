@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**47 nodes** across 11 categories.
+**48 nodes** across 12 categories.
 
 - **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -22,6 +22,7 @@ Socket shapes: square = image, circle = everything else.
 - **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line
 - **Transformation** — Polar to Linear
 - **Analysis** — Histogram, Limit Check, Line Profile, Measure, Shape Table
+- **Calibration** — Calibrate
 - **Text And Code Reading** — Read Code, Read Text
 - **Output** — Image Viewer, Label
 
@@ -1151,6 +1152,7 @@ Reads a distance or angle between two shapes and annotates it.
 | --- | --- | --- | --- |
 | A | `Shapes` | circle | yes |
 | B | `Shapes` | circle | yes |
+| Calibration | `Calibration` | circle | optional |
 
 **Outputs**
 
@@ -1179,6 +1181,40 @@ Lists shapes and their measurements in a table panel.
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Shapes` | circle | yes |
+
+## Calibration
+
+### Calibrate
+
+`calibration.scale`
+
+Says what a pixel is worth, so readings come out in real units.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Reference | `Shapes` | circle | optional |
+| Pixels | `Number` | circle | optional |
+| Length | `Number` | circle | optional |
+| UnitsPerPixel | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Calibration | `Calibration` | circle | - |
+| Units/Pixel | `Number` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| From | `CalibrationSource` | ComboBox | - |
+| Pixels | `Number` | TextBox | - |
+| Real Length | `Number` | TextBox | - |
+| Units per Pixel | `Number` | TextBox | - |
+| Unit | `Text` | TextBox | - |
 
 ## Text And Code Reading
 

@@ -43,7 +43,7 @@ Small, known, and not yet done.
 order, a dirty-tracked cancellable scheduler with explicit buffer ownership,
 `.sgraph` serialisation with legacy migrations.
 
-**47 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
+**48 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis and Output - including masking from an
 image or a shape, image logic and eleven blend modes, colour-space
 conversion, and circle, ellipse and line fits that report their residual.
@@ -175,8 +175,20 @@ done. What remains, in order:
   What is still missing is somewhere durable for it to go: a log, a
   file, a signal out. A status line is read by whoever is standing
   there and by nobody else.
-- **Calibration.** Every reading is in pixels. The scale belongs to the
-  recipe, not the viewer.
+- **Calibration is done** for the fixtured case: a Calibrate node says
+  what a pixel is worth, wired into Measure, which then reports in that
+  unit and labels it so. From a known length measured on the image, or
+  from a scale typed straight in.
+
+  On a wire rather than as a setting on the recipe, because a scale is
+  not a property of a recipe - two cameras have two, and a Resize
+  changes one.
+
+  Still open: **areas and the Shape Table.** `Calibration.AreaToUnits`
+  exists and squares the scale correctly, but nothing uses it yet, so a
+  blob's area is still in square pixels. And **lens calibration** from a
+  target grid, for optics where a single scale is not enough - not
+  worth building until somebody's lens needs it.
 - **Circular and polygonal regions.** Rectangles are handled at any angle.
 
 ---
@@ -211,7 +223,22 @@ done. What remains, in order:
   images. The mechanism exists now - `IGrowingPorts`, built for the Image
   Viewer's shape sockets - and these two are the obvious next customers;
   chaining serves until somebody asks.
-- **Node groups and sub-graphs** for reusable sub-recipes.
+- **Node groups and sub-graphs** for reusable sub-recipes - a block on
+  the canvas that contains a graph of its own.
+
+  The hard part is not the containing, it is the boundary: a sub-graph
+  needs ports of its own, so a value crosses into it and a result
+  crosses back out. Those are two new node kinds - an input and an
+  output that stand for the enclosing block's sockets - and the
+  enclosing block's port list is then derived from whichever of them
+  are inside it, the way the Image Viewer already derives its shape
+  sockets from what is connected. `IGrowingPorts` is the nearest
+  existing machinery.
+
+  What makes this worth doing is that a calibrated find-and-measure is
+  four or five nodes that are always wired the same way; a sub-graph is
+  how that becomes one block used three times rather than fifteen nodes
+  kept in step by hand.
 - **Plugin loading** from a `plugins/` folder. `NodeCatalog.Register(Assembly)`
   already supports it; discovery, isolation and version checks do not exist.
 - **Batch/headless runner** - execute a `.sgraph` over a folder.

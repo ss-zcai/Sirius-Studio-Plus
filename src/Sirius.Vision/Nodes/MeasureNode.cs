@@ -68,6 +68,7 @@ public sealed class MeasureNode : VisionNode
     {
         FirstIn = AddInput<ShapeSet>("A");
         SecondIn = AddInput<ShapeSet>("B");
+        CalibrationIn = AddInput<Calibration>("Calibration", isRequired: false);
 
         ValueOut = AddOutput<double>("Value");
         AnnotationOut = AddOutput<ShapeSet>("Annotation");
@@ -76,6 +77,20 @@ public sealed class MeasureNode : VisionNode
     public InputPort FirstIn { get; }
 
     public InputPort SecondIn { get; }
+
+    /// <summary>
+    /// What a pixel is worth. Without one, readings are in pixels.
+    /// </summary>
+    /// <remarks>
+    /// Wired rather than assumed, so a recipe with two cameras in it can
+    /// report each in its own scale - and so that a reading in
+    /// millimetres is visibly a reading in millimetres, with the node
+    /// that said so on the canvas beside it.
+    ///
+    /// An angle is not scaled: a scale factor is a length, and the
+    /// angle between two lines is the same whatever a pixel is worth.
+    /// </remarks>
+    public InputPort CalibrationIn { get; }
 
     /// <summary>The reading, for a downstream limit check or a label.</summary>
     public OutputPort ValueOut { get; }
@@ -106,7 +121,8 @@ public sealed class MeasureNode : VisionNode
         set => SetParam(ref _decimals, Math.Clamp(value, 0, 6));
     }
 
-    [Param("Units", Description = "Written after the number. Everything here is pixels until there is calibration.")]
+    [Param("Units",
+        Description = "Written after the number. Ignored when a Calibration is wired in, which names its own.")]
     public string Units
     {
         get => _units;
@@ -147,11 +163,29 @@ public sealed class MeasureNode : VisionNode
             _ => (ShapeGeometry.Centre(first), ShapeGeometry.Centre(second)),
         };
 
-        var value = Distance(from, to);
+        var calibration = Calibrated(context);
+        var value = calibration.ToUnits(Distance(from, to));
 
         context.Set(ValueOut, value);
-        context.Set(AnnotationOut, Annotate(from, to, value, frame));
+        context.Set(AnnotationOut, Annotate(from, to, value, frame, UnitOf(calibration)));
     }
+
+    /// <summary>The calibration on the wire, or pixels at one to one.</summary>
+    private Calibration Calibrated(EvalContext context) =>
+        context.GetValue<Calibration>(CalibrationIn) ?? Calibration.None;
+
+    /// <summary>
+    /// What to write after the number: the calibration's unit when there
+    /// is one, since a reading converted to millimetres and labelled
+    /// "px" would be worse than either on its own.
+    /// </summary>
+    /// <remarks>
+    /// With its own leading space: the suffix is taken literally, so
+    /// that an angle can pass a degree sign that sits against the
+    /// number.
+    /// </remarks>
+    private static string? UnitOf(Calibration calibration) =>
+        calibration.IsCalibrated ? " " + calibration.Unit : null;
 
     /// <summary>
     /// The angle between the two shapes' directions, folded into 0..90.
@@ -302,7 +336,9 @@ public sealed class MeasureNode : VisionNode
             Label = _showLabel ? text : null,
             Metrics = new Dictionary<string, double>
             {
-                [ShapeMetric.Length] = Distance(from, to),
+                // The reading as reported, so a Calibrate node downstream
+                // taking this as a reference gets the number it drew.
+                [ShapeMetric.Length] = value,
                 [ShapeMetric.CentroidX] = (from.X + to.X) / 2,
                 [ShapeMetric.CentroidY] = (from.Y + to.Y) / 2,
             },
