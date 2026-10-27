@@ -1058,6 +1058,70 @@
                                             </ItemsControl>
                                         </StackPanel>
                                     </Border>
+
+                                    <!--
+                                        What the node is currently producing.
+                                        An image or a set of shapes opens in a
+                                        viewer; a number, a string or a scale
+                                        had nowhere to be seen at all, so the
+                                        only way to find out what a Calibrate
+                                        or a Read Text had made was to wire it
+                                        into something that drew it.
+                                    -->
+                                    <Border Margin="0,10,0,0"
+                                            Padding="8"
+                                            CornerRadius="3"
+                                            Background="#1A1B1E"
+                                            BorderBrush="{StaticResource Surface.Border}"
+                                            BorderThickness="1"
+                                            Visibility="{Binding DataContext.HasReadouts,
+                                                         RelativeSource={RelativeSource AncestorType=Window},
+                                                         Converter={StaticResource BoolToVisibility}}">
+                                        <StackPanel>
+                                            <TextBlock Text="OUTPUT"
+                                                       Foreground="{StaticResource Text.Secondary}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,6" />
+
+                                            <ItemsControl ItemsSource="{Binding DataContext.SelectedNodeReadouts,
+                                                                        RelativeSource={RelativeSource AncestorType=Window}}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,0,0,3">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" MinWidth="76" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="{Binding Name}"
+                                                                       Foreground="{StaticResource Text.Secondary}"
+                                                                       FontSize="11"
+                                                                       VerticalAlignment="Center"
+                                                                       Margin="0,0,8,0"
+                                                                       ToolTip="{Binding Type}" />
+
+                                                            <!--
+                                                                Selectable: a decoded code or a
+                                                                part number is read in order to
+                                                                be copied somewhere.
+                                                            -->
+                                                            <TextBox Grid.Column="1"
+                                                                     Text="{Binding Value, Mode=OneWay}"
+                                                                     IsReadOnly="True"
+                                                                     BorderThickness="0"
+                                                                     Background="Transparent"
+                                                                     Padding="0"
+                                                                     FontFamily="Consolas"
+                                                                     TextWrapping="NoWrap"
+                                                                     ToolTip="{Binding Value}" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </ScrollViewer>
                         </DockPanel>

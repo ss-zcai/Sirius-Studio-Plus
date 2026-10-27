@@ -448,6 +448,8 @@ public sealed class MainViewModel : ObservableObject
                 ? PreviewablePorts(selected.Node).Select(PreviewOption.For).ToArray()
                 : [];
 
+            RefreshReadouts();
+
             // Previews as well as viewers: the Draw button opens a preview
             // of the node's input, and a region cannot be dragged on a
             // panel that was never told there is one.
@@ -919,6 +921,7 @@ public sealed class MainViewModel : ObservableObject
                 return;
 
             await UpdateOutputsAsync(cancellation.Token).ConfigureAwait(true);
+            RefreshReadouts();
             StatusText = Describe(result);
         }
         catch (OperationCanceledException)
@@ -1115,6 +1118,47 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>Whether the selected node has anything worth showing.</summary>
     public bool HasPreviews => SelectedNodePreviews.Count > 0;
+
+    private IReadOnlyList<Readout> _selectedNodeReadouts = [];
+
+    /// <summary>
+    /// What the selected node's non-image outputs currently carry.
+    /// </summary>
+    /// <remarks>
+    /// Refreshed after every run as well as on selection, because the
+    /// numbers are the thing that changes while a parameter is being
+    /// dragged - a readout that only updated when the selection did
+    /// would be worse than none.
+    /// </remarks>
+    public IReadOnlyList<Readout> SelectedNodeReadouts
+    {
+        get => _selectedNodeReadouts;
+        private set
+        {
+            if (SetProperty(ref _selectedNodeReadouts, value))
+                OnPropertyChanged(nameof(HasReadouts));
+        }
+    }
+
+    /// <summary>Whether the selected node produces anything to read.</summary>
+    public bool HasReadouts => SelectedNodeReadouts.Count > 0;
+
+    /// <summary>
+    /// Reads the selected node's outputs out of the last evaluation.
+    /// </summary>
+    private void RefreshReadouts()
+    {
+        if (Editor.SelectedNode is not { } selected)
+        {
+            SelectedNodeReadouts = [];
+            return;
+        }
+
+        SelectedNodeReadouts = selected.Node.Outputs
+            .Where(Readout.IsReadable)
+            .Select(port => Readout.For(port, _scheduler.GetOutput(port)))
+            .ToArray();
+    }
 
     /// <summary>Opens a preview of one of the selected node's ports.</summary>
     public IRelayCommand<PreviewOption> PreviewPortCommand { get; }
