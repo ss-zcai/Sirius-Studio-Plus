@@ -430,4 +430,10 @@ public static class ShapeMetric
     /// found in - which, read along a row, is the edge's straightness.
     /// </summary>
     public const string Offset = "offset";
+
+    /// <summary>
+    /// How far an edge point is from where it should be: its radius less the
+    /// reference circle's. Positive is outside the circle.
+    /// </summary>
+    public const string Deviation = "deviation";
 }

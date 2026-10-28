@@ -86,8 +86,9 @@ public sealed class FindCircleNode : VisionNode
 
     /// <summary>
     /// The edge points the calipers found, after outlier rejection - each
-    /// with its angle, radius and contrast. Ring Calipers gives every edge,
-    /// before any rejection.
+    /// with its angle, its radius from the fitted circle's centre, its
+    /// deviation from that circle and its contrast. Ring Calipers gives
+    /// every edge, before any rejection.
     /// </summary>
     /// <remarks>
     /// Published because a circle finder that returns only a circle is
@@ -294,14 +295,14 @@ public sealed class FindCircleNode : VisionNode
 
         context.Set(CircleOut, new ShapeSet(circles, width, height));
 
-        context.Set(
-            PointsOut,
-            new ShapeSet(
-                points
-                    .Select(edge => (Shape)CaliperScan.RingPoint(edge, Evidence))
-                    .ToArray(),
-                width,
-                height));
+        // Measured from the circle that was fitted, which is the reference a
+        // point's radius and deviation are worth reading against. Without a
+        // fit there is no such circle, and the band's centre stands in.
+        var measured = fit is { Success: true } circle
+            ? points.Select(edge => (Shape)CaliperScan.RingPoint(edge, Evidence, circle.Centre, circle.Radius))
+            : points.Select(edge => (Shape)CaliperScan.RingPoint(edge, Evidence));
+
+        context.Set(PointsOut, new ShapeSet(measured.ToArray(), width, height));
 
         context.Set(RadiusOut, fit is { Success: true } found ? found.Radius : 0d);
     }

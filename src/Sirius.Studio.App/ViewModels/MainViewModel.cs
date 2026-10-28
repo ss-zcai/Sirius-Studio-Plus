@@ -1351,6 +1351,7 @@ public sealed class MainViewModel : ObservableObject
                 ViewerNode viewer => CreateViewerPanel(viewer),
                 HistogramNode histogram => new HistogramPanelViewModel(histogram),
                 LineProfileNode profile => new ProfilePanelViewModel(profile),
+                ProfileViewerNode profile => new ProfilePanelViewModel(profile),
                 ShapeTableNode table => new ShapeTablePanelViewModel(table, ShapeSelection),
                 _ => null,
             };

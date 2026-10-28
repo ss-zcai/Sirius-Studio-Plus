@@ -144,8 +144,41 @@ public sealed class ProfileData
     /// <summary>Highest value across every channel.</summary>
     public float Max => Channels.Count == 0 ? 0 : Channels.Max(channel => channel.Max);
 
-    /// <summary>Distance along the line at a sample index, in pixels.</summary>
-    public double DistanceAt(int index) => index * Spacing;
+    /// <summary>
+    /// What the horizontal axis is measured in: "px" along a line, "°"
+    /// round a ring.
+    /// </summary>
+    /// <remarks>
+    /// A profile is not always intensity along a line. Ring Calipers gives
+    /// a radius at each angle, which is the same picture - a value per
+    /// evenly spaced step, with gaps - on different axes, so it is drawn by
+    /// the same chart rather than a second one.
+    /// </remarks>
+    public string XUnit { get; init; } = "px";
+
+    /// <summary>Where the horizontal axis starts: a start angle, say. Zero for a line.</summary>
+    public double XOrigin { get; init; }
+
+    /// <summary>
+    /// How values are written: one decimal for intensity, more for a radius
+    /// measured to a fraction of a pixel.
+    /// </summary>
+    public string ValueFormat { get; init; } = "0.#";
+
+    /// <summary>
+    /// What a missing sample is: off the image, along a line; a caliper that
+    /// found nothing, round a ring.
+    /// </summary>
+    public string GapLabel { get; init; } = "outside";
+
+    /// <summary>
+    /// True for a profile taken along a line in the image, whose geometric
+    /// length is worth reporting.
+    /// </summary>
+    public bool IsLine { get; init; } = true;
+
+    /// <summary>Position on the horizontal axis at a sample index - pixels along a line from its start.</summary>
+    public double DistanceAt(int index) => XOrigin + (index * Spacing);
 
     /// <summary>
     /// Distance actually covered by the samples, in pixels.

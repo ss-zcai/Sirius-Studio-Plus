@@ -260,18 +260,31 @@ public sealed class ShapeTablePanelViewModel : NodePanelViewModel
     }
 }
 
-/// <summary>A dockable intensity profile, bound to one <see cref="LineProfileNode"/>.</summary>
+/// <summary>
+/// A dockable profile chart, bound to a <see cref="LineProfileNode"/> or a
+/// <see cref="ProfileViewerNode"/>.
+/// </summary>
 public sealed class ProfilePanelViewModel : NodePanelViewModel
 {
+    private readonly Func<GraphScheduler, ProfileData?> _read;
     private ProfileData? _data;
 
+    /// <summary>The profile a Line Profile node makes.</summary>
     public ProfilePanelViewModel(LineProfileNode node)
         : base(node)
     {
-        Source = node;
+        _read = scheduler => scheduler.GetOutput<ProfileData>(node.ProfileOut);
     }
 
-    public LineProfileNode Source { get; }
+    /// <summary>
+    /// Whatever profile is wired into a Profile Viewer - read from its input,
+    /// because the node is terminal and the profile belongs to its producer.
+    /// </summary>
+    public ProfilePanelViewModel(ProfileViewerNode node)
+        : base(node)
+    {
+        _read = scheduler => scheduler.GetInput<ProfileData>(node.ProfileIn);
+    }
 
     protected override string ContentIdPrefix => "profile";
 
@@ -283,8 +296,7 @@ public sealed class ProfilePanelViewModel : NodePanelViewModel
 
     private ProfileData? _pending;
 
-    public override void Prepare(GraphScheduler scheduler) =>
-        _pending = scheduler.GetOutput<ProfileData>(Source.ProfileOut);
+    public override void Prepare(GraphScheduler scheduler) => _pending = _read(scheduler);
 
     public override void Commit() => Data = _pending;
 }

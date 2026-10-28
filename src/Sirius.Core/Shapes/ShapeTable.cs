@@ -36,6 +36,7 @@ public sealed class ShapeTable
         ShapeMetric.Length,
         ShapeMetric.Angle,
         ShapeMetric.Radius,
+        ShapeMetric.Deviation,
         ShapeMetric.Along,
         ShapeMetric.Offset,
         ShapeMetric.Contrast,
@@ -61,6 +62,7 @@ public sealed class ShapeTable
         [ShapeMetric.Length] = "Length",
         [ShapeMetric.Angle] = "Angle",
         [ShapeMetric.Radius] = "Radius",
+        [ShapeMetric.Deviation] = "Deviation",
         [ShapeMetric.Along] = "Along",
         [ShapeMetric.Offset] = "Offset",
         [ShapeMetric.Contrast] = "Contrast",
@@ -93,8 +95,18 @@ public sealed class ShapeTable
 
         var keys = OrderedKeys(set);
 
+        // A point has a position, not a centre. "Centre X" is right for a
+        // blob, which is somewhere around it; for a point it reads as though
+        // there were something else the point was the centre of.
+        var points = set.Shapes.All(shape => shape is PointShape);
+
         var columns = new List<string> { "#" };
-        columns.AddRange(keys.Select(key => Headings.GetValueOrDefault(key, key)));
+        columns.AddRange(keys.Select(key => key switch
+        {
+            ShapeMetric.CentroidX when points => "X",
+            ShapeMetric.CentroidY when points => "Y",
+            _ => Headings.GetValueOrDefault(key, key),
+        }));
 
         var rows = new List<string[]>(set.Count);
 

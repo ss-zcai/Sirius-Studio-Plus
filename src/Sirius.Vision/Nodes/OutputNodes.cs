@@ -5,6 +5,37 @@ using Sirius.Core.Shapes;
 namespace Sirius.Vision.Nodes;
 
 /// <summary>
+/// Shows a profile as a chart, in its own panel.
+/// </summary>
+/// <remarks>
+/// Line Profile draws its own chart because it makes the profile; anything
+/// else that makes one - Ring Calipers' radius round a ring - is shown by
+/// wiring it here. One chart for every profile, so they all read alike.
+/// </remarks>
+[VisionNode(
+    "Profile Viewer",
+    TypeKey = "output.profileViewer",
+    Category = NodeCategory.Output,
+    Icon = "ph_profile_viewer",
+    Description = "Terminal node; the profile wired in is charted in its own panel - a radius round a ring from " +
+                  "Ring Calipers, say.")]
+public sealed class ProfileViewerNode : VisionNode
+{
+    public ProfileViewerNode()
+    {
+        ProfileIn = AddInput<ProfileData>("In");
+    }
+
+    public InputPort ProfileIn { get; }
+
+    protected override void OnEvaluate(EvalContext context)
+    {
+        // Nothing to compute: the panel reads the profile straight from
+        // upstream.
+    }
+}
+
+/// <summary>
 /// Marks the image a graph is meant to display. The viewer panel follows the
 /// active viewer node, which is what gives a branching graph a well-defined
 /// "result" without forcing the operator to keep selecting a node.

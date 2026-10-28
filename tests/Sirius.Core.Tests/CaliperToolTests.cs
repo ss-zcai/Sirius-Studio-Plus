@@ -4,6 +4,7 @@ using Emgu.CV.Structure;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
+using Sirius.Studio.App.ViewModels;
 using Sirius.Vision;
 using Sirius.Vision.Nodes;
 using Xunit;
@@ -82,7 +83,7 @@ public class CaliperToolTests
 
         var table = ShapeTable.From(Run(Ellipse, node, node.PointsOut).Shapes(node.PointsOut));
 
-        Assert.Equal(new[] { "#", "Centre X", "Centre Y", "Angle", "Radius", "Contrast" }, table.Columns);
+        Assert.Equal(new[] { "#", "X", "Y", "Angle", "Radius", "Deviation", "Contrast" }, table.Columns);
     }
 
     [Fact]
@@ -164,6 +165,164 @@ public class CaliperToolTests
         Assert.Equal(0, result.Get<int>(node.CountOut));
         Assert.Equal(36, result.Get<int>(node.MissedOut));
         Assert.Equal(NodeStatus.Warning, node.Status);
+    }
+
+    // ---- measured against a circle ------------------------------------------------
+
+    /// <summary>
+    /// A band drawn 5 px off the disc's centre: measured from the band, a
+    /// round edge swings 10 px in and out once round; measured from a circle
+    /// fitted to the points, it is round.
+    /// </summary>
+    [Fact]
+    public void Radius_from_a_fitted_circle_takes_out_where_the_band_was_drawn()
+    {
+        var band = new RingCalipersNode { Band = new Ring(205, 200, 50, 110), CaliperCount = 72 };
+        var fitted = new RingCalipersNode
+        {
+            Band = new Ring(205, 200, 50, 110), CaliperCount = 72, RadiusFrom = RadiusFrom.Fitted,
+        };
+
+        var fromBand = Run(Disc, band, band.PointsOut, band.RoundnessOut);
+        var fromFit = Run(Disc, fitted, fitted.PointsOut, fitted.RoundnessOut);
+
+        Assert.InRange(fromBand.Get<double>(band.RoundnessOut), 9, 11);
+        Assert.InRange(fromFit.Get<double>(fitted.RoundnessOut), 0, 1.5);
+
+        Assert.All(
+            fromFit.Shapes(fitted.PointsOut).Shapes,
+            point =>
+            {
+                Assert.InRange(point.Metric(ShapeMetric.Radius)!.Value, 79, 82);
+                Assert.InRange(point.Metric(ShapeMetric.Deviation)!.Value, -1, 1);
+            });
+    }
+
+    /// <summary>
+    /// Find Circle locates the part, Ring Calipers measures it: the band
+    /// drawn on the node is nowhere near the disc, and the wired circle
+    /// moves it there.
+    /// </summary>
+    [Fact]
+    public void A_wired_circle_puts_the_band_on_its_edge()
+    {
+        var find = new FindCircleNode { Band = new Ring(200, 200, 50, 110), CaliperCount = 72 };
+        var calipers = new RingCalipersNode { Band = new Ring(50, 50, 10, 20), CaliperCount = 72, BandWidth = 30 };
+
+        var graph = new VisionGraph();
+        var source = new PictureNode(Disc);
+        graph.Add(source);
+        graph.Add(find);
+        graph.Add(calipers);
+        graph.TryConnect(source.Out, find.ImageIn);
+        graph.TryConnect(source.Out, calipers.ImageIn);
+        graph.TryConnect(find.CircleOut, calipers.CircleIn);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal(72, (int)scheduler.GetOutput(calipers.CountOut)!);
+        Assert.All(
+            scheduler.GetOutput<ShapeSet>(calipers.PointsOut)!.Shapes,
+            point =>
+            {
+                Assert.InRange(point.Metric(ShapeMetric.Radius)!.Value, 79, 82);
+                Assert.InRange(point.Metric(ShapeMetric.Deviation)!.Value, -1, 1);
+            });
+    }
+
+    [Fact]
+    public void Find_circles_points_are_measured_from_the_circle_it_found()
+    {
+        // The band is off-centre; the fitted circle is not.
+        var node = new FindCircleNode { Band = new Ring(206, 197, 50, 110), CaliperCount = 72 };
+
+        var points = Run(Disc, node, node.PointsOut).Shapes(node.PointsOut).Shapes;
+
+        Assert.All(points, point => Assert.InRange(point.Metric(ShapeMetric.Deviation)!.Value, -1, 1));
+    }
+
+    /// <summary>
+    /// The notch against the circle fitted through every point: 15 deep, and
+    /// it reads as most of that, the fit having leant only a little toward it.
+    /// </summary>
+    [Fact]
+    public void A_notch_reads_as_a_dip_in_the_deviation_profile()
+    {
+        var node = new RingCalipersNode
+        {
+            Band = new Ring(200, 200, 50, 110), CaliperCount = 72, RadiusFrom = RadiusFrom.Fitted,
+        };
+
+        var profile = Run(NotchedDisc, node, node.ProfileOut).Get<ProfileData>(node.ProfileOut);
+
+        Assert.Equal(72, profile.Length);
+        Assert.Equal("°", profile.XUnit);
+        Assert.Equal(5, profile.Spacing, 6);
+        Assert.False(profile.IsLine);
+
+        var samples = profile.Channels[0].Samples;
+        Assert.Equal("Deviation", profile.Channels[0].Name);
+
+        // Caliper 0 is at 0 degrees and caliper 1 at 5: inside the notch.
+        Assert.InRange(samples[1], -16, -12);
+        Assert.InRange(samples[36], -1.5f, 1.5f);
+    }
+
+    [Fact]
+    public void A_caliper_that_finds_nothing_is_a_gap_at_its_angle()
+    {
+        var node = new RingCalipersNode { Band = new Ring(200, 200, 50, 110), CaliperCount = 72, StartAngle = 30 };
+
+        var result = Run(FlooredDisc, node, node.ProfileOut, node.MissedOut);
+        var profile = result.Get<ProfileData>(node.ProfileOut);
+
+        Assert.Equal(30, profile.XOrigin);
+        Assert.True(result.Get<int>(node.MissedOut) > 0);
+        Assert.Equal(result.Get<int>(node.MissedOut), profile.Length - profile.ValidCount);
+
+        // 0 degrees is caliper 66 when the ring starts at 30.
+        Assert.True(float.IsNaN(profile.Channels[0].Samples[66]));
+        Assert.Equal("missed", profile.GapLabel);
+    }
+
+    [Fact]
+    public void The_profile_can_plot_radius_or_contrast_instead()
+    {
+        var node = new RingCalipersNode
+        {
+            Band = new Ring(200, 200, 50, 110), CaliperCount = 36, ProfileValue = RingProfileValue.Radius,
+        };
+
+        var profile = Run(Disc, node, node.ProfileOut).Get<ProfileData>(node.ProfileOut);
+
+        Assert.Equal("Radius", profile.Channels[0].Name);
+        Assert.All(profile.Channels[0].Samples, sample => Assert.InRange(sample, 79, 82));
+    }
+
+    /// <summary>The Profile Viewer's panel charts whatever profile is wired into it.</summary>
+    [Fact]
+    public void A_profile_viewer_panel_shows_the_wired_profile()
+    {
+        var calipers = new RingCalipersNode { Band = new Ring(200, 200, 50, 110), CaliperCount = 36 };
+        var viewer = new ProfileViewerNode();
+
+        var graph = new VisionGraph();
+        var source = new PictureNode(Disc);
+        graph.Add(source);
+        graph.Add(calipers);
+        graph.Add(viewer);
+        graph.TryConnect(source.Out, calipers.ImageIn);
+        graph.TryConnect(calipers.ProfileOut, viewer.ProfileIn);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var panel = new ProfilePanelViewModel(viewer);
+        panel.Prepare(scheduler);
+        panel.Commit();
+
+        Assert.Same(scheduler.GetOutput(calipers.ProfileOut), panel.Data);
     }
 
     // ---- Line Calipers ------------------------------------------------------------
@@ -281,6 +440,17 @@ public class CaliperToolTests
     {
         var mat = Disc();
         CvInvoke.Rectangle(mat, new System.Drawing.Rectangle(265, 197, 30, 12), new MCvScalar(0), -1);
+        return mat;
+    }
+
+    /// <summary>
+    /// The disc with a white bar across its right-hand edge, so the calipers
+    /// round angle 0 cross no edge at all.
+    /// </summary>
+    private static Mat FlooredDisc()
+    {
+        var mat = Disc();
+        CvInvoke.Rectangle(mat, new System.Drawing.Rectangle(245, 188, 80, 24), new MCvScalar(255), -1);
         return mat;
     }
 

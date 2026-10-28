@@ -34,6 +34,9 @@ public enum ShapeMeasure
 
     /// <summary>An edge point's distance to one side of the middle of its region.</summary>
     Offset,
+
+    /// <summary>An edge point's distance off its reference circle.</summary>
+    Deviation,
 }
 
 public static class ShapeMeasures
@@ -53,6 +56,7 @@ public static class ShapeMeasures
         ShapeMeasure.Contrast => ShapeMetric.Contrast,
         ShapeMeasure.Radius => ShapeMetric.Radius,
         ShapeMeasure.Offset => ShapeMetric.Offset,
+        ShapeMeasure.Deviation => ShapeMetric.Deviation,
         _ => null,
     };
 }

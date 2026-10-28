@@ -112,7 +112,7 @@ public sealed class ProfileControl : FrameworkElement
 
         if (data.ValidCount == 0)
         {
-            DrawLabel(drawingContext, "The line lies outside the image", 4, 4);
+            DrawLabel(drawingContext, data.IsLine ? "The line lies outside the image" : "Nothing was measured", 4, 4);
             return;
         }
 
@@ -225,12 +225,15 @@ public sealed class ProfileControl : FrameworkElement
             return;
 
         var step = NiceStep(length, 6);
+        var origin = data.XOrigin;
 
         context.DrawLine(AxisPen, plot.BottomLeft, plot.BottomRight);
 
-        for (var distance = 0.0; distance <= length + (step / 2); distance += step)
+        // Ticks on round values of the axis itself, which for a ring that
+        // starts at 30 degrees means 60, 90, ... rather than 30 + 30, 30 + 60.
+        for (var distance = Math.Ceiling(origin / step) * step; distance <= origin + length + (step / 2); distance += step)
         {
-            var x = plot.Left + (distance / length * plot.Width);
+            var x = plot.Left + ((distance - origin) / length * plot.Width);
 
             if (x > plot.Right + 0.5)
                 continue;
@@ -356,7 +359,7 @@ public sealed class ProfileControl : FrameworkElement
 
         var lines = new List<(string Text, Brush Brush)>
         {
-            ($"{data.DistanceAt(index):0.#} px", ReadoutTextBrush),
+            (WithUnit(data.DistanceAt(index).ToString("0.#", CultureInfo.CurrentCulture), data.XUnit), ReadoutTextBrush),
         };
 
         foreach (var channel in data.Channels)
@@ -365,7 +368,7 @@ public sealed class ProfileControl : FrameworkElement
 
             lines.Add((
                 float.IsFinite(sample)
-                    ? $"{channel.Name} {sample:0.#}"
+                    ? $"{channel.Name} {sample.ToString(data.ValueFormat, CultureInfo.CurrentCulture)}"
                     : $"{channel.Name} -",
                 PenFor(channel.Name).Brush));
         }
@@ -427,27 +430,38 @@ public sealed class ProfileControl : FrameworkElement
     /// </summary>
     private static string Summarise(ProfileData data)
     {
+        // A line has a length in the image; anything else has a span on its
+        // own axis - 0 to 355 degrees round a ring.
+        var extent = data.IsLine
+            ? string.Format(CultureInfo.CurrentCulture, "len {0:0.#}px", data.Distance)
+            : string.Format(
+                CultureInfo.CurrentCulture,
+                "span {0:0.#}-{1:0.#}{2}",
+                data.XOrigin,
+                data.XOrigin + data.SampledLength,
+                data.XUnit);
+
         // With one channel its statistics belong here, where they always
         // were. With several they belong beside their swatch in the legend,
         // and this line keeps to what the channels have in common.
         var text = data.Channels.Count == 1
             ? string.Format(
                 CultureInfo.CurrentCulture,
-                "n {0}   min {1:0.#}   max {2:0.#}   mean {3:0.#}   len {4:0.#}px",
+                "n {0}   min {1}   max {2}   mean {3}   {4}",
                 data.Length,
-                data.Channels[0].Min,
-                data.Channels[0].Max,
-                data.Channels[0].Mean,
-                data.Distance)
+                data.Channels[0].Min.ToString(data.ValueFormat, CultureInfo.CurrentCulture),
+                data.Channels[0].Max.ToString(data.ValueFormat, CultureInfo.CurrentCulture),
+                data.Channels[0].Mean.ToString(data.ValueFormat, CultureInfo.CurrentCulture),
+                extent)
             : string.Format(
                 CultureInfo.CurrentCulture,
-                "n {0}   {1} channels   len {2:0.#}px",
+                "n {0}   {1} channels   {2}",
                 data.Length,
                 data.Channels.Count,
-                data.Distance);
+                extent);
 
         if (Math.Abs(data.Spacing - 1) > 1e-9)
-            text += string.Format(CultureInfo.CurrentCulture, "   step {0:0.###}px", data.Spacing);
+            text += string.Format(CultureInfo.CurrentCulture, "   step {0:0.###}{1}", data.Spacing, data.XUnit);
 
         if (data.Thickness > 1)
             text += string.Format(CultureInfo.CurrentCulture, "   band {0}px", data.Thickness);
@@ -456,12 +470,17 @@ public sealed class ProfileControl : FrameworkElement
         {
             text += string.Format(
                 CultureInfo.CurrentCulture,
-                "   {0} outside",
-                data.Length - data.ValidCount);
+                "   {0} {1}",
+                data.Length - data.ValidCount,
+                data.GapLabel);
         }
 
         return text;
     }
+
+    /// <summary>A number with its unit: "12 px", but "45°" - a degree sign sits against its number.</summary>
+    private static string WithUnit(string number, string unit) =>
+        unit is "°" or "" ? number + unit : $"{number} {unit}";
 
     private void DrawLabel(DrawingContext drawingContext, string text, double x, double y) =>
         drawingContext.DrawText(Format(text), new Point(x, y));

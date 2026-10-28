@@ -69,6 +69,36 @@ internal static class Outline
     }
 }
 
+/// <summary>What Ring Calipers measures each point's radius from.</summary>
+public enum RadiusFrom
+{
+    /// <summary>
+    /// The centre of the band - a wired circle's centre when one is wired.
+    /// Deviation is from the band's middle radius.
+    /// </summary>
+    Band,
+
+    /// <summary>
+    /// A circle fitted through the points found, least squares and nothing
+    /// rejected. Deviation is from that circle, so it is the edge's own
+    /// departure from round, whatever the band's placement.
+    /// </summary>
+    Fitted,
+}
+
+/// <summary>What Ring Calipers plots round the ring.</summary>
+public enum RingProfileValue
+{
+    /// <summary>Each point's distance off the reference circle - the roundness profile.</summary>
+    Deviation,
+
+    /// <summary>Each point's distance from the reference centre.</summary>
+    Radius,
+
+    /// <summary>How sharp the edge was - where it is weak.</summary>
+    Contrast,
+}
+
 /// <summary>
 /// Casts radial calipers through a ring and gives every edge they find.
 /// </summary>
@@ -89,6 +119,12 @@ internal static class Outline
 /// the measurement in their own right: a radius per angle is a roundness
 /// profile, a contrast per angle shows where the edge is weak, and the
 /// contour's area is the area inside the edge.
+/// </para>
+/// <para>
+/// Wire a found circle into Circle and the band follows it - centred on its
+/// edge, Band Width wide - so Find Circle locates the part and this
+/// measures it. Radius From picks what each radius is measured from, and
+/// the Profile output plots it against angle for a Profile Viewer.
 /// </para>
 /// </remarks>
 [VisionNode(
@@ -117,19 +153,35 @@ public sealed class RingCalipersNode : VisionNode
     private EdgePolarity _polarity = EdgePolarity.Either;
     private EdgeChoice _choice = EdgeChoice.Strongest;
     private RadialDirection _direction = RadialDirection.Outward;
+    private double _bandWidth = 40;
+    private double _offset;
+    private RadiusFrom _radiusFrom = RadiusFrom.Band;
+    private RingProfileValue _profileValue = RingProfileValue.Deviation;
 
     public RingCalipersNode()
     {
         ImageIn = AddInput<ImageData>("In");
+        CircleIn = AddInput<ShapeSet>("Circle", isRequired: false);
         PointsOut = AddOutput<ShapeSet>("Points");
         ContourOut = AddOutput<ShapeSet>("Contour");
+        ProfileOut = AddOutput<ProfileData>("Profile");
+        RoundnessOut = AddOutput<double>("Roundness");
         CountOut = AddOutput<int>("Count");
         MissedOut = AddOutput<int>("Missed");
     }
 
     public InputPort ImageIn { get; }
 
-    /// <summary>Every edge found, in order round the ring, each with its angle, radius and contrast.</summary>
+    /// <summary>
+    /// A circle to search around - Find Circle's, say - or a point to centre
+    /// the band on.
+    /// </summary>
+    public InputPort CircleIn { get; }
+
+    /// <summary>
+    /// Every edge found, in order round the ring, each with its angle, its
+    /// radius and deviation from the reference circle, and its contrast.
+    /// </summary>
     public OutputPort PointsOut { get; }
 
     /// <summary>
@@ -137,6 +189,19 @@ public sealed class RingCalipersNode : VisionNode
     /// open for an arc - with its perimeter, and its area when closed.
     /// </summary>
     public OutputPort ContourOut { get; }
+
+    /// <summary>
+    /// The chosen value at every caliper, against angle - a gap where a
+    /// caliper found nothing. Wire it to a Profile Viewer.
+    /// </summary>
+    public OutputPort ProfileOut { get; }
+
+    /// <summary>
+    /// The largest radius found less the smallest, from the reference
+    /// centre. With Radius From set to Fitted, this is roundness against
+    /// the least-squares circle.
+    /// </summary>
+    public OutputPort RoundnessOut { get; }
 
     /// <summary>How many calipers found an edge.</summary>
     public OutputPort CountOut { get; }
@@ -149,11 +214,28 @@ public sealed class RingCalipersNode : VisionNode
     [Param("Band",
         Editor = ParamEditor.Ring,
         Connectable = true,
-        Description = "Search band as x, y, inner, outer. Draw it on the image: centre, then the edge, then the width.")]
+        Description = "Search band as x, y, inner, outer. Draw it on the image: centre, then the edge, then the width. " +
+                      "A wired point moves it; a wired circle replaces it.")]
     public Ring Band
     {
         get => _band;
         set => SetParam(ref _band, value);
+    }
+
+    [Param("Band Width", Group = "Around a circle", Min = 1, Max = 400, Step = 1, Connectable = true,
+        Description = "With a circle wired in: how wide a band to search, centred on its edge.")]
+    public double BandWidth
+    {
+        get => _bandWidth;
+        set => SetParam(ref _bandWidth, Math.Max(1, value));
+    }
+
+    [Param("Offset", Group = "Around a circle", Min = -400, Max = 400, Step = 1, Connectable = true,
+        Description = "With a circle wired in: moves the band outward from its edge, or inward when negative.")]
+    public double Offset
+    {
+        get => _offset;
+        set => SetParam(ref _offset, value);
     }
 
     [Param("Start Angle", Group = "Ring", Min = -360, Max = 360, Step = 1,
@@ -238,12 +320,31 @@ public sealed class RingCalipersNode : VisionNode
         set => SetParam(ref _direction, value);
     }
 
+    // ---- what to measure -----------------------------------------------
+
+    [Param("Radius From", Group = "Measure",
+        Description = "Band: radii from the band's centre - a wired circle's centre. Fitted: from a circle fitted " +
+                      "through the points found, so deviation is the edge's own departure from round.")]
+    public RadiusFrom RadiusFrom
+    {
+        get => _radiusFrom;
+        set => SetParam(ref _radiusFrom, value);
+    }
+
+    [Param("Profile", Group = "Measure",
+        Description = "What the Profile output plots against angle: deviation from the reference circle, radius, or contrast.")]
+    public RingProfileValue ProfileValue
+    {
+        get => _profileValue;
+        set => SetParam(ref _profileValue, value);
+    }
+
     protected override void OnEvaluate(EvalContext context)
     {
         if (!context.TryGet<ImageData>(ImageIn, out var image))
             throw new InvalidOperationException("No image is connected.");
 
-        var band = context.Param(nameof(Band), _band);
+        var band = BandFor(context);
 
         using var sampler = LineProfileSource.From(image);
 
@@ -267,13 +368,113 @@ public sealed class RingCalipersNode : VisionNode
             CaliperScan.IsFullCircle(_sweepAngle),
             Contour);
 
-        context.Set(
-            PointsOut,
-            new ShapeSet(edges.Select(edge => (Shape)CaliperScan.RingPoint(edge, Evidence)).ToArray(), image.Width, image.Height));
+        var (centre, reference) = ReferenceFor(context, band, edges);
 
+        var points = edges
+            .Select(edge => CaliperScan.RingPoint(edge, Evidence, centre, reference))
+            .ToArray();
+
+        context.Set(PointsOut, new ShapeSet(points.Select(point => (Shape)point).ToArray(), image.Width, image.Height));
         context.Set(ContourOut, new ShapeSet(contour is null ? [] : [contour], image.Width, image.Height));
+        context.Set(ProfileOut, ProfileOf(edges, points, centre));
+        context.Set(RoundnessOut, points.Length == 0 ? 0d : Spread(points, ShapeMetric.Radius));
         context.Set(CountOut, edges.Count);
         context.Set(MissedOut, _caliperCount - edges.Count);
+    }
+
+    /// <summary>
+    /// The band this run searches: the drawn one, moved to a wired point, or
+    /// replaced by one around a wired circle.
+    /// </summary>
+    internal Ring BandFor(EvalContext context)
+    {
+        var band = context.Param(nameof(Band), _band);
+
+        if (context.Get<ShapeSet>(CircleIn) is not { Count: > 0 } shapes)
+            return band;
+
+        if (shapes.Count > 1)
+            context.Warn($"{shapes.Count} shapes arrived on Circle; the band follows the first.");
+
+        var width = context.Param(nameof(BandWidth), _bandWidth);
+        var offset = context.Param(nameof(Offset), _offset);
+
+        return shapes.Shapes[0] switch
+        {
+            CircleShape circle =>
+                Ring.FromMean(circle.Centre.X, circle.Centre.Y, circle.Radius + offset, width / 2),
+
+            // Near enough a circle for its mean radius to be what is meant.
+            EllipseShape ellipse => Ring.FromMean(
+                ellipse.Centre.X, ellipse.Centre.Y, ((ellipse.MajorAxis + ellipse.MinorAxis) / 4) + offset, width / 2),
+
+            PointShape point => band with { CentreX = point.At.X, CentreY = point.At.Y },
+
+            var other => band with { CentreX = other.Bounds.Centre.X, CentreY = other.Bounds.Centre.Y },
+        };
+    }
+
+    /// <summary>The centre each radius is measured from, and the radius deviation is measured against.</summary>
+    private (Point2 Centre, double Radius) ReferenceFor(EvalContext context, Ring band, IReadOnlyList<EdgePoint> edges)
+    {
+        var drawn = (new Point2(band.CentreX, band.CentreY), band.MeanRadius);
+
+        if (_radiusFrom == RadiusFrom.Band || edges.Count == 0)
+            return drawn;
+
+        // Plain least squares, nothing rejected: a notch is what is being
+        // looked for, and rejecting it as an outlier would hide it.
+        var fit = CircleFit.Fit(edges.Select(edge => edge.At).ToArray());
+
+        if (!fit.Success)
+        {
+            context.Warn(
+                $"No circle could be fitted through {edges.Count} points; radii are from the band's centre.");
+            return drawn;
+        }
+
+        return (fit.Centre, fit.Radius);
+    }
+
+    /// <summary>
+    /// The chosen value at every caliper in turn, with a gap where one
+    /// found nothing, so the angle axis stays even.
+    /// </summary>
+    private ProfileData ProfileOf(IReadOnlyList<EdgePoint> edges, IReadOnlyList<PointShape> points, Point2 centre)
+    {
+        var (name, metric) = _profileValue switch
+        {
+            RingProfileValue.Radius => ("Radius", ShapeMetric.Radius),
+            RingProfileValue.Contrast => ("Contrast", ShapeMetric.Contrast),
+            _ => ("Deviation", ShapeMetric.Deviation),
+        };
+
+        var samples = new float[_caliperCount];
+        Array.Fill(samples, float.NaN);
+
+        for (var i = 0; i < edges.Count; i++)
+            samples[edges[i].Caliper] = (float)points[i].Metrics[metric];
+
+        var at = new System.Drawing.PointF((float)centre.X, (float)centre.Y);
+
+        return new ProfileData(
+            [new ProfileChannel(name, samples)],
+            at,
+            at,
+            CaliperScan.RingStep(_sweepAngle, _caliperCount))
+        {
+            XUnit = "°",
+            XOrigin = _startAngle,
+            ValueFormat = _profileValue == RingProfileValue.Contrast ? "0.#" : "0.###",
+            GapLabel = "missed",
+            IsLine = false,
+        };
+    }
+
+    private static double Spread(IReadOnlyList<PointShape> points, string metric)
+    {
+        var values = points.Select(point => point.Metrics[metric]).ToArray();
+        return values.Max() - values.Min();
     }
 }
 
