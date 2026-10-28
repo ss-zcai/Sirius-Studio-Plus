@@ -5,14 +5,10 @@ what is worth pointing a tester at.
 
 ---
 
-## 1.0.2, second build — 28 October 2026
+## 1.0.3 — 28 October 2026
 
-**Replaces the 26 October build.** It has the same version number, so
-Help ▸ About says 1.0.2 for both. **This build is the one with a Tools
-menu.** If yours has no Tools menu, it is the old one.
-
-Everything in the 26 October notes below still applies. On top of it come
-judging, reading, calibration and custom nodes.
+Judging, reading, calibration and custom nodes, on top of everything in
+1.0.2 below. Recipes saved in 1.0.2 open unchanged.
 
 **44 nodes → 48.**
 

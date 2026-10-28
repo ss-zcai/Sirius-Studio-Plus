@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands at **1.0.2**, and what is left.
+Where the product stands at **1.0.3**, and what is left.
 
 Companion to `decisions.md`, which records why things are the way they are,
 and `interactive-tools-plan.md`, which is the plan for the next large piece
