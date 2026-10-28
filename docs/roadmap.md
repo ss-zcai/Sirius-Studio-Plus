@@ -239,8 +239,10 @@ done. What remains, in order:
   four or five nodes that are always wired the same way; a sub-graph is
   how that becomes one block used three times rather than fifteen nodes
   kept in step by hand.
-- **Plugin loading** from a `plugins/` folder. `NodeCatalog.Register(Assembly)`
-  already supports it; discovery, isolation and version checks do not exist.
+- **Custom nodes - done, interface 1.0.** See `custom-nodes.md`. Left for
+  later: reloading a library without a restart, icons a library supplies,
+  API docs for the `Sirius.Core` types in the package, and the Python host
+  for algorithms with no C# equivalent.
 - **Batch/headless runner** - execute a `.sgraph` over a folder.
 
 ---

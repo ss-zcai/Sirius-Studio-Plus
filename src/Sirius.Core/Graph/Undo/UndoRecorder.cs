@@ -63,10 +63,10 @@ public sealed class UndoRecorder : IDisposable
 
     private readonly VisionGraph _graph;
     private readonly UndoStack _stack;
-    private readonly Dictionary<VisionNode, Dictionary<string, PropertyInfo>> _watched = [];
+    private readonly Dictionary<VisionNode, Dictionary<string, NodeProperty>> _watched = [];
 
     private VisionNode? _pendingNode;
-    private PropertyInfo? _pendingProperty;
+    private NodeProperty? _pendingProperty;
     private object? _pendingBefore;
 
     public UndoRecorder(VisionGraph graph, UndoStack stack)
@@ -146,15 +146,20 @@ public sealed class UndoRecorder : IDisposable
             return;
 
         var type = node.GetType();
-        var properties = new Dictionary<string, PropertyInfo>(StringComparer.Ordinal);
+        var properties = new Dictionary<string, NodeProperty>(StringComparer.Ordinal);
 
-        foreach (var name in UndoableProperties(node))
+        foreach (var name in OwnProperties)
         {
-            // A parameter with no public setter cannot be put back, so
-            // recording it would promise an undo that does nothing.
             if (type.GetProperty(name) is { CanRead: true, CanWrite: true } property)
-                properties[name] = property;
+                properties[name] = NodeProperty.Of(property);
         }
+
+        // Through the descriptor rather than by reflecting on the class: a
+        // custom node's settings live on the plugin it wraps, and the
+        // descriptor is the one thing that knows where. Only writable
+        // properties become parameters, so each can be put back.
+        foreach (var parameter in node.Descriptor.Parameters)
+            properties.TryAdd(parameter.Name, NodeProperty.Of(parameter));
 
         _watched[node] = properties;
 
@@ -223,7 +228,7 @@ public sealed class UndoRecorder : IDisposable
         object? sender,
         string? propertyName,
         out VisionNode node,
-        out PropertyInfo property)
+        out NodeProperty property)
     {
         node = null!;
         property = null!;

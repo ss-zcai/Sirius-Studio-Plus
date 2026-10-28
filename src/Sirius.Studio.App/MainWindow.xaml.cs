@@ -715,6 +715,12 @@ public partial class MainWindow : Window
     private void OnAboutClick(object sender, RoutedEventArgs e) =>
         new AboutWindow { Owner = this }.ShowDialog();
 
+    private void OnCustomNodesClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel model)
+            new CustomNodesWindow(model.CustomNodes) { Owner = this }.ShowDialog();
+    }
+
     /// <summary>
     /// Opens the generated node reference, which lists every node's ports and
     /// parameters.

@@ -137,12 +137,18 @@ public sealed class PortTypeToCornerRadiusConverter : IValueConverter
 /// </remarks>
 public sealed class IconKeyToImageConverter : IValueConverter
 {
+    internal const string FallbackKey = "Icon.ph_custom_node";
+
     public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is not string key || string.IsNullOrWhiteSpace(key))
             return null;
 
-        return Application.Current?.TryFindResource($"Icon.{key}") as ImageSource;
+        // A custom node may name an icon this build does not have - one
+        // added in a later release, or a typo. The puzzle piece says "added
+        // from outside" rather than leaving a gap in the toolbox.
+        return Application.Current?.TryFindResource($"Icon.{key}") as ImageSource
+               ?? Application.Current?.TryFindResource(FallbackKey) as ImageSource;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>

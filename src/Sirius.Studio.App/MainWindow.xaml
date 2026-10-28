@@ -189,6 +189,10 @@
                     <MenuItem Header="_Reset Layout" Click="OnResetLayoutClick" />
                 </MenuItem>
 
+                <MenuItem Header="_Tools">
+                    <MenuItem Header="_Custom Nodes…" Click="OnCustomNodesClick" />
+                </MenuItem>
+
                 <MenuItem Header="_Help">
                     <MenuItem Header="Node _Reference…" Click="OnNodeReferenceClick" />
                     <MenuItem Header="_UI Gallery…" Click="OnGalleryClick" />

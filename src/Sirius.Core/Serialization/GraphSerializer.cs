@@ -158,7 +158,7 @@ public static class GraphSerializer
 
             if (descriptor is null)
             {
-                warnings.Add($"Skipped node '{record.Name ?? record.Id}': unknown node type '{record.Type}'.");
+                warnings.Add(UnknownType(record));
                 continue;
             }
 
@@ -245,6 +245,28 @@ public static class GraphSerializer
     /// splits: "Number" produced a real number and became Float when Integer
     /// was added alongside it.
     /// </remarks>
+    /// <summary>
+    /// Why a node could not be made, and - for a custom node - what to do
+    /// about it.
+    /// </summary>
+    /// <remarks>
+    /// A recipe written on a machine with a custom node library, opened on
+    /// one without, is the commonest way a node goes missing. Saying only
+    /// "unknown node type" leaves the operator to work out that the type
+    /// came from a library at all.
+    /// </remarks>
+    private static string UnknownType(NodeRecord record)
+    {
+        const string CustomPrefix = "custom/";
+        var name = record.Name ?? record.Id;
+
+        return record.Type.StartsWith(CustomPrefix, StringComparison.Ordinal)
+            ? $"Skipped node '{name}': it is the custom node '{record.Type[CustomPrefix.Length..]}', " +
+              "and no loaded custom node library provides it. Add the library under " +
+              "Tools > Custom Nodes, then open the recipe again."
+            : $"Skipped node '{name}': unknown node type '{record.Type}'.";
+    }
+
     private static string MapLegacyTypeKey(string typeKey) => typeKey switch
     {
         "source.number" => "source.float",

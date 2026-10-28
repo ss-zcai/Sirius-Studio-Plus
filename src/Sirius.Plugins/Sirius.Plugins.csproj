@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The custom node SDK: the one assembly a plugin library references.
+
+    It depends on Sirius.Core for the value types a node passes around -
+    shapes, points, calibrations - and on nothing else. In particular not on
+    Sirius.Vision, which is where Emgu.CV comes in: a plugin never links
+    OpenCV, so its author inherits none of Emgu's licence terms. See
+    docs/custom-nodes.md section 2.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Sirius.Plugins</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Authors read this through IntelliSense more than through the doc. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!--
+      The contract is versioned on its own, not with the application. The
+      loader refuses a plugin built against a different major version, so
+      this moves to 2.0 only for a change that breaks existing plugins.
+    -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+
+    <!-- The package other teams reference. tools/pack-sdk.ps1 builds it. -->
+    <PackageId>Sirius.Plugins</PackageId>
+    <Authors>$(Company)</Authors>
+    <Description>Interface for writing custom nodes for Sirius Studio Plus. See docs/custom-nodes.md in the SDK.</Description>
+    <PackageTags>sirius;machine-vision;plugin</PackageTags>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeCoreInPackage</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Sirius.Core is not published as a package of its own, so it travels
+      inside this one: PrivateAssets keeps it from being listed as a
+      dependency nobody could resolve, and IncludeCoreInPackage below puts
+      the DLL beside Sirius.Plugins.dll. Its one dependency is then named
+      here, so a plugin project gets it from NuGet.
+    -->
+    <ProjectReference Include="..\Sirius.Core\Sirius.Core.csproj" PrivateAssets="all" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+
+  <Target Name="IncludeCoreInPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+                            Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference' And '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <!-- The host builds port handles and input views; authors cannot. -->
+    <InternalsVisibleTo Include="Sirius.Vision" />
+    <InternalsVisibleTo Include="Sirius.Core.Tests" />
+  </ItemGroup>
+
+</Project>

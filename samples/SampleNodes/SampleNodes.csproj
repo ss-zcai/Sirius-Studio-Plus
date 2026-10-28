@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A custom node library, written the way one outside this repository
+    would be: it references Sirius.Plugins and nothing else of ours.
+
+    Build it and drop the output folder into a plugins folder - or add the
+    DLL under Tools > Custom Nodes - and its three nodes appear in the
+    toolbox. See docs/custom-nodes.md.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Sirius.Samples</RootNamespace>
+    <AssemblyName>Sirius.SampleNodes</AssemblyName>
+    <Version>1.0.0</Version>
+
+    <!--
+      Writes the library's own dependencies and a .deps.json beside it, which
+      is how the application finds a dependency in its own folder.
+    -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Private="false": the application supplies Sirius.Plugins at run time,
+      so a copy beside the library would only be ignored. Outside this
+      repository the same thing is a package reference with
+      ExcludeAssets="runtime".
+    -->
+    <ProjectReference Include="..\..\src\Sirius.Plugins\Sirius.Plugins.csproj" Private="false" />
+
+    <!--
+      The package carries Sirius.Core inside it. A project reference does
+      not, so here it is named separately - outside this repository the one
+      package reference above is all a library needs.
+    -->
+    <ProjectReference Include="..\..\src\Sirius.Core\Sirius.Core.csproj" Private="false" />
+  </ItemGroup>
+
+</Project>

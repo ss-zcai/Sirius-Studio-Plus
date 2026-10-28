@@ -45,8 +45,17 @@ public abstract class VisionNode : ObservableObject
     private TimeSpan _lastEvaluationTime;
 
     protected VisionNode()
+        : this(null)
     {
-        Descriptor = NodeCatalog.Describe(GetType());
+    }
+
+    /// <summary>
+    /// For a node whose metadata is not its own class's - one wrapper type
+    /// standing in for many, each with its own descriptor.
+    /// </summary>
+    protected VisionNode(NodeDescriptor? descriptor)
+    {
+        Descriptor = descriptor ?? NodeCatalog.Describe(GetType());
         _name = Descriptor.DisplayName;
     }
 
@@ -206,16 +215,31 @@ public abstract class VisionNode : ObservableObject
     /// </summary>
     public event EventHandler? Invalidated;
 
-    protected InputPort AddInput<T>(string name, string? displayName = null, bool isRequired = true)
+    protected InputPort AddInput<T>(string name, string? displayName = null, bool isRequired = true) =>
+        AddInput(typeof(T), name, displayName, isRequired);
+
+    protected OutputPort AddOutput<T>(string name, string? displayName = null) =>
+        AddOutput(typeof(T), name, displayName);
+
+    /// <summary>
+    /// Adds an input whose type is only known at run time - a node that
+    /// declares its ports from a description rather than in code.
+    /// </summary>
+    protected InputPort AddInput(Type dataType, string name, string? displayName = null, bool isRequired = true)
     {
-        var port = new InputPort(name, displayName ?? name, typeof(T), isRequired) { Node = this };
+        ArgumentNullException.ThrowIfNull(dataType);
+
+        var port = new InputPort(name, displayName ?? name, dataType, isRequired) { Node = this };
         _inputs.Add(port);
         return port;
     }
 
-    protected OutputPort AddOutput<T>(string name, string? displayName = null)
+    /// <summary>The output counterpart of <see cref="AddInput(Type, string, string?, bool)"/>.</summary>
+    protected OutputPort AddOutput(Type dataType, string name, string? displayName = null)
     {
-        var port = new OutputPort(name, displayName ?? name, typeof(T)) { Node = this };
+        ArgumentNullException.ThrowIfNull(dataType);
+
+        var port = new OutputPort(name, displayName ?? name, dataType) { Node = this };
         _outputs.Add(port);
         return port;
     }

@@ -1,6 +1,47 @@
 using System.Reflection;
+using Sirius.Core.Nodes;
 
 namespace Sirius.Core.Graph.Undo;
+
+/// <summary>
+/// A property of a node that undo can read and put back.
+/// </summary>
+/// <remarks>
+/// Usually a CLR property of the node class. A custom node's settings are
+/// not - they live on the plugin object the node wraps - so this reaches a
+/// parameter through its descriptor instead, and undo stays indifferent to
+/// where a value is kept.
+/// </remarks>
+public sealed class NodeProperty
+{
+    private readonly Func<VisionNode, object?> _get;
+    private readonly Action<VisionNode, object?> _set;
+
+    private NodeProperty(string name, Func<VisionNode, object?> get, Action<VisionNode, object?> set)
+    {
+        Name = name;
+        _get = get;
+        _set = set;
+    }
+
+    public string Name { get; }
+
+    public object? GetValue(VisionNode node) => _get(node);
+
+    public void SetValue(VisionNode node, object? value) => _set(node, value);
+
+    public static NodeProperty Of(PropertyInfo property)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        return new NodeProperty(property.Name, property.GetValue, property.SetValue);
+    }
+
+    public static NodeProperty Of(ParamDescriptor parameter)
+    {
+        ArgumentNullException.ThrowIfNull(parameter);
+        return new NodeProperty(parameter.Name, parameter.GetValue, parameter.SetValue);
+    }
+}
 
 /// <summary>Adding one node.</summary>
 /// <remarks>
@@ -176,13 +217,24 @@ public sealed class DisconnectEdit : IGraphEdit
 public sealed class PropertyEdit : IGraphEdit
 {
     private readonly VisionNode _node;
-    private readonly PropertyInfo _property;
+    private readonly NodeProperty _property;
     private readonly object? _before;
     private object? _after;
 
     public PropertyEdit(
         VisionNode node,
         PropertyInfo property,
+        object? before,
+        object? after,
+        string? label = null,
+        bool affectsResults = true)
+        : this(node, NodeProperty.Of(property), before, after, label, affectsResults)
+    {
+    }
+
+    public PropertyEdit(
+        VisionNode node,
+        NodeProperty property,
         object? before,
         object? after,
         string? label = null,
@@ -206,7 +258,8 @@ public sealed class PropertyEdit : IGraphEdit
 
     public VisionNode Node => _node;
 
-    public PropertyInfo Property => _property;
+    /// <summary>Which property this changes, by name.</summary>
+    public string PropertyName => _property.Name;
 
     public void Apply(VisionGraph graph) => _property.SetValue(_node, _after);
 
@@ -226,7 +279,7 @@ public sealed class PropertyEdit : IGraphEdit
     {
         if (next is not PropertyEdit other ||
             !ReferenceEquals(other._node, _node) ||
-            other._property != _property ||
+            other.PropertyName != PropertyName ||
             other.At - At > MergeWindow)
         {
             return false;
@@ -306,6 +359,6 @@ public sealed class CompositeEdit : IGraphEdit
         current is PropertyEdit first &&
         next is PropertyEdit second &&
         ReferenceEquals(first.Node, second.Node) &&
-        first.Property == second.Property &&
+        first.PropertyName == second.PropertyName &&
         second.At - first.At <= PropertyEdit.MergeWindow;
 }

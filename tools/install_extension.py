@@ -62,6 +62,11 @@ PHOSPHOR = {
     "squares-four": "ph_matrix",
     "text-t": "ph_text",
 
+    # A custom node that names no icon of its own. A puzzle piece is the
+    # usual sign for something added from outside, and is unlike every
+    # built-in tool, so a plugin's node is recognisable as one at a glance.
+    "puzzle-piece": "ph_custom_node",
+
     # tag-simple rather than tag: the plain outline keeps its shape under
     # the keyline at toolbox size, where tag's eyelet fills in.
     "tag-simple": "ph_label",

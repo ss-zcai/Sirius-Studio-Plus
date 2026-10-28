@@ -53,21 +53,26 @@ public sealed class MainViewModel : ObservableObject
     private int _addedNodeCount;
 
     public MainViewModel()
+        : this(null)
+    {
+    }
+
+    /// <param name="customNodes">
+    /// Where custom node libraries come from. Null means this user's real
+    /// folders and remembered list.
+    /// </param>
+    public MainViewModel(CustomNodesViewModel? customNodes)
     {
         VisionNodeLibrary.Register();
 
-        Palette = new ObservableCollection<PaletteGroupViewModel>(
-            NodeCatalog.All
-                .GroupBy(descriptor => descriptor.Category)
-                .OrderBy(group => group.Key)
-                .Select(group => new PaletteGroupViewModel(
-                    group.Key,
-                    group.Select(descriptor => new PaletteItemViewModel(descriptor)))));
+        // Before the toolbox is built, so a library's nodes are in it from
+        // the start rather than appearing a moment later.
+        CustomNodes = customNodes ?? CustomNodesForCurrentUser();
+        CustomNodes.LoadAll();
+        CustomNodes.CatalogueChanged += (_, _) => RebuildPalette();
 
-        // Every category starts open, and they expand independently - closing
-        // one does not reopen another.
-        foreach (var group in Palette)
-            group.IsExpanded = true;
+        Palette = [];
+        RebuildPalette();
 
         NewGraphCommand = new RelayCommand(NewGraph);
         OpenGraphCommand = new RelayCommand(OpenGraph);
@@ -117,6 +122,52 @@ public sealed class MainViewModel : ObservableObject
             _ => HasSelection());
 
         LoadGraph(CreateEmptyGraph());
+
+        // Said once, at startup, where it will be seen; the detail is in
+        // the Custom Nodes window.
+        if (CustomNodes.ProblemSummary is { } problems)
+            StatusText = problems;
+    }
+
+    /// <summary>The custom node libraries, for the Custom Nodes window.</summary>
+    public CustomNodesViewModel CustomNodes { get; }
+
+    private static CustomNodesViewModel CustomNodesForCurrentUser()
+    {
+        var settings = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "SiriusStudioPlus");
+
+        return new CustomNodesViewModel(
+            Path.Combine(settings, "custom-nodes.json"),
+            Path.Combine(AppContext.BaseDirectory, "plugins"),
+            Path.Combine(settings, "plugins"));
+    }
+
+    /// <summary>
+    /// Builds the toolbox from the catalogue - at startup, and again when a
+    /// custom node library adds to it.
+    /// </summary>
+    /// <remarks>
+    /// Every category starts open, and they expand independently - closing
+    /// one does not reopen another, including across a rebuild: a group the
+    /// operator closed stays closed when a library is added.
+    /// </remarks>
+    internal void RebuildPalette()
+    {
+        var expanded = Palette.ToDictionary(group => group.Category, group => group.IsExpanded);
+
+        Palette.Clear();
+
+        foreach (var category in NodeCatalog.All.GroupBy(descriptor => descriptor.Category).OrderBy(group => group.Key))
+        {
+            var group = new PaletteGroupViewModel(
+                category.Key,
+                category.Select(descriptor => new PaletteItemViewModel(descriptor)));
+
+            group.IsExpanded = expanded.GetValueOrDefault(category.Key, true);
+            Palette.Add(group);
+        }
     }
 
     public ObservableCollection<PaletteGroupViewModel> Palette { get; }

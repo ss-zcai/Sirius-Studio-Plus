@@ -27,4 +27,10 @@ public enum NodeCategory
     Calibration,
     TextAndCodeReading,
     Output,
+
+    /// <summary>
+    /// Nodes from a custom node library, unless the library placed them in
+    /// one of the groups above.
+    /// </summary>
+    Custom,
 }

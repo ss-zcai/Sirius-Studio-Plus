@@ -70,15 +70,52 @@ public static class NodeCatalog
                 Registered.Add(descriptor);
             }
 
-            Registered.Sort(static (a, b) =>
-            {
-                var byCategory = a.Category.CompareTo(b.Category);
-                return byCategory != 0
-                    ? byCategory
-                    : string.Compare(a.DisplayName, b.DisplayName, StringComparison.CurrentCulture);
-            });
+            SortRegistered();
         }
     }
+
+    /// <summary>
+    /// Adds one node type that was not found by scanning an assembly.
+    /// </summary>
+    /// <remarks>
+    /// For descriptors built by hand - a custom node from a plugin library
+    /// is wrapped rather than subclassed, so scanning for
+    /// <see cref="VisionNodeAttribute"/> would never find it. Offering the
+    /// same descriptor twice is harmless; a different one with the same
+    /// key is refused, for the same reason <see cref="Register(Assembly)"/>
+    /// refuses it.
+    /// </remarks>
+    public static void Register(NodeDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+
+        lock (Gate)
+        {
+            if (ByTypeKey.TryGetValue(descriptor.TypeKey, out var existing))
+            {
+                if (ReferenceEquals(existing, descriptor))
+                    return;
+
+                throw new InvalidOperationException(
+                    $"Duplicate node TypeKey '{descriptor.TypeKey}': " +
+                    $"'{existing.NodeType.FullName}' and '{descriptor.NodeType.FullName}'. " +
+                    "TypeKeys must be unique because saved graphs reference them.");
+            }
+
+            ByTypeKey.Add(descriptor.TypeKey, descriptor);
+            Registered.Add(descriptor);
+            SortRegistered();
+        }
+    }
+
+    private static void SortRegistered() =>
+        Registered.Sort(static (a, b) =>
+        {
+            var byCategory = a.Category.CompareTo(b.Category);
+            return byCategory != 0
+                ? byCategory
+                : string.Compare(a.DisplayName, b.DisplayName, StringComparison.CurrentCulture);
+        });
 
     /// <summary>Looks up a node type by its stable saved-file key.</summary>
     public static NodeDescriptor? FindByTypeKey(string typeKey)
