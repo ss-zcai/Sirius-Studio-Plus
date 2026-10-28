@@ -284,6 +284,7 @@ public static class GraphSerializer
     private static string MapLegacyTypeKey(string typeKey) => typeKey switch
     {
         "source.number" => "source.float",
+        "output.profileViewer" => "output.lineChart",
         _ => typeKey,
     };
 

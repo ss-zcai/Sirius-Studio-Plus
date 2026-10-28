@@ -24,7 +24,7 @@ Socket shapes: square = image, circle = everything else.
 - **Analysis** — Histogram, Limit Check, Line Profile, Measure, Shape Table
 - **Calibration** — Calibrate
 - **Text And Code Reading** — Read Code, Read Text
-- **Output** — Image Viewer, Label, Profile Viewer
+- **Output** — Image Viewer, Label, Line Chart
 - **Sub Graph** — Graph Input, Graph Output, Sub Graph
 
 ## Source
@@ -1445,17 +1445,17 @@ Draws a number or a line of text on the image.
 | Typeface | `LabelTypeface` | ComboBox | - |
 | Size | `Number` | Slider | 4 to 400 |
 
-### Profile Viewer
+### Line Chart
 
-`output.profileViewer`
+`output.lineChart`
 
-Terminal node; the profile wired in is charted in its own panel - a radius round a ring from Ring Calipers, say.
+Terminal node; the profiles wired in are charted together in its own panel - deviation round a ring from Ring Calipers, say, or two of them to compare. Wiring one adds another socket.
 
 **Inputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| In | `Profile` | circle | yes |
+| Profile | `Profile` | circle | optional |
 
 ## Sub Graph
 
@@ -1493,11 +1493,11 @@ A graph of its own, used as one node. Double-click it to open it in a tab. Graph
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| 2c7f32c569f6442187a58481de124097 | `Any` | circle | optional |
+| 3c9d70fafc2e4a1c9e9e68fea14fea09 | `Any` | circle | optional |
 
 **Outputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| 5300d01c47c24cbaa50071684ea11d7e | `Any` | circle | - |
+| 97f860a6b92a4cc186529bf377b8a869 | `Any` | circle | - |
 

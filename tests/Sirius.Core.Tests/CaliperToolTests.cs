@@ -3,6 +3,7 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
+using Sirius.Core.Serialization;
 using Sirius.Core.Shapes;
 using Sirius.Studio.App.ViewModels;
 using Sirius.Vision;
@@ -300,29 +301,140 @@ public class CaliperToolTests
         Assert.All(profile.Channels[0].Samples, sample => Assert.InRange(sample, 79, 82));
     }
 
-    /// <summary>The Profile Viewer's panel charts whatever profile is wired into it.</summary>
+    // ---- Line Chart -----------------------------------------------------------------
+
+    /// <summary>The Line Chart's panel charts whatever profile is wired into it.</summary>
     [Fact]
-    public void A_profile_viewer_panel_shows_the_wired_profile()
+    public void A_line_chart_panel_shows_the_wired_profile()
     {
         var calipers = new RingCalipersNode { Band = new Ring(200, 200, 50, 110), CaliperCount = 36 };
-        var viewer = new ProfileViewerNode();
+        var chart = new LineChartNode();
 
         var graph = new VisionGraph();
         var source = new PictureNode(Disc);
         graph.Add(source);
         graph.Add(calipers);
-        graph.Add(viewer);
+        graph.Add(chart);
         graph.TryConnect(source.Out, calipers.ImageIn);
-        graph.TryConnect(calipers.ProfileOut, viewer.ProfileIn);
+        graph.TryConnect(calipers.ProfileOut, chart.ProfileIn);
 
         using var scheduler = CreateScheduler(graph);
         scheduler.RunAsync().GetAwaiter().GetResult();
 
-        var panel = new ProfilePanelViewModel(viewer);
+        var panel = new ProfilePanelViewModel(chart);
         panel.Prepare(scheduler);
         panel.Commit();
 
         Assert.Same(scheduler.GetOutput(calipers.ProfileOut), panel.Data);
+        Assert.Equal("Ring Calipers", Assert.Single(panel.Series).Label);
+    }
+
+    /// <summary>
+    /// Two profiles to compare - the same ring read two ways - each in its
+    /// own socket, the second appearing when the first is wired. Two nodes
+    /// of one name are numbered so the legend tells them apart.
+    /// </summary>
+    [Fact]
+    public void A_line_chart_grows_a_socket_and_overlays_two_profiles()
+    {
+        var band = new RingCalipersNode { Band = new Ring(205, 200, 50, 110), CaliperCount = 72 };
+        var fitted = new RingCalipersNode
+        {
+            Band = new Ring(205, 200, 50, 110), CaliperCount = 36, RadiusFrom = RadiusFrom.Fitted,
+        };
+        var chart = new LineChartNode();
+
+        var graph = new VisionGraph();
+        var source = new PictureNode(Disc);
+        graph.Add(source);
+        graph.Add(band);
+        graph.Add(fitted);
+        graph.Add(chart);
+        graph.TryConnect(source.Out, band.ImageIn);
+        graph.TryConnect(source.Out, fitted.ImageIn);
+
+        Assert.Single(chart.ProfileInputs);
+
+        graph.TryConnect(band.ProfileOut, chart.ProfileIn);
+        Assert.True(chart.Fit());
+        Assert.Equal(["Profile", "Profile 2"], chart.ProfileInputs.Select(port => port.Name));
+
+        graph.TryConnect(fitted.ProfileOut, chart.ProfileInputs[1]);
+        chart.Fit();
+        Assert.Equal(3, chart.ProfileInputs.Count);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var panel = new ProfilePanelViewModel(chart);
+        panel.Prepare(scheduler);
+        panel.Commit();
+
+        Assert.Null(panel.Data);
+        Assert.Equal(["Ring Calipers 1", "Ring Calipers 2"], panel.Series.Select(series => series.Label));
+        Assert.Equal(72, panel.Series[0].Data.Length);
+        Assert.Equal(36, panel.Series[1].Data.Length);
+    }
+
+    [Fact]
+    public void A_line_chart_drops_spare_sockets_when_unwired()
+    {
+        var calipers = new RingCalipersNode();
+        var chart = new LineChartNode();
+
+        var graph = new VisionGraph();
+        graph.Add(calipers);
+        graph.Add(chart);
+
+        graph.TryConnect(calipers.ProfileOut, chart.ProfileIn);
+        chart.Fit();
+        Assert.Equal(2, chart.ProfileInputs.Count);
+
+        graph.Disconnect(chart.ProfileIn.Connection!);
+        Assert.True(chart.Fit());
+        Assert.Single(chart.ProfileInputs);
+    }
+
+    /// <summary>
+    /// A wire into a grown socket survives saving, and a graph saved while
+    /// this was Profile Viewer - its key and its one socket "In" - opens as
+    /// a Line Chart with the wire in place.
+    /// </summary>
+    [Fact]
+    public void Line_chart_wiring_survives_saving_and_the_old_name_still_loads()
+    {
+        var first = new RingCalipersNode();
+        var second = new RingCalipersNode();
+        var chart = new LineChartNode();
+
+        var graph = new VisionGraph();
+        graph.Add(first);
+        graph.Add(second);
+        graph.Add(chart);
+        graph.TryConnect(first.ProfileOut, chart.ProfileIn);
+        chart.Fit();
+        graph.TryConnect(second.ProfileOut, chart.ProfileInputs[1]);
+
+        var reloaded = GraphSerializer.Deserialize(GraphSerializer.Serialize(graph)).Graph;
+        var loadedChart = reloaded.Nodes.OfType<LineChartNode>().Single();
+        Assert.All(loadedChart.ProfileInputs.Take(2), port => Assert.True(port.IsConnected));
+
+        var single = new VisionGraph();
+        var one = new RingCalipersNode();
+        var oldChart = new LineChartNode();
+        single.Add(one);
+        single.Add(oldChart);
+        single.TryConnect(one.ProfileOut, oldChart.ProfileIn);
+
+        var json = GraphSerializer.Serialize(single)
+            .Replace("\"output.lineChart\"", "\"output.profileViewer\"")
+            .Replace("\"toPort\": \"Profile\"", "\"toPort\": \"In\"");
+
+        Assert.Contains("output.profileViewer", json);
+        Assert.Contains("\"toPort\": \"In\"", json);
+
+        var old = GraphSerializer.Deserialize(json).Graph;
+        Assert.True(old.Nodes.OfType<LineChartNode>().Single().ProfileIn.IsConnected);
     }
 
     // ---- Line Calipers ------------------------------------------------------------

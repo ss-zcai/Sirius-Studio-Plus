@@ -5,33 +5,121 @@ using Sirius.Core.Shapes;
 namespace Sirius.Vision.Nodes;
 
 /// <summary>
-/// Shows a profile as a chart, in its own panel.
+/// Charts profiles in its own panel - one, or several over each other to
+/// compare.
 /// </summary>
 /// <remarks>
-/// Line Profile draws its own chart because it makes the profile; anything
-/// else that makes one - Ring Calipers' radius round a ring - is shown by
-/// wiring it here. One chart for every profile, so they all read alike.
+/// <para>
+/// Anything that makes a profile - Ring Calipers' deviation round a ring,
+/// say - is shown by wiring it here. One chart for every profile, so they
+/// all read alike.
+/// </para>
+/// <para>
+/// Grows a socket the way Image Viewer grows shapes sockets: wire one
+/// profile and a second socket appears. Each profile keeps its own axis
+/// spacing, so a 72-caliper ring and a 36-caliper one overlay correctly.
+/// </para>
 /// </remarks>
 [VisionNode(
-    "Profile Viewer",
-    TypeKey = "output.profileViewer",
+    "Line Chart",
+    TypeKey = "output.lineChart",
     Category = NodeCategory.Output,
-    Icon = "ph_profile_viewer",
-    Description = "Terminal node; the profile wired in is charted in its own panel - a radius round a ring from " +
-                  "Ring Calipers, say.")]
-public sealed class ProfileViewerNode : VisionNode
+    Icon = "ph_line_chart",
+    Description = "Terminal node; the profiles wired in are charted together in its own panel - deviation round " +
+                  "a ring from Ring Calipers, say, or two of them to compare. Wiring one adds another socket.")]
+public sealed class LineChartNode : VisionNode, IGrowingPorts
 {
-    public ProfileViewerNode()
+    /// <summary>The first socket's name; the rest are "Profile 2", "Profile 3", ...</summary>
+    private const string FirstProfile = "Profile";
+
+    /// <summary>More traces than this on one chart cannot be told apart.</summary>
+    private const int Limit = 8;
+
+    public LineChartNode()
     {
-        ProfileIn = AddInput<ProfileData>("In");
+        ProfileIn = AddInput<ProfileData>(FirstProfile, isRequired: false);
     }
 
+    /// <summary>The first profile socket.</summary>
     public InputPort ProfileIn { get; }
+
+    /// <summary>Every profile socket, in the order they are charted.</summary>
+    public IReadOnlyList<InputPort> ProfileInputs => Inputs
+        .Where(port => port.DataType == typeof(ProfileData) && !IsParameterPort(port))
+        .ToArray();
+
+    /// <summary>Keeps exactly one empty socket at the end, as Image Viewer does.</summary>
+    public bool Fit()
+    {
+        var changed = false;
+        var sockets = ProfileInputs;
+        var spare = sockets.Count(port => !port.IsConnected);
+
+        for (var i = sockets.Count - 1; i > 0 && spare > 1; i--)
+        {
+            if (sockets[i].IsConnected || !RemoveInput(sockets[i]))
+                continue;
+
+            spare--;
+            changed = true;
+        }
+
+        if (spare == 0 && sockets.Count < Limit)
+        {
+            Grow();
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    /// <summary>Builds sockets up to the one a saved recipe names.</summary>
+    public InputPort? EnsureInput(string name)
+    {
+        // "In" was the single socket's name when this was Profile Viewer.
+        if (string.Equals(name, "In", StringComparison.Ordinal))
+            return ProfileIn;
+
+        if (!TryReadSlot(name, out var slot) || slot > Limit)
+            return null;
+
+        while (ProfileInputs.Count < slot)
+            Grow();
+
+        return FindInput(name);
+    }
 
     protected override void OnEvaluate(EvalContext context)
     {
-        // Nothing to compute: the panel reads the profile straight from
+        // Nothing to compute: the panel reads the profiles straight from
         // upstream.
+    }
+
+    private void Grow()
+    {
+        var sockets = ProfileInputs;
+
+        InsertInput<ProfileData>(
+            Inputs.ToList().IndexOf(sockets[^1]) + 1,
+            $"{FirstProfile} {sockets.Count + 1}",
+            isRequired: false);
+    }
+
+    /// <summary>Reads "Profile 3" as 3, and the bare "Profile" as 1.</summary>
+    private static bool TryReadSlot(string name, out int slot)
+    {
+        slot = 0;
+
+        if (string.Equals(name, FirstProfile, StringComparison.Ordinal))
+        {
+            slot = 1;
+            return true;
+        }
+
+        if (!name.StartsWith(FirstProfile + " ", StringComparison.Ordinal))
+            return false;
+
+        return int.TryParse(name[(FirstProfile.Length + 1)..], out slot) && slot > 1;
     }
 }
 

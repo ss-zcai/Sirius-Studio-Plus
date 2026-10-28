@@ -585,7 +585,7 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type vm:ProfilePanelViewModel}">
-        <controls:ProfileControl Data="{Binding Data}" Margin="8" />
+        <controls:ProfileControl Data="{Binding Data}" Series="{Binding Series}" Margin="8" />
     </DataTemplate>
 
     <!--

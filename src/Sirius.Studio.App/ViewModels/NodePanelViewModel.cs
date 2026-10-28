@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Sirius.Studio.App.Controls;
 using Sirius.Core.Graph;
 using Sirius.Core.Shapes;
 using Sirius.Vision;
@@ -262,41 +263,73 @@ public sealed class ShapeTablePanelViewModel : NodePanelViewModel
 
 /// <summary>
 /// A dockable profile chart, bound to a <see cref="LineProfileNode"/> or a
-/// <see cref="ProfileViewerNode"/>.
+/// <see cref="LineChartNode"/>.
 /// </summary>
 public sealed class ProfilePanelViewModel : NodePanelViewModel
 {
-    private readonly Func<GraphScheduler, ProfileData?> _read;
-    private ProfileData? _data;
+    private readonly Func<GraphScheduler, IReadOnlyList<ChartSeries>> _read;
+    private IReadOnlyList<ChartSeries> _series = [];
+    private IReadOnlyList<ChartSeries> _pending = [];
 
     /// <summary>The profile a Line Profile node makes.</summary>
     public ProfilePanelViewModel(LineProfileNode node)
         : base(node)
     {
-        _read = scheduler => scheduler.GetOutput<ProfileData>(node.ProfileOut);
+        _read = scheduler => scheduler.GetOutput<ProfileData>(node.ProfileOut) is { } data
+            ? [new ChartSeries(node.Name, data)]
+            : [];
     }
 
     /// <summary>
-    /// Whatever profile is wired into a Profile Viewer - read from its input,
-    /// because the node is terminal and the profile belongs to its producer.
+    /// Every profile wired into a Line Chart - read from its inputs, because
+    /// the node is terminal and each profile belongs to its producer.
     /// </summary>
-    public ProfilePanelViewModel(ProfileViewerNode node)
+    public ProfilePanelViewModel(LineChartNode node)
         : base(node)
     {
-        _read = scheduler => scheduler.GetInput<ProfileData>(node.ProfileIn);
+        _read = scheduler => Gather(scheduler, node);
     }
 
     protected override string ContentIdPrefix => "profile";
 
-    public ProfileData? Data
-    {
-        get => _data;
-        private set => SetProperty(ref _data, value);
-    }
+    /// <summary>The one profile when there is one, or null - for the single-profile chart.</summary>
+    public ProfileData? Data => _series.Count == 1 ? _series[0].Data : null;
 
-    private ProfileData? _pending;
+    /// <summary>Every profile, each named for where it came from.</summary>
+    public IReadOnlyList<ChartSeries> Series
+    {
+        get => _series;
+        private set
+        {
+            if (SetProperty(ref _series, value))
+                OnPropertyChanged(nameof(Data));
+        }
+    }
 
     public override void Prepare(GraphScheduler scheduler) => _pending = _read(scheduler);
 
-    public override void Commit() => Data = _pending;
+    public override void Commit() => Series = _pending;
+
+    /// <summary>
+    /// The profiles in socket order, named for the node that made each -
+    /// numbered when two nodes share a name, so the legend can tell them
+    /// apart.
+    /// </summary>
+    internal static IReadOnlyList<ChartSeries> Gather(GraphScheduler scheduler, LineChartNode node)
+    {
+        var found = node.ProfileInputs
+            .Select(port => (Port: port, Data: scheduler.GetInput<ProfileData>(port)))
+            .Where(entry => entry.Data is not null)
+            .ToArray();
+
+        var names = found.Select(entry => entry.Port.Connection?.Source.Node.Name ?? entry.Port.Name).ToArray();
+
+        return found
+            .Select((entry, i) => new ChartSeries(
+                names.Count(name => name == names[i]) > 1
+                    ? $"{names[i]} {names.Take(i + 1).Count(name => name == names[i])}"
+                    : names[i],
+                entry.Data!))
+            .ToArray();
+    }
 }

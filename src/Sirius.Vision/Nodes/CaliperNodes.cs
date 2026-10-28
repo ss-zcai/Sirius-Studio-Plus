@@ -124,7 +124,7 @@ public enum RingProfileValue
 /// Wire a found circle into Circle and the band follows it - centred on its
 /// edge, Band Width wide - so Find Circle locates the part and this
 /// measures it. Radius From picks what each radius is measured from, and
-/// the Profile output plots it against angle for a Profile Viewer.
+/// the Profile output plots it against angle for a Line Chart.
 /// </para>
 /// </remarks>
 [VisionNode(
@@ -192,7 +192,7 @@ public sealed class RingCalipersNode : VisionNode
 
     /// <summary>
     /// The chosen value at every caliper, against angle - a gap where a
-    /// caliper found nothing. Wire it to a Profile Viewer.
+    /// caliper found nothing. Wire it to a Line Chart.
     /// </summary>
     public OutputPort ProfileOut { get; }
 
