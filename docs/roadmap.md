@@ -241,8 +241,8 @@ done. What remains, in order:
   kept in step by hand.
 - **Custom nodes - done, interface 1.0.** See `custom-nodes.md`. Left for
   later: reloading a library without a restart, icons a library supplies,
-  API docs for the `Sirius.Core` types in the package, and the Python host
-  for algorithms with no C# equivalent.
+  IntelliSense for the `Sirius.Core` types in the package, and the Python
+  host for algorithms with no C# equivalent.
 - **Batch/headless runner** - execute a `.sgraph` over a folder.
 
 ---

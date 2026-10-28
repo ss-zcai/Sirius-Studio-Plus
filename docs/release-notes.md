@@ -5,6 +5,91 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.2, second build — 28 October 2026
+
+**Replaces the 26 October build.** It has the same version number, so
+Help ▸ About says 1.0.2 for both. **This build is the one with a Tools
+menu.** If yours has no Tools menu, it is the old one.
+
+Everything in the 26 October notes below still applies. On top of it come
+judging, reading, calibration and custom nodes.
+
+**44 nodes → 48.**
+
+### What to try first
+
+> Image File → **Find Circle** ×2 → **Measure** → **Limit Check** → Image Viewer
+
+Measure a distance and judge it. The annotation turns green or red, and
+the status bar shows the verdict for the whole recipe. Then add a
+**Calibrate** node and wire it into Measure, and the reading is in
+millimetres instead of pixels.
+
+### New tools
+
+- **Limit Check** — pass or fail a number. The modes are *between* two
+  limits, *at least*, *at most*, or *nominal ± tolerance*. A value exactly
+  on a limit passes; a reading that is not a number fails. Wire a Measure's
+  annotation through it and the shape is redrawn green or red with the
+  value and PASS/FAIL beside it. The status bar adds up every Limit Check
+  in the recipe: `PASS`, or `FAIL (2 of 5)`.
+- **Read Code** — barcodes and 2D codes inside a drawn, rotatable region:
+  QR, Data Matrix, Aztec, PDF417, Code 128, Code 39, Interleaved 2 of 5,
+  Codabar and EAN/UPC, or *Any*. Outputs the text, the outline of each
+  code found, and the count.
+- **Read Text** — OCR inside a drawn, rotatable region, using Tesseract's
+  fast English model. Pick a layout (a line, a single character, a block,
+  or scattered text). **Allowed** limits it to the characters you expect,
+  such as digits only for a date code. Outputs the text, a confidence
+  score and the individual words. A short region is enlarged before
+  reading, so small print still reads.
+- **Calibrate** — turns pixels into real units. Either wire in a found
+  feature of known size (or type its length in pixels) and enter its real
+  length, or type the scale directly (e.g. `0.05 mm` per pixel). Wire it
+  into **Measure** and the reading and its label come out in those units.
+
+### Custom nodes
+
+Tools can now be added from outside the application. **Tools ▸ Custom
+Nodes…** lists the custom node libraries that are loaded, what each one
+added, and anything that went wrong.
+
+To try it, choose **Add Library…** and pick
+`samples\SampleNodes\Sirius.SampleNodes.dll` from this package. Three
+nodes appear:
+
+- **Gamma**, in a new *Custom* group;
+- **Bright Region** and **Ratio**, under *Analysis*.
+
+Worth checking:
+
+- the nodes work like built-in ones: their settings, undo, saving and
+  reopening a recipe, and wiring a Number into Gamma's setting;
+- the library is still there after restarting the application;
+- **Remove** in the same window takes it away at the *next* start, which is
+  intended;
+- a recipe using Gamma, opened after removing the library, says which
+  custom node is missing and where to add it.
+
+### Changes you will notice
+
+- **An OUTPUT section in the properties panel** shows what each of the
+  selected node's non-image outputs is carrying: a measurement, decoded
+  text, a pass/fail, a calibration. It updates on every run. The values
+  can be selected and copied.
+- **Shape Style no longer erases labels.** It used to wipe the text off
+  anything it restyled, a Read Text result for instance. It now keeps the
+  labels unless told otherwise.
+
+### Known issues, in addition to those below
+
+- **Areas are not calibrated yet.** Lengths come out in millimetres; a
+  blob's area is still in square pixels, and says so.
+- **A custom node library is not reloaded while the application is
+  open.** After rebuilding one, restart the application.
+
+---
+
 ## 1.0.2 — 26 October 2026
 
 Measurement is the theme. 1.0.1 could find shapes; this one can measure

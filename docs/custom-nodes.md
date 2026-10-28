@@ -258,6 +258,57 @@ never resolves it, the node shows a warning saying the wire was ignored -
 because otherwise that mistake is invisible. An `enum` cannot be
 connectable, since no node produces one.
 
+### 3.5 Coming from Python and NumPy
+
+Most algorithms being migrated were written against NumPy and
+OpenCV-Python. The translations that come up every time:
+
+| NumPy / OpenCV-Python | Here |
+|---|---|
+| `h, w, c = img.shape` | `picture.Height`, `picture.Width`, `picture.Channels` |
+| `img.dtype` - `uint8`, `uint16`, `float32` | `picture.Pixels` - `Byte8`, `UInt16`, `Float32` |
+| `img[y, x]` on a grey image | `picture.Row<byte>(y)[x]` |
+| `img[y, x, c]` | `picture.Row<byte>(y)[x * picture.Channels + c]` |
+| `img[y]`, one row | `picture.Row<byte>(y)` - a view, not a copy |
+| `img.ravel()` | `picture.Samples<byte>()` |
+| `np.zeros_like(img)` | `Picture.Allocate(img)` |
+| `img.copy()` | `img.Copy()` |
+| `img[...] = ...` in place | not on an input: allocate, write, publish |
+| B, G, R channel order | the same - and check `Layout`, which may be HSV |
+| `cv2.GaussianBlur`, `cv2.threshold`, `cv2.cvtColor`, `cv2.morphologyEx` | the built-in node, wired ahead of yours |
+
+Three habits to change:
+
+- **Write the loop.** In Python a per-pixel loop is a thousand times slower
+  than the vectorised form, so NumPy code is written to avoid one. C# is
+  compiled; the obvious loop over rows and then pixels is the fast way.
+  Take the row span once per row, outside the inner loop, as the example
+  above does.
+- **Split off the standard steps.** A Python function that blurs,
+  thresholds, finds contours and then does something particular usually
+  only needs its last part ported. Blur, threshold, colour conversion,
+  morphology, regions of interest and blob finding are built-in nodes, and
+  are better tuned in the graph, where an operator can see each step.
+- **State the sample type.** NumPy promotes types silently; `uint8 + 200`
+  wraps. Here `Row<T>` must name the type the picture holds, and arithmetic
+  on a `byte` is done in `int` - clamp before storing it back, as the
+  example does.
+
+Parallelising over rows is fine for a heavy node - `Run` is already on a
+worker thread - provided the work for each row is independent and the
+loop honours cancellation:
+
+```csharp
+Parallel.For(0, source.Height,
+    new ParallelOptions { CancellationToken = context.Cancellation },
+    y =>
+    {
+        var from = source.Row<byte>(y);
+        var to = result.WritableRow<byte>(y);
+        // ...
+    });
+```
+
 ---
 
 ## 4. Building and deploying a library
@@ -474,15 +525,19 @@ Built, in interface 1.0:
 - **Tools ▸ Custom Nodes…**, the two plugins folders, and the remembered
   list of libraries added by hand.
 - The named warning for a recipe using a missing custom node.
-- `samples/SampleNodes` - Gamma, Bright Region and Ratio - and
-  `tools/pack-sdk.ps1`, which builds the SDK and proves the sample builds
-  from the package alone.
+- `samples/SampleNodes` - Gamma, Bright Region and Ratio - with its tests
+  in `samples/SampleNodes.Tests`, and `tools/pack-sdk.ps1`, which builds
+  the SDK and proves the sample builds and passes its tests from the
+  package alone.
+- `custom-nodes-api.md`, the reference, and `AGENTS.md`/`CLAUDE.md`, the
+  instructions a coding agent reads when it is asked to do a migration.
 
 Not built, each of which can be added without breaking a 1.0 library:
 
 - **Reloading a library without restarting** (§5).
 - **Icons supplied by a library** (§6).
-- **API documentation for the `Sirius.Core` types** in the package. The
-  `Sirius.Plugins` types are documented and show in IntelliSense; `Shape`,
-  `ShapeSet` and the rest are not yet.
+- **IntelliSense for the `Sirius.Core` types.** `custom-nodes-api.md`
+  documents every one a node uses, and the `Sirius.Plugins` types show
+  their documentation in the editor; `Shape`, `ShapeSet` and the rest do
+  not yet.
 - **The Python host** (§8).

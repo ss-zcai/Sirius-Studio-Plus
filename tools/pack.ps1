@@ -74,6 +74,25 @@ dotnet publish src/Sirius.Studio.App/Sirius.Studio.App.csproj `
     -p:DebugType=none
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 
+# ---- sample custom node library --------------------------------------------
+
+# Beside the application rather than in its plugins folder, so a tester
+# adds it by hand - which is the part of the feature worth testing.
+Write-Host 'Building the sample custom node library...'
+$sampleOut = Join-Path $staging 'samples/SampleNodes'
+dotnet build samples/SampleNodes/SampleNodes.csproj `
+    --configuration Release `
+    --output $sampleOut `
+    --nologo `
+    --verbosity quiet
+if ($LASTEXITCODE -ne 0) { throw 'The sample custom node library did not build.' }
+
+# The application supplies these; a copy beside the library would only be
+# ignored, and would make a tester wonder which one is in use.
+Get-ChildItem $sampleOut -File |
+    Where-Object { $_.Name -match '^(Sirius\.Plugins|Sirius\.Core|CommunityToolkit\.Mvvm)\.' } |
+    Remove-Item -Force
+
 # ---- check -----------------------------------------------------------------
 
 $required = @(
@@ -86,6 +105,8 @@ $required = @(
     'docs/release-notes.md'
     'cvextern.dll'
     'tessdata/eng.traineddata'
+    'Sirius.Plugins.dll'
+    'samples/SampleNodes/Sirius.SampleNodes.dll'
 )
 
 $missing = $required | Where-Object { -not (Test-Path (Join-Path $staging $_)) }
