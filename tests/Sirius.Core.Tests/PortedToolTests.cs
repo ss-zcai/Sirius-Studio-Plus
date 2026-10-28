@@ -231,6 +231,11 @@ public class PortedToolTests
             Assert.NotEmpty(error);
     }
 
+    /// <summary>
+    /// With no band drawn it unwraps the largest circle that fits, about the
+    /// image's centre: a 100 pixel image gives a band of radius 50, whose
+    /// middle - radius 25 - is 157 pixels round.
+    /// </summary>
     [Fact]
     public async Task Polar_to_linear_defaults_to_the_image_centre()
     {
@@ -246,7 +251,8 @@ public class PortedToolTests
 
         // Defaults resolve at evaluation, so the unwrap must actually contain
         // the shape rather than coming out empty.
-        Assert.Equal(100, image.Width);
+        Assert.Equal(157, image.Width);
+        Assert.Equal(50, image.Height);
         Assert.True(CvInvoke.Mean(image.Mat).V0 > 0, "the unwrapped image is empty");
     }
 

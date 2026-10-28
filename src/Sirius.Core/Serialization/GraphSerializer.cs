@@ -501,7 +501,9 @@ public static class GraphSerializer
     private static bool TryApplyLegacyRingPart(
         VisionNode node, NodeDescriptor descriptor, string name, JsonElement element)
     {
-        if (name is not ("CentreX" or "CentreY" or "InnerRadius" or "OuterRadius"))
+        // MaxRadius is Polar to Linear's from before it had a band: the
+        // outer edge of what it unwrapped, from the centre outwards.
+        if (name is not ("CentreX" or "CentreY" or "InnerRadius" or "OuterRadius" or "MaxRadius"))
             return false;
 
         var parameter = descriptor.Parameters.FirstOrDefault(p => p.ValueType == typeof(Ring));
@@ -519,12 +521,31 @@ public static class GraphSerializer
             "CentreX" => current with { CentreX = number },
             "CentreY" => current with { CentreY = number },
             "InnerRadius" => current with { InnerRadius = number },
-            "OuterRadius" => current with { OuterRadius = number },
+            "OuterRadius" or "MaxRadius" => current with { OuterRadius = number },
             _ => current,
         });
 
         return true;
     }
+
+    /// <summary>
+    /// Parameters a node used to have and no longer needs, by node type.
+    /// </summary>
+    /// <remarks>
+    /// Dropped without a warning, because there is nothing for the operator
+    /// to do about them: a warning for each would greet every recipe saved
+    /// before the change with a dialog about a setting that no longer
+    /// means anything.
+    /// </remarks>
+    private static readonly Dictionary<string, string[]> RetiredParameters = new(StringComparer.Ordinal)
+    {
+        // How the old full-image unwrap filled the corners outside the
+        // circle. The band unwraps only the ring, so there are none.
+        ["transform.polarToLinear"] = ["Warp"],
+    };
+
+    private static bool IsRetired(NodeDescriptor descriptor, string name) =>
+        RetiredParameters.TryGetValue(descriptor.TypeKey, out var retired) && retired.Contains(name);
 
     private static void ApplyParameters(
         VisionNode node,
@@ -546,6 +567,9 @@ public static class GraphSerializer
                 continue;
 
             if (parameter is null && TryApplyLegacyRingPart(node, descriptor, name, element))
+                continue;
+
+            if (parameter is null && IsRetired(descriptor, name))
                 continue;
 
             if (parameter is null)
