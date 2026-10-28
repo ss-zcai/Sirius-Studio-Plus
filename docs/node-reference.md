@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**48 nodes** across 12 categories.
+**55 nodes** across 13 categories.
 
 - **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -19,12 +19,13 @@ Socket shapes: square = image, circle = everything else.
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
 - **Morphology** — Advanced Morphology, Dilate, Erode
 - **Blob** — Find Blobs, Select Shape, Shape Style
-- **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line
+- **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
 - **Transformation** — Polar to Linear
 - **Analysis** — Histogram, Limit Check, Line Profile, Measure, Shape Table
 - **Calibration** — Calibrate
 - **Text And Code Reading** — Read Code, Read Text
-- **Output** — Image Viewer, Label
+- **Output** — Image Viewer, Label, Profile Viewer
+- **Sub Graph** — Graph Input, Graph Output, Sub Graph
 
 ## Source
 
@@ -954,6 +955,7 @@ The best circle through the points of a blob or a set of features.
 
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
+| Reject Above | `Number` | Slider | 0 to 6 |
 | From | `FitSource` | ComboBox | - |
 | Group | `FitGrouping` | ComboBox | - |
 | Minimum Points | `Integer` | Slider | 2 to 1000 |
@@ -981,6 +983,7 @@ The best ellipse through the points of a blob or a set of features.
 
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
+| Reject Above | `Number` | Slider | 0 to 6 |
 | From | `FitSource` | ComboBox | - |
 | Group | `FitGrouping` | ComboBox | - |
 | Minimum Points | `Integer` | Slider | 2 to 1000 |
@@ -1013,38 +1016,150 @@ The best line through the points of a blob or a row of features.
 | Group | `FitGrouping` | ComboBox | - |
 | Minimum Points | `Integer` | Slider | 2 to 1000 |
 
-## Transformation
+### Line Calipers
 
-### Polar to Linear
+`fitting.lineCalipers`
 
-`transform.polarToLinear`
-
-Unwraps the image around a centre point into a linear strip.
+Casts calipers across a rectangle and gives every edge they find, as points and as an open contour, without fitting anything.
 
 **Inputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
-| CentreX | `Number` | circle | optional |
-| CentreY | `Number` | circle | optional |
-| MaxRadius | `Number` | circle | optional |
+| Region | `Rectangle` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Points | `Shapes` | circle | - |
+| Contour | `Shapes` | circle | - |
+| Count | `Integer` | circle | - |
+| Missed | `Integer` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Region | `Rectangle` | Rect | - |
+| Calipers | `Integer` | Slider | 2 to 500 |
+| Caliper Width | `Integer` | Slider | 1 to 101, odd only |
+| Sampling | `Number` | Slider | 0.1 to 2 |
+| Smoothing | `Integer` | Slider | 1 to 51, odd only |
+| Min Contrast | `Number` | Slider | 0 to 255 |
+| Polarity | `EdgePolarity` | ComboBox | - |
+| Edge | `EdgeChoice` | ComboBox | - |
+| Direction | `ScanDirection` | ComboBox | - |
+
+### Points to Polygon
+
+`fitting.pointsToPolygon`
+
+Joins points into one outline, in the order they arrive or sorted round their middle, open or closed. Reports its perimeter, and its area when closed.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Points | `Shapes` | circle | yes |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Polygon | `Shapes` | circle | - |
+| Count | `Integer` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Order | `PointOrder` | ComboBox | - |
+| Closed | `Yes/No` | CheckBox | - |
+
+### Ring Calipers
+
+`fitting.ringCalipers`
+
+Casts radial calipers through a ring and gives every edge they find, as points and as a contour, without fitting anything. Wire the points into Fit Ellipse, Points to Polygon or a Shape Table.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Circle | `Shapes` | circle | optional |
+| Band | `Ring` | circle | optional |
+| BandWidth | `Number` | circle | optional |
+| Offset | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Points | `Shapes` | circle | - |
+| Contour | `Shapes` | circle | - |
+| Profile | `Profile` | circle | - |
+| Roundness | `Number` | circle | - |
+| Count | `Integer` | circle | - |
+| Missed | `Integer` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Band | `Ring` | Ring | - |
+| Band Width | `Number` | Slider | 1 to 400 |
+| Offset | `Number` | Slider | -400 to 400 |
+| Start Angle | `Number` | Slider | -360 to 360 |
+| Sweep | `Number` | Slider | 1 to 360 |
+| Calipers | `Integer` | Slider | 3 to 720 |
+| Caliper Width | `Integer` | Slider | 1 to 101, odd only |
+| Sampling | `Number` | Slider | 0.1 to 2 |
+| Smoothing | `Integer` | Slider | 1 to 51, odd only |
+| Min Contrast | `Number` | Slider | 0 to 255 |
+| Polarity | `EdgePolarity` | ComboBox | - |
+| Edge | `EdgeChoice` | ComboBox | - |
+| Direction | `RadialDirection` | ComboBox | - |
+| Radius From | `RadiusFrom` | ComboBox | - |
+| Profile | `RingProfileValue` | ComboBox | - |
+
+## Transformation
+
+### Polar to Linear
+
+`transform.polarToLinear`
+
+Unwraps a ring of the image into a straight strip: angle left to right, radius top to bottom. Draw the ring on the image, or wire in a circle to unwrap around its edge.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Circle | `Shapes` | circle | optional |
+| Band | `Ring` | circle | optional |
+| BandWidth | `Number` | circle | optional |
+| Offset | `Number` | circle | optional |
 
 **Outputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | Out | `Image` | square | - |
+| Band | `Shapes` | circle | - |
 
 **Parameters**
 
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
-| Centre X | `Number` | TextBox | - |
-| Centre Y | `Number` | TextBox | - |
-| Max Radius | `Number` | TextBox | - |
+| Band | `Ring` | Ring | - |
+| Band Width | `Number` | Slider | 1 to 400 |
+| Offset | `Number` | Slider | -400 to 400 |
+| Start Angle | `Number` | Slider | -360 to 360 |
+| Sweep | `Number` | Slider | 1 to 360 |
 | Interpolation | `Inter` | ComboBox | - |
-| Warp | `Warp` | ComboBox | - |
 
 ## Analysis
 
@@ -1113,6 +1228,8 @@ Passes or fails a number against limits, and colours the measurement.
 ### Line Profile
 
 `analysis.lineProfile`
+
+> Retired: no longer in the toolbox. Saved graphs that use it still load and run.
 
 Intensity sampled along a line, for the profile panel.
 
@@ -1222,7 +1339,7 @@ Says what a pixel is worth, so readings come out in real units.
 
 `read.code`
 
-Reads barcodes and 2D codes inside a region.
+Reads barcodes and 2D codes - QR, Data Matrix, Code 128, EAN and others - inside a region.
 
 **Inputs**
 
@@ -1253,7 +1370,7 @@ Reads barcodes and 2D codes inside a region.
 
 `read.text`
 
-Reads printed text inside a region.
+Reads printed text inside a region (OCR).
 
 **Inputs**
 
@@ -1327,4 +1444,60 @@ Draws a number or a line of text on the image.
 | Colour | `Text` | Colour | - |
 | Typeface | `LabelTypeface` | ComboBox | - |
 | Size | `Number` | Slider | 4 to 400 |
+
+### Profile Viewer
+
+`output.profileViewer`
+
+Terminal node; the profile wired in is charted in its own panel - a radius round a ring from Ring Calipers, say.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Profile` | circle | yes |
+
+## Sub Graph
+
+### Graph Input
+
+`subgraph.input`
+
+A value coming into this sub-graph. It appears as an input socket on the sub-graph outside, named after this node, and takes the type of the first thing wired to it.
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Value | `Any` | circle | - |
+
+### Graph Output
+
+`subgraph.output`
+
+A value leaving this sub-graph. It appears as an output socket on the sub-graph outside, named after this node, and takes the type of the first thing wired to it.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Value | `Any` | circle | optional |
+
+### Sub Graph
+
+`subgraph.graph`
+
+A graph of its own, used as one node. Double-click it to open it in a tab. Graph Input and Graph Output nodes inside become its sockets.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| 2c7f32c569f6442187a58481de124097 | `Any` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| 5300d01c47c24cbaa50071684ea11d7e | `Any` | circle | - |
 

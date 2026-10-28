@@ -139,6 +139,7 @@ public sealed class NodeDescriptor
         TypeKey = attribute?.TypeKey ?? nodeType.Name;
         Parameters = parameters;
         IsInstantiable = attribute is not null && !nodeType.IsAbstract;
+        IsRetired = attribute?.Retired ?? false;
     }
 
     private NodeDescriptor(
@@ -222,6 +223,11 @@ public sealed class NodeDescriptor
     /// <see cref="VisionNodeAttribute"/> - they must not appear in the palette.
     /// </summary>
     public bool IsInstantiable { get; }
+
+    /// <summary>
+    /// Left out of the toolbox, but still made when a saved graph names it.
+    /// </summary>
+    public bool IsRetired { get; }
 
     public VisionNode CreateInstance() =>
         _factory?.Invoke()

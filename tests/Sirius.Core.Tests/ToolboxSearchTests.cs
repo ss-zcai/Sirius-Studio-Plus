@@ -3,7 +3,9 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using AvalonDock;
 using AvalonDock.Layout;
+using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
+using Sirius.Core.Serialization;
 using Sirius.Studio.App;
 using Sirius.Studio.App.ViewModels;
 using Xunit;
@@ -34,6 +36,29 @@ public class ToolboxSearchTests
 
     private static string[] Listed(MainViewModel model) =>
         model.Palette.SelectMany(group => group.Items).Select(item => item.DisplayName).ToArray();
+
+    /// <summary>
+    /// Line Profile is retired - a profile line on any image viewer does its
+    /// job - so it is not offered, even by name; but a graph that has one
+    /// still loads it.
+    /// </summary>
+    [Fact]
+    public void A_retired_tool_is_not_offered_but_still_loads()
+    {
+        var model = Model();
+
+        Assert.DoesNotContain("Line Profile", Listed(model));
+
+        model.ToolboxSearch = "line profile";
+        Assert.DoesNotContain("Line Profile", Listed(model));
+
+        var graph = new VisionGraph();
+        graph.Add(new Sirius.Vision.Nodes.LineProfileNode());
+
+        var loaded = GraphSerializer.Deserialize(GraphSerializer.Serialize(graph));
+
+        Assert.IsType<Sirius.Vision.Nodes.LineProfileNode>(Assert.Single(loaded.Graph.Nodes));
+    }
 
     [Fact]
     public void Typing_narrows_the_toolbox_to_what_matches()

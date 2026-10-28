@@ -171,6 +171,7 @@ public sealed class MainViewModel : ObservableObject
         var searching = search.Length > 0;
 
         var offered = NodeCatalog.All.Where(descriptor =>
+            !descriptor.IsRetired &&
             (insideSubGraph ||
              (descriptor.NodeType != typeof(GraphInputNode) && descriptor.NodeType != typeof(GraphOutputNode))) &&
             MatchesToolboxSearch(descriptor, search));

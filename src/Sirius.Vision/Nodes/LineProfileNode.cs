@@ -21,12 +21,18 @@ namespace Sirius.Vision.Nodes;
 /// image viewer's profile tool also uses, so a line drawn on the image and the
 /// same line typed in here give identical readings.
 /// </para>
+/// <para>
+/// Retired from the toolbox: a profile line drawn on any image viewer does
+/// the same job without a node. Kept so graphs that have one still load,
+/// run and show their chart.
+/// </para>
 /// </remarks>
 [VisionNode(
     "Line Profile",
     TypeKey = "analysis.lineProfile",
     Category = NodeCategory.Analysis,
     Icon = "ph_line_profile",
+    Retired = true,
     Description = "Intensity sampled along a line, for the profile panel.")]
 public sealed class LineProfileNode : VisionNode
 {

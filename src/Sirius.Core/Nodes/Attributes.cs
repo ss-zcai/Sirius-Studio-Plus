@@ -31,6 +31,12 @@ public sealed class VisionNodeAttribute : Attribute
     /// without breaking existing saved files.
     /// </summary>
     public string? TypeKey { get; set; }
+
+    /// <summary>
+    /// No longer offered in the toolbox, but still loaded and run wherever a
+    /// saved graph has one - so retiring a tool never breaks a recipe.
+    /// </summary>
+    public bool Retired { get; set; }
 }
 
 /// <summary>

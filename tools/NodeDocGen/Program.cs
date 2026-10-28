@@ -54,6 +54,12 @@ foreach (var group in descriptors.GroupBy(d => d.Category))
         builder.AppendLine($"`{descriptor.TypeKey}`");
         builder.AppendLine();
 
+        if (descriptor.IsRetired)
+        {
+            builder.AppendLine("> Retired: no longer in the toolbox. Saved graphs that use it still load and run.");
+            builder.AppendLine();
+        }
+
         if (!string.IsNullOrWhiteSpace(descriptor.Description))
         {
             builder.AppendLine(descriptor.Description);
