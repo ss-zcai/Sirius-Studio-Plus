@@ -223,22 +223,32 @@ done. What remains, in order:
   images. The mechanism exists now - `IGrowingPorts`, built for the Image
   Viewer's shape sockets - and these two are the obvious next customers;
   chaining serves until somebody asks.
-- **Node groups and sub-graphs** for reusable sub-recipes - a block on
-  the canvas that contains a graph of its own.
+- **Sub-graphs - done, first version.** A **Sub Graph** node holds a
+  graph of its own, opened by double-clicking it into a tab beside the
+  recipe's. **Graph Input** and **Graph Output** nodes inside are its
+  sockets: added, removed and renamed with them, typed "any" until the
+  first wire on either side gives them a type. The inside has its own
+  scheduler and cache, so a change inside re-runs only what it affects;
+  each tab has its own undo history; viewers, previews, readouts and
+  limit checks inside work as they do outside. Saved nested in the
+  recipe, so a recipe without sub-graphs is byte-identical to before.
 
-  The hard part is not the containing, it is the boundary: a sub-graph
-  needs ports of its own, so a value crosses into it and a result
-  crosses back out. Those are two new node kinds - an input and an
-  output that stand for the enclosing block's sockets - and the
-  enclosing block's port list is then derived from whichever of them
-  are inside it, the way the Image Viewer already derives its shape
-  sockets from what is connected. `IGrowingPorts` is the nearest
-  existing machinery.
+  Left, in rough order of value:
 
-  What makes this worth doing is that a calibrated find-and-measure is
-  four or five nodes that are always wired the same way; a sub-graph is
-  how that becomes one block used three times rather than fifteen nodes
-  kept in step by hand.
+  - **Promoted parameters.** A threshold inside can only be changed by
+    opening the sub-graph, so two copies of one cannot be told to differ
+    from outside. The way to want this is to have used sub-graphs.
+  - **Reusable sub-graphs** - saved as a file and placed in several
+    recipes or several times in one, edited once. Today each copy is its
+    own.
+  - **Group selection into a sub-graph**, turning nodes already on the
+    canvas into one, with boundaries where their wires crossed.
+  - **Panel titles inside sub-graphs** carry only the node's name, so two
+    copies of a sub-graph with a viewer each open two panels with the
+    same title.
+  - Sub-graph tabs are not reopened when the application restarts, and a
+    socket whose boundary was deleted and restored by undo comes back at
+    the end of the node rather than where it was.
 - **Custom nodes - done, interface 1.0.** See `custom-nodes.md`. Left for
   later: reloading a library without a restart, icons a library supplies,
   IntelliSense for the `Sirius.Core` types in the package, and the Python

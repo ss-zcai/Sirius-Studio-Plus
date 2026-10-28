@@ -27,6 +27,7 @@ public static class TypeNames
     public static string Friendly(string typeName) => typeName switch
     {
         "ImageData" => "Image",
+        "Object" => "Any",
         "ShapeSet" => "Shapes",
         "HistogramData" => "Histogram",
         "ProfileData" => "Profile",

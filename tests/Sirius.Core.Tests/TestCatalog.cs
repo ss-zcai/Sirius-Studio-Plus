@@ -15,6 +15,7 @@ public static class TestCatalog
     private static readonly Lazy<bool> Initialiser = new(() =>
     {
         NodeCatalog.Register(typeof(TestCatalog).Assembly);
+        NodeCatalog.Register(typeof(Sirius.Core.Graph.SubGraphNode).Assembly);
         NodeCatalog.Register(Assembly.Load("Sirius.Vision"));
         return true;
     }, LazyThreadSafetyMode.ExecutionAndPublication);

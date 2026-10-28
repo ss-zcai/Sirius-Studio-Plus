@@ -23,6 +23,12 @@ public sealed class GraphEditorViewModel : ObservableObject
 
     private NodeViewModel? _selectedNode;
 
+    /// <summary>How many gestures are under way; see <see cref="Gesture"/>.</summary>
+    private int _gestures;
+
+    /// <summary>A node's ports changed during a gesture, so the canvas is rebuilt when it ends.</summary>
+    private bool _portsStale;
+
     /// <param name="undo">
     /// Where structural edits are recorded. The editor is where a node is
     /// added, deleted, connected and disconnected, so it is where those four
@@ -105,6 +111,8 @@ public sealed class GraphEditorViewModel : ObservableObject
 
     public NodeViewModel AddNode(NodeDescriptor descriptor, Point location)
     {
+        using var gesture = Gesture();
+
         var node = descriptor.CreateInstance();
         node.X = location.X;
         node.Y = location.Y;
@@ -127,6 +135,8 @@ public sealed class GraphEditorViewModel : ObservableObject
 
     public void RemoveNode(NodeViewModel viewModel)
     {
+        using var gesture = Gesture();
+
         // Recorded before the removal, because Graph.Remove drops every wire
         // touching the node and reports none of them - afterwards there is
         // nothing left to read, and the node would come back unconnected.
@@ -174,6 +184,8 @@ public sealed class GraphEditorViewModel : ObservableObject
     /// </summary>
     private void DeleteSelection()
     {
+        using var gesture = Gesture();
+
         // One step back, however much was selected. The individual removals
         // record themselves; the batch is what makes them one action, which
         // is what deleting a selection is to whoever did it.
@@ -222,6 +234,8 @@ public sealed class GraphEditorViewModel : ObservableObject
 
     private void CompleteConnection(object? parameter)
     {
+        using var gesture = Gesture();
+
         PendingConnection.Source = null;
 
         if (!TryUnpackEndpoints(parameter, out var first, out var second))
@@ -295,6 +309,8 @@ public sealed class GraphEditorViewModel : ObservableObject
 
     private void Disconnect(object? parameter)
     {
+        using var gesture = Gesture();
+
         if (parameter is not ConnectorViewModel connector)
             return;
 
@@ -322,6 +338,8 @@ public sealed class GraphEditorViewModel : ObservableObject
 
     private void RemoveConnection(object? parameter)
     {
+        using var gesture = Gesture();
+
         if (parameter is not ConnectionViewModel viewModel)
             return;
 
@@ -473,12 +491,64 @@ public sealed class GraphEditorViewModel : ObservableObject
             _connectorLookup[connector.Port] = connector;
 
         viewModel.PropertyChanged += OnNodeViewModelPropertyChanged;
+        node.PortsChanged += OnNodePortsChanged;
         return viewModel;
     }
 
     private void Detach(NodeViewModel viewModel)
     {
         viewModel.PropertyChanged -= OnNodeViewModelPropertyChanged;
+        viewModel.Node.PortsChanged -= OnNodePortsChanged;
+    }
+
+    /// <summary>
+    /// A node changed its own sockets - a sub-graph whose inside was edited
+    /// in another tab - so the canvas reads it again.
+    /// </summary>
+    /// <remarks>
+    /// Not mid-gesture. Wiring a boundary inside a sub-graph retypes it,
+    /// which arrives here while <see cref="CompleteConnection"/> is still
+    /// adding the wire's line; rebuilding then would draw the wire twice.
+    /// The gesture rebuilds once it has finished instead.
+    /// </remarks>
+    private void OnNodePortsChanged(object? sender, EventArgs e)
+    {
+        if (_gestures > 0)
+        {
+            _portsStale = true;
+            return;
+        }
+
+        Resync();
+    }
+
+    /// <summary>
+    /// Marks a change made from the canvas, for the length of a
+    /// <c>using</c>.
+    /// </summary>
+    private IDisposable Gesture()
+    {
+        _gestures++;
+        return new GestureScope(this);
+    }
+
+    private sealed class GestureScope(GraphEditorViewModel editor) : IDisposable
+    {
+        private bool _ended;
+
+        public void Dispose()
+        {
+            if (_ended)
+                return;
+
+            _ended = true;
+
+            if (--editor._gestures > 0 || !editor._portsStale)
+                return;
+
+            editor._portsStale = false;
+            editor.Resync();
+        }
     }
 
     /// <summary>

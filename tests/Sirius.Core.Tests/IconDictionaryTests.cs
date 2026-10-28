@@ -74,11 +74,12 @@ public class IconDictionaryTests
         var dictionary = LoadDictionary();
         var missing = new List<string>();
 
-        // Only the shipped library: the fixture nodes defined in this test
-        // assembly have no icon by design.
-        var shipped = typeof(VisionNodeLibrary).Assembly;
+        // Only the shipped nodes - the vision library, and the sub-graph
+        // nodes in Core: the fixture nodes defined in this test assembly
+        // have no icon by design.
+        var shipped = new[] { typeof(VisionNodeLibrary).Assembly, typeof(Sirius.Core.Graph.SubGraphNode).Assembly };
 
-        foreach (var descriptor in NodeCatalog.All.Where(d => d.NodeType.Assembly == shipped))
+        foreach (var descriptor in NodeCatalog.All.Where(d => shipped.Contains(d.NodeType.Assembly)))
         {
             if (string.IsNullOrWhiteSpace(descriptor.Icon))
             {

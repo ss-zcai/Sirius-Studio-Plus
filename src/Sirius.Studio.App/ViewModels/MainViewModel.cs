@@ -28,9 +28,16 @@ public sealed class MainViewModel : ObservableObject
 
     private VisionGraph _graph = null!;
     private GraphScheduler _scheduler = null!;
-    private GraphEditorViewModel _editor = null!;
-    private UndoStack _undo = null!;
-    private UndoRecorder _recorder = null!;
+    private GraphDocumentViewModel _mainDocument = null!;
+    private GraphDocumentViewModel? _activeDocument;
+
+    /// <summary>
+    /// Every sub-graph opened this session, open in a tab or not, so
+    /// reopening one finds its undo history where it was left.
+    /// </summary>
+    private readonly Dictionary<SubGraphNode, GraphDocumentViewModel> _subGraphDocuments =
+        new(ReferenceEqualityComparer.Instance);
+
     private CancellationTokenSource? _runCancellation;
 
     /// <summary>
@@ -104,8 +111,8 @@ public sealed class MainViewModel : ObservableObject
         });
         DeleteSelectionCommand = new RelayCommand(() => Editor.DeleteSelectionCommand.Execute(null));
 
-        UndoCommand = new RelayCommand(() => _undo.Undo(), () => _undo.CanUndo);
-        RedoCommand = new RelayCommand(() => _undo.Redo(), () => _undo.CanRedo);
+        UndoCommand = new RelayCommand(() => Undo?.Undo(), () => Undo?.CanUndo == true);
+        RedoCommand = new RelayCommand(() => Undo?.Redo(), () => Undo?.CanRedo == true);
 
         CutCommand = new RelayCommand(Cut, HasSelection);
         CopyCommand = new RelayCommand(Copy, HasSelection);
@@ -159,7 +166,15 @@ public sealed class MainViewModel : ObservableObject
 
         Palette.Clear();
 
-        foreach (var category in NodeCatalog.All.GroupBy(descriptor => descriptor.Category).OrderBy(group => group.Key))
+        // Graph Input and Graph Output mean something only inside a
+        // sub-graph, so they are offered only while one is being edited.
+        var insideSubGraph = _activeDocument?.IsSubGraph == true;
+
+        var offered = NodeCatalog.All.Where(descriptor =>
+            insideSubGraph ||
+            (descriptor.NodeType != typeof(GraphInputNode) && descriptor.NodeType != typeof(GraphOutputNode)));
+
+        foreach (var category in offered.GroupBy(descriptor => descriptor.Category).OrderBy(group => group.Key))
         {
             var group = new PaletteGroupViewModel(
                 category.Key,
@@ -179,10 +194,175 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     public ObservableCollection<PanelViewModel> NodePanels { get; } = new();
 
-    public GraphEditorViewModel Editor
+    /// <summary>The editor of the tab being worked in.</summary>
+    /// <remarks>
+    /// Everything that acts on "the canvas" - the properties panel, the Edit
+    /// menu, the toolbox - acts through this, so it follows the tab.
+    /// Running, saving and the panels act on the whole recipe instead.
+    /// </remarks>
+    public GraphEditorViewModel Editor => _activeDocument?.Editor!;
+
+    /// <summary>The recipe's own graph, in the first tab.</summary>
+    public GraphDocumentViewModel MainDocument => _mainDocument;
+
+    /// <summary>The tab being worked in: the recipe, or a sub-graph.</summary>
+    public GraphDocumentViewModel ActiveDocument => _activeDocument!;
+
+    /// <summary>The sub-graphs open in tabs, which the window mirrors into the document area.</summary>
+    public ObservableCollection<GraphDocumentViewModel> OpenSubGraphs { get; } = new();
+
+    /// <summary>Raised with a document whose tab should be brought to the front.</summary>
+    public event EventHandler<GraphDocumentViewModel>? DocumentFocusRequested;
+
+    private VisionGraph ActiveGraph => ActiveDocument.Graph;
+
+    private UndoStack? Undo => _activeDocument?.Undo;
+
+    /// <summary>
+    /// Opens a sub-graph in a tab of its own, or brings its tab forward.
+    /// </summary>
+    public GraphDocumentViewModel OpenSubGraph(SubGraphNode node)
     {
-        get => _editor;
-        private set => SetProperty(ref _editor, value);
+        ArgumentNullException.ThrowIfNull(node);
+
+        if (!_subGraphDocuments.TryGetValue(node, out var document))
+        {
+            document = CreateDocument(node.Inner, node);
+            _subGraphDocuments[node] = document;
+        }
+
+        if (!OpenSubGraphs.Contains(document))
+            OpenSubGraphs.Add(document);
+
+        // Opening it is choosing to work in it; the window brings the tab
+        // forward, and reports the same document back when it does.
+        ActivateDocument(document);
+        DocumentFocusRequested?.Invoke(this, document);
+        return document;
+    }
+
+    /// <summary>
+    /// Closes a sub-graph's tab. Its history is kept, for when it is opened
+    /// again.
+    /// </summary>
+    public void CloseSubGraph(GraphDocumentViewModel document)
+    {
+        OpenSubGraphs.Remove(document);
+
+        if (ReferenceEquals(document, _activeDocument))
+            ActivateDocument(_mainDocument);
+    }
+
+    /// <summary>Makes a tab the one being worked in. Called by the window as tabs are chosen.</summary>
+    public void ActivateDocument(GraphDocumentViewModel document)
+    {
+        if (ReferenceEquals(document, _activeDocument))
+            return;
+
+        _activeDocument = document;
+
+        OnPropertyChanged(nameof(ActiveDocument));
+        OnPropertyChanged(nameof(Editor));
+
+        OnSelectedNodeChanged();
+        RebuildPalette();
+        RefreshEditCommands();
+    }
+
+    /// <summary>
+    /// Closes the tabs of sub-graphs no longer in the recipe - deleted, or
+    /// inside one that was.
+    /// </summary>
+    private void SyncDocuments()
+    {
+        var present = GraphTree.AllNodes(_graph).OfType<SubGraphNode>().ToHashSet();
+
+        foreach (var document in OpenSubGraphs.Where(document => !present.Contains(document.Owner!)).ToArray())
+            CloseSubGraph(document);
+    }
+
+    /// <summary>
+    /// A document for a graph, wired to the shell: its edits re-run the
+    /// recipe, its undo history drives the Edit menu while it is the active
+    /// tab, and its selection drives the properties panel.
+    /// </summary>
+    private GraphDocumentViewModel CreateDocument(VisionGraph graph, SubGraphNode? owner)
+    {
+        var document = new GraphDocumentViewModel(graph, owner);
+
+        document.Undo.Changed += (_, _) => RefreshEditCommands();
+        document.Undo.Applied += (_, e) =>
+        {
+            // The canvas collections were built as the operator worked, so
+            // after an undo they describe a graph that no longer exists.
+            document.Editor.Resync();
+            document.Editor.FitPorts();
+            SyncNodePanels();
+            SyncDocuments();
+            RefreshEditCommands();
+
+            StatusText = $"Undid {e.Edit.Label}.";
+
+            if (e.AffectsResults)
+                RequestRun();
+        };
+
+        // Every path that changes the selection already re-asks the editor's
+        // own delete command, so this is the one hook that catches all of
+        // them - a container's IsSelected binding, the SelectedItems
+        // collection, and a deletion that empties both.
+        document.Editor.DeleteSelectionCommand.CanExecuteChanged += (_, _) => RefreshEditCommands();
+
+        document.Editor.GraphChanged += (_, _) =>
+        {
+            SyncNodePanels();
+            SyncDocuments();
+            RequestRun();
+        };
+
+        document.Editor.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(GraphEditorViewModel.SelectedNode) &&
+                ReferenceEquals(document, _activeDocument))
+            {
+                OnSelectedNodeChanged();
+            }
+        };
+
+        return document;
+    }
+
+    /// <summary>
+    /// Points everything that follows the selection at the active tab's
+    /// selected node.
+    /// </summary>
+    private void OnSelectedNodeChanged()
+    {
+        var selected = Editor?.SelectedNode;
+
+        // Both kinds of region are drawable: the plain rectangle, and the
+        // oriented one, whose angle the dragging leaves alone.
+        ActiveRegionParameter = selected?.Parameters
+            .FirstOrDefault(parameter =>
+                parameter.Kind is ParamEditor.Region or ParamEditor.Rect);
+
+        ActiveRingParameter = selected?.Parameters
+            .FirstOrDefault(parameter => parameter.Kind is ParamEditor.Ring);
+
+        SelectedNodePreviews = selected is not null
+            ? PreviewablePorts(selected.Node).Select(PreviewOption.For).ToArray()
+            : [];
+
+        RefreshReadouts();
+
+        // Previews as well as viewers: the Draw button opens a preview of
+        // the node's input, and a region cannot be dragged on a panel that
+        // was never told there is one.
+        foreach (var panel in NodePanels.OfType<ImagePanelViewModel>())
+        {
+            panel.RegionParameter = ActiveRegionParameter;
+            panel.RingParameter = ActiveRingParameter;
+        }
     }
 
     public IRelayCommand NewGraphCommand { get; }
@@ -218,9 +398,9 @@ public sealed class MainViewModel : ObservableObject
     /// "Undo" when there is nothing, rather than a disabled item with a
     /// stale name on it.
     /// </summary>
-    public string UndoText => _undo?.UndoLabel is { } label ? $"Undo {label}" : "Undo";
+    public string UndoText => Undo?.UndoLabel is { } label ? $"Undo {label}" : "Undo";
 
-    public string RedoText => _undo?.RedoLabel is { } label ? $"Redo {label}" : "Redo";
+    public string RedoText => Undo?.RedoLabel is { } label ? $"Redo {label}" : "Redo";
 
     /// <summary>The colours offered by the toolbar's style button.</summary>
     public IReadOnlyList<NodeAccentOption> AccentOptions => NodeAccents.All;
@@ -436,80 +616,31 @@ public sealed class MainViewModel : ObservableObject
     private void LoadGraph(VisionGraph graph)
     {
         _scheduler?.Dispose();
-        _recorder?.Dispose();
 
         if (_graph is not null)
             _graph.NodeInvalidated -= OnNodeInvalidated;
+
+        // Every tab belongs to the recipe being closed. A fresh history per
+        // recipe, too: a stack of edits to the graph that was open is not a
+        // history of this one, and undoing into it would apply a change to
+        // nodes that are no longer anywhere.
+        OpenSubGraphs.Clear();
+
+        foreach (var document in _subGraphDocuments.Values)
+            document.Dispose();
+
+        _subGraphDocuments.Clear();
+        _mainDocument?.Dispose();
 
         _graph = graph;
         _graph.NodeInvalidated += OnNodeInvalidated;
 
         _scheduler = new GraphScheduler(_graph);
 
-        // A fresh history per recipe. A stack of edits to the graph that was
-        // open is not a history of this one, and undoing into it would apply
-        // a change to nodes that are no longer anywhere.
-        _undo = new UndoStack(_graph);
-        _recorder = new UndoRecorder(_graph, _undo);
-
-        _undo.Changed += (_, _) => RefreshEditCommands();
-        _undo.Applied += (_, e) =>
-        {
-            // The canvas collections were built as the operator worked, so
-            // after an undo they describe a graph that no longer exists.
-            Editor.Resync();
-            Editor.FitPorts();
-            SyncNodePanels();
-            RefreshEditCommands();
-
-            StatusText = $"Undid {e.Edit.Label}.";
-
-            if (e.AffectsResults)
-                RequestRun();
-        };
-
-        Editor = new GraphEditorViewModel(_graph, _undo);
-
-        // Every path that changes the selection already re-asks the editor's
-        // own delete command, so this is the one hook that catches all of
-        // them - a container's IsSelected binding, the SelectedItems
-        // collection, and a deletion that empties both.
-        Editor.DeleteSelectionCommand.CanExecuteChanged += (_, _) => RefreshEditCommands();
-
-        Editor.GraphChanged += (_, _) =>
-        {
-            SyncNodePanels();
-            RequestRun();
-        };
-        Editor.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName != nameof(GraphEditorViewModel.SelectedNode))
-                return;
-
-            // Both kinds of region are drawable: the plain rectangle, and
-            // the oriented one, whose angle the dragging leaves alone.
-            ActiveRegionParameter = Editor.SelectedNode?.Parameters
-                .FirstOrDefault(parameter =>
-                    parameter.Kind is ParamEditor.Region or ParamEditor.Rect);
-
-            ActiveRingParameter = Editor.SelectedNode?.Parameters
-                .FirstOrDefault(parameter => parameter.Kind is ParamEditor.Ring);
-
-            SelectedNodePreviews = Editor.SelectedNode is { } selected
-                ? PreviewablePorts(selected.Node).Select(PreviewOption.For).ToArray()
-                : [];
-
-            RefreshReadouts();
-
-            // Previews as well as viewers: the Draw button opens a preview
-            // of the node's input, and a region cannot be dragged on a
-            // panel that was never told there is one.
-            foreach (var panel in NodePanels.OfType<ImagePanelViewModel>())
-            {
-                panel.RegionParameter = ActiveRegionParameter;
-                panel.RingParameter = ActiveRingParameter;
-            }
-        };
+        _mainDocument = CreateDocument(_graph, owner: null);
+        _activeDocument = null;
+        ActivateDocument(_mainDocument);
+        OnPropertyChanged(nameof(MainDocument));
 
         NodePanels.Clear();
         SyncNodePanels();
@@ -585,7 +716,7 @@ public sealed class MainViewModel : ObservableObject
         if (nodes.Count == 0)
             return;
 
-        var json = GraphClipboard.Copy(_graph, nodes.Select(node => node.Node));
+        var json = GraphClipboard.Copy(ActiveGraph, nodes.Select(node => node.Node));
 
         try
         {
@@ -621,7 +752,7 @@ public sealed class MainViewModel : ObservableObject
         // Copy first: if the clipboard refuses, nothing has been deleted yet.
         Copy();
 
-        using (_undo.Begin(count == 1 ? $"Cut {Selection[0].Title}" : $"Cut {count} nodes"))
+        using (Undo!.Begin(count == 1 ? $"Cut {Selection[0].Title}" : $"Cut {count} nodes"))
             Editor.DeleteSelectionCommand.Execute(null);
 
         StatusText = count == 1 ? "Cut 1 node." : $"Cut {count} nodes.";
@@ -663,7 +794,7 @@ public sealed class MainViewModel : ObservableObject
             return;
 
         PasteGraph(
-            GraphClipboard.Copy(_graph, nodes.Select(node => node.Node)),
+            GraphClipboard.Copy(ActiveGraph, nodes.Select(node => node.Node)),
             nodes.Count == 1 ? $"Duplicate {nodes[0].Title}" : $"Duplicate {nodes.Count} nodes");
     }
 
@@ -676,8 +807,8 @@ public sealed class MainViewModel : ObservableObject
             // Recording is paused for the paste itself: the nodes are built
             // by the loader, which sets every property on every one of them,
             // and a paste is one step back rather than a hundred and forty.
-            using (_recorder.Pause())
-                result = GraphClipboard.Paste(_graph, json);
+            using (ActiveDocument.Recorder.Pause())
+                result = GraphClipboard.Paste(ActiveGraph, json);
         }
         catch (Exception ex)
         {
@@ -694,7 +825,7 @@ public sealed class MainViewModel : ObservableObject
         // Described after the fact rather than applied by the stack: the
         // paste has already happened, and this is what it would take to
         // undo it.
-        _undo.Record(new CompositeEdit(
+        Undo!.Record(new CompositeEdit(
             label,
             result.Nodes.Select(node => (IGraphEdit)new AddNodeEdit(node))
                 .Concat(result.Wires.Select(
@@ -746,7 +877,7 @@ public sealed class MainViewModel : ObservableObject
 
         var name = NodeAccents.Of(accent).Name;
 
-        using (_undo.Begin(nodes.Count == 1 ? $"Colour {nodes[0].Title}" : $"Colour {nodes.Count} nodes"))
+        using (Undo!.Begin(nodes.Count == 1 ? $"Colour {nodes[0].Title}" : $"Colour {nodes.Count} nodes"))
         {
             foreach (var node in nodes)
                 node.Accent = accent;
@@ -910,13 +1041,20 @@ public sealed class MainViewModel : ObservableObject
     /// graph is currently scrolled to. Placing at fixed coordinates put new
     /// nodes outside the visible area as soon as the canvas had been panned.
     /// </remarks>
-    public NodeViewModel? AddNodeAt(PaletteItemViewModel? item, Point location)
+    public NodeViewModel? AddNodeAt(PaletteItemViewModel? item, Point location) =>
+        AddNodeAt(ActiveDocument, item, location);
+
+    /// <summary>Adds a node to a particular tab - the one something was dropped on.</summary>
+    public NodeViewModel? AddNodeAt(GraphDocumentViewModel document, PaletteItemViewModel? item, Point location)
     {
         if (item is null)
             return null;
 
+        // Dropped on a tab is working in that tab.
+        ActivateDocument(document);
+
         var step = _addedNodeCount++ % 6 * 26;
-        return Editor.AddNode(item.Descriptor, new Point(location.X + step, location.Y + step));
+        return document.Editor.AddNode(item.Descriptor, new Point(location.X + step, location.Y + step));
     }
 
     private void OnNodeInvalidated(object? sender, VisionNode node)
@@ -1023,8 +1161,14 @@ public sealed class MainViewModel : ObservableObject
     /// is temporarily set aside, and a verdict from one that was asked
     /// not to run would be the opposite of what bypassing means.
     /// </remarks>
+    /// <remarks>
+    /// Checks inside sub-graphs count: a sub-graph is often exactly a
+    /// measure-and-judge used several times, and its verdicts are the
+    /// recipe's. Those inside a bypassed one do not, as a bypassed check
+    /// does not.
+    /// </remarks>
     private string? Verdict() => Verdict(
-        _graph.Nodes.Where(node => node.Enabled).OfType<IJudgingNode>(),
+        GraphTree.AllNodes(_graph, enabledOnly: true).OfType<IJudgingNode>(),
         port => _scheduler.GetOutput(port));
 
     /// <summary>
@@ -1090,13 +1234,19 @@ public sealed class MainViewModel : ObservableObject
     /// Keeps <see cref="NodePanels"/> in step with the nodes that produce
     /// panels, and gives every node a unique default name.
     /// </summary>
+    /// <remarks>
+    /// Nodes inside sub-graphs have panels too: a viewer inside one shows
+    /// its picture like any other.
+    /// </remarks>
     private void SyncNodePanels()
     {
         EnsureDefaultNames();
 
+        var nodes = GraphTree.AllNodes(_graph).ToHashSet();
+
         var stalePanels = NodePanels
             .OfType<NodePanelViewModel>()
-            .Where(panel => !_graph.Nodes.Contains(panel.Node))
+            .Where(panel => !nodes.Contains(panel.Node))
             .ToArray();
 
         foreach (var stale in stalePanels)
@@ -1115,7 +1265,7 @@ public sealed class MainViewModel : ObservableObject
             stale.Dispose();
         }
 
-        foreach (var node in _graph.Nodes)
+        foreach (var node in nodes)
         {
             // Previews are deliberately excluded: they are opened by hand,
             // not implied by the graph, so one open on a Viewer node must not
@@ -1398,14 +1548,35 @@ public sealed class MainViewModel : ObservableObject
         // the node, not something the operator did, and recording it put a
         // separate "Rename" step on the stack after every single add - so
         // undoing an add left the node in place with its number taken off.
-        using var quiet = _recorder.Pause();
+        var quiet = new[] { _mainDocument }
+            .Concat(_subGraphDocuments.Values)
+            .Select(document => document.Recorder.Pause())
+            .ToArray();
 
-        foreach (var node in _graph.Nodes)
+        try
         {
+            // Numbered within each graph: a sub-graph's nodes are named
+            // apart from each other, not from every node in the recipe.
+            EnsureDefaultNames(_graph);
+        }
+        finally
+        {
+            foreach (var pause in quiet)
+                pause.Dispose();
+        }
+    }
+
+    private static void EnsureDefaultNames(VisionGraph graph)
+    {
+        foreach (var node in graph.Nodes)
+        {
+            if (node is ISubGraphHost host)
+                EnsureDefaultNames(host.Inner);
+
             if (node.Name != node.Descriptor.DisplayName)
                 continue;
 
-            var taken = _graph.Nodes
+            var taken = graph.Nodes
                 .Where(other => !ReferenceEquals(other, node))
                 .Select(other => other.Name)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);

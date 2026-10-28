@@ -67,6 +67,12 @@ PHOSPHOR = {
     # built-in tool, so a plugin's node is recognisable as one at a glance.
     "puzzle-piece": "ph_custom_node",
 
+    # Sub-graphs: a network of nodes for the node that holds one, and a
+    # way in and a way out for the boundaries inside it.
+    "graph": "ph_sub_graph",
+    "sign-in": "ph_graph_input",
+    "sign-out": "ph_graph_output",
+
     # tag-simple rather than tag: the plain outline keeps its shape under
     # the keyline at toolbox size, where tag's eyelet fills in.
     "tag-simple": "ph_label",

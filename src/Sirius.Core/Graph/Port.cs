@@ -14,25 +14,52 @@ public enum PortDirection
 /// </summary>
 public abstract class Port : ObservableObject
 {
+    private string _name;
+    private string _displayName;
+    private Type _dataType;
+
     protected Port(string name, string displayName, Type dataType)
     {
-        Name = name;
-        DisplayName = displayName;
-        DataType = dataType;
+        _name = name;
+        _displayName = displayName;
+        _dataType = dataType;
     }
 
     /// <summary>Stable identifier, used by serialization. Never localised.</summary>
-    public string Name { get; }
+    public string Name => _name;
 
     /// <summary>Label shown on the node in the editor.</summary>
-    public string DisplayName { get; }
+    public string DisplayName => _displayName;
 
     /// <summary>
     /// CLR type of the payload this port carries (e.g. <c>ImageData</c>).
     /// Connection validity is decided by assignability between these types,
     /// which is what stops an operator wiring contours into an image input.
     /// </summary>
-    public Type DataType { get; }
+    /// <remarks>
+    /// <see cref="object"/> means any type: a sub-graph's socket before
+    /// anything has been wired to it, which takes the type of the first wire.
+    /// </remarks>
+    public Type DataType => _dataType;
+
+    /// <summary>
+    /// Changes the stable name - for a socket named after something whose
+    /// identity was renewed, as a pasted sub-graph's boundaries are.
+    /// </summary>
+    internal void Rename(string name) => SetProperty(ref _name, name, nameof(Name));
+
+    /// <summary>Changes the label, for a socket named after a node the operator renamed.</summary>
+    internal void Retitle(string displayName) => SetProperty(ref _displayName, displayName, nameof(DisplayName));
+
+    /// <summary>
+    /// Changes what the port carries.
+    /// </summary>
+    /// <remarks>
+    /// Only for a socket whose type is inferred from its wiring. The caller
+    /// is responsible for not leaving a connection that the new type would
+    /// have refused.
+    /// </remarks>
+    internal void Retype(Type dataType) => SetProperty(ref _dataType, dataType, nameof(DataType));
 
     public abstract PortDirection Direction { get; }
 

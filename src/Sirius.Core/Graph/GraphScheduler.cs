@@ -65,19 +65,44 @@ public sealed class GraphScheduler : IDisposable
     private bool _disposed;
     private int _running;
 
+    /// <summary>
+    /// The sub-graphs in this graph, as of the last structural change.
+    /// </summary>
+    /// <remarks>
+    /// An array swapped whole rather than the node collection walked, because
+    /// it is read off the UI thread - by panels preparing their pictures -
+    /// while the editor may be adding a node to that collection.
+    /// </remarks>
+    private ISubGraphHost[] _hosts = [];
+
+    /// <summary>The order a nested pass runs in, worked out on the UI thread by <see cref="Plan"/>.</summary>
+    private VisionNode[]? _plan;
+    private string? _planError;
+
     public GraphScheduler(VisionGraph graph)
+        : this(graph, SynchronizationContext.Current)
+    {
+    }
+
+    /// <param name="uiContext">
+    /// Where node status is reported. A sub-graph's scheduler is given its
+    /// parent's, so its nodes report where the parent's do.
+    /// </param>
+    internal GraphScheduler(VisionGraph graph, SynchronizationContext? uiContext)
     {
         _graph = graph ?? throw new ArgumentNullException(nameof(graph));
 
         // Captured so node Status/StatusMessage updates are raised on the thread
         // that created the scheduler, keeping Core free of any WPF reference.
-        _uiContext = SynchronizationContext.Current;
+        _uiContext = uiContext;
 
         _graph.NodeInvalidated += OnNodeInvalidated;
         _graph.StructureChanged += OnStructureChanged;
 
         foreach (var node in _graph.Nodes)
             _dirty.Add(node);
+
+        _hosts = _graph.Nodes.OfType<ISubGraphHost>().ToArray();
     }
 
     /// <summary>Nodes awaiting re-evaluation.</summary>
@@ -88,8 +113,33 @@ public sealed class GraphScheduler : IDisposable
     /// consumers must not dispose it, and must not retain it across a
     /// subsequent <see cref="RunAsync"/>.
     /// </summary>
-    public object? GetOutput(OutputPort port) =>
-        _cache.TryGetValue(port, out var value) ? value.Value : null;
+    /// <remarks>
+    /// A port inside a sub-graph is answered too, from that sub-graph's own
+    /// cache, so a viewer, a preview or a readout works the same on a node
+    /// inside one as on a node outside. A sub-graph that is bypassed
+    /// answers nothing: what is cached inside it may be from before its
+    /// inputs last changed.
+    /// </remarks>
+    public object? GetOutput(OutputPort port)
+    {
+        if (_cache.TryGetValue(port, out var value))
+            return value.Value;
+
+        return TryReadNested(port, out var nested) ? nested : null;
+    }
+
+    /// <summary>Looks for <paramref name="port"/> in the sub-graphs of this graph, at any depth.</summary>
+    internal bool TryReadNested(OutputPort port, out object? value)
+    {
+        foreach (var host in _hosts)
+        {
+            if (host is VisionNode { Enabled: true } && host.TryReadNested(port, out value))
+                return true;
+        }
+
+        value = null;
+        return false;
+    }
 
     public T? GetOutput<T>(OutputPort port) where T : class => GetOutput(port) as T;
 
@@ -150,6 +200,11 @@ public sealed class GraphScheduler : IDisposable
         // while it runs; any such edit invalidates and triggers another pass.
         var plan = ordered.ToArray();
 
+        // The same for every graph nested in this one, while still on the
+        // thread the editor changes them on.
+        foreach (var host in plan.OfType<ISubGraphHost>())
+            host.Plan(_uiContext);
+
         return Task.Run(() => Run(plan, cancellationToken), cancellationToken)
             .ContinueWith(
                 task =>
@@ -160,6 +215,63 @@ public sealed class GraphScheduler : IDisposable
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// Works out the order the next <see cref="RunSynchronously"/> will use,
+    /// here and in every graph nested in this one.
+    /// </summary>
+    /// <remarks>
+    /// Called by the parent scheduler on the UI thread just before its own
+    /// pass, for the reason <see cref="RunAsync"/> snapshots its order there:
+    /// sorting walks the node collection, which the editor changes on that
+    /// thread.
+    /// </remarks>
+    internal void Plan()
+    {
+        if (_graph.TryTopologicalSort(out var ordered, out var error))
+        {
+            _plan = ordered.ToArray();
+            _planError = null;
+        }
+        else
+        {
+            _plan = null;
+            _planError = error;
+        }
+
+        foreach (var host in _plan?.OfType<ISubGraphHost>() ?? [])
+            host.Plan(_uiContext);
+    }
+
+    /// <summary>
+    /// Evaluates every dirty node on the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// For a sub-graph, which is evaluated as one node of its parent - on the
+    /// parent's worker thread, inside the parent's pass. A second thread
+    /// would add nothing but a wait.
+    /// </remarks>
+    internal GraphRunResult RunSynchronously(CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (Interlocked.Exchange(ref _running, 1) == 1)
+            throw new InvalidOperationException("This sub-graph is already being evaluated.");
+
+        try
+        {
+            if (_plan is null && _planError is null)
+                Plan();
+
+            return _planError is not null
+                ? new GraphRunResult(0, 0, 0, TimeSpan.Zero, false, _planError)
+                : Run(_plan!, cancellationToken);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _running, 0);
+        }
     }
 
     private GraphRunResult Run(IReadOnlyList<VisionNode> ordered, CancellationToken cancellationToken)
@@ -390,6 +502,8 @@ public sealed class GraphScheduler : IDisposable
             if (!node.Outputs.Any(_cache.ContainsKey))
                 _dirty.Add(node);
         }
+
+        _hosts = _graph.Nodes.OfType<ISubGraphHost>().ToArray();
     }
 
     public void Dispose()
@@ -402,5 +516,9 @@ public sealed class GraphScheduler : IDisposable
         _graph.StructureChanged -= OnStructureChanged;
         ClearCache();
         _dirty.Clear();
+
+        // A recipe being closed takes its sub-graphs' results with it.
+        foreach (var host in _hosts)
+            host.ReleaseResults();
     }
 }

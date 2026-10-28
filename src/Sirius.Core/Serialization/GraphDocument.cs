@@ -90,6 +90,19 @@ public sealed class NodeRecord
     /// </summary>
     [JsonPropertyName("params")]
     public Dictionary<string, JsonElement> Parameters { get; set; } = new();
+
+    /// <summary>
+    /// The graph inside a sub-graph node; absent for every other node.
+    /// </summary>
+    /// <remarks>
+    /// A whole document, nested, so a sub-graph is saved and read by exactly
+    /// the code that saves and reads a recipe. Omitted when empty, so a
+    /// recipe without sub-graphs is unchanged - and still opens in a build
+    /// that predates them.
+    /// </remarks>
+    [JsonPropertyName("graph")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public GraphDocument? Graph { get; set; }
 }
 
 public sealed class ConnectionRecord

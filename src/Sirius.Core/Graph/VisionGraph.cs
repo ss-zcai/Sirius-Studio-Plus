@@ -54,6 +54,7 @@ public sealed class VisionGraph : ObservableObject
             return;
 
         _nodes.Add(node);
+        node.Graph = this;
         node.Invalidated += OnNodeInvalidated;
         StructureChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -75,6 +76,10 @@ public sealed class VisionGraph : ObservableObject
 
         node.Invalidated -= OnNodeInvalidated;
         _nodes.Remove(node);
+
+        if (ReferenceEquals(node.Graph, this))
+            node.Graph = null;
+
         StructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -95,6 +100,12 @@ public sealed class VisionGraph : ObservableObject
 
         if (!_nodes.Contains(source.Node) || !_nodes.Contains(target.Node))
             return ConnectionResult.Fail(ConnectionRejection.NotInGraph, "Both nodes must belong to this graph.");
+
+        // A sub-graph's socket can be taken off with the boundary inside it,
+        // while an undo history still holds the port. Wiring it then would
+        // connect to a socket the node no longer shows.
+        if (!source.Node.Outputs.Contains(source) || !target.Node.Inputs.Contains(target))
+            return ConnectionResult.Fail(ConnectionRejection.NotInGraph, "That socket is no longer on its node.");
 
         if (!IsCompatible(source.DataType, target.DataType))
         {
@@ -207,9 +218,13 @@ public sealed class VisionGraph : ObservableObject
     /// Numbers are interchangeable: an int output may drive a double parameter
     /// and vice versa, with the conversion done at evaluation time. Requiring
     /// an exact match would force adapter nodes into graphs for no benefit.
+    ///
+    /// <see cref="object"/> is "any" at either end: a sub-graph socket nothing
+    /// has been wired to yet, which takes its type from the first wire.
     /// </remarks>
     private static bool IsCompatible(Type source, Type target) =>
         target.IsAssignableFrom(source) ||
+        source == typeof(object) ||
         (IsNumeric(source) && IsNumeric(target)) ||
         IsVectorForPoint(source, target);
 

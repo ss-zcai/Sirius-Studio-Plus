@@ -62,6 +62,34 @@ public abstract class VisionNode : ObservableObject
     /// <summary>Stable instance identifier, persisted in the saved graph.</summary>
     public string Id { get; internal set; } = Guid.NewGuid().ToString("N");
 
+    /// <summary>
+    /// The graph this node is in, or null when it is in none - set by
+    /// <see cref="VisionGraph.Add"/> and <see cref="VisionGraph.Remove"/>.
+    /// </summary>
+    /// <remarks>
+    /// A node rarely needs to know. A sub-graph does: deleting a boundary
+    /// inside one takes a socket off the outside, and the wires on that
+    /// socket belong to the graph the sub-graph sits in.
+    /// </remarks>
+    public VisionGraph? Graph { get; internal set; }
+
+    /// <summary>
+    /// Raised when this node added, removed, renamed or retyped a port of
+    /// its own accord, so an editor showing it knows to read it again.
+    /// </summary>
+    /// <remarks>
+    /// Most nodes' ports never change. A growing node's change in response
+    /// to its own wiring, which the editor already rebuilds after; this is
+    /// for a change caused somewhere the editor cannot see - inside a
+    /// sub-graph, open in another tab.
+    /// </remarks>
+    public event EventHandler? PortsChanged;
+
+    protected void OnPortsChanged() => PortsChanged?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>For a node whose ports another node changed - a sub-graph retyping a boundary inside it.</summary>
+    internal void RaisePortsChanged() => OnPortsChanged();
+
     /// <summary>Static metadata for this node type: category, icon, parameters.</summary>
     public NodeDescriptor Descriptor { get; }
 
@@ -280,6 +308,53 @@ public abstract class VisionNode : ObservableObject
             return false;
 
         return _inputs.Remove(port);
+    }
+
+    /// <summary>
+    /// Puts an existing input back on the node, at a position.
+    /// </summary>
+    /// <remarks>
+    /// For a socket that comes and goes with something else. Reattaching
+    /// the same instance, rather than making a new one, keeps every
+    /// reference to it - an undo history's, a wire's - meaning the same
+    /// socket.
+    /// </remarks>
+    protected void AttachInput(InputPort port, int index)
+    {
+        ArgumentNullException.ThrowIfNull(port);
+
+        if (!ReferenceEquals(port.Node, this))
+            throw new ArgumentException("The port belongs to another node.", nameof(port));
+
+        // Forces the parameter sockets into the list first, as InsertInput does.
+        _ = Inputs;
+
+        if (!_inputs.Contains(port))
+            _inputs.Insert(Math.Clamp(index, 0, _inputs.Count), port);
+    }
+
+    /// <summary>The output counterpart of <see cref="AttachInput"/>.</summary>
+    protected void AttachOutput(OutputPort port, int index)
+    {
+        ArgumentNullException.ThrowIfNull(port);
+
+        if (!ReferenceEquals(port.Node, this))
+            throw new ArgumentException("The port belongs to another node.", nameof(port));
+
+        if (!_outputs.Contains(port))
+            _outputs.Insert(Math.Clamp(index, 0, _outputs.Count), port);
+    }
+
+    /// <summary>
+    /// Takes an output away. Refuses a connected one, for the reason
+    /// <see cref="RemoveInput"/> does.
+    /// </summary>
+    protected bool RemoveOutput(OutputPort port)
+    {
+        if (port is null || port.IsConnected)
+            return false;
+
+        return _outputs.Remove(port);
     }
 
     public InputPort? FindInput(string name) =>

@@ -57,6 +57,241 @@
         <KeyBinding Key="D" Modifiers="Ctrl" Command="{Binding DuplicateCommand}" />
     </Window.InputBindings>
 
+    <Window.Resources>
+        <!--
+            The graph editor, as a template over one GraphDocumentViewModel:
+            the recipe's tab and every sub-graph's tab show this, each over
+            its own document. The bindings name Editor.*, which is the
+            document's editor - so a tab edits its own graph, with its own
+            selection, viewport and undo history.
+        -->
+        <DataTemplate x:Key="GraphEditorTemplate" DataType="{x:Type vm:GraphDocumentViewModel}">
+            <nodify:NodifyEditor Loaded="OnGraphEditorLoaded"
+                         AllowDrop="True"
+                         DragOver="OnGraphDragOver"
+                         Drop="OnGraphDrop"
+                         MouseDoubleClick="OnGraphDoubleClick"
+                                 Background="{StaticResource Surface.Canvas}"
+                                 ItemsSource="{Binding Editor.Nodes}"
+                                 Connections="{Binding Editor.Connections}"
+                                 PendingConnection="{Binding Editor.PendingConnection}"
+                                 SelectedItems="{Binding Editor.SelectedItems}"
+                                 SelectedConnections="{Binding Editor.SelectedConnections}"
+                                 CanSelectMultipleConnections="True"
+                                 ConnectionStartedCommand="{Binding Editor.StartConnectionCommand}"
+                                 ConnectionCompletedCommand="{Binding Editor.CompleteConnectionCommand}"
+                                 DisconnectConnectorCommand="{Binding Editor.DisconnectCommand}"
+                                 RemoveConnectionCommand="{Binding Editor.RemoveConnectionCommand}"
+                                 GridCellSize="20">
+
+                <nodify:NodifyEditor.ItemContainerStyle>
+                    <Style TargetType="nodify:ItemContainer">
+                        <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
+                        <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+
+                        <!--
+                            The stock selection outline has square corners, leaving gaps
+                            against the node's rounded ones. Drawn here so the radii match.
+                        -->
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="nodify:ItemContainer">
+                                    <Grid>
+                                        <!--
+                                            Behind the content on purpose: sockets straddle the node
+                                            border, so an outline drawn on top would cut across them.
+                                        -->
+                                        <Border x:Name="SelectionOutline"
+                                                Margin="-2"
+                                                CornerRadius="6"
+                                                BorderBrush="#FBBF24"
+                                                BorderThickness="2"
+                                                IsHitTestVisible="False"
+                                                Visibility="Collapsed" />
+                                        <ContentPresenter />
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="SelectionOutline" Property="Visibility" Value="Visible" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </nodify:NodifyEditor.ItemContainerStyle>
+
+                <nodify:NodifyEditor.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:NodeViewModel}">
+                        <nodify:Node Input="{Binding Inputs}"
+                                     Output="{Binding Outputs}"
+                                     Opacity="{Binding Enabled, Converter={StaticResource EnabledToOpacity}}"
+                                     ContentPadding="0"
+                                     ContentBrush="Transparent"
+                                     Background="{Binding AccentStyle.Background}"
+                                     BorderBrush="{Binding AccentStyle.Border}"
+                                     Foreground="{Binding AccentStyle.Text}"
+                                     BorderThickness="1"
+                                     ToolTip="{Binding Description}">
+
+                            <nodify:Node.Header>
+                                <Grid Margin="2,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Image Grid.Column="0"
+                                           Source="{Binding IconKey, Converter={StaticResource IconKeyToImage}}"
+                                           Width="15"
+                                           Height="15"
+                                           Margin="0,0,7,0"
+                                           VerticalAlignment="Center" />
+
+                                    <!--
+                                        Tag marks the caption, so a double click here starts a rename
+                                        while a double click elsewhere on the node opens its panel.
+                                    -->
+                                    <Grid Grid.Column="1">
+                                        <TextBlock Tag="NodeTitle"
+                                                   Text="{Binding Title}"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   ToolTip="Double-click to rename"
+                                                   Visibility="{Binding IsEditingName, Converter={StaticResource InverseBoolToVisibility}}" />
+
+                                        <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                 FontWeight="SemiBold"
+                                                 MinWidth="90"
+                                                 Padding="2,0"
+                                                 LostFocus="OnNodeNameEditorLostFocus"
+                                                 KeyDown="OnNodeNameEditorKeyDown"
+                                                 IsVisibleChanged="OnNodeNameEditorVisibleChanged"
+                                                 Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}}" />
+                                    </Grid>
+
+                                    <!--
+                                        Status indicator, top right: grey idle, green ready,
+                                        amber warning, red error. The message itself lives in
+                                        the properties panel.
+                                    -->
+                                    <Ellipse Grid.Column="2"
+                                             Width="8"
+                                             Height="8"
+                                             Margin="10,0,2,0"
+                                             VerticalAlignment="Center"
+                                             Fill="{Binding Status, Converter={StaticResource StatusToBrush}}"
+                                             ToolTip="{Binding StatusMessage}" />
+                                </Grid>
+                            </nodify:Node.Header>
+
+                            <nodify:Node.InputConnectorTemplate>
+                                <DataTemplate DataType="{x:Type vm:ConnectorViewModel}">
+                                    <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                      IsConnected="{Binding IsConnected, Mode=OneWay}"
+                                                      ToolTip="{Binding ToolTipText}"
+                                                      Template="{StaticResource InputSocketTemplate}" />
+                                </DataTemplate>
+                            </nodify:Node.InputConnectorTemplate>
+
+                            <nodify:Node.OutputConnectorTemplate>
+                                <DataTemplate DataType="{x:Type vm:ConnectorViewModel}">
+                                    <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                       IsConnected="{Binding IsConnected, Mode=OneWay}"
+                                                       ToolTip="{Binding ToolTipText}"
+                                                       Template="{StaticResource OutputSocketTemplate}" />
+                                </DataTemplate>
+                            </nodify:Node.OutputConnectorTemplate>
+                        </nodify:Node>
+                    </DataTemplate>
+                </nodify:NodifyEditor.ItemTemplate>
+
+                <nodify:NodifyEditor.ConnectionTemplate>
+                    <DataTemplate DataType="{x:Type vm:ConnectionViewModel}">
+                        <!--
+                            Tag carries the editor view-model so the context
+                            menu can reach its commands: a ContextMenu lives
+                            in its own visual tree and cannot walk up to the
+                            Window.
+                        -->
+                        <nodify:Connection Source="{Binding Source.Anchor}"
+                                           Target="{Binding Target.Anchor}"
+                                           ToolTip="{Binding Description}"
+                                           IsSelectable="True"
+                                           IsSelected="{Binding IsSelected, Mode=TwoWay}"
+                                           DisconnectCommand="{Binding DataContext.Editor.RemoveConnectionCommand,
+                                                               RelativeSource={RelativeSource AncestorType=nodify:NodifyEditor}}"
+                                           Tag="{Binding DataContext.Editor,
+                                                 RelativeSource={RelativeSource AncestorType=nodify:NodifyEditor}}">
+                            <!--
+                                Stroke and thickness live in the style, not
+                                as attributes: a locally set value outranks
+                                a style trigger, so hover and selected
+                                states could never take effect.
+                            -->
+                            <nodify:Connection.Style>
+                                <Style TargetType="nodify:Connection">
+                                    <Setter Property="Stroke" Value="{StaticResource Accent}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+
+                                    <!--
+                                        OutlineThickness is both the glow and the
+                                        clickable band, so one value serves both.
+                                        At 3.5px against a 2.5px selected stroke the
+                                        glow is a thin rim rather than a band - the
+                                        colour change carries the selection, the glow
+                                        only softens its edge. Lower than this and
+                                        the wire becomes awkward to click.
+                                        Transparent rather than null at rest:
+                                        transparent is hit-testable in WPF,
+                                        null is not.
+                                    -->
+                                    <Setter Property="OutlineBrush" Value="Transparent" />
+                                    <Setter Property="OutlineThickness" Value="3.5" />
+
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Stroke" Value="#BFDBFE" />
+                                            <Setter Property="StrokeThickness" Value="2.5" />
+                                            <Setter Property="OutlineBrush" Value="#5560A5FA" />
+                                        </Trigger>
+
+                                        <!-- Selected: amber, to read clearly against the blue idle state -->
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Stroke" Value="#FBBF24" />
+                                            <Setter Property="StrokeThickness" Value="2.5" />
+                                            <Setter Property="OutlineBrush" Value="#88FBBF24" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </nodify:Connection.Style>
+
+                            <nodify:Connection.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Delete Connection"
+                                              Command="{Binding PlacementTarget.Tag.RemoveConnectionCommand,
+                                                        RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}" />
+                                </ContextMenu>
+                            </nodify:Connection.ContextMenu>
+                        </nodify:Connection>
+                    </DataTemplate>
+                </nodify:NodifyEditor.ConnectionTemplate>
+
+                <nodify:NodifyEditor.PendingConnectionTemplate>
+                    <DataTemplate DataType="{x:Type vm:PendingConnectionViewModel}">
+                        <nodify:PendingConnection Source="{Binding Source}"
+                                                  Target="{Binding Target}"
+                                                  AllowOnlyConnectors="True"
+                                                  EnablePreview="True"
+                                                  EnableSnapping="True" />
+                    </DataTemplate>
+                </nodify:NodifyEditor.PendingConnectionTemplate>
+            </nodify:NodifyEditor>
+        </DataTemplate>
+    </Window.Resources>
+
     <!--
         Text colour for the whole window, inherited rather than forced by an
         implicit TextBlock style - that would also repaint popup content, which
@@ -382,229 +617,15 @@
                             <avalonDock:LayoutDocument Title="Graph"
                                                        ContentId="graph"
                                                        CanClose="False">
-                        <nodify:NodifyEditor x:Name="GraphEditor"
-                                     AllowDrop="True"
-                                     DragOver="OnGraphDragOver"
-                                     Drop="OnGraphDrop"
-                                     MouseDoubleClick="OnGraphDoubleClick"
-                                             Background="{StaticResource Surface.Canvas}"
-                                             ItemsSource="{Binding Editor.Nodes}"
-                                             Connections="{Binding Editor.Connections}"
-                                             PendingConnection="{Binding Editor.PendingConnection}"
-                                             SelectedItems="{Binding Editor.SelectedItems}"
-                                             SelectedConnections="{Binding Editor.SelectedConnections}"
-                                             CanSelectMultipleConnections="True"
-                                             ConnectionStartedCommand="{Binding Editor.StartConnectionCommand}"
-                                             ConnectionCompletedCommand="{Binding Editor.CompleteConnectionCommand}"
-                                             DisconnectConnectorCommand="{Binding Editor.DisconnectCommand}"
-                                             RemoveConnectionCommand="{Binding Editor.RemoveConnectionCommand}"
-                                             GridCellSize="20">
-
-                            <nodify:NodifyEditor.ItemContainerStyle>
-                                <Style TargetType="nodify:ItemContainer">
-                                    <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
-                                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
-
-                                    <!--
-                                        The stock selection outline has square corners, leaving gaps
-                                        against the node's rounded ones. Drawn here so the radii match.
-                                    -->
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="nodify:ItemContainer">
-                                                <Grid>
-                                                    <!--
-                                                        Behind the content on purpose: sockets straddle the node
-                                                        border, so an outline drawn on top would cut across them.
-                                                    -->
-                                                    <Border x:Name="SelectionOutline"
-                                                            Margin="-2"
-                                                            CornerRadius="6"
-                                                            BorderBrush="#FBBF24"
-                                                            BorderThickness="2"
-                                                            IsHitTestVisible="False"
-                                                            Visibility="Collapsed" />
-                                                    <ContentPresenter />
-                                                </Grid>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsSelected" Value="True">
-                                                        <Setter TargetName="SelectionOutline" Property="Visibility" Value="Visible" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </nodify:NodifyEditor.ItemContainerStyle>
-
-                            <nodify:NodifyEditor.ItemTemplate>
-                                <DataTemplate DataType="{x:Type vm:NodeViewModel}">
-                                    <nodify:Node Input="{Binding Inputs}"
-                                                 Output="{Binding Outputs}"
-                                                 Opacity="{Binding Enabled, Converter={StaticResource EnabledToOpacity}}"
-                                                 ContentPadding="0"
-                                                 ContentBrush="Transparent"
-                                                 Background="{Binding AccentStyle.Background}"
-                                                 BorderBrush="{Binding AccentStyle.Border}"
-                                                 Foreground="{Binding AccentStyle.Text}"
-                                                 BorderThickness="1"
-                                                 ToolTip="{Binding Description}">
-
-                                        <nodify:Node.Header>
-                                            <Grid Margin="2,0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-
-                                                <Image Grid.Column="0"
-                                                       Source="{Binding IconKey, Converter={StaticResource IconKeyToImage}}"
-                                                       Width="15"
-                                                       Height="15"
-                                                       Margin="0,0,7,0"
-                                                       VerticalAlignment="Center" />
-
-                                                <!--
-                                                    Tag marks the caption, so a double click here starts a rename
-                                                    while a double click elsewhere on the node opens its panel.
-                                                -->
-                                                <Grid Grid.Column="1">
-                                                    <TextBlock Tag="NodeTitle"
-                                                               Text="{Binding Title}"
-                                                               FontWeight="SemiBold"
-                                                               VerticalAlignment="Center"
-                                                               ToolTip="Double-click to rename"
-                                                               Visibility="{Binding IsEditingName, Converter={StaticResource InverseBoolToVisibility}}" />
-
-                                                    <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                                             FontWeight="SemiBold"
-                                                             MinWidth="90"
-                                                             Padding="2,0"
-                                                             LostFocus="OnNodeNameEditorLostFocus"
-                                                             KeyDown="OnNodeNameEditorKeyDown"
-                                                             IsVisibleChanged="OnNodeNameEditorVisibleChanged"
-                                                             Visibility="{Binding IsEditingName, Converter={StaticResource BoolToVisibility}}" />
-                                                </Grid>
-
-                                                <!--
-                                                    Status indicator, top right: grey idle, green ready,
-                                                    amber warning, red error. The message itself lives in
-                                                    the properties panel.
-                                                -->
-                                                <Ellipse Grid.Column="2"
-                                                         Width="8"
-                                                         Height="8"
-                                                         Margin="10,0,2,0"
-                                                         VerticalAlignment="Center"
-                                                         Fill="{Binding Status, Converter={StaticResource StatusToBrush}}"
-                                                         ToolTip="{Binding StatusMessage}" />
-                                            </Grid>
-                                        </nodify:Node.Header>
-
-                                        <nodify:Node.InputConnectorTemplate>
-                                            <DataTemplate DataType="{x:Type vm:ConnectorViewModel}">
-                                                <nodify:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}"
-                                                                  IsConnected="{Binding IsConnected, Mode=OneWay}"
-                                                                  ToolTip="{Binding ToolTipText}"
-                                                                  Template="{StaticResource InputSocketTemplate}" />
-                                            </DataTemplate>
-                                        </nodify:Node.InputConnectorTemplate>
-
-                                        <nodify:Node.OutputConnectorTemplate>
-                                            <DataTemplate DataType="{x:Type vm:ConnectorViewModel}">
-                                                <nodify:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}"
-                                                                   IsConnected="{Binding IsConnected, Mode=OneWay}"
-                                                                   ToolTip="{Binding ToolTipText}"
-                                                                   Template="{StaticResource OutputSocketTemplate}" />
-                                            </DataTemplate>
-                                        </nodify:Node.OutputConnectorTemplate>
-                                    </nodify:Node>
-                                </DataTemplate>
-                            </nodify:NodifyEditor.ItemTemplate>
-
-                            <nodify:NodifyEditor.ConnectionTemplate>
-                                <DataTemplate DataType="{x:Type vm:ConnectionViewModel}">
-                                    <!--
-                                        Tag carries the editor view-model so the context
-                                        menu can reach its commands: a ContextMenu lives
-                                        in its own visual tree and cannot walk up to the
-                                        Window.
-                                    -->
-                                    <nodify:Connection Source="{Binding Source.Anchor}"
-                                                       Target="{Binding Target.Anchor}"
-                                                       ToolTip="{Binding Description}"
-                                                       IsSelectable="True"
-                                                       IsSelected="{Binding IsSelected, Mode=TwoWay}"
-                                                       DisconnectCommand="{Binding DataContext.Editor.RemoveConnectionCommand,
-                                                                           RelativeSource={RelativeSource AncestorType=Window}}"
-                                                       Tag="{Binding DataContext.Editor,
-                                                             RelativeSource={RelativeSource AncestorType=Window}}">
-                                        <!--
-                                            Stroke and thickness live in the style, not
-                                            as attributes: a locally set value outranks
-                                            a style trigger, so hover and selected
-                                            states could never take effect.
-                                        -->
-                                        <nodify:Connection.Style>
-                                            <Style TargetType="nodify:Connection">
-                                                <Setter Property="Stroke" Value="{StaticResource Accent}" />
-                                                <Setter Property="StrokeThickness" Value="2" />
-
-                                                <!--
-                                                    OutlineThickness is both the glow and the
-                                                    clickable band, so one value serves both.
-                                                    At 3.5px against a 2.5px selected stroke the
-                                                    glow is a thin rim rather than a band - the
-                                                    colour change carries the selection, the glow
-                                                    only softens its edge. Lower than this and
-                                                    the wire becomes awkward to click.
-                                                    Transparent rather than null at rest:
-                                                    transparent is hit-testable in WPF,
-                                                    null is not.
-                                                -->
-                                                <Setter Property="OutlineBrush" Value="Transparent" />
-                                                <Setter Property="OutlineThickness" Value="3.5" />
-
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Stroke" Value="#BFDBFE" />
-                                                        <Setter Property="StrokeThickness" Value="2.5" />
-                                                        <Setter Property="OutlineBrush" Value="#5560A5FA" />
-                                                    </Trigger>
-
-                                                    <!-- Selected: amber, to read clearly against the blue idle state -->
-                                                    <Trigger Property="IsSelected" Value="True">
-                                                        <Setter Property="Stroke" Value="#FBBF24" />
-                                                        <Setter Property="StrokeThickness" Value="2.5" />
-                                                        <Setter Property="OutlineBrush" Value="#88FBBF24" />
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </nodify:Connection.Style>
-
-                                        <nodify:Connection.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="Delete Connection"
-                                                          Command="{Binding PlacementTarget.Tag.RemoveConnectionCommand,
-                                                                    RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding}" />
-                                            </ContextMenu>
-                                        </nodify:Connection.ContextMenu>
-                                    </nodify:Connection>
-                                </DataTemplate>
-                            </nodify:NodifyEditor.ConnectionTemplate>
-
-                            <nodify:NodifyEditor.PendingConnectionTemplate>
-                                <DataTemplate DataType="{x:Type vm:PendingConnectionViewModel}">
-                                    <nodify:PendingConnection Source="{Binding Source}"
-                                                              Target="{Binding Target}"
-                                                              AllowOnlyConnectors="True"
-                                                              EnablePreview="True"
-                                                              EnableSnapping="True" />
-                                </DataTemplate>
-                            </nodify:NodifyEditor.PendingConnectionTemplate>
-                        </nodify:NodifyEditor>
+                        <!--
+                            Given its document in code, as every sub-graph tab is,
+                            rather than bound: a docked document's content inherits
+                            the window's data context only once it is hosted, and a
+                            tab should not depend on the order that happens in.
+                        -->
+                        <ContentControl x:Name="MainGraphHost"
+                                        ContentTemplate="{StaticResource GraphEditorTemplate}"
+                                        Focusable="False" />
                             </avalonDock:LayoutDocument>
                         </avalonDock:LayoutDocumentPane>
 

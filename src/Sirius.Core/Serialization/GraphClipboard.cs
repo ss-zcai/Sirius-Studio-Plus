@@ -171,6 +171,13 @@ public static class GraphClipboard
                 warnings.Add($"Pasted wire dropped: {connected.Message}");
         }
 
+        // After the wires, which found a sub-graph's sockets by the ids of
+        // the boundaries inside it. Renewing them renames those sockets in
+        // place, so the wires stay; leaving them would give two sub-graphs
+        // nodes with the same id, and their panels the same identity.
+        foreach (var host in pasted.OfType<ISubGraphHost>())
+            host.RenewIds();
+
         return new PasteResult(pasted, wires, warnings);
     }
 }

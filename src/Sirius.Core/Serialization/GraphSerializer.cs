@@ -102,6 +102,9 @@ public static class GraphSerializer
                     JsonSerializer.SerializeToElement(value, parameter.ValueType, Options);
             }
 
+            if (node is ISubGraphHost host)
+                record.Graph = ToDocument(host.Inner);
+
             document.Nodes.Add(record);
         }
 
@@ -184,6 +187,17 @@ public static class GraphSerializer
 
             ApplyParameters(node, descriptor, record, warnings);
             ApplyMeasurements(node, record, warnings);
+
+            // Before the wires below: a sub-graph's sockets are its
+            // boundaries, which do not exist until the graph inside is read.
+            if (node is ISubGraphHost host && record.Graph is not null)
+            {
+                var inner = FromDocument(record.Graph);
+                host.Replace(inner.Graph);
+
+                var owner = record.Name ?? record.Id;
+                warnings.AddRange(inner.Warnings.Select(warning => $"In '{owner}': {warning}"));
+            }
 
             // Set last: assigning parameters above would otherwise be recorded
             // against a node whose bypass state is not yet the saved one.

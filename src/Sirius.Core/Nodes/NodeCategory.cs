@@ -28,6 +28,9 @@ public enum NodeCategory
     TextAndCodeReading,
     Output,
 
+    /// <summary>A graph used as one node, and the boundaries inside it.</summary>
+    SubGraph,
+
     /// <summary>
     /// Nodes from a custom node library, unless the library placed them in
     /// one of the groups above.

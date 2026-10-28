@@ -54,6 +54,23 @@ public partial class MainWindow : Window
     /// <summary>Panels whose title is already being followed.</summary>
     private readonly HashSet<PanelViewModel> _titleBound = new();
 
+    /// <summary>
+    /// Every graph editor the template has made - one per tab - found by
+    /// the document it is showing.
+    /// </summary>
+    /// <remarks>
+    /// Looked up by data context rather than kept in a map, because the
+    /// recipe's editor is reused when a new recipe is opened: its document
+    /// changes underneath it.
+    /// </remarks>
+    private readonly HashSet<NodifyEditor> _graphEditors = new();
+
+    /// <summary>Sub-graph tabs, by the document each shows.</summary>
+    private readonly Dictionary<GraphDocumentViewModel, LayoutDocument> _documentTabs = new();
+
+    /// <summary>Documents whose tab has been framed on the nodes once, as the recipe's is on opening.</summary>
+    private readonly HashSet<GraphDocumentViewModel> _framed = new();
+
     public MainWindow()
     {
         InitializeComponent();
@@ -89,21 +106,23 @@ public partial class MainWindow : Window
             viewModel.LayoutRestoreRequested += (_, path) => RestoreLayout(path);
             viewModel.GraphLoaded += (_, _) => FrameGraph();
             viewModel.PanelFocusRequested += (_, contentId) => ShowPanel(contentId);
+
+            viewModel.OpenSubGraphs.CollectionChanged += (_, _) => SyncDocumentTabs();
+            viewModel.DocumentFocusRequested += (_, document) => FocusDocument(document);
+
+            // A new recipe is a new document in the same tab.
+            MainGraphHost.Content = viewModel.MainDocument;
+            viewModel.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(MainViewModel.MainDocument))
+                    MainGraphHost.Content = viewModel.MainDocument;
+            };
         }
 
-        // Registered here rather than in the markup so they run even when
-        // the editor has already marked the event handled - which it does,
-        // because it claims the right button for panning. An attribute in
-        // XAML cannot ask for that.
-        GraphEditor.AddHandler(
-            MouseRightButtonDownEvent,
-            new MouseButtonEventHandler(OnGraphRightButtonDown),
-            handledEventsToo: true);
-
-        GraphEditor.AddHandler(
-            MouseRightButtonUpEvent,
-            new MouseButtonEventHandler(OnGraphRightButtonUp),
-            handledEventsToo: true);
+        // Which tab is being worked in decides what the properties panel,
+        // the Edit menu and the toolbox act on.
+        Docking.ActiveContentChanged += OnActiveContentChanged;
+        Docking.DocumentClosed += OnDocumentClosed;
 
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -147,21 +166,170 @@ public partial class MainWindow : Window
     /// a graph assigned a moment ago has none. Running at Loaded priority
     /// puts this after the layout pass that creates them.
     /// </remarks>
-    private void FrameGraph() =>
+    private void FrameGraph()
+    {
+        if (DataContext is MainViewModel model)
+            FrameGraph(model.MainDocument);
+    }
+
+    private void FrameGraph(GraphDocumentViewModel document) =>
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
         {
-            var extent = GraphEditor.ItemsExtent;
-            var screen = new Size(GraphEditor.ActualWidth, GraphEditor.ActualHeight);
+            if (EditorFor(document) is not { } editor)
+                return;
+
+            var extent = editor.ItemsExtent;
+            var screen = new Size(editor.ActualWidth, editor.ActualHeight);
 
             var (location, zoom) = GraphView.Frame(
                 extent,
                 screen,
-                GraphEditor.MinViewportZoom,
-                Math.Min(GraphView.MaxZoom, GraphEditor.MaxViewportZoom));
+                editor.MinViewportZoom,
+                Math.Min(GraphView.MaxZoom, editor.MaxViewportZoom));
 
-            GraphEditor.ViewportZoom = zoom;
-            GraphEditor.ViewportLocation = location;
+            editor.ViewportZoom = zoom;
+            editor.ViewportLocation = location;
         });
+
+    /// <summary>The editor showing <paramref name="document"/>, once its tab has been shown.</summary>
+    private NodifyEditor? EditorFor(GraphDocumentViewModel? document) =>
+        document is null
+            ? null
+            : _graphEditors.FirstOrDefault(editor => ReferenceEquals(editor.DataContext, document));
+
+    /// <summary>The editor of the tab being worked in.</summary>
+    private NodifyEditor? ActiveEditor => EditorFor((DataContext as MainViewModel)?.ActiveDocument);
+
+    /// <summary>
+    /// Registers each editor the template makes, and gives it the
+    /// right-button handlers.
+    /// </summary>
+    /// <remarks>
+    /// The handlers are added in code rather than in the markup so they run
+    /// even when the editor has already marked the event handled - which it
+    /// does, because it claims the right button for panning. An attribute in
+    /// XAML cannot ask for that. Loaded fires again each time a tab is shown,
+    /// so the set keeps them from being added twice.
+    /// </remarks>
+    private void OnGraphEditorLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not NodifyEditor editor || !_graphEditors.Add(editor))
+            return;
+
+        editor.AddHandler(
+            MouseRightButtonDownEvent,
+            new MouseButtonEventHandler(OnGraphRightButtonDown),
+            handledEventsToo: true);
+
+        editor.AddHandler(
+            MouseRightButtonUpEvent,
+            new MouseButtonEventHandler(OnGraphRightButtonUp),
+            handledEventsToo: true);
+    }
+
+    // ---- sub-graph tabs ----------------------------------------------------
+
+    /// <summary>
+    /// Keeps a document tab for every open sub-graph, beside the recipe's.
+    /// </summary>
+    private void SyncDocumentTabs()
+    {
+        if (DataContext is not MainViewModel model)
+            return;
+
+        var open = model.OpenSubGraphs.ToHashSet();
+
+        foreach (var (document, tab) in _documentTabs.ToArray())
+        {
+            if (open.Contains(document))
+                continue;
+
+            // Forgotten first, so the close below is not mistaken for the
+            // operator closing it.
+            _documentTabs.Remove(document);
+
+            if (tab.Root is not null)
+                tab.Close();
+        }
+
+        foreach (var document in model.OpenSubGraphs)
+        {
+            if (!_documentTabs.ContainsKey(document))
+                _documentTabs[document] = CreateDocumentTab(document);
+        }
+    }
+
+    private LayoutDocument CreateDocumentTab(GraphDocumentViewModel document)
+    {
+        var tab = new LayoutDocument
+        {
+            Title = document.Title,
+            ContentId = document.ContentId,
+            CanClose = true,
+            Content = new ContentControl
+            {
+                Content = document,
+                ContentTemplate = (DataTemplate)FindResource("GraphEditorTemplate"),
+                Focusable = false,
+            },
+        };
+
+        // The caption follows the sub-graph node's name.
+        document.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(GraphDocumentViewModel.Title))
+                tab.Title = document.Title;
+        };
+
+        DocumentPane().Children.Add(tab);
+        return tab;
+    }
+
+    /// <summary>The pane the recipe's own tab is in, where sub-graph tabs open beside it.</summary>
+    private LayoutDocumentPane DocumentPane()
+    {
+        var documents = Docking.Layout.Descendents().OfType<LayoutDocument>().ToArray();
+
+        return documents.FirstOrDefault(document => document.ContentId == "graph")?.Parent as LayoutDocumentPane
+               ?? Docking.Layout.Descendents().OfType<LayoutDocumentPane>().First();
+    }
+
+    private void FocusDocument(GraphDocumentViewModel document)
+    {
+        SyncDocumentTabs();
+
+        if (!_documentTabs.TryGetValue(document, out var tab))
+            return;
+
+        tab.IsSelected = true;
+        tab.IsActive = true;
+
+        // A sub-graph opens looking at its nodes, as a recipe does.
+        if (_framed.Add(document))
+            FrameGraph(document);
+    }
+
+    private void OnActiveContentChanged(object? sender, EventArgs e)
+    {
+        if (DataContext is MainViewModel model &&
+            Docking.ActiveContent is ContentControl { Content: GraphDocumentViewModel document })
+        {
+            model.ActivateDocument(document);
+        }
+    }
+
+    /// <summary>The operator closed a sub-graph's tab.</summary>
+    private void OnDocumentClosed(object? sender, DocumentClosedEventArgs e)
+    {
+        var closed = _documentTabs.FirstOrDefault(pair => ReferenceEquals(pair.Value, e.Document));
+
+        if (closed.Key is null || DataContext is not MainViewModel model)
+            return;
+
+        _documentTabs.Remove(closed.Key);
+        _framed.Remove(closed.Key);
+        model.CloseSubGraph(closed.Key);
+    }
 
     private void OnNodePanelsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -631,6 +799,7 @@ public partial class MainWindow : Window
     {
         if (sender is not NodifyEditor editor ||
             DataContext is not MainViewModel viewModel ||
+            editor.DataContext is not GraphDocumentViewModel document ||
             ResolveDraggedItem(e) is not { } item)
         {
             return;
@@ -644,7 +813,8 @@ public partial class MainWindow : Window
             editor.ViewportLocation.X + (position.X / editor.ViewportZoom),
             editor.ViewportLocation.Y + (position.Y / editor.ViewportZoom));
 
-        viewModel.AddNodeAt(item, location);
+        // Into the tab it was dropped on, whichever was active before.
+        viewModel.AddNodeAt(document, item, location);
 
         _draggedItem = null;
         e.Handled = true;
@@ -803,6 +973,14 @@ public partial class MainWindow : Window
             return;
         }
 
+        // A sub-graph opens in a tab of its own.
+        if (node.Node is SubGraphNode subGraph && DataContext is MainViewModel model)
+        {
+            model.OpenSubGraph(subGraph);
+            e.Handled = true;
+            return;
+        }
+
         // Only node-backed panels answer to a double-click on a node; a
         // profile window belongs to a line, not to anything in the graph.
         //
@@ -838,7 +1016,7 @@ public partial class MainWindow : Window
     private Point _rightButtonDown;
 
     private void OnGraphRightButtonDown(object sender, MouseButtonEventArgs e) =>
-        _rightButtonDown = e.GetPosition(GraphEditor);
+        _rightButtonDown = e.GetPosition((IInputElement)sender);
 
     /// <summary>
     /// Offers a preview of each port of the node under the cursor.
@@ -867,7 +1045,10 @@ public partial class MainWindow : Window
     {
         const double clickSlop = 4;
 
-        var position = e.GetPosition(GraphEditor);
+        if (sender is not NodifyEditor graphEditor)
+            return;
+
+        var position = e.GetPosition(graphEditor);
 
         if ((position - _rightButtonDown).Length > clickSlop)
             return;
@@ -877,7 +1058,7 @@ public partial class MainWindow : Window
         // right-button event reports the editor as its source however far
         // into a node the pointer is - which is why walking up from
         // OriginalSource found nothing at all.
-        var hit = GraphEditor.InputHitTest(position) as DependencyObject;
+        var hit = graphEditor.InputHitTest(position) as DependencyObject;
 
         if (hit is null || FindNodeViewModel(hit) is not { } node)
         {
@@ -887,7 +1068,7 @@ public partial class MainWindow : Window
 
         var menu = new ContextMenu
         {
-            PlacementTarget = GraphEditor,
+            PlacementTarget = graphEditor,
             Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint,
         };
         var ports = MainViewModel.PreviewablePorts(node.Node);
@@ -1099,7 +1280,7 @@ public partial class MainWindow : Window
 
         // Put it on screen even if the cascade has walked it towards the edge.
         if (added is not null)
-            GraphEditor.BringIntoView(added.Location);
+            ActiveEditor?.BringIntoView(added.Location);
 
         // Cancel the drag the first click armed.
         _draggedItem = null;
@@ -1117,10 +1298,13 @@ public partial class MainWindow : Window
     /// </remarks>
     private Point ViewportCentre()
     {
+        if (ActiveEditor is not { } editor)
+            return new Point(60, 60);
+
         // ViewportSize is already in graph units, so no zoom arithmetic is
         // needed - unlike ActualWidth, which is in screen pixels.
-        var size = GraphEditor.ViewportSize;
-        var origin = GraphEditor.ViewportLocation;
+        var size = editor.ViewportSize;
+        var origin = editor.ViewportLocation;
 
         if (size.Width <= 0 || size.Height <= 0)
             return new Point(origin.X + 60, origin.Y + 60);
