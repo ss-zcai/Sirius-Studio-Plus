@@ -412,4 +412,22 @@ public static class ShapeMetric
 
     /// <summary>How many points the fit was computed from.</summary>
     public const string FitPoints = "fitPoints";
+
+    /// <summary>
+    /// How sharp an edge a caliper found: the size of the intensity step
+    /// across it, whichever way it went.
+    /// </summary>
+    public const string Contrast = "contrast";
+
+    /// <summary>
+    /// How far along a row of calipers an edge was found, from the row's
+    /// start - the edge's place along a line.
+    /// </summary>
+    public const string Along = "along";
+
+    /// <summary>
+    /// How far an edge sits to one side of the middle of the region it was
+    /// found in - which, read along a row, is the edge's straightness.
+    /// </summary>
+    public const string Offset = "offset";
 }

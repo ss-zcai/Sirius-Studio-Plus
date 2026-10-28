@@ -1,4 +1,3 @@
-using System.Drawing;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
@@ -86,7 +85,9 @@ public sealed class FindCircleNode : VisionNode
     public OutputPort CircleOut { get; }
 
     /// <summary>
-    /// The edge points the calipers found, after outlier rejection.
+    /// The edge points the calipers found, after outlier rejection - each
+    /// with its angle, radius and contrast. Ring Calipers gives every edge,
+    /// before any rejection.
     /// </summary>
     /// <remarks>
     /// Published because a circle finder that returns only a circle is
@@ -212,7 +213,10 @@ public sealed class FindCircleNode : VisionNode
 
         using var sampler = LineProfileSource.From(image);
 
-        var points = Scan(context, sampler, band);
+        var edges = CaliperScan.AroundRing(
+            sampler, band, _startAngle, _sweepAngle, _direction, Settings, context.CancellationToken);
+
+        var points = edges.Select(edge => edge.At).ToList();
 
         if (points.Count < CircleFit.MinimumPoints)
         {
@@ -220,7 +224,7 @@ public sealed class FindCircleNode : VisionNode
                 ? "No edge was found in the ring. Check the band covers the edge, and lower Min Contrast."
                 : $"Only {points.Count} edge points were found; a circle needs {CircleFit.MinimumPoints}.");
 
-            Publish(context, null, points);
+            Publish(context, null, edges);
             return;
         }
 
@@ -229,7 +233,7 @@ public sealed class FindCircleNode : VisionNode
         if (!fit.Success)
         {
             context.Warn("The edge points do not describe a circle.");
-            Publish(context, null, points);
+            Publish(context, null, edges);
             return;
         }
 
@@ -241,82 +245,20 @@ public sealed class FindCircleNode : VisionNode
                 $"Only {fit.Used.Count} of {_caliperCount} calipers found a usable edge.");
         }
 
-        Publish(context, fit, fit.Used);
+        Publish(context, fit, Kept(edges, fit.Used));
     }
 
-    /// <summary>
-    /// Casts the calipers and collects the edges they find.
-    /// </summary>
-    private List<Point2> Scan(EvalContext context, LineProfileSource sampler, Ring band)
+    private CaliperSettings Settings => new(
+        _caliperCount, _caliperWidth, _spacing, _smoothing, _minimumContrast, _polarity, _choice);
+
+    /// <summary>The edges whose points survived the fit's rejection, in the order they were found.</summary>
+    internal static IReadOnlyList<EdgePoint> Kept(IReadOnlyList<EdgePoint> edges, IReadOnlyList<Point2> used)
     {
-        var centreX = band.CentreX;
-        var centreY = band.CentreY;
-        var inner = band.InnerRadius;
-        var outer = band.OuterRadius;
-
-        var points = new List<Point2>(_caliperCount);
-
-        // The last caliper lands on the first when the sweep is a full
-        // circle, so it is dropped - two readings of one angle would weight
-        // that part of the edge twice.
-        var closed = _sweepAngle >= 359.999;
-        var steps = closed ? _caliperCount : Math.Max(1, _caliperCount - 1);
-        var step = _sweepAngle / steps;
-
-        for (var i = 0; i < _caliperCount; i++)
-        {
-            context.CancellationToken.ThrowIfCancellationRequested();
-
-            var radians = (_startAngle + (i * step)) * Math.PI / 180.0;
-            var ux = Math.Cos(radians);
-            var uy = Math.Sin(radians);
-
-            var (fromRadius, toRadius) = _direction == RadialDirection.Outward
-                ? (inner, outer)
-                : (outer, inner);
-
-            var start = new PointF(
-                (float)(centreX + (ux * fromRadius)),
-                (float)(centreY + (uy * fromRadius)));
-
-            var end = new PointF(
-                (float)(centreX + (ux * toRadius)),
-                (float)(centreY + (uy * toRadius)));
-
-            var profile = sampler.Sample(
-                start,
-                end,
-                _spacing,
-                _caliperWidth,
-                ProfileInterpolation.Linear,
-                warn: null,
-                context.CancellationToken);
-
-            if (profile.Channels.Count == 0)
-                continue;
-
-            // One channel: a colour frame is read as its first channel
-            // rather than averaged, because averaging can cancel an edge
-            // that is strong in one channel and reversed in another.
-            var samples = profile.Channels[0].Samples;
-
-            if (!Caliper.TryFind(
-                    samples, _spacing, _polarity, _minimumContrast, _smoothing, _choice, out var hit))
-            {
-                continue;
-            }
-
-            var radius = _direction == RadialDirection.Outward
-                ? fromRadius + hit.Offset
-                : fromRadius - hit.Offset;
-
-            points.Add(new Point2(centreX + (ux * radius), centreY + (uy * radius)));
-        }
-
-        return points;
+        var survivors = used.ToHashSet();
+        return edges.Where(edge => survivors.Contains(edge.At)).ToArray();
     }
 
-    private void Publish(EvalContext context, CircleFitResult? fit, IReadOnlyList<Point2> points)
+    private void Publish(EvalContext context, CircleFitResult? fit, IReadOnlyList<EdgePoint> points)
     {
         var width = 0;
         var height = 0;
@@ -356,7 +298,7 @@ public sealed class FindCircleNode : VisionNode
             PointsOut,
             new ShapeSet(
                 points
-                    .Select(p => (Shape)new PointShape(p) { Colour = Evidence })
+                    .Select(edge => (Shape)CaliperScan.RingPoint(edge, Evidence))
                     .ToArray(),
                 width,
                 height));

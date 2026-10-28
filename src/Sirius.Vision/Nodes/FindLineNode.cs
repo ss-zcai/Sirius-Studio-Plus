@@ -1,4 +1,3 @@
-using System.Drawing;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
@@ -71,7 +70,8 @@ public sealed class FindLineNode : VisionNode
 
     /// <summary>
     /// The edge points found, after rejection - so a bad result can be
-    /// read rather than guessed at.
+    /// read rather than guessed at. Each carries how far along the region
+    /// it was, how far off its middle, and its contrast.
     /// </summary>
     public OutputPort PointsOut { get; }
 
@@ -171,7 +171,8 @@ public sealed class FindLineNode : VisionNode
 
         using var sampler = LineProfileSource.From(image);
 
-        var points = Scan(context, sampler, region);
+        var edges = CaliperScan.AcrossRect(sampler, region, _direction, Settings, context.CancellationToken);
+        var points = edges.Select(edge => edge.At).ToList();
 
         if (points.Count < LineFit.MinimumPoints)
         {
@@ -179,7 +180,7 @@ public sealed class FindLineNode : VisionNode
                 ? "No edge was found in the region. Check it spans the edge, and lower Min Contrast."
                 : $"Only {points.Count} edge points were found; a line needs {LineFit.MinimumPoints}.");
 
-            Publish(context, image, null, points);
+            Publish(context, image, null, edges);
             return;
         }
 
@@ -188,95 +189,21 @@ public sealed class FindLineNode : VisionNode
         if (!fit.Success)
         {
             context.Warn("The edge points do not describe a line.");
-            Publish(context, image, null, points);
+            Publish(context, image, null, edges);
             return;
         }
 
         if (fit.Used.Count < _caliperCount / 2)
             context.Warn($"Only {fit.Used.Count} of {_caliperCount} calipers found a usable edge.");
 
-        Publish(context, image, fit, fit.Used);
+        Publish(context, image, fit, FindCircleNode.Kept(edges, fit.Used));
     }
 
-    /// <summary>
-    /// Casts the calipers across the region and collects what they find.
-    /// </summary>
-    /// <remarks>
-    /// Scans are spaced along the region's own X axis and run along its Y
-    /// axis, so turning the region turns the scans with it. Everything is
-    /// computed in the region's frame and rotated out at the end, which
-    /// keeps the rotation in one place - the lesson from the oriented ROI,
-    /// where it was spread across three calculations and wrong in two.
-    /// </remarks>
-    private List<Point2> Scan(EvalContext context, LineProfileSource sampler, OrientedRect region)
-    {
-        var points = new List<Point2>(_caliperCount);
-
-        var radians = region.Angle * Math.PI / 180.0;
-        var cos = Math.Cos(radians);
-        var sin = Math.Sin(radians);
-
-        var halfLength = region.Width / 2;
-        var halfWidth = region.Height / 2;
-
-        var step = _caliperCount > 1 ? region.Width / (_caliperCount - 1) : 0;
-
-        for (var i = 0; i < _caliperCount; i++)
-        {
-            context.CancellationToken.ThrowIfCancellationRequested();
-
-            var along = _caliperCount > 1 ? -halfLength + (i * step) : 0;
-
-            var (fromAcross, toAcross) = _direction == ScanDirection.Across
-                ? (-halfWidth, halfWidth)
-                : (halfWidth, -halfWidth);
-
-            var start = ToImage(region, cos, sin, along, fromAcross);
-            var end = ToImage(region, cos, sin, along, toAcross);
-
-            var profile = sampler.Sample(
-                new PointF((float)start.X, (float)start.Y),
-                new PointF((float)end.X, (float)end.Y),
-                _spacing,
-                _caliperWidth,
-                ProfileInterpolation.Linear,
-                warn: null,
-                context.CancellationToken);
-
-            if (profile.Channels.Count == 0)
-                continue;
-
-            if (!Caliper.TryFind(
-                    profile.Channels[0].Samples,
-                    _spacing,
-                    _polarity,
-                    _minimumContrast,
-                    _smoothing,
-                    _choice,
-                    out var hit))
-            {
-                continue;
-            }
-
-            var across = _direction == ScanDirection.Across
-                ? fromAcross + hit.Offset
-                : fromAcross - hit.Offset;
-
-            points.Add(ToImage(region, cos, sin, along, across));
-        }
-
-        return points;
-    }
-
-    /// <summary>A point in the region's own frame, in image coordinates.</summary>
-    private static Point2 ToImage(
-        OrientedRect region, double cos, double sin, double along, double across) =>
-        new(
-            region.CentreX + (along * cos) - (across * sin),
-            region.CentreY + (along * sin) + (across * cos));
+    private CaliperSettings Settings => new(
+        _caliperCount, _caliperWidth, _spacing, _smoothing, _minimumContrast, _polarity, _choice);
 
     private void Publish(
-        EvalContext context, ImageData image, LineFitResult? fit, IReadOnlyList<Point2> points)
+        EvalContext context, ImageData image, LineFitResult? fit, IReadOnlyList<EdgePoint> points)
     {
         var lines = new List<Shape>();
         var angle = 0d;
@@ -311,7 +238,7 @@ public sealed class FindLineNode : VisionNode
             PointsOut,
             new ShapeSet(
                 points
-                    .Select(p => (Shape)new PointShape(p) { Colour = Evidence })
+                    .Select(edge => (Shape)CaliperScan.LinePoint(edge, Evidence))
                     .ToArray(),
                 image.Width,
                 image.Height));

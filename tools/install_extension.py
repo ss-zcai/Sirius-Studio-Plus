@@ -77,6 +77,12 @@ PHOSPHOR = {
     # viewer's own cross.
     "magnifying-glass": "ph_search",
 
+    # Edge points without a fit: a ring of them, a row of them, and points
+    # joined into an outline.
+    "circle-dashed": "ph_ring_calipers",
+    "line-segments": "ph_line_calipers",
+    "polygon": "ph_points_polygon",
+
     # tag-simple rather than tag: the plain outline keeps its shape under
     # the keyline at toolbox size, where tag's eyelet fills in.
     "tag-simple": "ph_label",

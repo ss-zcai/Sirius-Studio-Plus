@@ -139,12 +139,27 @@ public abstract class ShapeFitNode : VisionNode
     protected abstract Shape? Fit(IReadOnlyList<Point2> points);
 
     private int Count(ShapeSet input) =>
-        _grouping == FitGrouping.AllTogether ? 1 : input.Count;
+        Pooled(input) ? 1 : input.Count;
+
+    /// <summary>
+    /// Whether every point is fitted as one set: when asked, or when every
+    /// shape is a lone point.
+    /// </summary>
+    /// <remarks>
+    /// A point on its own cannot be fitted to anything, so fitting each one
+    /// separately - the default, which is right for blobs - would quietly
+    /// produce nothing from the edge points Find Circle, Ring Calipers and
+    /// the rest give. Points are what those tools are for fitting through,
+    /// so they are pooled without having to be told.
+    /// </remarks>
+    private bool Pooled(ShapeSet input) =>
+        _grouping == FitGrouping.AllTogether ||
+        (input.Count > 0 && input.Shapes.All(shape => shape is PointShape));
 
     /// <summary>The point sets to fit, one per result.</summary>
     private IEnumerable<IReadOnlyList<Point2>> Group(ShapeSet input)
     {
-        if (_grouping == FitGrouping.AllTogether)
+        if (Pooled(input))
         {
             yield return input.Shapes.SelectMany(PointsOf).ToArray();
             yield break;
@@ -240,7 +255,26 @@ public abstract class ShapeFitNode : VisionNode
     Description = "The best circle through the points of a blob or a set of features.")]
 public sealed class FitCircleNode : ShapeFitNode
 {
+    private double _rejectSigma;
+
     protected override int RequiredPoints => 3;
+
+    /// <summary>
+    /// Find Circle's rejection, so a circle fitted to caliper points here
+    /// is as robust as Find Circle's own.
+    /// </summary>
+    /// <remarks>
+    /// Off by default, unlike Find Circle: a recipe saved before this setting
+    /// existed fits exactly as it did, and a blob's outline - what this was
+    /// first used for - has no strays to reject.
+    /// </remarks>
+    [Param("Reject Above", Group = "Fit", Min = 0, Max = 6, Step = 0.1,
+        Description = "Drop points this many standard deviations off the fit, then fit again. Zero keeps all.")]
+    public double RejectSigma
+    {
+        get => _rejectSigma;
+        set => SetParam(ref _rejectSigma, Math.Clamp(value, 0, 6));
+    }
 
     protected override Shape? Fit(IReadOnlyList<Point2> points)
     {
@@ -248,10 +282,13 @@ public sealed class FitCircleNode : ShapeFitNode
         // enclosing circle is decided by three extreme points and so is
         // pulled about by a single bad one, which is the opposite of what
         // fitting is for.
-        var (centre, radius) = CircleFit.FitForNode(points);
+        var fit = CircleFit.FitRobust(points, _rejectSigma);
 
-        if (double.IsNaN(radius) || radius <= 0)
+        if (!fit.Success)
             return null;
+
+        var (centre, radius) = (fit.Centre, fit.Radius);
+        points = fit.Used;
 
         var error = RootMeanSquare(
             points,
@@ -284,25 +321,58 @@ public sealed class FitCircleNode : ShapeFitNode
     Description = "The best ellipse through the points of a blob or a set of features.")]
 public sealed class FitEllipseNode : ShapeFitNode
 {
+    private double _rejectSigma;
+
     protected override int RequiredPoints => 5;
+
+    /// <summary>The same rejection Fit Circle and Find Circle use, against the ellipse.</summary>
+    [Param("Reject Above", Group = "Fit", Min = 0, Max = 6, Step = 0.1,
+        Description = "Drop points this many standard deviations off the fit, then fit again. Zero keeps all.")]
+    public double RejectSigma
+    {
+        get => _rejectSigma;
+        set => SetParam(ref _rejectSigma, Math.Clamp(value, 0, 6));
+    }
 
     protected override Shape? Fit(IReadOnlyList<Point2> points)
     {
-        using var vector = ToVector(points);
-        var box = CvInvoke.FitEllipse(vector);
-
-        var major = Math.Max(box.Size.Width, box.Size.Height);
-        var minor = Math.Min(box.Size.Width, box.Size.Height);
-
-        if (major <= 0 || double.IsNaN(major))
+        if (FitOnce(points) is not { } fitted)
             return null;
 
-        var centre = new Point2(box.Center.X, box.Center.Y);
+        // Sigma clipping, as CircleFit.FitRobust does it: fit, drop the
+        // points further off than the mean deviation plus so many spreads,
+        // fit again - a few times, and never down to too few to fit.
+        if (_rejectSigma > 0)
+        {
+            for (var pass = 0; pass < 3; pass++)
+            {
+                var (centreNow, majorNow, minorNow, angleNow) = fitted;
 
-        // OpenCV gives the angle of the width axis; this reports the angle
-        // of the longer one, so "angle" means the same thing here as it
-        // does on a blob's oriented rectangle.
-        var angle = box.Size.Width >= box.Size.Height ? box.Angle : box.Angle + 90;
+                var deviations = points
+                    .Select(point => EllipseResidual(point, centreNow, majorNow, minorNow, angleNow))
+                    .ToArray();
+
+                var mean = deviations.Average();
+                var spread = Math.Sqrt(deviations.Average(d => (d - mean) * (d - mean)));
+
+                if (spread < 1e-9)
+                    break;
+
+                var limit = mean + (_rejectSigma * spread);
+                var survivors = points.Where((_, i) => deviations[i] <= limit).ToArray();
+
+                if (survivors.Length == points.Count || survivors.Length < RequiredPoints)
+                    break;
+
+                if (FitOnce(survivors) is not { } next)
+                    break;
+
+                points = survivors;
+                fitted = next;
+            }
+        }
+
+        var (centre, major, minor, angle) = fitted;
 
         var error = RootMeanSquare(points, point => EllipseResidual(point, centre, major, minor, angle));
 
@@ -320,6 +390,26 @@ public sealed class FitEllipseNode : ShapeFitNode
                 [ShapeMetric.FitPoints] = points.Count,
             },
         };
+    }
+
+    /// <summary>One ellipse through every point given, or null when they do not make one.</summary>
+    private static (Point2 Centre, double Major, double Minor, double Angle)? FitOnce(IReadOnlyList<Point2> points)
+    {
+        using var vector = ToVector(points);
+        var box = CvInvoke.FitEllipse(vector);
+
+        var major = Math.Max(box.Size.Width, box.Size.Height);
+        var minor = Math.Min(box.Size.Width, box.Size.Height);
+
+        if (major <= 0 || double.IsNaN(major))
+            return null;
+
+        // OpenCV gives the angle of the width axis; this reports the angle
+        // of the longer one, so "angle" means the same thing here as it
+        // does on a blob's oriented rectangle.
+        var angle = box.Size.Width >= box.Size.Height ? box.Angle : box.Angle + 90;
+
+        return (new Point2(box.Center.X, box.Center.Y), major, minor, angle);
     }
 
     /// <summary>

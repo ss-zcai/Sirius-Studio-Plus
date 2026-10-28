@@ -25,6 +25,15 @@ public enum ShapeMeasure
 
     /// <summary>Reading order: top to bottom, then left to right within a row.</summary>
     Position,
+
+    /// <summary>An edge point's strength, so weak edges can be dropped or the strongest picked.</summary>
+    Contrast,
+
+    /// <summary>A circle's radius, or an edge point's distance from the middle of its ring.</summary>
+    Radius,
+
+    /// <summary>An edge point's distance to one side of the middle of its region.</summary>
+    Offset,
 }
 
 public static class ShapeMeasures
@@ -41,6 +50,9 @@ public static class ShapeMeasures
         ShapeMeasure.Length => ShapeMetric.Length,
         ShapeMeasure.Extent => ShapeMetric.Extent,
         ShapeMeasure.HoleCount => ShapeMetric.HoleCount,
+        ShapeMeasure.Contrast => ShapeMetric.Contrast,
+        ShapeMeasure.Radius => ShapeMetric.Radius,
+        ShapeMeasure.Offset => ShapeMetric.Offset,
         _ => null,
     };
 }
