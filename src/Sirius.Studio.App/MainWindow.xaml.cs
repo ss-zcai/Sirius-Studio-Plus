@@ -820,6 +820,66 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    // ---- toolbox search ----------------------------------------------------
+
+    /// <summary>
+    /// Enter adds the first tool listed, which with a few letters typed is
+    /// the one wanted - so a tool can be found and placed without leaving
+    /// the keyboard. Esc empties the search.
+    /// </summary>
+    private void OnToolboxSearchKeyDown(object sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainViewModel model)
+            return;
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                if (model.FirstToolboxMatch is { } first &&
+                    model.AddNodeAt(first, ViewportCentre()) is { } added)
+                {
+                    ActiveEditor?.BringIntoView(added.Location);
+
+                    // Selected rather than cleared, so Enter again adds
+                    // another and typing starts the next search.
+                    ToolboxSearchBox.SelectAll();
+                }
+
+                e.Handled = true;
+                break;
+
+            case Key.Escape:
+                model.ToolboxSearch = string.Empty;
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void OnToolboxSearchClearClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel model)
+            model.ToolboxSearch = string.Empty;
+
+        ToolboxSearchBox.Focus();
+    }
+
+    /// <summary>Ctrl+F: brings the toolbox forward and puts the cursor in its search box.</summary>
+    private void OnFindCommand(object sender, ExecutedRoutedEventArgs e)
+    {
+        ShowPanel("toolbox");
+
+        // After the toolbox has been shown, or a hidden one is not yet
+        // focusable.
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
+        {
+            ToolboxSearchBox.Focus();
+            Keyboard.Focus(ToolboxSearchBox);
+            ToolboxSearchBox.SelectAll();
+        });
+
+        e.Handled = true;
+    }
+
     private PaletteItemViewModel? ResolveDraggedItem(DragEventArgs e) =>
         e.Data.GetDataPresent(ToolboxDragFormat)
             ? e.Data.GetData(ToolboxDragFormat) as PaletteItemViewModel ?? _draggedItem

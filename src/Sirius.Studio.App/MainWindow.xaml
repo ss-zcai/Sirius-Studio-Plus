@@ -43,6 +43,10 @@
         <CommandBinding Command="ApplicationCommands.SelectAll"
                         Executed="OnEditCommand"
                         CanExecute="OnEditCommandCanExecute" />
+
+        <!-- Ctrl+F: straight to the toolbox's search box. -->
+        <CommandBinding Command="ApplicationCommands.Find"
+                        Executed="OnFindCommand" />
     </Window.CommandBindings>
 
     <Window.InputBindings>
@@ -572,10 +576,68 @@
                                                      ContentId="toolbox"
                                                      CanClose="False">
                         <!--
-                            Accordion toolbox: one category open at a time, enforced by
-                            MainViewModel. Each entry is a drag source - drop it on the graph
-                            to create that node where it lands.
+                            The toolbox: a search box that stays at the top, with the
+                            groups scrolling beneath it. Each entry is a drag source -
+                            drop it on the graph to create that node where it lands - and
+                            double-clicking one adds it in the middle of the canvas.
                         -->
+                        <DockPanel>
+                            <!-- Outside the scroller, so it is there however far the list is scrolled. -->
+                            <Grid DockPanel.Dock="Top" Margin="6,6,6,4">
+                                <TextBox x:Name="ToolboxSearchBox"
+                                         Text="{Binding ToolboxSearch, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="22,3,24,3"
+                                         VerticalContentAlignment="Center"
+                                         PreviewKeyDown="OnToolboxSearchKeyDown"
+                                         ToolTip="Search the tools by name, group or what they do (Ctrl+F). Enter adds the first match; Esc clears." />
+
+                                <Image Source="{StaticResource Icon.ph_search}"
+                                       Width="13"
+                                       Height="13"
+                                       Margin="6,0,0,0"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Center"
+                                       IsHitTestVisible="False" />
+
+                                <TextBlock Text="Search tools"
+                                           Margin="24,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource Text.Secondary}"
+                                           FontStyle="Italic"
+                                           IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=ToolboxSearchBox}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <Button Style="{StaticResource ToolbarButton}"
+                                        Width="18"
+                                        Height="18"
+                                        Padding="0"
+                                        Margin="0,0,3,0"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        ToolTip="Clear the search (Esc)"
+                                        Click="OnToolboxSearchClearClick"
+                                        Visibility="{Binding IsSearchingToolbox, Converter={StaticResource BoolToVisibility}}">
+                                    <Image Source="{StaticResource Icon.ph_clear}" Width="10" Height="10" />
+                                </Button>
+                            </Grid>
+
+                            <TextBlock DockPanel.Dock="Top"
+                                       Text="No tools match."
+                                       Margin="12,6"
+                                       Foreground="{StaticResource Text.Secondary}"
+                                       FontStyle="Italic"
+                                       Visibility="{Binding ToolboxHasNoMatches, Converter={StaticResource BoolToVisibility}}" />
+
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <ItemsControl ItemsSource="{Binding Palette}">
                                 <ItemsControl.ItemTemplate>
@@ -608,6 +670,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
+                        </DockPanel>
                         </avalonDock:LayoutAnchorable>
                     </avalonDock:LayoutAnchorablePane>
 

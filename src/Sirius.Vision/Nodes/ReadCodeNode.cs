@@ -65,7 +65,7 @@ public enum CodeSymbology
     TypeKey = "read.code",
     Category = NodeCategory.TextAndCodeReading,
     Icon = "ph_read_code",
-    Description = "Reads barcodes and 2D codes inside a region.")]
+    Description = "Reads barcodes and 2D codes - QR, Data Matrix, Code 128, EAN and others - inside a region.")]
 public sealed class ReadCodeNode : VisionNode
 {
     /// <summary>Green, as a found feature is drawn.</summary>

@@ -68,7 +68,7 @@ public enum TextLayout
     TypeKey = "read.text",
     Category = NodeCategory.TextAndCodeReading,
     Icon = "ph_read_text",
-    Description = "Reads printed text inside a region.")]
+    Description = "Reads printed text inside a region (OCR).")]
 public sealed class ReadTextNode : VisionNode
 {
     /// <summary>Green, as a found feature is drawn.</summary>

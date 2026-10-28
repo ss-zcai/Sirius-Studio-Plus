@@ -45,7 +45,10 @@ public sealed class PaletteGroupViewModel : ObservableObject
     public NodeCategory Category { get; }
 
     /// <summary>"Text and Code Reading" rather than "TextAndCodeReading".</summary>
-    public string DisplayName => SplitCamelCase(Category.ToString());
+    public string DisplayName => NameOf(Category);
+
+    /// <summary>A category's name as the toolbox shows it.</summary>
+    internal static string NameOf(NodeCategory category) => SplitCamelCase(category.ToString());
 
     public ObservableCollection<PaletteItemViewModel> Items { get; }
 

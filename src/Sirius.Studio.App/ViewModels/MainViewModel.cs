@@ -162,28 +162,98 @@ public sealed class MainViewModel : ObservableObject
     /// </remarks>
     internal void RebuildPalette()
     {
-        var expanded = Palette.ToDictionary(group => group.Category, group => group.IsExpanded);
-
         Palette.Clear();
 
         // Graph Input and Graph Output mean something only inside a
         // sub-graph, so they are offered only while one is being edited.
         var insideSubGraph = _activeDocument?.IsSubGraph == true;
+        var search = _toolboxSearch.Trim();
+        var searching = search.Length > 0;
 
         var offered = NodeCatalog.All.Where(descriptor =>
-            insideSubGraph ||
-            (descriptor.NodeType != typeof(GraphInputNode) && descriptor.NodeType != typeof(GraphOutputNode)));
+            (insideSubGraph ||
+             (descriptor.NodeType != typeof(GraphInputNode) && descriptor.NodeType != typeof(GraphOutputNode))) &&
+            MatchesToolboxSearch(descriptor, search));
 
         foreach (var category in offered.GroupBy(descriptor => descriptor.Category).OrderBy(group => group.Key))
         {
-            var group = new PaletteGroupViewModel(
-                category.Key,
-                category.Select(descriptor => new PaletteItemViewModel(descriptor)));
+            // A tool whose name matches comes before one found only by its
+            // description: typing "line" should put Find Line ahead of
+            // something that merely mentions one.
+            var items = category
+                .OrderBy(descriptor => searching && !Controls.FilterComboBox.Matches(descriptor.DisplayName, search))
+                .Select(descriptor => new PaletteItemViewModel(descriptor));
 
-            group.IsExpanded = expanded.GetValueOrDefault(category.Key, true);
+            var group = new PaletteGroupViewModel(category.Key, items);
+
+            if (searching)
+            {
+                // Every group with a match is open, or the match is hidden
+                // inside one somebody closed earlier.
+                group.IsExpanded = true;
+            }
+            else
+            {
+                group.IsExpanded = _groupExpanded.GetValueOrDefault(category.Key, true);
+
+                // Remembered as the operator opens and closes groups - not
+                // while searching, which opens everything and would
+                // otherwise overwrite what they had chosen.
+                group.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(PaletteGroupViewModel.IsExpanded))
+                        _groupExpanded[group.Category] = group.IsExpanded;
+                };
+            }
+
             Palette.Add(group);
         }
+
+        OnPropertyChanged(nameof(ToolboxHasNoMatches));
+        OnPropertyChanged(nameof(FirstToolboxMatch));
     }
+
+    /// <summary>
+    /// Whether a tool answers a toolbox search: every word in it found in the
+    /// tool's name, its group or its description, in any order.
+    /// </summary>
+    /// <remarks>
+    /// The same matching the long dropdowns use, so search behaves one way
+    /// throughout. The description is searched so a tool can be found by
+    /// what it does - "qr" finds Read Code, "ocr" Read Text - and the group
+    /// so "morph" brings up everything under Morphology.
+    /// </remarks>
+    internal static bool MatchesToolboxSearch(NodeDescriptor descriptor, string search) =>
+        Controls.FilterComboBox.Matches(
+            $"{descriptor.DisplayName} {PaletteGroupViewModel.NameOf(descriptor.Category)} {descriptor.Description}",
+            search);
+
+    private string _toolboxSearch = string.Empty;
+
+    /// <summary>Which groups the operator has opened or closed, kept across rebuilds and searches.</summary>
+    private readonly Dictionary<NodeCategory, bool> _groupExpanded = new();
+
+    /// <summary>What the toolbox's search box holds.</summary>
+    public string ToolboxSearch
+    {
+        get => _toolboxSearch;
+        set
+        {
+            if (!SetProperty(ref _toolboxSearch, value ?? string.Empty))
+                return;
+
+            RebuildPalette();
+            OnPropertyChanged(nameof(IsSearchingToolbox));
+        }
+    }
+
+    public bool IsSearchingToolbox => !string.IsNullOrWhiteSpace(_toolboxSearch);
+
+    /// <summary>A search that found nothing, which the toolbox says rather than showing a blank.</summary>
+    public bool ToolboxHasNoMatches => IsSearchingToolbox && Palette.Count == 0;
+
+    /// <summary>The tool Enter adds from the search box: the first one listed.</summary>
+    public PaletteItemViewModel? FirstToolboxMatch => Palette.FirstOrDefault()?.Items.FirstOrDefault();
 
     public ObservableCollection<PaletteGroupViewModel> Palette { get; }
 
