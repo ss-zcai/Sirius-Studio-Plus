@@ -389,10 +389,21 @@ public sealed class ParameterViewModel : ObservableObject
     /// number - so the list showed "Bgra2Rgba" twice, one of which could
     /// never be the selected item and so could never appear chosen.
     /// </remarks>
-    public IReadOnlyList<object> Options =>
+    /// <remarks>
+    /// Each value is offered under its name in words - "Centre To Centre"
+    /// for CentreToCentre - as an <see cref="EnumOption"/>; the parameter
+    /// still holds the value itself, so nothing saved changes.
+    /// </remarks>
+    public IReadOnlyList<object> Options => _options ??=
         _descriptor.ValueType.IsEnum
-            ? Enum.GetValues(_descriptor.ValueType).Cast<object>().Distinct().ToArray()
+            ? Enum.GetValues(_descriptor.ValueType)
+                .Cast<object>()
+                .Distinct()
+                .Select(value => (object)new EnumOption(value, TypeNames.Words(value.ToString()!)))
+                .ToArray()
             : Array.Empty<object>();
+
+    private IReadOnlyList<object>? _options;
 
     private object? Raw
     {
@@ -423,10 +434,14 @@ public sealed class ParameterViewModel : ObservableObject
 
     public object? SelectedOption
     {
-        get => Raw;
+        get => Raw is { } raw && _descriptor.ValueType.IsEnum
+            ? Options.OfType<EnumOption>().FirstOrDefault(option => Equals(option.Value, raw))
+            : Raw;
         set
         {
-            if (value is not null)
+            if (value is EnumOption option)
+                Raw = option.Value;
+            else if (value is not null)
                 Raw = value;
         }
     }
@@ -724,4 +739,17 @@ public sealed class ParameterViewModel : ObservableObject
         OnPropertyChanged(nameof(RegionWidth));
         OnPropertyChanged(nameof(RegionHeight));
     }
+}
+
+/// <summary>
+/// An enum value in a dropdown, shown by its name in words.
+/// </summary>
+/// <remarks>
+/// The text is what the list shows, what the editable box shows once one
+/// is picked and what a search matches; the value is what the parameter
+/// holds and the recipe saves.
+/// </remarks>
+public sealed record EnumOption(object Value, string Label)
+{
+    public override string ToString() => Label;
 }

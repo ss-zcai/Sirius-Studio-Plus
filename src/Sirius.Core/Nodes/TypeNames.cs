@@ -21,6 +21,44 @@ namespace Sirius.Core.Nodes;
 /// </remarks>
 public static class TypeNames
 {
+    /// <summary>
+    /// An identifier written as words: "CentreToCentre" as "Centre To
+    /// Centre", "Bgr2Gray" as "Bgr 2 Gray", "RGBImage" as "RGB Image".
+    /// </summary>
+    /// <remarks>
+    /// For enum values in a dropdown and group names in the toolbox, which
+    /// are identifiers in the code and labels on the screen.
+    /// </remarks>
+    public static string Words(string identifier)
+    {
+        ArgumentNullException.ThrowIfNull(identifier);
+
+        var builder = new System.Text.StringBuilder(identifier.Length + 8);
+
+        for (var i = 0; i < identifier.Length; i++)
+        {
+            var current = identifier[i];
+
+            if (i > 0 && identifier[i - 1] != ' ' && current != ' ')
+            {
+                var previous = identifier[i - 1];
+                var next = i + 1 < identifier.Length ? identifier[i + 1] : '\0';
+
+                var startsWord =
+                    (char.IsUpper(current) && (char.IsLower(previous) || char.IsDigit(previous))) ||
+                    (char.IsUpper(current) && char.IsUpper(previous) && char.IsLower(next)) ||
+                    (char.IsDigit(current) && char.IsLetter(previous));
+
+                if (startsWord)
+                    builder.Append(' ');
+            }
+
+            builder.Append(current);
+        }
+
+        return builder.ToString();
+    }
+
     public static string Friendly(Type type) =>
         type is null ? "?" : Friendly(type.Name);
 

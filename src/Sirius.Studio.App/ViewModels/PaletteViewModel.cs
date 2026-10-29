@@ -48,20 +48,7 @@ public sealed class PaletteGroupViewModel : ObservableObject
     public string DisplayName => NameOf(Category);
 
     /// <summary>A category's name as the toolbox shows it.</summary>
-    internal static string NameOf(NodeCategory category) => SplitCamelCase(category.ToString());
+    internal static string NameOf(NodeCategory category) => TypeNames.Words(category.ToString());
 
     public ObservableCollection<PaletteItemViewModel> Items { get; }
-
-    private static string SplitCamelCase(string value)
-    {
-        var builder = new System.Text.StringBuilder(value.Length + 6);
-        for (var i = 0; i < value.Length; i++)
-        {
-            if (i > 0 && char.IsUpper(value[i]))
-                builder.Append(' ');
-            builder.Append(value[i]);
-        }
-
-        return builder.ToString();
-    }
 }

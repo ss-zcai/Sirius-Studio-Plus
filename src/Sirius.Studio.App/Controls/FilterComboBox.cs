@@ -48,7 +48,8 @@ public sealed class FilterComboBox : ComboBox
     /// Every whitespace-separated term has to appear somewhere in the
     /// name, in any order: "gray bgr" finds Bgr2Gray, and so does "2gray".
     /// Case is ignored, since the names are written in a casing nobody
-    /// types.
+    /// types. Spaces in the name are ignored too, so "bgr2gray" still finds
+    /// it shown as "Bgr 2 Gray".
     /// </remarks>
     public static bool Matches(string? candidate, string? text)
     {
@@ -58,10 +59,15 @@ public sealed class FilterComboBox : ComboBox
         if (string.IsNullOrEmpty(candidate))
             return false;
 
+        var compact = candidate.Replace(" ", string.Empty, StringComparison.Ordinal);
+
         foreach (var term in text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
         {
-            if (candidate.IndexOf(term, StringComparison.OrdinalIgnoreCase) < 0)
+            if (candidate.IndexOf(term, StringComparison.OrdinalIgnoreCase) < 0 &&
+                compact.IndexOf(term, StringComparison.OrdinalIgnoreCase) < 0)
+            {
                 return false;
+            }
         }
 
         return true;

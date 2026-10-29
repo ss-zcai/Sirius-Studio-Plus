@@ -325,13 +325,51 @@ public class FilterComboBoxTests
     [Fact]
     public void Three_channels_and_four_remain_separate_choices()
     {
-        var options = Conversion().Options.Cast<ColorConversion>().ToArray();
+        var options = Conversion().Options.Cast<EnumOption>().Select(option => (ColorConversion)option.Value).ToArray();
 
         Assert.NotEqual((int)ColorConversion.Gray2Rgb, (int)ColorConversion.Gray2Rgba);
 
         Assert.Contains(ColorConversion.Gray2Rgb, options);
         Assert.Contains(ColorConversion.Gray2Rgba, options);
     }
+
+    // ---- names in words ----------------------------------------------------
+
+    [Theory]
+    [InlineData("CentreToCentre", "Centre To Centre")]
+    [InlineData("PerpendicularToB", "Perpendicular To B")]
+    [InlineData("Bgr2Gray", "Bgr 2 Gray")]
+    [InlineData("RGBImage", "RGB Image")]
+    [InlineData("TextAndCodeReading", "Text And Code Reading")]
+    [InlineData("Lanczos4", "Lanczos 4")]
+    [InlineData("All", "All")]
+    public void Identifiers_read_as_words(string identifier, string expected) =>
+        Assert.Equal(expected, Sirius.Core.Nodes.TypeNames.Words(identifier));
+
+    /// <summary>
+    /// The dropdown shows "Centre To Centre"; the node still holds
+    /// CentreToCentre, which is what a recipe saves.
+    /// </summary>
+    [Fact]
+    public void A_dropdown_shows_words_and_sets_the_value_itself()
+    {
+        var node = new MeasureNode();
+        var parameter = new NodeViewModel(node).Parameters.Single(p => p.DisplayName == "Measure");
+
+        Assert.Contains("Centre To Centre", parameter.Options.Select(option => option.ToString()));
+
+        parameter.SelectedOption = parameter.Options.Single(option => option.ToString() == "Edge To Edge");
+
+        Assert.Equal(MeasureKind.EdgeToEdge, node.Kind);
+        Assert.Equal("Edge To Edge", parameter.SelectedOption?.ToString());
+    }
+
+    [Theory]
+    [InlineData("bgr2gray")]
+    [InlineData("2gray")]
+    [InlineData("bgr 2")]
+    public void Spaced_names_are_still_found_as_typed_together(string typed) =>
+        Assert.True(FilterComboBox.Matches("Bgr 2 Gray", typed));
 
     private static ParameterViewModel Conversion() =>
         new NodeViewModel(new ColourConvertNode())
