@@ -1252,14 +1252,14 @@ Intensity sampled along a line, for the profile panel.
 
 `analysis.measure`
 
-Reads a distance or angle between two shapes and annotates it.
+Reads a distance or angle between two shapes - or the radius, diameter, axes, orientation, area or perimeter of one - and annotates it.
 
 **Inputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | A | `Shapes` | circle | yes |
-| B | `Shapes` | circle | yes |
+| B | `Shapes` | circle | optional |
 | Calibration | `Calibration` | circle | optional |
 
 **Outputs**
@@ -1681,11 +1681,11 @@ A graph of its own, used as one node. Double-click it to open it in a tab. Graph
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| d12a2ad548024ece9605311e992d0e9c | `Any` | circle | optional |
+| c0388023f6b8487c93b3646ec54293d6 | `Any` | circle | optional |
 
 **Outputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| e64f977779b448e6be47251703ec6397 | `Any` | circle | - |
+| 7b82e23df39d41198cbf4a08049ce2c8 | `Any` | circle | - |
 

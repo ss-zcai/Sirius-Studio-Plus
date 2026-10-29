@@ -1,4 +1,5 @@
 using Sirius.Core.Graph;
+using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
 using Sirius.Vision.Nodes;
 using Xunit;
@@ -189,6 +190,163 @@ public class MeasureNodeTests
             node => node.Kind = MeasureKind.Angle);
 
         Assert.Equal(expected, value, 6);
+    }
+
+    // ---- of one shape ----------------------------------------------------------
+
+    /// <summary>Wires <paramref name="shape"/> into A alone and reads it.</summary>
+    private static (double Value, ShapeSet Annotation, NodeStatus Status, string? Message) RunOne(
+        Shape shape, MeasureKind kind, Calibration? calibration = null)
+    {
+        var graph = new VisionGraph();
+        var source = new ShapeSourceNode(shape);
+        var measure = new MeasureNode { Kind = kind };
+
+        graph.Add(source);
+        graph.Add(measure);
+        graph.TryConnect(source.ShapesOut, measure.FirstIn);
+
+        if (calibration is { } given)
+        {
+            var scale = new CalibrationSourceNode(given);
+            graph.Add(scale);
+            graph.TryConnect(scale.Out, measure.CalibrationIn);
+        }
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        return (
+            (double)(scheduler.GetOutput(measure.ValueOut) ?? 0d),
+            (ShapeSet)scheduler.GetOutput(measure.AnnotationOut)!,
+            measure.Status,
+            measure.StatusMessage);
+    }
+
+    [Theory]
+    [InlineData(MeasureKind.Radius, 40)]
+    [InlineData(MeasureKind.Diameter, 80)]
+    [InlineData(MeasureKind.MajorAxis, 80)]
+    [InlineData(MeasureKind.Area, 1600 * Math.PI)]
+    [InlineData(MeasureKind.Perimeter, 80 * Math.PI)]
+    public void A_circle_alone_reads_its_size(MeasureKind kind, double expected)
+    {
+        var (value, annotation, status, _) = RunOne(new CircleShape(new Point2(200, 200), 40), kind);
+
+        Assert.Equal(expected, value, 6);
+        Assert.Equal(NodeStatus.Ready, status);
+        Assert.Single(annotation.Shapes);
+    }
+
+    /// <summary>
+    /// A radius is drawn from the centre to the edge, so the line on the
+    /// picture is as long as the number beside it.
+    /// </summary>
+    [Fact]
+    public void A_radius_is_drawn_from_the_centre_to_the_edge()
+    {
+        var (_, annotation, _, _) = RunOne(new CircleShape(new Point2(200, 200), 40), MeasureKind.Radius);
+
+        var line = Assert.IsType<LineShape>(annotation.Shapes.Single());
+        Assert.Equal(new Point2(200, 200), line.Start);
+        Assert.Equal(40, line.Length, 6);
+        Assert.Equal("40.00 px", line.Label);
+    }
+
+    [Theory]
+    [InlineData(MeasureKind.MajorAxis, 120)]
+    [InlineData(MeasureKind.MinorAxis, 60)]
+    [InlineData(MeasureKind.Orientation, 30)]
+    [InlineData(MeasureKind.Area, 1800 * Math.PI)]
+    public void An_ellipse_alone_reads_its_axes_angle_and_area(MeasureKind kind, double expected)
+    {
+        var (value, _, status, _) = RunOne(new EllipseShape(new Point2(200, 200), 120, 60, 30), kind);
+
+        Assert.Equal(expected, value, 6);
+        Assert.Equal(NodeStatus.Ready, status);
+    }
+
+    /// <summary>The axis is drawn along itself: the minor one at right angles to the major.</summary>
+    [Fact]
+    public void An_ellipse_axis_is_drawn_along_it()
+    {
+        var (_, annotation, _, _) = RunOne(new EllipseShape(new Point2(200, 200), 120, 60, 0), MeasureKind.MinorAxis);
+
+        var line = Assert.IsType<LineShape>(annotation.Shapes.Single());
+        Assert.Equal(200, line.Start.X, 6);
+        Assert.Equal(200, line.End.X, 6);
+        Assert.Equal(60, line.Length, 6);
+    }
+
+    [Fact]
+    public void An_ellipse_radius_is_its_mean_and_says_so()
+    {
+        var (value, _, status, message) = RunOne(new EllipseShape(new Point2(200, 200), 120, 60, 0), MeasureKind.Radius);
+
+        Assert.Equal(45, value, 6);
+        Assert.Equal(NodeStatus.Warning, status);
+        Assert.Contains("mean", message!, StringComparison.Ordinal);
+    }
+
+    /// <summary>At 0.1 mm a pixel: a 40 px radius is 4 mm, and the disc's area 16 pi mm².</summary>
+    [Fact]
+    public void A_calibrated_reading_is_in_the_unit_with_areas_squared()
+    {
+        var circle = new CircleShape(new Point2(200, 200), 40);
+
+        var (radius, drawn, _, _) = RunOne(circle, MeasureKind.Radius, new Calibration(0.1, "mm"));
+        var (area, outline, _, _) = RunOne(circle, MeasureKind.Area, new Calibration(0.1, "mm"));
+
+        Assert.Equal(4, radius, 6);
+        Assert.Equal("4.00 mm", drawn.Shapes.Single().Label);
+        Assert.Equal(16 * Math.PI, area, 6);
+        Assert.Equal("50.27 mm²", outline.Shapes.Single().Label);
+    }
+
+    [Fact]
+    public void A_blob_reads_its_own_area_rather_than_its_outline()
+    {
+        var blob = new PolygonShape([new(0, 0), new(10, 0), new(10, 10), new(0, 10)])
+        {
+            Metrics = new Dictionary<string, double> { [ShapeMetric.Area] = 97 },
+        };
+
+        Assert.Equal(97, RunOne(blob, MeasureKind.Area).Value, 6);
+    }
+
+    [Fact]
+    public void A_line_reads_its_length_and_orientation()
+    {
+        var line = new LineShape(new Point2(0, 0), new Point2(30, 40));
+
+        Assert.Equal(50, RunOne(line, MeasureKind.Length).Value, 6);
+        Assert.Equal(Math.Atan2(40, 30) * 180 / Math.PI, RunOne(line, MeasureKind.Orientation).Value, 6);
+    }
+
+    [Fact]
+    public void A_circle_has_no_orientation_and_says_so()
+    {
+        var (value, annotation, status, _) = RunOne(new CircleShape(new Point2(0, 0), 5), MeasureKind.Orientation);
+
+        Assert.Equal(0, value);
+        Assert.Empty(annotation.Shapes);
+        Assert.Equal(NodeStatus.Warning, status);
+    }
+
+    /// <summary>Publishes a fixed calibration, standing in for a Calibrate node.</summary>
+    private sealed class CalibrationSourceNode : VisionNode
+    {
+        private readonly Calibration _calibration;
+
+        public CalibrationSourceNode(Calibration calibration)
+        {
+            _calibration = calibration;
+            Out = AddOutput<Calibration>("Out");
+        }
+
+        public OutputPort Out { get; }
+
+        protected override void OnEvaluate(EvalContext context) => context.Set(Out, _calibration);
     }
 
     private static LineShape Line(double degrees)

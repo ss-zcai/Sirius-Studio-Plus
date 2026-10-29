@@ -37,6 +37,18 @@ public enum ShapeMeasure
 
     /// <summary>An edge point's distance off its reference circle.</summary>
     Deviation,
+
+    /// <summary>A fitted ellipse's long axis, end to end.</summary>
+    MajorAxis,
+
+    /// <summary>A fitted ellipse's short axis, end to end.</summary>
+    MinorAxis,
+
+    /// <summary>Which way a shape runs, or where round a ring an edge point lies.</summary>
+    Angle,
+
+    /// <summary>How far a fit's points lie from the fitted figure, root mean square.</summary>
+    FitError,
 }
 
 public static class ShapeMeasures
@@ -57,6 +69,10 @@ public static class ShapeMeasures
         ShapeMeasure.Radius => ShapeMetric.Radius,
         ShapeMeasure.Offset => ShapeMetric.Offset,
         ShapeMeasure.Deviation => ShapeMetric.Deviation,
+        ShapeMeasure.MajorAxis => ShapeMetric.MajorAxis,
+        ShapeMeasure.MinorAxis => ShapeMetric.MinorAxis,
+        ShapeMeasure.Angle => ShapeMetric.Angle,
+        ShapeMeasure.FitError => ShapeMetric.FitError,
         _ => null,
     };
 }
