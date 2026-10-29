@@ -34,6 +34,35 @@ public class ClipboardTests
         return (graph, source, tool);
     }
 
+    /// <summary>
+    /// A wire into a socket the node grew - a viewer's third shapes socket -
+    /// comes with a paste, as it does with a load.
+    /// </summary>
+    [Fact]
+    public void Wires_into_grown_sockets_survive_a_paste()
+    {
+        var graph = new VisionGraph();
+        var source = new ConstantImageNode { Width = 64, Height = 48 };
+        var first = new FindCircleNode();
+        var second = new FindCircleNode();
+        var viewer = new ViewerNode();
+
+        graph.Add(source);
+        graph.Add(first);
+        graph.Add(second);
+        graph.Add(viewer);
+        graph.TryConnect(source.ImageOut, viewer.ImageIn);
+        graph.TryConnect(first.CircleOut, viewer.ShapesIn);
+        viewer.Fit();
+        graph.TryConnect(second.CircleOut, viewer.ShapeInputs[1]);
+
+        var pasted = GraphClipboard.Paste(graph, GraphClipboard.Copy(graph, [first, second, viewer]));
+
+        var copy = pasted.Nodes.OfType<ViewerNode>().Single();
+        Assert.Equal(2, copy.ShapeInputs.Count(port => port.IsConnected));
+        Assert.Equal(2, pasted.Wires.Count);
+    }
+
     [Fact]
     public void Copying_one_node_pastes_one_node()
     {

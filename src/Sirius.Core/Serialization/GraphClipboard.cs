@@ -158,7 +158,12 @@ public static class GraphClipboard
             }
 
             var output = source.FindOutput(record.FromPort);
-            var input = target.FindInput(record.ToPort);
+
+            // A pasted node is built fresh, with only its first growing
+            // socket - so a wire into "Shapes 3" needs that socket made, as
+            // loading a recipe does.
+            var input = target.FindInput(record.ToPort)
+                        ?? (target as IGrowingPorts)?.EnsureInput(record.ToPort);
 
             if (output is null || input is null)
                 continue;
