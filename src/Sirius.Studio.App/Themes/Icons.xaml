@@ -266,52 +266,62 @@
     <DrawingImage.Drawing>
       <DrawingGroup>
         <GeometryDrawing Brush="#00000000" Geometry="F1 M0,0L256,0L256,256L0,256Z" />
-        <DrawingGroup>
-          <DrawingGroup.Transform>
-            <MatrixTransform Matrix="0.707,-0.707,0.707,0.707,-53.02,128" />
-          </DrawingGroup.Transform>
-          <GeometryDrawing Geometry="F1 M29.49,82.75L226.51,82.75A8,8 0 0 1 234.51,90.75L234.51,165.26A8,8 0 0 1 226.51,173.26L29.49,173.26A8,8 0 0 1 21.49,165.26L21.49,90.75A8,8 0 0 1 29.49,82.75Z">
-            <GeometryDrawing.Pen>
-              <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-            </GeometryDrawing.Pen>
-          </GeometryDrawing>
-        </DrawingGroup>
-        <GeometryDrawing Geometry="F1 M128,64L160,96">
+        <GeometryDrawing Geometry="F1 M128,232L128,200">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M96,96L128,128">
+        <GeometryDrawing Geometry="F1 M40,128A88,88 0 1 0 216,128A88,88 0 1 0 40,128Z">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M64,128L96,160">
+        <GeometryDrawing Geometry="F1 M128,24L128,56">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <DrawingGroup>
-          <DrawingGroup.Transform>
-            <MatrixTransform Matrix="0.707,-0.707,0.707,0.707,-53.02,128" />
-          </DrawingGroup.Transform>
-          <GeometryDrawing Geometry="F1 M29.49,82.75L226.51,82.75A8,8 0 0 1 234.51,90.75L234.51,165.26A8,8 0 0 1 226.51,173.26L29.49,173.26A8,8 0 0 1 21.49,165.26L21.49,90.75A8,8 0 0 1 29.49,82.75Z">
-            <GeometryDrawing.Pen>
-              <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-            </GeometryDrawing.Pen>
-          </GeometryDrawing>
-        </DrawingGroup>
-        <GeometryDrawing Geometry="F1 M128,64L160,96">
+        <GeometryDrawing Geometry="F1 M24,128L56,128">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="F1 M232,128L200,128">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="F1 M96,128A32,32 0 1 0 160,128A32,32 0 1 0 96,128Z">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="F1 M128,232L128,200">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M96,96L128,128">
+        <GeometryDrawing Geometry="F1 M40,128A88,88 0 1 0 216,128A88,88 0 1 0 40,128Z">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M64,128L96,160">
+        <GeometryDrawing Geometry="F1 M128,24L128,56">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="F1 M24,128L56,128">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="F1 M232,128L200,128">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="F1 M96,128A32,32 0 1 0 160,128A32,32 0 1 0 96,128Z">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
@@ -1916,72 +1926,52 @@
     <DrawingImage.Drawing>
       <DrawingGroup>
         <GeometryDrawing Brush="#00000000" Geometry="F1 M0,0L256,0L256,256L0,256Z" />
-        <GeometryDrawing Geometry="F1 M16,200A24,24 0 1 0 64,200A24,24 0 1 0 16,200Z">
+        <DrawingGroup>
+          <DrawingGroup.Transform>
+            <MatrixTransform Matrix="0.707,-0.707,0.707,0.707,-53.02,128" />
+          </DrawingGroup.Transform>
+          <GeometryDrawing Geometry="F1 M29.49,82.75L226.51,82.75A8,8 0 0 1 234.51,90.75L234.51,165.26A8,8 0 0 1 226.51,173.26L29.49,173.26A8,8 0 0 1 21.49,165.26L21.49,90.75A8,8 0 0 1 29.49,82.75Z">
+            <GeometryDrawing.Pen>
+              <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+            </GeometryDrawing.Pen>
+          </GeometryDrawing>
+        </DrawingGroup>
+        <GeometryDrawing Geometry="F1 M128,64L160,96">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M72,96A24,24 0 1 0 120,96A24,24 0 1 0 72,96Z">
+        <GeometryDrawing Geometry="F1 M96,96L128,128">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M136,160A24,24 0 1 0 184,160A24,24 0 1 0 136,160Z">
+        <GeometryDrawing Geometry="F1 M64,128L96,160">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M192,56A24,24 0 1 0 240,56A24,24 0 1 0 192,56Z">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M84.62,117.13L51.38,178.87">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M143.03,143.03L112.97,112.97">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M204.62,77.13L171.38,138.87">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M16,200A24,24 0 1 0 64,200A24,24 0 1 0 16,200Z">
+        <DrawingGroup>
+          <DrawingGroup.Transform>
+            <MatrixTransform Matrix="0.707,-0.707,0.707,0.707,-53.02,128" />
+          </DrawingGroup.Transform>
+          <GeometryDrawing Geometry="F1 M29.49,82.75L226.51,82.75A8,8 0 0 1 234.51,90.75L234.51,165.26A8,8 0 0 1 226.51,173.26L29.49,173.26A8,8 0 0 1 21.49,165.26L21.49,90.75A8,8 0 0 1 29.49,82.75Z">
+            <GeometryDrawing.Pen>
+              <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+            </GeometryDrawing.Pen>
+          </GeometryDrawing>
+        </DrawingGroup>
+        <GeometryDrawing Geometry="F1 M128,64L160,96">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M72,96A24,24 0 1 0 120,96A24,24 0 1 0 72,96Z">
+        <GeometryDrawing Geometry="F1 M96,96L128,128">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M136,160A24,24 0 1 0 184,160A24,24 0 1 0 136,160Z">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M192,56A24,24 0 1 0 240,56A24,24 0 1 0 192,56Z">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M84.62,117.13L51.38,178.87">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M143.03,143.03L112.97,112.97">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M204.62,77.13L171.38,138.87">
+        <GeometryDrawing Geometry="F1 M64,128L96,160">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
@@ -3694,62 +3684,32 @@
     <DrawingImage.Drawing>
       <DrawingGroup>
         <GeometryDrawing Brush="#00000000" Geometry="F1 M0,0L256,0L256,256L0,256Z" />
-        <GeometryDrawing Geometry="F1 M104,35a95.51,95.51,0,0,1,48,0">
+        <GeometryDrawing Geometry="F1 M128,128L224,32">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M35.49,102.3a95.54,95.54,0,0,1,24-41.56">
+        <GeometryDrawing Geometry="F1 M195.88,60.12a95.88,95.88,0,1,0,18.77,26.49">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M59.49,195.27a95.54,95.54,0,0,1-24-41.58">
+        <GeometryDrawing Geometry="F1 M161.94,94.06a48,48,0,1,0,14,31.2">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M152,221a95.51,95.51,0,0,1-48,0">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M220.51,153.7a95.54,95.54,0,0,1-24,41.56">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M196.51,60.73a95.54,95.54,0,0,1,24,41.58">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M104,35a95.51,95.51,0,0,1,48,0">
+        <GeometryDrawing Geometry="F1 M128,128L224,32">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M35.49,102.3a95.54,95.54,0,0,1,24-41.56">
+        <GeometryDrawing Geometry="F1 M195.88,60.12a95.88,95.88,0,1,0,18.77,26.49">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M59.49,195.27a95.54,95.54,0,0,1-24-41.58">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M152,221a95.51,95.51,0,0,1-48,0">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M220.51,153.7a95.54,95.54,0,0,1-24,41.56">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M196.51,60.73a95.54,95.54,0,0,1,24,41.58">
+        <GeometryDrawing Geometry="F1 M161.94,94.06a48,48,0,1,0,14,31.2">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
@@ -4636,42 +4596,32 @@
     <DrawingImage.Drawing>
       <DrawingGroup>
         <GeometryDrawing Brush="#00000000" Geometry="F1 M0,0L256,0L256,256L0,256Z" />
-        <GeometryDrawing Geometry="F1 M64,24L64,192L232,192">
+        <GeometryDrawing Geometry="F1 M40,56L216,56A8,8 0 0 1 224,64L224,192A8,8 0 0 1 216,200L40,200A8,8 0 0 1 32,192L32,64A8,8 0 0 1 40,56Z">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M24,64L64,64">
+        <GeometryDrawing Geometry="F1 M72,104L88,96L88,160">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M96,64L192,64L192,160">
+        <GeometryDrawing Geometry="F1 M168,104L184,96L184,160">
           <GeometryDrawing.Pen>
             <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M192,192L192,232">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M64,24L64,192L232,192">
+        <GeometryDrawing Geometry="F1 M40,56L216,56A8,8 0 0 1 224,64L224,192A8,8 0 0 1 216,200L40,200A8,8 0 0 1 32,192L32,64A8,8 0 0 1 40,56Z">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M24,64L64,64">
+        <GeometryDrawing Geometry="F1 M72,104L88,96L88,160">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>
         </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M96,64L192,64L192,160">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <GeometryDrawing Geometry="F1 M192,192L192,232">
+        <GeometryDrawing Geometry="F1 M168,104L184,96L184,160">
           <GeometryDrawing.Pen>
             <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
           </GeometryDrawing.Pen>

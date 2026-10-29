@@ -79,8 +79,8 @@ PHOSPHOR = {
 
     # Edge points without a fit: a ring of them, a row of them, and points
     # joined into an outline.
-    "circle-dashed": "ph_ring_calipers",
-    "line-segments": "ph_line_calipers",
+    "target": "ph_ring_calipers",
+    "ruler": "ph_line_calipers",
     "polygon": "ph_points_polygon",
 
     # A chart for the node that shows one: profiles, in its own panel.
@@ -113,10 +113,10 @@ PHOSPHOR = {
     "barcode": "ph_read_code",
     "text-aa": "ph_read_text",
 
-    # Calibration is the ruler: it says what a pixel is worth. The
-    # measurement glyphs are about taking a reading, which is the step
-    # after this one.
-    "ruler": "ph_calibrate",
+    # Calibration is the crosshair: it fixes what a pixel is worth, as a
+    # reticle fixes a scale. The ruler went to Line Calipers, which reads
+    # along a straight edge.
+    "crosshair": "ph_calibrate",
 }
 
 # source file -> the resource key it supplies
@@ -133,6 +133,10 @@ INSTALL = {
     "fit-circle.svg": "ph_fit_circle",
     "fit-ellipse.svg": "ph_fit_ellipse",
     "fit-line.svg": "ph_fit_line",
+
+    # 1:1 as a "1" in a frame: the magnifier with a square in it read as
+    # cropping.
+    "zoom-1.svg": "ph_zoom_actual",
     "numbers.svg": "ph_number",
 }
 

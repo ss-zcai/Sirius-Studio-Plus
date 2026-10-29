@@ -291,9 +291,8 @@ done. What remains, in order:
   delete the project.
 - **Find Blobs does not measure** fitted ellipse, inner/outer radius or
   moment invariants. Add them when something consumes them.
-- **Two icons are weak**: `ph_zoom_actual` reads as cropping rather than
-  1:1, and `ph_find_blobs` now collides visually with the hand-drawn
-  three-point circle.
+- **One icon is weak**: `ph_find_blobs` collides visually with the
+  hand-drawn three-point circle.
 - Diagnostics are opt-in via `SIRIUS_PANEL_LOG=1`, writing to
   `%AppData%\SiriusStudioPlus\panels.log`. An unreachable panel is always
   logged.

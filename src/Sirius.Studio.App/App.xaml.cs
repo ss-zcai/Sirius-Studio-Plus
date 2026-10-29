@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Threading;
 
@@ -10,7 +12,48 @@ public partial class App : Application
         // A node that misbehaves should surface as a message, not take the
         // application down mid-inspection.
         DispatcherUnhandledException += OnUnhandledException;
+
+        DropMenusFromTheLeft();
+        SystemParameters.StaticPropertyChanged += OnSystemParameterChanged;
+
         base.OnStartup(e);
+    }
+
+    /// <summary>
+    /// Makes menus open below their heading's left edge, whatever the
+    /// Windows handedness setting.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Windows' Tablet PC "right-handed" setting - on by default on many
+    /// touch-capable machines - tells WPF to drop every menu leftwards, so
+    /// it does not open under the hand holding the pen. On a desktop app
+    /// driven by a mouse it just makes the File menu hang off to the left
+    /// of "File", which reads as a layout fault. Context menus and
+    /// drop-downs follow the same setting.
+    /// </para>
+    /// <para>
+    /// WPF reads the setting into a cached field and offers no way to
+    /// override it, so the cache is set directly. If a later WPF renames
+    /// the field, nothing happens and menus fall back to the system's
+    /// choice.
+    /// </para>
+    /// </remarks>
+    internal static void DropMenusFromTheLeft()
+    {
+        if (!SystemParameters.MenuDropAlignment)
+            return;
+
+        typeof(SystemParameters)
+            .GetField("_menuDropAlignment", BindingFlags.NonPublic | BindingFlags.Static)
+            ?.SetValue(null, false);
+    }
+
+    /// <summary>Puts it back when Windows re-reads its settings - a change to handedness, or a resume.</summary>
+    private static void OnSystemParameterChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SystemParameters.MenuDropAlignment))
+            DropMenusFromTheLeft();
     }
 
     private bool _reportingError;
