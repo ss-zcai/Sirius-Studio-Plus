@@ -214,8 +214,8 @@ Finds edges using the Canny detector.
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
-| Threshold1 | `Number` | circle | optional |
-| Threshold2 | `Number` | circle | optional |
+| Threshold 1 | `Number` | circle | optional |
+| Threshold 2 | `Number` | circle | optional |
 
 **Outputs**
 
@@ -365,8 +365,8 @@ Scales the image.
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
-| ScaleX | `Number` | circle | optional |
-| ScaleY | `Number` | circle | optional |
+| Scale X | `Number` | circle | optional |
+| Scale Y | `Number` | circle | optional |
 
 **Outputs**
 
@@ -1120,7 +1120,7 @@ Casts radial calipers through a ring and gives every edge they find, as points a
 | In | `Image` | square | yes |
 | Circle | `Shapes` | circle | optional |
 | Band | `Ring` | circle | optional |
-| BandWidth | `Number` | circle | optional |
+| Band Width | `Number` | circle | optional |
 | Offset | `Number` | circle | optional |
 
 **Outputs**
@@ -1169,7 +1169,7 @@ Unwraps a ring of the image into a straight strip: angle left to right, radius t
 | In | `Image` | square | yes |
 | Circle | `Shapes` | circle | optional |
 | Band | `Ring` | circle | optional |
-| BandWidth | `Number` | circle | optional |
+| Band Width | `Number` | circle | optional |
 | Offset | `Number` | circle | optional |
 
 **Outputs**
@@ -1305,8 +1305,8 @@ Says what a pixel is worth, so readings come out in real units.
 | --- | --- | --- | --- |
 | Reference | `Shapes` | circle | optional |
 | Pixels | `Number` | circle | optional |
-| Length | `Number` | circle | optional |
-| UnitsPerPixel | `Number` | circle | optional |
+| Real Length | `Number` | circle | optional |
+| Units per Pixel | `Number` | circle | optional |
 
 **Outputs**
 
@@ -1681,11 +1681,11 @@ A graph of its own, used as one node. Double-click it to open it in a tab. Graph
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| c0388023f6b8487c93b3646ec54293d6 | `Any` | circle | optional |
+| In | `Any` | circle | optional |
 
 **Outputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| 7b82e23df39d41198cbf4a08049ce2c8 | `Any` | circle | - |
+| Out | `Any` | circle | - |
 

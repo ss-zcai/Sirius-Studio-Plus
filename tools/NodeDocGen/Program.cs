@@ -78,8 +78,11 @@ foreach (var group in descriptors.GroupBy(d => d.Category))
             continue;
         }
 
-        AppendPorts(builder, "Inputs", instance.Inputs.Select(p => (p.Name, p.DataType, (bool?)p.IsRequired)));
-        AppendPorts(builder, "Outputs", instance.Outputs.Select(p => (p.Name, p.DataType, (bool?)null)));
+        // Display names: what the socket shows. A sub-graph's sockets are
+        // named internally by the boundary they belong to, which is an id
+        // that differs on every build of the node.
+        AppendPorts(builder, "Inputs", instance.Inputs.Select(p => (p.DisplayName, p.DataType, (bool?)p.IsRequired)));
+        AppendPorts(builder, "Outputs", instance.Outputs.Select(p => (p.DisplayName, p.DataType, (bool?)null)));
 
         if (descriptor.Parameters.Count > 0)
         {
