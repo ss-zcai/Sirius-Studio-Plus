@@ -24,15 +24,23 @@ namespace Sirius.Vision.Nodes;
     TypeKey = "analysis.shapeTable",
     Category = NodeCategory.Analysis,
     Icon = "ph_shape_table",
-    Description = "Lists shapes and their measurements in a table panel.")]
+    Description = "Lists shapes and their measurements in a table panel. Wire a Calibration in for sizes in " +
+                  "millimetres rather than pixels.")]
 public sealed class ShapeTableNode : VisionNode
 {
     public ShapeTableNode()
     {
         ShapesIn = AddInput<ShapeSet>("In");
+        CalibrationIn = AddInput<Calibration>("Calibration", isRequired: false);
     }
 
     public InputPort ShapesIn { get; }
+
+    /// <summary>
+    /// What a pixel is worth. Areas and lengths are then listed in its unit;
+    /// positions stay in pixels.
+    /// </summary>
+    public InputPort CalibrationIn { get; }
 
     protected override void OnEvaluate(EvalContext context)
     {

@@ -624,6 +624,7 @@
 
     <DataTemplate DataType="{x:Type vm:ShapeTablePanelViewModel}">
         <controls:ShapeTableControl Data="{Binding Data}"
+                                    Calibration="{Binding Calibration}"
                                     SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" />
     </DataTemplate>
 

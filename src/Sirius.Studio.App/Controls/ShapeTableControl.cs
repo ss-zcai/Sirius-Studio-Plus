@@ -4,6 +4,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
 
 namespace Sirius.Studio.App.Controls;
@@ -58,6 +59,19 @@ public sealed class ShapeTableControl : ContentControl
     {
         get => (ShapeSet?)GetValue(DataProperty);
         set => SetValue(DataProperty, value);
+    }
+
+    /// <summary>What a pixel is worth, for sizes in a real unit; null lists them in pixels.</summary>
+    public static readonly DependencyProperty CalibrationProperty = DependencyProperty.Register(
+        nameof(Calibration),
+        typeof(Calibration?),
+        typeof(ShapeTableControl),
+        new FrameworkPropertyMetadata(null, OnDataChanged));
+
+    public Calibration? Calibration
+    {
+        get => (Calibration?)GetValue(CalibrationProperty);
+        set => SetValue(CalibrationProperty, value);
     }
 
     public static readonly DependencyProperty SelectedIndexProperty = DependencyProperty.Register(
@@ -164,7 +178,7 @@ public sealed class ShapeTableControl : ContentControl
 
     private void Rebuild()
     {
-        var table = ShapeTable.From(Data);
+        var table = ShapeTable.From(Data, Calibration);
 
         // Columns are rebuilt only when they actually differ, so re-running a
         // graph does not throw away the sort the operator clicked.

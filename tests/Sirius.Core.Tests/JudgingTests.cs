@@ -436,6 +436,49 @@ public class JudgingTests
         Assert.Equal(2, scheduler.GetOutput(filter.CountOut));
     }
 
+    // ---- calibrated Shape Table ---------------------------------------------------------
+
+    /// <summary>
+    /// At 0.1 mm a pixel: an area of 400 px² is 4 mm², a radius of 25 px is
+    /// 2.5 mm, and the centre stays in pixels - a scale says how big a pixel
+    /// is, not where the part's origin is.
+    /// </summary>
+    [Fact]
+    public void A_calibrated_table_lists_sizes_in_its_unit_and_positions_in_pixels()
+    {
+        var blob = new PointShape(new Point2(40, 30))
+        {
+            Metrics = new Dictionary<string, double>
+            {
+                [ShapeMetric.Area] = 400,
+                [ShapeMetric.Radius] = 25,
+                [ShapeMetric.CentroidX] = 40,
+                [ShapeMetric.Circularity] = 0.9,
+            },
+        };
+
+        var table = ShapeTable.From(new ShapeSet([blob], 640, 480), new Calibration(0.1, "mm"));
+
+        Assert.Equal(["#", "Area (mm²)", "X", "Radius (mm)", "Circularity"], table.Columns);
+        Assert.Equal(
+            ["1", 4.0.ToString("0.####"), "40", 2.5.ToString("0.####"), 0.9.ToString("0.##")],
+            table.Rows[0]);
+    }
+
+    [Fact]
+    public void An_uncalibrated_table_is_unchanged()
+    {
+        var blob = new PointShape(new Point2(0, 0))
+        {
+            Metrics = new Dictionary<string, double> { [ShapeMetric.Area] = 400 },
+        };
+
+        var set = new ShapeSet([blob], 640, 480);
+
+        Assert.Equal(ShapeTable.From(set).Columns, ShapeTable.From(set, Calibration.None).Columns);
+        Assert.Equal(["#", "Area"], ShapeTable.From(set, Calibration.None).Columns);
+    }
+
     // ---- plumbing ---------------------------------------------------------------------
 
     private static Shape Measured(double area) =>

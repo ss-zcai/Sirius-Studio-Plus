@@ -1,4 +1,5 @@
 using System.Globalization;
+using Sirius.Core.Nodes;
 
 namespace Sirius.Core.Shapes;
 
@@ -88,10 +89,43 @@ public sealed class ShapeTable
 
     public static ShapeTable Empty { get; } = new(["#"], []);
 
-    public static ShapeTable From(ShapeSet? set)
+    /// <summary>
+    /// Measurements that are a length, and so convert by the scale; and the
+    /// one that is an area, which converts by its square.
+    /// </summary>
+    /// <remarks>
+    /// Positions are left in pixels. A scale says how big a pixel is, not
+    /// where the part's origin is, so "Centre X 12.4 mm" would read as a
+    /// position on the part and be a position on the sensor.
+    /// </remarks>
+    private static readonly HashSet<string> Lengths = new(StringComparer.Ordinal)
+    {
+        ShapeMetric.Perimeter,
+        ShapeMetric.BoundsWidth,
+        ShapeMetric.BoundsHeight,
+        ShapeMetric.Width,
+        ShapeMetric.Length,
+        ShapeMetric.Radius,
+        ShapeMetric.Deviation,
+        ShapeMetric.Along,
+        ShapeMetric.Offset,
+    };
+
+    /// <summary>
+    /// The set as a table, with sizes in a calibrated unit when
+    /// <paramref name="calibration"/> says what a pixel is worth.
+    /// </summary>
+    /// <remarks>
+    /// A calibrated column says its unit in the heading - "Area (mm²)",
+    /// "Radius (mm)" - and keeps more figures, since a tenth of a pixel is
+    /// a few thousandths of a millimetre.
+    /// </remarks>
+    public static ShapeTable From(ShapeSet? set, Calibration? calibration = null)
     {
         if (set is not { Count: > 0 })
             return Empty;
+
+        var scale = calibration is { IsCalibrated: true } given ? given : (Calibration?)null;
 
         var keys = OrderedKeys(set);
 
@@ -101,12 +135,12 @@ public sealed class ShapeTable
         var points = set.Shapes.All(shape => shape is PointShape);
 
         var columns = new List<string> { "#" };
-        columns.AddRange(keys.Select(key => key switch
+        columns.AddRange(keys.Select(key => (key switch
         {
             ShapeMetric.CentroidX when points => "X",
             ShapeMetric.CentroidY when points => "Y",
             _ => Headings.GetValueOrDefault(key, key),
-        }));
+        }) + UnitHeading(key, scale)));
 
         var rows = new List<string[]>(set.Count);
 
@@ -118,7 +152,7 @@ public sealed class ShapeTable
             row[0] = (i + 1).ToString(CultureInfo.CurrentCulture);
 
             for (var c = 0; c < keys.Count; c++)
-                row[c + 1] = Format(shape.Metric(keys[c]));
+                row[c + 1] = Converted(keys[c], shape.Metric(keys[c]), scale);
 
             rows.Add(row);
         }
@@ -161,6 +195,23 @@ public sealed class ShapeTable
     /// A whole number prints without a decimal part, because a hole count of
     /// "2.00" reads as a measurement when it is a count.
     /// </remarks>
+    private static string UnitHeading(string key, Calibration? scale) => scale switch
+    {
+        { } given when key == ShapeMetric.Area => $" ({given.Unit}²)",
+        { } given when Lengths.Contains(key) => $" ({given.Unit})",
+        _ => string.Empty,
+    };
+
+    private static string Converted(string key, double? value, Calibration? scale) => (scale, value) switch
+    {
+        ({ } given, { } number) when key == ShapeMetric.Area => Fine(given.AreaToUnits(number)),
+        ({ } given, { } number) when Lengths.Contains(key) => Fine(given.ToUnits(number)),
+        _ => Format(value),
+    };
+
+    /// <summary>A calibrated value, to four places: a tenth of a pixel is often a few thousandths of a unit.</summary>
+    private static string Fine(double number) => number.ToString("0.####", CultureInfo.CurrentCulture);
+
     private static string Format(double? value)
     {
         if (value is not { } number)

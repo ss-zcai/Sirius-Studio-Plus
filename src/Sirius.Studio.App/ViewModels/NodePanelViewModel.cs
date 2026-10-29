@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Sirius.Studio.App.Controls;
 using Sirius.Core.Graph;
+using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
 using Sirius.Vision;
 using Sirius.Vision.Nodes;
@@ -206,6 +207,8 @@ public sealed class ShapeTablePanelViewModel : NodePanelViewModel
     private readonly ShapeSelectionService _selection;
     private ShapeSet? _data;
     private ShapeSet? _pending;
+    private Calibration? _calibration;
+    private Calibration? _pendingCalibration;
 
     public ShapeTablePanelViewModel(ShapeTableNode node, ShapeSelectionService selection)
         : base(node)
@@ -243,13 +246,24 @@ public sealed class ShapeTablePanelViewModel : NodePanelViewModel
         set => _selection.Select(Producer, value);
     }
 
+    /// <summary>What a pixel is worth, when a Calibration is wired in.</summary>
+    public Calibration? Calibration
+    {
+        get => _calibration;
+        private set => SetProperty(ref _calibration, value);
+    }
+
     // Reads the input rather than an output: the node is terminal, and the
     // shapes it lists belong to whatever produced them.
-    public override void Prepare(GraphScheduler scheduler) =>
+    public override void Prepare(GraphScheduler scheduler)
+    {
         _pending = scheduler.GetInput<ShapeSet>(Source.ShapesIn);
+        _pendingCalibration = scheduler.GetInput(Source.CalibrationIn) as Calibration?;
+    }
 
     public override void Commit()
     {
+        Calibration = _pendingCalibration;
         Data = _pending;
 
         // A new set may be shorter than the old one, so the row that was

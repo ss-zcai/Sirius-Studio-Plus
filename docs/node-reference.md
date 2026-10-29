@@ -11,19 +11,20 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**55 nodes** across 13 categories.
+**62 nodes** across 14 categories.
 
 - **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
 - **Combine** — Blend, Logic, Mask
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
 - **Morphology** — Advanced Morphology, Dilate, Erode
-- **Blob** — Find Blobs, Select Shape, Shape Style
+- **Blob** — Filter Shapes, Find Blobs, Select Shape, Shape Style
 - **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
 - **Transformation** — Polar to Linear
-- **Analysis** — Histogram, Limit Check, Line Profile, Measure, Shape Table
+- **Analysis** — Histogram, Line Profile, Measure, Shape Table
 - **Calibration** — Calibrate
 - **Text And Code Reading** — Read Code, Read Text
+- **Judging** — Check Logic, Compare, Counter, Grade, Limit Check, Result Log, Worst Grade
 - **Output** — Image Viewer, Label, Line Chart
 - **Sub Graph** — Graph Input, Graph Output, Sub Graph
 
@@ -758,6 +759,34 @@ Shrinks bright regions.
 
 ## Blob
 
+### Filter Shapes
+
+`shape.filter`
+
+Keeps the shapes whose measurement lies in a range - from any producer - and gives what was rejected as well.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Shapes` | circle | yes |
+| Range | `Range` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Kept | `Shapes` | circle | - |
+| Rejected | `Shapes` | circle | - |
+| Count | `Integer` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Measure | `ShapeMeasure` | ComboBox | - |
+| Range | `Range` | Range | -1000000 to 10000000 |
+
 ### Find Blobs
 
 `blob.filter`
@@ -1187,44 +1216,6 @@ Per-channel intensity histogram for the histogram panel.
 | --- | --- | --- | --- |
 | Bins | `Integer` | Slider | 2 to 256 |
 
-### Limit Check
-
-`analysis.limitCheck`
-
-Passes or fails a number against limits, and colours the measurement.
-
-**Inputs**
-
-| Port | Type | Shape | Required |
-| --- | --- | --- | --- |
-| Annotation | `Shapes` | circle | optional |
-| Value | `Number` | circle | optional |
-| Minimum | `Number` | circle | optional |
-| Maximum | `Number` | circle | optional |
-| Nominal | `Number` | circle | optional |
-| Tolerance | `Number` | circle | optional |
-
-**Outputs**
-
-| Port | Type | Shape | Required |
-| --- | --- | --- | --- |
-| Pass | `Yes/No` | circle | - |
-| Value | `Number` | circle | - |
-| Annotation | `Shapes` | circle | - |
-
-**Parameters**
-
-| Name | Type | Editor | Range |
-| --- | --- | --- | --- |
-| Value | `Number` | TextBox | - |
-| Check | `LimitKind` | ComboBox | - |
-| Minimum | `Number` | TextBox | - |
-| Maximum | `Number` | TextBox | - |
-| Nominal | `Number` | TextBox | - |
-| Tolerance | `Number` | TextBox | - |
-| Decimals | `Integer` | Slider | 0 to 6 |
-| Verdict | `Yes/No` | CheckBox | - |
-
 ### Line Profile
 
 `analysis.lineProfile`
@@ -1291,13 +1282,14 @@ Reads a distance or angle between two shapes and annotates it.
 
 `analysis.shapeTable`
 
-Lists shapes and their measurements in a table panel.
+Lists shapes and their measurements in a table panel. Wire a Calibration in for sizes in millimetres rather than pixels.
 
 **Inputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Shapes` | circle | yes |
+| Calibration | `Calibration` | circle | optional |
 
 ## Calibration
 
@@ -1397,6 +1389,202 @@ Reads printed text inside a region (OCR).
 | Min Confidence | `Number` | Slider | 0 to 100 |
 | Label | `Yes/No` | CheckBox | - |
 
+## Judging
+
+### Check Logic
+
+`judging.logic`
+
+Combines yes/no results - all, any, none, exactly one. Wiring an input adds another.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Yes/No` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Result | `Yes/No` | circle | - |
+| True Count | `Integer` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Rule | `LogicRule` | ComboBox | - |
+
+### Compare
+
+`judging.compare`
+
+Compares two numbers: less than, at most, equal within a tolerance, at least, greater than.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| A | `Number` | circle | optional |
+| B | `Number` | circle | optional |
+| Tolerance | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Result | `Yes/No` | circle | - |
+| Difference | `Number` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| A | `Number` | TextBox | - |
+| Is | `Comparison` | ComboBox | - |
+| B | `Number` | TextBox | - |
+| Tolerance | `Number` | TextBox | - |
+
+### Counter
+
+`judging.counter`
+
+Counts inspections - each Run, each image of a folder run - and how many passed, failed and took each grade. Reset from the Run menu.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Result | `Any` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Total | `Integer` | circle | - |
+| Passed | `Integer` | circle | - |
+| Failed | `Integer` | circle | - |
+| Yield % | `Number` | circle | - |
+| Counts | `Text` | circle | - |
+
+### Grade
+
+`judging.grade`
+
+Grades a number into bands - A, B, C, Reject - with the grades that fail named. Colours the measurement by grade.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Annotation | `Shapes` | circle | optional |
+| Value | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Grade | `Grade` | circle | - |
+| Pass | `Yes/No` | circle | - |
+| Value | `Number` | circle | - |
+| Annotation | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Value | `Number` | TextBox | - |
+| Grades | `Text` | TextBox | - |
+| Limits | `Text` | TextBox | - |
+| Better Is | `BetterIs` | ComboBox | - |
+| Failing | `Text` | TextBox | - |
+| Decimals | `Integer` | Slider | 0 to 6 |
+| Show Grade | `Yes/No` | CheckBox | - |
+
+### Limit Check
+
+`analysis.limitCheck`
+
+Passes or fails a number against limits, and colours the measurement.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Annotation | `Shapes` | circle | optional |
+| Value | `Number` | circle | optional |
+| Minimum | `Number` | circle | optional |
+| Maximum | `Number` | circle | optional |
+| Nominal | `Number` | circle | optional |
+| Tolerance | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Pass | `Yes/No` | circle | - |
+| Value | `Number` | circle | - |
+| Annotation | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Value | `Number` | TextBox | - |
+| Check | `LimitKind` | ComboBox | - |
+| Minimum | `Number` | TextBox | - |
+| Maximum | `Number` | TextBox | - |
+| Nominal | `Number` | TextBox | - |
+| Tolerance | `Number` | TextBox | - |
+| Decimals | `Integer` | Slider | 0 to 6 |
+| Verdict | `Yes/No` | CheckBox | - |
+
+### Result Log
+
+`judging.resultLog`
+
+Writes a CSV row per inspection: time, image, and every value wired in - numbers, yes/no, grades, text. Wiring a value adds another column.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Value | `Any` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Rows | `Integer` | circle | - |
+| File | `Text` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Log File | `Text` | FilePath | - |
+| New File Each Day | `Yes/No` | CheckBox | - |
+
+### Worst Grade
+
+`judging.worstGrade`
+
+The worst of the grades and yes/no results wired in - the part's overall grade. Wiring an input adds another.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Any` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Grade | `Grade` | circle | - |
+| Pass | `Yes/No` | circle | - |
+
 ## Output
 
 ### Image Viewer
@@ -1493,11 +1681,11 @@ A graph of its own, used as one node. Double-click it to open it in a tab. Graph
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| 3c9d70fafc2e4a1c9e9e68fea14fea09 | `Any` | circle | optional |
+| d12a2ad548024ece9605311e992d0e9c | `Any` | circle | optional |
 
 **Outputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
-| 97f860a6b92a4cc186529bf377b8a869 | `Any` | circle | - |
+| e64f977779b448e6be47251703ec6397 | `Any` | circle | - |
 
