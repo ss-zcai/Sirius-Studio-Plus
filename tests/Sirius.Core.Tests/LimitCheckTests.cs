@@ -342,18 +342,19 @@ public class LimitCheckTests
     }
 
     /// <summary>
-    /// Nothing else judges yet, so a recipe full of find tools and
+    /// Only the judging tools judge, so a recipe full of find tools and
     /// measurements reports no verdict rather than a vacuous pass.
     /// </summary>
     [Fact]
-    public void Nothing_else_claims_to_judge()
+    public void Only_the_judging_tools_claim_to_judge()
     {
         var judging = NodeCatalog.All
             .Where(d => typeof(IJudgingNode).IsAssignableFrom(d.NodeType))
             .Select(d => d.DisplayName)
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(["Limit Check"], judging);
+        Assert.Equal(["Check Logic", "Compare", "Grade", "Limit Check", "Worst Grade"], judging);
     }
 
     // ---- what the status line says ----------------------------------------

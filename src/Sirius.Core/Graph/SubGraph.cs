@@ -318,7 +318,7 @@ public sealed class SubGraphNode : VisionNode, ISubGraphHost, IGrowingPorts
             }
         }
 
-        var result = scheduler.RunSynchronously(context.CancellationToken);
+        var result = scheduler.RunSynchronously(context.CancellationToken, context.IsInspection);
 
         if (result.Error is not null)
             throw new InvalidOperationException(result.Error);

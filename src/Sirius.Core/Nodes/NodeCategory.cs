@@ -26,6 +26,13 @@ public enum NodeCategory
     Analysis,
     Calibration,
     TextAndCodeReading,
+
+    /// <summary>
+    /// Deciding about the part: checks, comparisons, grades, and what keeps
+    /// the results - counts and logs.
+    /// </summary>
+    Judging,
+
     Output,
 
     /// <summary>A graph used as one node, and the boundaries inside it.</summary>

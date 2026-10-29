@@ -86,6 +86,17 @@ PHOSPHOR = {
     # A chart for the node that shows one: profiles, in its own panel.
     "chart-line": "ph_line_chart",
 
+    # Judging: weighing two numbers, a list of checks combined, a graded
+    # paper, a ranking for the worst of several, a tally, a CSV written,
+    # and a funnel for keeping the shapes in range.
+    "scales": "ph_compare",
+    "list-checks": "ph_check_logic",
+    "exam": "ph_grade",
+    "ranking": "ph_worst_grade",
+    "hash": "ph_counter",
+    "file-csv": "ph_result_log",
+    "funnel": "ph_filter_shapes",
+
     # tag-simple rather than tag: the plain outline keeps its shape under
     # the keyline at toolbox size, where tag's eyelet fills in.
     "tag-simple": "ph_label",

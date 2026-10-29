@@ -261,11 +261,14 @@ public sealed class ParameterViewModel : ObservableObject
 
     private void Browse()
     {
-        var dialog = new OpenFileDialog
-        {
-            Title = $"Select {DisplayName}",
-            Filter = _descriptor.Attribute.Filter ?? "All files (*.*)|*.*",
-        };
+        // A log is a file to write, which need not exist yet - and an
+        // open dialog refuses one that does not.
+        FileDialog dialog = _descriptor.Attribute.SaveFile
+            ? new SaveFileDialog { OverwritePrompt = false }
+            : new OpenFileDialog();
+
+        dialog.Title = $"Select {DisplayName}";
+        dialog.Filter = _descriptor.Attribute.Filter ?? "All files (*.*)|*.*";
 
         // Reopen where the current value points, so re-picking a file in the
         // same folder does not start from scratch.

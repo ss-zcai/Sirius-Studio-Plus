@@ -419,6 +419,8 @@
                     <MenuItem Header="_Run Graph"
                               InputGestureText="F5"
                               Command="{Binding RunCommand}" />
+                    <MenuItem Header="Reset _Counters"
+                              Command="{Binding ResetCountersCommand}" />
                 </MenuItem>
 
                 <MenuItem Header="_View">

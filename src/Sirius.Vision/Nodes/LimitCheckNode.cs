@@ -52,7 +52,7 @@ public enum LimitKind
 [VisionNode(
     "Limit Check",
     TypeKey = "analysis.limitCheck",
-    Category = NodeCategory.Analysis,
+    Category = NodeCategory.Judging,
     Icon = "ph_limit_check",
     Description = "Passes or fails a number against limits, and colours the measurement.")]
 public sealed class LimitCheckNode : VisionNode, IJudgingNode

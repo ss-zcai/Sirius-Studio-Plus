@@ -174,7 +174,18 @@ public sealed class GraphScheduler : IDisposable
     /// <summary>
     /// Evaluates every dirty node in dependency order on a background thread.
     /// </summary>
-    public Task<GraphRunResult> RunAsync(CancellationToken cancellationToken = default)
+    public Task<GraphRunResult> RunAsync(CancellationToken cancellationToken = default) =>
+        Start(inspection: false, cancellationToken);
+
+    /// <summary>
+    /// Runs as an inspection of a part: what <see cref="RunAsync"/> does,
+    /// and every <see cref="IInspectionNode"/> evaluated - counted, logged -
+    /// whether or not anything upstream of it changed.
+    /// </summary>
+    public Task<GraphRunResult> InspectAsync(CancellationToken cancellationToken = default) =>
+        Start(inspection: true, cancellationToken);
+
+    private Task<GraphRunResult> Start(bool inspection, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -205,7 +216,10 @@ public sealed class GraphScheduler : IDisposable
         foreach (var host in plan.OfType<ISubGraphHost>())
             host.Plan(_uiContext);
 
-        return Task.Run(() => Run(plan, cancellationToken), cancellationToken)
+        if (inspection)
+            MarkInspectionNodes();
+
+        return Task.Run(() => Run(plan, cancellationToken, inspection), cancellationToken)
             .ContinueWith(
                 task =>
                 {
@@ -252,7 +266,7 @@ public sealed class GraphScheduler : IDisposable
     /// parent's worker thread, inside the parent's pass. A second thread
     /// would add nothing but a wait.
     /// </remarks>
-    internal GraphRunResult RunSynchronously(CancellationToken cancellationToken)
+    internal GraphRunResult RunSynchronously(CancellationToken cancellationToken, bool inspection = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -264,9 +278,12 @@ public sealed class GraphScheduler : IDisposable
             if (_plan is null && _planError is null)
                 Plan();
 
+            if (inspection)
+                MarkInspectionNodes();
+
             return _planError is not null
                 ? new GraphRunResult(0, 0, 0, TimeSpan.Zero, false, _planError)
-                : Run(_plan!, cancellationToken);
+                : Run(_plan!, cancellationToken, inspection);
         }
         finally
         {
@@ -274,7 +291,21 @@ public sealed class GraphScheduler : IDisposable
         }
     }
 
-    private GraphRunResult Run(IReadOnlyList<VisionNode> ordered, CancellationToken cancellationToken)
+    /// <summary>
+    /// Every node that acts on an inspection made stale, with what depends
+    /// on it - and every sub-graph holding one, so it runs its inside.
+    /// </summary>
+    private void MarkInspectionNodes()
+    {
+        foreach (var node in _graph.Nodes.Where(ActsOnInspection).ToArray())
+            Invalidate(node);
+    }
+
+    private static bool ActsOnInspection(VisionNode node) =>
+        node is IInspectionNode ||
+        (node is ISubGraphHost host && host.Inner.Nodes.Any(ActsOnInspection));
+
+    private GraphRunResult Run(IReadOnlyList<VisionNode> ordered, CancellationToken cancellationToken, bool inspection)
     {
         var stopwatch = Stopwatch.StartNew();
         var evaluated = 0;
@@ -296,7 +327,7 @@ public sealed class GraphScheduler : IDisposable
                 continue;
             }
 
-            var status = EvaluateNode(node, cancellationToken);
+            var status = EvaluateNode(node, cancellationToken, inspection);
 
             if (status == EvaluationOutcome.Cancelled)
             {
@@ -324,7 +355,7 @@ public sealed class GraphScheduler : IDisposable
         Cancelled,
     }
 
-    private EvaluationOutcome EvaluateNode(VisionNode node, CancellationToken cancellationToken)
+    private EvaluationOutcome EvaluateNode(VisionNode node, CancellationToken cancellationToken, bool inspection)
     {
         var inputs = new Dictionary<InputPort, object?>(node.Inputs.Count);
         InputPort? missingRequired = null;
@@ -357,7 +388,7 @@ public sealed class GraphScheduler : IDisposable
             return EvaluationOutcome.Succeeded;
         }
 
-        var context = new EvalContext(node, inputs, cancellationToken);
+        var context = new EvalContext(node, inputs, cancellationToken, inspection);
         var stopwatch = Stopwatch.StartNew();
 
         try

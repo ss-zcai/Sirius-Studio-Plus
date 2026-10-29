@@ -19,16 +19,25 @@ public sealed class EvalContext
     internal EvalContext(
         VisionNode node,
         Dictionary<InputPort, object?> inputs,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isInspection = false)
     {
         Node = node;
         _inputs = inputs;
         CancellationToken = cancellationToken;
+        IsInspection = isInspection;
     }
 
     public VisionNode Node { get; }
 
     public CancellationToken CancellationToken { get; }
+
+    /// <summary>
+    /// True when this run inspects a part - a Run, a folder run, a camera
+    /// frame - rather than re-running after an edit. See
+    /// <see cref="IInspectionNode"/>.
+    /// </summary>
+    public bool IsInspection { get; }
 
     internal IReadOnlyDictionary<OutputPort, PortValue> Outputs => _outputs;
 

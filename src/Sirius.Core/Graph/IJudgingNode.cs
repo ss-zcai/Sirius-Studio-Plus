@@ -24,3 +24,35 @@ public interface IJudgingNode
     /// <summary>The port carrying the verdict, read after a run.</summary>
     OutputPort VerdictPort { get; }
 }
+
+/// <summary>
+/// A judging node whose verdict is a grade - A, B, C or Reject - as well
+/// as a pass or a fail.
+/// </summary>
+public interface IGradingNode : IJudgingNode
+{
+    /// <summary>The port carrying the <see cref="Nodes.Grade"/>, read after a run.</summary>
+    OutputPort GradePort { get; }
+}
+
+/// <summary>
+/// A node that keeps something across inspections - a count, a log - and so
+/// must tell an inspection from a re-run after an edit.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Moving a slider re-runs the recipe as often as the slider moves. A
+/// counter that counted those runs would count the tuning, not the parts;
+/// a log that logged them would fill with rows nobody inspected. So these
+/// nodes act only on an inspection - a Run, a folder run, a camera frame -
+/// which <see cref="EvalContext.IsInspection"/> says, and on any other run
+/// publish what they already hold.
+/// </para>
+/// <para>
+/// An inspection re-evaluates every one of them even when nothing upstream
+/// changed: running the same image twice is two inspections.
+/// </para>
+/// </remarks>
+public interface IInspectionNode
+{
+}

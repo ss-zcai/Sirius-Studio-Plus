@@ -160,6 +160,12 @@ public sealed class ParamAttribute : Attribute
     public string? Filter { get; set; }
 
     /// <summary>
+    /// For <see cref="ParamEditor.FilePath"/>: the browse button picks a
+    /// file to write, which need not exist yet, rather than one to open.
+    /// </summary>
+    public bool SaveFile { get; set; }
+
+    /// <summary>
     /// Whether either end of a range may be left off, meaning no limit.
     /// </summary>
     /// <remarks>

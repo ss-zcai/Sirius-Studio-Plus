@@ -86,6 +86,7 @@ public sealed class MainViewModel : ObservableObject
         SaveGraphCommand = new RelayCommand(() => SaveGraph());
         SaveGraphAsCommand = new RelayCommand(() => SaveGraphAs());
         RunCommand = new RelayCommand(RunEverything);
+        ResetCountersCommand = new RelayCommand(ResetCounters);
         PreviewPortCommand = new RelayCommand<PreviewOption>(option =>
         {
             if (option is not null && Editor.SelectedNode is { } node)
@@ -557,6 +558,9 @@ public sealed class MainViewModel : ObservableObject
         Path.ChangeExtension(graphPath, ".layout");
 
     public IRelayCommand RunCommand { get; }
+
+    /// <summary>Starts every Counter in the recipe again from zero.</summary>
+    public IRelayCommand ResetCountersCommand { get; }
 
     public IRelayCommand DeleteSelectionCommand { get; }
 
@@ -1097,10 +1101,37 @@ public sealed class MainViewModel : ObservableObject
     /// recipe, so it clears the cache first and the status bar then reports
     /// what the whole thing actually costs.
     /// </remarks>
+    /// <remarks>
+    /// A Run is an inspection: counters count it and logs write it, which
+    /// the re-runs after an edit are not.
+    /// </remarks>
     private void RunEverything()
     {
         _scheduler?.InvalidateAll();
-        RequestRun(immediate: true);
+        RequestRun(immediate: true, inspection: true);
+    }
+
+    /// <summary>
+    /// Zeroes every Counter, inside sub-graphs too. Each re-runs to show its
+    /// zeros - as a re-run after an edit, not an inspection, so nothing is
+    /// counted.
+    /// </summary>
+    private void ResetCounters()
+    {
+        var counters = GraphTree.AllNodes(_graph).OfType<CounterNode>().ToArray();
+
+        foreach (var counter in counters)
+        {
+            counter.Reset();
+            counter.Invalidate();
+        }
+
+        StatusText = counters.Length switch
+        {
+            0 => "There are no counters in this recipe.",
+            1 => "Counter reset.",
+            _ => $"{counters.Length} counters reset.",
+        };
     }
 
     /// <summary>
@@ -1151,7 +1182,7 @@ public sealed class MainViewModel : ObservableObject
     /// which shows up as an access violation inside OpenCV, not a managed
     /// exception.
     /// </remarks>
-    private async void RequestRun(bool immediate = false)
+    private async void RequestRun(bool immediate = false, bool inspection = false)
     {
         _runCancellation?.Cancel();
 
@@ -1175,7 +1206,9 @@ public sealed class MainViewModel : ObservableObject
                 return;
 
             IsRunning = true;
-            var result = await _scheduler.RunAsync(cancellation.Token).ConfigureAwait(true);
+            var result = await (inspection
+                ? _scheduler.InspectAsync(cancellation.Token)
+                : _scheduler.RunAsync(cancellation.Token)).ConfigureAwait(true);
 
             if (cancellation.IsCancellationRequested)
                 return;
@@ -1239,8 +1272,48 @@ public sealed class MainViewModel : ObservableObject
     /// does not.
     /// </remarks>
     private string? Verdict() => Verdict(
-        GraphTree.AllNodes(_graph, enabledOnly: true).OfType<IJudgingNode>(),
+        Final(GraphTree.AllNodes(_graph, enabledOnly: true).OfType<IJudgingNode>()),
         port => _scheduler.GetOutput(port));
+
+    /// <summary>
+    /// The checks whose verdict nothing else judges further.
+    /// </summary>
+    /// <remarks>
+    /// Three Limit Checks wired into Check Logic are one decision, not
+    /// four: the recipe's verdict is Check Logic's, and counting the three
+    /// as well would report a failure twice. So a check whose verdict
+    /// reaches another enabled check, through any number of nodes, is left
+    /// to that one.
+    /// </remarks>
+    internal static IEnumerable<IJudgingNode> Final(IEnumerable<IJudgingNode> checks)
+    {
+        var all = checks.ToArray();
+
+        return all.Where(check =>
+        {
+            var ports = check is IGradingNode grading
+                ? new[] { check.VerdictPort, grading.GradePort }
+                : [check.VerdictPort];
+
+            var reached = new HashSet<VisionNode>();
+            var pending = new Stack<VisionNode>(
+                ports.SelectMany(port => port.Connections).Select(connection => connection.Target.Node));
+
+            while (pending.TryPop(out var node))
+            {
+                if (!reached.Add(node))
+                    continue;
+
+                if (node is IJudgingNode && node.Enabled && !ReferenceEquals(node, check))
+                    return false;
+
+                foreach (var next in node.Outputs.SelectMany(output => output.Connections))
+                    pending.Push(next.Target.Node);
+            }
+
+            return true;
+        });
+    }
 
     /// <summary>
     /// The wording, separated from where the checks come from so it can
@@ -1259,10 +1332,18 @@ public sealed class MainViewModel : ObservableObject
         // computed, and "no answer" is not a pass.
         var failed = all.Count(check => read(check.VerdictPort) is not true);
 
-        if (failed == 0)
-            return all.Length == 1 ? "PASS" : $"PASS ({all.Length} checks)";
+        var verdict = failed == 0
+            ? all.Length == 1 ? "PASS" : $"PASS ({all.Length} checks)"
+            : all.Length == 1 ? "FAIL" : $"FAIL ({failed} of {all.Length})";
 
-        return all.Length == 1 ? "FAIL" : $"FAIL ({failed} of {all.Length})";
+        // The grade, when something grades: the worst of them, which is
+        // the part's.
+        var grade = Grade.Worst(all
+            .OfType<IGradingNode>()
+            .Select(check => read(check.GradePort) as Grade)
+            .OfType<Grade>());
+
+        return grade is null ? verdict : $"{verdict}  grade {grade.Name}";
     }
 
     /// <summary>
