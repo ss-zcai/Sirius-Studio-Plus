@@ -5,6 +5,119 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.4 — 29 October 2026
+
+Sub-graphs, edge points without a fit, and a full set of judging tools,
+on top of everything in 1.0.3 below. Recipes saved in 1.0.3 open
+unchanged.
+
+**48 nodes → 62.** One of them, Line Profile, has left the toolbox (see
+below), so 61 are offered there.
+
+### What to try first
+
+> Image File → **Find Circle** → **Ring Calipers** (Circle wired from Find Circle, Radius From = *Fitted*) → **Line Chart**
+
+Find a circle, then measure its edge against it: the chart shows how far
+each point round the ring is from the fitted circle - a roundness
+profile - and Ring Calipers' **Roundness** output is the spread. Cut a
+notch in a test image and it shows as a dip at its angle.
+
+> … → **Measure** (Radius, A only) → **Grade** → **Counter** and **Result Log**
+
+Grade a reading A / B / C / Reject, then press **Run** a few times: the
+Counter tallies each grade and the yield, and the Result Log writes a CSV
+row per run.
+
+### New tools
+
+**Edge points without a fit**
+
+- **Ring Calipers** — Find Circle's calipers without the circle: every
+  edge point round a ring, as points and as a closed contour (an open one
+  for an arc). Wire a found circle into **Circle** and the band follows it,
+  **Band Width** wide. **Radius From** measures each point from the band's
+  centre or from a circle fitted through the points; each point carries
+  its angle, radius, deviation and contrast. Outputs a **Profile** (deviation,
+  radius or contrast against angle, gaps where a caliper missed) and
+  **Roundness** (largest radius less smallest).
+- **Line Calipers** — the same for a straight edge: every point along a
+  rectangle, with its distance along and offset from the middle.
+- **Points to Polygon** — joins points into an outline, in the order they
+  arrive or sorted round their middle, open or closed, with its perimeter
+  and area.
+- **Fit Circle** and **Fit Ellipse** gain **Reject Above**, to drop stray
+  points before the final fit; and take a set of loose points straight
+  from the calipers without being told to pool them.
+
+**Judging** — a new group in the toolbox; Limit Check has moved into it.
+
+- **Compare** — A against B: less than, at most, equal within a
+  tolerance, not equal, at least, greater than.
+- **Check Logic** — All / Any / None / Exactly One over pass/fail results.
+  Wiring one input adds the next.
+- **Grade** — a number into bands, best first (default `A, B, C, Reject`),
+  with the limits between them, whether lower or higher is better, and
+  which grades fail. Colours the measurement: green for the best, amber for
+  the others that pass, red for those that fail.
+- **Worst Grade** — the part's overall grade from any mix of grades and
+  pass/fail results.
+- **Counter** — inspections, passed, failed, yield, and a tally per grade.
+  **Edit ▸ Reset Counters** zeroes them.
+- **Result Log** — a CSV row per inspection: time, image, and every value
+  wired in. A new file each day, a new file when the columns change, and
+  rows held rather than lost while the file is open in Excel. Choose a
+  **Log File** first; it writes nothing until one is set.
+
+**Shapes and output**
+
+- **Filter Shapes** — keeps the shapes whose measurement is in a range,
+  from any tool, and gives the rejected ones too.
+- **Line Chart** — charts profiles in a panel of its own. Wiring one adds
+  another socket, so several overlay to compare, each placed by its own
+  angle or distance.
+- **Sub Graph** — a graph used as one node. Double-click it to edit it in
+  a tab beside the recipe; **Graph Input** and **Graph Output** inside are
+  its sockets, typed by the first wire on either side.
+
+### Changes you will notice
+
+- **A Run is an inspection.** Counter and Result Log record a press of
+  **Run** (F5), not the re-runs after every slider movement.
+- **The status bar counts one verdict per decision.** Checks wired into
+  Check Logic or Worst Grade are left to it rather than counted again, and
+  the worst grade is shown: `PASS (2 checks)  grade B`.
+- **Measure reads one shape.** Wire A alone and choose Radius, Diameter,
+  Major Axis, Minor Axis, Orientation, Area, Perimeter or Length. Drawn on
+  the image like the other readings, and in millimetres (areas in mm²)
+  with a Calibration wired.
+- **Shape Table takes a Calibration**: areas in mm², lengths in mm, the
+  unit in each heading. Positions stay in pixels.
+- **Polar to Linear** uses the same drawn ring as Find Circle, and unwraps
+  around a wired circle with a chosen band width.
+- **Toolbox search** — type at the top of the toolbox to find a tool,
+  Enter to place the first match.
+- **Dropdowns read as words** — "Centre To Centre" rather than
+  "CentreToCentre".
+- **Menus open from the left edge of their heading**, whatever the Windows
+  handedness setting.
+- **Line Profile is no longer in the toolbox**: a profile line drawn on
+  any image viewer does the same. Recipes that use one still open and run.
+- **Paste keeps wires** into a viewer's second and later shapes sockets.
+- New icons for Line Calipers, Ring Calipers, Calibrate and Zoom to 100%.
+
+### Known issues, in addition to those below
+
+- **Only Run counts as an inspection.** Stepping an Image Sequence by hand
+  is not counted or logged; a folder run is next.
+- **Counts last for the session.** They are not saved with the recipe.
+- **Filter Shapes' range slider is coarse**, since it has to span every
+  kind of measurement. Type the ends.
+- **Sub-graph tabs are not reopened** when the application restarts;
+  double-click the node again.
+
+---
+
 ## 1.0.3 — 28 October 2026
 
 Judging, reading, calibration and custom nodes, on top of everything in

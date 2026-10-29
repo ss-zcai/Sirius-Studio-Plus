@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands at **1.0.3**, and what is left.
+Where the product stands at **1.0.4**, and what is left.
 
 Companion to `decisions.md`, which records why things are the way they are,
 and `interactive-tools-plan.md`, which is the plan for the next large piece
@@ -43,7 +43,7 @@ Small, known, and not yet done.
 order, a dirty-tracked cancellable scheduler with explicit buffer ownership,
 `.sgraph` serialisation with legacy migrations.
 
-**48 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
+**62 nodes** (61 in the toolbox) across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis and Output - including masking from an
 image or a shape, image logic and eleven blend modes, colour-space
 conversion, and circle, ellipse and line fits that report their residual.
@@ -152,15 +152,18 @@ done. What remains, in order:
 
 ## Shapes
 
-- **Filter Shapes**, so any producer's metrics can be filtered generically.
-  Combining is done: the Image Viewer grows a socket per shape set, so
-  several producers draw on one image without a node between them.
+- **Filter Shapes is done**: any producer's shapes filtered on any
+  measurement, with the rejected ones given too. Combining is done as
+  well: the Image Viewer grows a socket per shape set, so several
+  producers draw on one image without a node between them.
 - **Remapping shapes through Crop, Resize and Polar.** A `ShapeSet` reports
   that its frame no longer matches; it cannot follow the image through a
   geometry change.
 - **Measurement in the graph is done.** The Measure node takes two shape
-  sets and reads a distance or an angle between them, publishing the
-  number and an annotation drawn the way a hand-drawn measurement looks.
+  sets and reads a distance or an angle between them - or one shape's
+  radius, diameter, axes, orientation, area, perimeter or length -
+  publishing the number and an annotation drawn the way a hand-drawn
+  measurement looks.
   The reference mechanism this was waiting for turned out not to be
   needed: wiring two producers into two inputs says "the line from Find
   Line 1, the circle from Find Circle 2" in the vocabulary the graph
@@ -172,9 +175,11 @@ done. What remains, in order:
   sit mid-chain. The verdict leaves the recipe through `IJudgingNode`,
   which the shell aggregates into the status line.
 
-  What is still missing is somewhere durable for it to go: a log, a
-  file, a signal out. A status line is read by whoever is standing
-  there and by nobody else.
+  **Judging is done for 1.0.4**: Compare, Check Logic, Grade (bands of
+  A, B, C, Reject), Worst Grade, Counter and Result Log, which writes a
+  CSV row per inspection. A Run is an inspection (`InspectAsync`); the
+  re-runs after an edit are not. Still missing: a **signal out** - a
+  PLC over Modbus TCP, digital I/O - and counts that survive a restart.
 - **Calibration is done** for the fixtured case: a Calibrate node says
   what a pixel is worth, wired into Measure, which then reports in that
   unit and labels it so. From a known length measured on the image, or
@@ -184,11 +189,10 @@ done. What remains, in order:
   not a property of a recipe - two cameras have two, and a Resize
   changes one.
 
-  Still open: **areas and the Shape Table.** `Calibration.AreaToUnits`
-  exists and squares the scale correctly, but nothing uses it yet, so a
-  blob's area is still in square pixels. And **lens calibration** from a
-  target grid, for optics where a single scale is not enough - not
-  worth building until somebody's lens needs it.
+  Areas are calibrated too: Shape Table and Measure report them in
+  square units. Still open: **lens calibration** from a target grid, for
+  optics where a single scale is not enough - not worth building until
+  somebody's lens needs it.
 - **Circular and polygonal regions.** Rectangles are handled at any angle.
 
 ---
