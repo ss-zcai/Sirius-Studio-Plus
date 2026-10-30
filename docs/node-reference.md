@@ -1661,13 +1661,14 @@ Terminal node; its input is shown in its own image panel.
 
 `output.label`
 
-Draws a number or a line of text on the image.
+Draws a number, a line of text or a verdict on the image. Wire a pass/fail or a grade into Result to write PASS or FAIL in green or red.
 
 **Inputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | Shapes | `Shapes` | circle | optional |
+| Result | `Any` | circle | optional |
 | Text | `Text` | circle | optional |
 | Number | `Number` | circle | optional |
 | Position | `Point` | circle | optional |

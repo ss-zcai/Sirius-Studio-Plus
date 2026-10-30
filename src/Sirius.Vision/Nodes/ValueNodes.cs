@@ -242,16 +242,26 @@ public sealed class MatrixNode : VisionNode
 /// shapes wired into it when there are any, one per shape, or a bare
 /// point at the given position when there are not.
 /// </para>
+/// <para>
+/// A verdict is written through Result: a yes/no as PASS or FAIL, a grade
+/// by its name, in green, amber or red as the judging tools colour them -
+/// with Text, when there is any, written before it ("Overall PASS").
+/// Result takes anything else too, written as it reads.
+/// </para>
 /// </remarks>
 [VisionNode(
     "Label",
     TypeKey = "output.label",
     Category = NodeCategory.Output,
     Icon = "ph_label",
-    Description = "Draws a number or a line of text on the image.")]
+    Description = "Draws a number, a line of text or a verdict on the image. Wire a pass/fail or a grade into " +
+                  "Result to write PASS or FAIL in green or red.")]
 public sealed class LabelNode : VisionNode
 {
     private const uint Default = 0xFFE6E6E6;
+    private const uint Passed = 0xFF22C55E;
+    private const uint Acceptable = 0xFFF59E0B;
+    private const uint Failed = 0xFFEF4444;
 
     private string _text = string.Empty;
     private double _number;
@@ -264,8 +274,16 @@ public sealed class LabelNode : VisionNode
     public LabelNode()
     {
         ShapesIn = AddInput<ShapeSet>("Shapes", isRequired: false);
+        ResultIn = AddInput<object>("Result", isRequired: false);
         ShapesOut = AddOutput<ShapeSet>("Out");
     }
+
+    /// <summary>
+    /// A verdict to write: a yes/no from a check as PASS or FAIL, a grade by
+    /// its name, coloured by whether it passes. Anything else is written as
+    /// it reads. Text, when set, is written before it.
+    /// </summary>
+    public InputPort ResultIn { get; }
 
     /// <summary>
     /// Shapes to label, one each, written at each shape's own centre.
@@ -348,14 +366,22 @@ public sealed class LabelNode : VisionNode
     protected override void OnEvaluate(EvalContext context)
     {
         var text = context.Param(nameof(Text), _text);
+        var colour = ShapeStyleNode.ParseColour(_colour, context, Default);
 
-        if (string.IsNullOrEmpty(text))
+        if (ResultIn.IsConnected)
+        {
+            var (word, judged) = Describe(context, context.Get<object>(ResultIn));
+
+            text = string.IsNullOrEmpty(text) ? word : $"{text} {word}";
+
+            if (judged is { } verdict)
+                colour = !verdict.Passes ? Failed : verdict.Rank == 0 ? Passed : Acceptable;
+        }
+        else if (string.IsNullOrEmpty(text))
         {
             var number = context.Param(nameof(Number), _number);
             text = number.ToString("F" + _decimals, System.Globalization.CultureInfo.InvariantCulture);
         }
-
-        var colour = ShapeStyleNode.ParseColour(_colour, context, Default);
         var attached = context.Get<ShapeSet>(ShapesIn);
 
         if (attached is { Count: > 0 })
@@ -406,6 +432,41 @@ public sealed class LabelNode : VisionNode
     /// to avoid. These three ship with Windows; a viewer that cannot find
     /// one falls back to its own.
     /// </remarks>
+    /// <summary>
+    /// What a Result says, and the verdict to colour it by when it is one.
+    /// </summary>
+    /// <remarks>
+    /// A yes/no from a check reads PASS or FAIL rather than Yes or No: on
+    /// an inspected part those are the words the operator is looking for.
+    /// A wire with nothing on it - the check upstream failed to run - is a
+    /// FAIL, as everywhere else: no answer is not a pass.
+    /// </remarks>
+    private (string Word, Grade? Verdict) Describe(EvalContext context, object? value)
+    {
+        switch (value)
+        {
+            case null:
+                context.Warn("Result had no answer; written as FAIL.");
+                return ("FAIL", Grade.Fail);
+
+            case bool pass:
+                return (pass ? "PASS" : "FAIL", pass ? Grade.Pass : Grade.Fail);
+
+            case Grade grade:
+                return (grade.Name, grade);
+
+            case double or float:
+                return (Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)
+                    .ToString("F" + _decimals, System.Globalization.CultureInfo.InvariantCulture), null);
+
+            case IFormattable formattable:
+                return (formattable.ToString(null, System.Globalization.CultureInfo.InvariantCulture), null);
+
+            default:
+                return (value.ToString() ?? string.Empty, null);
+        }
+    }
+
     internal static string FamilyOf(LabelTypeface typeface) => typeface switch
     {
         LabelTypeface.Sans => "Segoe UI",

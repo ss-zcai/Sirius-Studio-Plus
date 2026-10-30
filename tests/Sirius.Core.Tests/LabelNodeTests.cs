@@ -57,6 +57,50 @@ public class LabelNodeTests
         return (ShapeSet)scheduler.GetOutput(label.ShapesOut)!;
     }
 
+    // ---- a verdict through Result ------------------------------------------------
+
+    /// <summary>Two checks into Check Logic, and the overall answer written on the picture.</summary>
+    private static PointShape Verdict(bool first, bool second, string text = "")
+    {
+        var graph = new VisionGraph();
+        var a = new CompareNode { A = first ? 1 : 3, Comparison = Comparison.LessThan, B = 2 };
+        var b = new CompareNode { A = second ? 1 : 3, Comparison = Comparison.LessThan, B = 2 };
+        var logic = new CheckLogicNode { Rule = LogicRule.All };
+        var label = new LabelNode { Text = text };
+
+        graph.Add(a);
+        graph.Add(b);
+        graph.Add(logic);
+        graph.Add(label);
+        graph.TryConnect(a.ResultOut, logic.Sockets[0]);
+        logic.Fit();
+        graph.TryConnect(b.ResultOut, logic.Sockets[1]);
+        Assert.True(graph.TryConnect(logic.ResultOut, label.ResultIn).Success);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        return Assert.IsType<PointShape>(((ShapeSet)scheduler.GetOutput(label.ShapesOut)!).Shapes.Single());
+    }
+
+    [Fact]
+    public void A_yes_is_written_as_a_green_pass()
+    {
+        var point = Verdict(true, true);
+
+        Assert.Equal("PASS", point.Label);
+        Assert.Equal(0xFF22C55Eu, point.Colour);
+    }
+
+    [Fact]
+    public void A_no_is_written_as_a_red_fail_after_the_text()
+    {
+        var point = Verdict(true, false, "Overall");
+
+        Assert.Equal("Overall FAIL", point.Label);
+        Assert.Equal(0xFFEF4444u, point.Colour);
+    }
+
     // ---- what it writes --------------------------------------------------------
 
     [Fact]
