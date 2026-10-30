@@ -230,12 +230,16 @@ def restyle(markup, key):
         stroke = attr(raw, "stroke")
         width = float(attr(raw, "stroke-width") or 0)
 
+        # An element that says nothing about fill is filled: black is SVG's
+        # default. Phosphor's dots - and the colon in zoom-1 - are written
+        # that way, as bare circles, and were dropped while a missing fill
+        # was read as none.
+        painted = fill != "none"
+
         # The transparent bounds rect carries no paint and needs no keyline;
         # svg2xaml pins the bounds from the viewBox itself.
-        if fill in (None, "none") and stroke in (None, "none"):
+        if not painted and stroke in (None, "none"):
             continue
-
-        painted = fill not in (None, "none")
 
         glyph.append(f"<{tag}" + repaint(
             raw, "#fff" if painted else "none",
