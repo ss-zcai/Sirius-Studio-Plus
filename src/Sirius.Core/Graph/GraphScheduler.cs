@@ -178,6 +178,23 @@ public sealed class GraphScheduler : IDisposable
         Start(inspection: false, cancellationToken);
 
     /// <summary>
+    /// Evaluates <paramref name="upTo"/> and whatever it depends on, and
+    /// nothing after it: what is downstream stays stale for the next full
+    /// run.
+    /// </summary>
+    /// <remarks>
+    /// For editing a slow recipe. While a band is dragged, the tool being
+    /// adjusted is what the operator is watching; re-running the
+    /// measurements and checks behind it on every mouse movement would set
+    /// the pace of the drag. They run once the changes stop.
+    /// </remarks>
+    public Task<GraphRunResult> RunAsync(VisionNode upTo, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(upTo);
+        return Start(inspection: false, cancellationToken, upTo);
+    }
+
+    /// <summary>
     /// Runs as an inspection of a part: what <see cref="RunAsync"/> does,
     /// and every <see cref="IInspectionNode"/> evaluated - counted, logged -
     /// whether or not anything upstream of it changed.
@@ -185,7 +202,7 @@ public sealed class GraphScheduler : IDisposable
     public Task<GraphRunResult> InspectAsync(CancellationToken cancellationToken = default) =>
         Start(inspection: true, cancellationToken);
 
-    private Task<GraphRunResult> Start(bool inspection, CancellationToken cancellationToken)
+    private Task<GraphRunResult> Start(bool inspection, CancellationToken cancellationToken, VisionNode? upTo = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -209,7 +226,8 @@ public sealed class GraphScheduler : IDisposable
 
         // Snapshot the order so the background pass is unaffected by edits made
         // while it runs; any such edit invalidates and triggers another pass.
-        var plan = ordered.ToArray();
+        var wanted = upTo is not null && _graph.Nodes.Contains(upTo) ? _graph.GetSelfAndUpstream(upTo) : null;
+        var plan = wanted is null ? ordered.ToArray() : ordered.Where(wanted.Contains).ToArray();
 
         // The same for every graph nested in this one, while still on the
         // thread the editor changes them on.

@@ -38,6 +38,45 @@ public class GraphSchedulerTests
         return (graph, source, add);
     }
 
+    /// <summary>
+    /// A run up to one node: it and what it needs, and not what follows it,
+    /// which stays stale until the next full run catches it up.
+    /// </summary>
+    [Fact]
+    public async Task A_run_up_to_a_node_leaves_what_follows_it_for_later()
+    {
+        var graph = new VisionGraph();
+        var source = new TestSourceNode { Seed = 10 };
+        var first = new TestAddNode { Addend = 1 };
+        var second = new TestAddNode { Addend = 100 };
+        graph.Add(source);
+        graph.Add(first);
+        graph.Add(second);
+        graph.TryConnect(source.ValueOut, first.ValueIn);
+        graph.TryConnect(first.ValueOut, second.ValueIn);
+
+        using var scheduler = CreateScheduler(graph);
+        await scheduler.RunAsync();
+
+        first.Addend = 2;
+        source.ResetCount();
+        first.ResetCount();
+        second.ResetCount();
+
+        var partial = await scheduler.RunAsync(first);
+
+        Assert.Equal(1, partial.Evaluated);
+        Assert.Equal(12, scheduler.GetOutput<TrackedPayload>(first.ValueOut)!.Value);
+        Assert.Equal(0, source.EvaluationCount);
+        Assert.Equal(0, second.EvaluationCount);
+
+        var full = await scheduler.RunAsync();
+
+        Assert.Equal(1, full.Evaluated);
+        Assert.Equal(1, second.EvaluationCount);
+        Assert.Equal(112, scheduler.GetOutput<TrackedPayload>(second.ValueOut)!.Value);
+    }
+
     [Fact]
     public async Task Evaluates_in_dependency_order_and_produces_the_expected_value()
     {

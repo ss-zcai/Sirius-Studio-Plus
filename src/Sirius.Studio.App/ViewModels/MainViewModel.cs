@@ -26,6 +26,22 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     private static readonly TimeSpan RunDebounce = TimeSpan.FromMilliseconds(40);
 
+    /// <summary>
+    /// A full run quicker than this follows every edit, as it always has;
+    /// a slower one waits for the edits to pause, and the edited node runs
+    /// on its own in the meantime.
+    /// </summary>
+    private static readonly TimeSpan SlowRun = TimeSpan.FromMilliseconds(60);
+
+    /// <summary>How long the edits must pause before a slow recipe runs in full.</summary>
+    private static readonly TimeSpan Settle = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>How long the last full run took - what decides whether an edit runs the edited node first.</summary>
+    private TimeSpan _lastFullRun;
+
+    /// <summary>The node the latest edit was to, for running it on its own first.</summary>
+    private VisionNode? _edited;
+
     private VisionGraph _graph = null!;
     private GraphScheduler _scheduler = null!;
     private GraphDocumentViewModel _mainDocument = null!;
@@ -1290,7 +1306,10 @@ public sealed class MainViewModel : ObservableObject
         // A folder run steps the sequence itself and inspects each image;
         // a re-run started here as well would race it.
         if (_folderRun is null)
+        {
+            _edited = node;
             RequestRun();
+        }
 
         // Editing a parameter is unsaved work, and the title is where that is
         // said. A node dragged on the canvas raises nothing, so the marker can
@@ -1332,7 +1351,27 @@ public sealed class MainViewModel : ObservableObject
             await previous.ConfigureAwait(true);
 
             if (!immediate)
+            {
                 await Task.Delay(RunDebounce, cancellation.Token).ConfigureAwait(true);
+
+                // A slow recipe: the edited node, and what it needs, now -
+                // the rest once the edits pause. Every new edit cancels this
+                // request, so through a drag the full run keeps waiting and
+                // the edited tool keeps up.
+                if (_lastFullRun >= SlowRun && _edited is { } edited && _graph.Nodes.Contains(edited))
+                {
+                    IsRunning = true;
+                    await _scheduler.RunAsync(edited, cancellation.Token).ConfigureAwait(true);
+
+                    if (cancellation.IsCancellationRequested)
+                        return;
+
+                    await UpdateOutputsAsync(cancellation.Token).ConfigureAwait(true);
+                    RefreshReadouts();
+
+                    await Task.Delay(Settle, cancellation.Token).ConfigureAwait(true);
+                }
+            }
 
             if (cancellation.IsCancellationRequested)
                 return;
@@ -1344,6 +1383,9 @@ public sealed class MainViewModel : ObservableObject
 
             if (cancellation.IsCancellationRequested)
                 return;
+
+            if (!result.Cancelled)
+                _lastFullRun = result.Duration;
 
             await UpdateOutputsAsync(cancellation.Token).ConfigureAwait(true);
             RefreshReadouts();

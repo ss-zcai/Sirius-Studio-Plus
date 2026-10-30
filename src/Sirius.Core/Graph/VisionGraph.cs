@@ -188,6 +188,32 @@ public sealed class VisionGraph : ObservableObject
             .Distinct();
 
     /// <summary>
+    /// <paramref name="node"/> plus everything it transitively depends on -
+    /// exactly the set that has to run for it to have a result.
+    /// </summary>
+    public IReadOnlyCollection<VisionNode> GetSelfAndUpstream(VisionNode node)
+    {
+        var visited = new HashSet<VisionNode>();
+        var pending = new Stack<VisionNode>();
+        pending.Push(node);
+
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            if (!visited.Add(current))
+                continue;
+
+            foreach (var input in current.Inputs)
+            {
+                if (input.Connection is { } connection)
+                    pending.Push(connection.Source.Node);
+            }
+        }
+
+        return visited;
+    }
+
+    /// <summary>
     /// <paramref name="node"/> plus everything transitively downstream of it -
     /// exactly the set whose cached results a change to it invalidates.
     /// </summary>
