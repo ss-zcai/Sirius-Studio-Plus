@@ -54,9 +54,21 @@ public sealed class PolarToLinearNode : VisionNode
     {
         ImageIn = AddInput<ImageData>("In");
         CircleIn = AddInput<ShapeSet>("Circle", isRequired: false);
+        OverlayIn = AddInput<ShapeSet>("Overlay", isRequired: false);
         ImageOut = AddOutput<ImageData>("Out");
         BandOut = AddOutput<ShapeSet>("Band");
+        OverlayOut = AddOutput<ShapeSet>("Overlay");
     }
+
+    /// <summary>Shapes found on the input image, to be unwrapped with it.</summary>
+    public InputPort OverlayIn { get; }
+
+    /// <summary>
+    /// The same shapes on the strip: points where they fall, everything
+    /// else as outlines, cut where they cross the seam. What lies outside
+    /// the band is left out.
+    /// </summary>
+    public OutputPort OverlayOut { get; }
 
     public InputPort ImageIn { get; }
 
@@ -186,6 +198,38 @@ public sealed class PolarToLinearNode : VisionNode
         }
 
         context.Set(BandOut, Outline(band, start, image));
+        Overlays.Carry(context, OverlayIn, OverlayOut, Unwrapping(band, start, sweep, width, height), image, width, height);
+    }
+
+    /// <summary>
+    /// Where a point of the input lands on the strip - the inverse of the
+    /// sampling above - or null when it lies outside the band.
+    /// </summary>
+    internal static ShapeMap Unwrapping(Ring band, double start, double sweep, int width, int height)
+    {
+        var full = sweep >= (2 * Math.PI) - 1e-6;
+
+        return ShapeMap.NonLinear(
+            point =>
+            {
+                var dx = point.X - band.CentreX;
+                var dy = point.Y - band.CentreY;
+                var radius = Math.Sqrt((dx * dx) + (dy * dy));
+
+                var along = (Math.Atan2(dy, dx) - start) % (2 * Math.PI);
+                if (along < 0)
+                    along += 2 * Math.PI;
+
+                if (along > sweep + 1e-9)
+                    return null;
+
+                var row = ((radius - band.InnerRadius) / band.Width * height) - 0.5;
+                if (row < -0.5 || row > height - 0.5)
+                    return null;
+
+                return new Point2((along / sweep * width) - 0.5, row);
+            },
+            seam: full ? width : 0);
     }
 
     /// <summary>

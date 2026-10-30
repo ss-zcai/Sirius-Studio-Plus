@@ -3,6 +3,7 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
+using Sirius.Core.Shapes;
 
 namespace Sirius.Vision.Nodes;
 
@@ -208,10 +209,22 @@ public sealed class BrightnessContrastNode : ImageFilterNode
     TypeKey = "basic.crop",
     Category = NodeCategory.Basic,
     Icon = "ph_crop",
-    Description = "Extracts a rectangular region of interest.")]
+    Description = "Extracts a rectangular region of interest. Shapes wired into Overlay come out placed on the crop.")]
 public sealed class CropNode : ImageFilterNode
 {
     private Rectangle _roi = new(0, 0, 0, 0);
+
+    public CropNode()
+    {
+        OverlayIn = AddInput<ShapeSet>("Overlay", isRequired: false);
+        OverlayOut = AddOutput<ShapeSet>("Overlay");
+    }
+
+    /// <summary>Shapes found on the input image, to be placed on the crop.</summary>
+    public InputPort OverlayIn { get; }
+
+    /// <summary>The same shapes, where they lie on the crop.</summary>
+    public OutputPort OverlayOut { get; }
 
     [Param("Region", Editor = ParamEditor.Region, Description = "Drawable on the image viewer.")]
     public Rectangle Roi
@@ -228,6 +241,7 @@ public sealed class CropNode : ImageFilterNode
         {
             context.Warn("Region is empty; passing the image through unchanged.");
             source.Mat.CopyTo(destination);
+            Overlays.Carry(context, OverlayIn, OverlayOut, ShapeMap.Translation(0, 0), source, source.Width, source.Height);
             return;
         }
 
@@ -236,8 +250,12 @@ public sealed class CropNode : ImageFilterNode
         {
             context.Warn("Region lies outside the image; passing the image through unchanged.");
             source.Mat.CopyTo(destination);
+            Overlays.Carry(context, OverlayIn, OverlayOut, ShapeMap.Translation(0, 0), source, source.Width, source.Height);
             return;
         }
+
+        Overlays.Carry(
+            context, OverlayIn, OverlayOut, ShapeMap.Translation(-clamped.X, -clamped.Y), source, clamped.Width, clamped.Height);
 
         if (clamped != _roi)
             context.Warn("Region was clipped to the image bounds.");
@@ -255,12 +273,24 @@ public sealed class CropNode : ImageFilterNode
     TypeKey = "basic.resize",
     Category = NodeCategory.Basic,
     Icon = "ph_resize",
-    Description = "Scales the image.")]
+    Description = "Scales the image. Shapes wired into Overlay come out scaled with it.")]
 public sealed class ResizeNode : ImageFilterNode
 {
     private double _scaleX = 1;
     private double _scaleY = 1;
     private Inter _interpolation = Inter.Linear;
+
+    public ResizeNode()
+    {
+        OverlayIn = AddInput<ShapeSet>("Overlay", isRequired: false);
+        OverlayOut = AddOutput<ShapeSet>("Overlay");
+    }
+
+    /// <summary>Shapes found on the input image, to be placed on the resized one.</summary>
+    public InputPort OverlayIn { get; }
+
+    /// <summary>The same shapes, scaled with the image.</summary>
+    public OutputPort OverlayOut { get; }
 
     [Param("Scale X", Min = 0.01, Max = 10, Step = 0.01, Connectable = true)]
     public double ScaleX
@@ -292,5 +322,16 @@ public sealed class ResizeNode : ImageFilterNode
             throw new InvalidOperationException("Scale must be greater than zero on both axes.");
 
         CvInvoke.Resize(source.Mat, destination, Size.Empty, scaleX, scaleY, _interpolation);
+
+        // Pixel centres, as OpenCV resamples: the centre of source pixel x
+        // lands at (x + 0.5) * scale - 0.5.
+        Overlays.Carry(
+            context,
+            OverlayIn,
+            OverlayOut,
+            ShapeMap.Affine(scaleX, 0, (0.5 * scaleX) - 0.5, 0, scaleY, (0.5 * scaleY) - 0.5),
+            source,
+            destination.Width,
+            destination.Height);
     }
 }

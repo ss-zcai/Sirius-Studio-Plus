@@ -285,19 +285,21 @@ Masks pixels whose colour falls within a range.
 
 `basic.crop`
 
-Extracts a rectangular region of interest.
+Extracts a rectangular region of interest. Shapes wired into Overlay come out placed on the crop.
 
 **Inputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
+| Overlay | `Shapes` | circle | optional |
 
 **Outputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | Out | `Image` | square | - |
+| Overlay | `Shapes` | circle | - |
 
 **Parameters**
 
@@ -335,6 +337,7 @@ Cuts out a region, rotating it upright when it sits at an angle.
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Region | `Shapes` | circle | optional |
+| Overlay | `Shapes` | circle | optional |
 | Rect | `Rectangle` | circle | optional |
 
 **Outputs**
@@ -343,6 +346,7 @@ Cuts out a region, rotating it upright when it sits at an angle.
 | --- | --- | --- | --- |
 | Out | `Image` | square | - |
 | Shapes | `Shapes` | circle | - |
+| Overlay | `Shapes` | circle | - |
 
 **Parameters**
 
@@ -358,13 +362,14 @@ Cuts out a region, rotating it upright when it sits at an angle.
 
 `basic.resize`
 
-Scales the image.
+Scales the image. Shapes wired into Overlay come out scaled with it.
 
 **Inputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
+| Overlay | `Shapes` | circle | optional |
 | Scale X | `Number` | circle | optional |
 | Scale Y | `Number` | circle | optional |
 
@@ -373,6 +378,7 @@ Scales the image.
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | Out | `Image` | square | - |
+| Overlay | `Shapes` | circle | - |
 
 **Parameters**
 
@@ -1168,6 +1174,7 @@ Unwraps a ring of the image into a straight strip: angle left to right, radius t
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Circle | `Shapes` | circle | optional |
+| Overlay | `Shapes` | circle | optional |
 | Band | `Ring` | circle | optional |
 | Band Width | `Number` | circle | optional |
 | Offset | `Number` | circle | optional |
@@ -1178,6 +1185,7 @@ Unwraps a ring of the image into a straight strip: angle left to right, radius t
 | --- | --- | --- | --- |
 | Out | `Image` | square | - |
 | Band | `Shapes` | circle | - |
+| Overlay | `Shapes` | circle | - |
 
 **Parameters**
 

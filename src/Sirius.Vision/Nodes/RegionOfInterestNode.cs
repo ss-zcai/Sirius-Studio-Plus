@@ -64,9 +64,17 @@ public sealed class RegionOfInterestNode : VisionNode
     {
         ImageIn = AddInput<ImageData>("In");
         RegionIn = AddInput<ShapeSet>("Region", isRequired: false);
+        OverlayIn = AddInput<ShapeSet>("Overlay", isRequired: false);
         ImageOut = AddOutput<ImageData>("Out");
         ShapesOut = AddOutput<ShapeSet>("Shapes");
+        OverlayOut = AddOutput<ShapeSet>("Overlay");
     }
+
+    /// <summary>Shapes found on the input image, to be placed on the cut-out.</summary>
+    public InputPort OverlayIn { get; }
+
+    /// <summary>The same shapes, turned and moved with the region onto the cut-out.</summary>
+    public OutputPort OverlayOut { get; }
 
     public InputPort ImageIn { get; }
 
@@ -149,11 +157,13 @@ public sealed class RegionOfInterestNode : VisionNode
             ShapesOut,
             new ShapeSet([region], source.Width, source.Height));
 
+        ShapeMap map;
         var cut = _alignment == RoiAlignment.Straighten
-            ? Straighten(source, region, context)
-            : CutBoundingBox(source, region, context);
+            ? Straighten(source, region, context, out map)
+            : CutBoundingBox(source, region, context, out map);
 
         context.Set(ImageOut, ImageData.Adopt(cut));
+        Overlays.Carry(context, OverlayIn, OverlayOut, map, source, cut.Width, cut.Height);
     }
 
     /// <summary>
@@ -205,7 +215,7 @@ public sealed class RegionOfInterestNode : VisionNode
     /// the whole image and then cropping. On a large frame that is the
     /// difference between warping a few hundred pixels and warping millions.
     /// </remarks>
-    private Mat Straighten(ImageData source, OrientedRectShape region, EvalContext context)
+    private Mat Straighten(ImageData source, OrientedRectShape region, EvalContext context, out ShapeMap map)
     {
         var width = Math.Max(1, (int)Math.Round(region.Width * _scale));
         var height = Math.Max(1, (int)Math.Round(region.Height * _scale));
@@ -219,6 +229,10 @@ public sealed class RegionOfInterestNode : VisionNode
         // output rather than staying where it was in the source.
         affine.Data[0, 2] += (width / 2.0) - region.Centre.X;
         affine.Data[1, 2] += (height / 2.0) - region.Centre.Y;
+
+        // The very matrix the pixels go through, so the shapes go the same way.
+        var m = affine.Data;
+        map = ShapeMap.Affine(m[0, 0], m[0, 1], m[0, 2], m[1, 0], m[1, 1], m[1, 2]);
 
         var destination = new Mat();
 
@@ -249,7 +263,7 @@ public sealed class RegionOfInterestNode : VisionNode
     /// Cuts the smallest upright box containing the region, clipped to the
     /// image. Nothing is resampled.
     /// </summary>
-    private Mat CutBoundingBox(ImageData source, OrientedRectShape region, EvalContext context)
+    private Mat CutBoundingBox(ImageData source, OrientedRectShape region, EvalContext context, out ShapeMap map)
     {
         var bounds = region.Bounds;
 
@@ -266,6 +280,8 @@ public sealed class RegionOfInterestNode : VisionNode
 
         if (clipped.Width <= 0 || clipped.Height <= 0)
             throw new InvalidOperationException("The region lies entirely outside the image.");
+
+        map = ShapeMap.Translation(-clipped.X, -clipped.Y);
 
         WarnIfOutside(source, region, context);
 
