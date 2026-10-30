@@ -54,6 +54,7 @@
         <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding OpenGraphCommand}" />
         <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveGraphCommand}" />
         <KeyBinding Key="F5" Command="{Binding RunCommand}" />
+        <KeyBinding Key="F5" Modifiers="Control" Command="{Binding RunFolderCommand}" />
         <KeyBinding Key="Delete" Command="{Binding DeleteSelectionCommand}" />
 
         <!-- The second redo gesture, which Windows applications also take. -->
@@ -419,6 +420,11 @@
                     <MenuItem Header="_Run Graph"
                               InputGestureText="F5"
                               Command="{Binding RunCommand}" />
+                    <MenuItem Header="Run _Folder"
+                              InputGestureText="Ctrl+F5"
+                              Command="{Binding RunFolderCommand}" />
+                    <MenuItem Header="_Stop Folder Run"
+                              Command="{Binding StopFolderCommand}" />
                     <MenuItem Header="Reset _Counters"
                               Command="{Binding ResetCountersCommand}" />
                 </MenuItem>
@@ -542,6 +548,19 @@
                         ToolTip="Run everything again (F5) — timing appears in the status bar"
                         Command="{Binding RunCommand}">
                     <Image Source="{StaticResource Icon.ph_run}" Width="18" Height="18" />
+                </Button>
+
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Run Folder (Ctrl+F5) — inspect every image of the Image Sequence, counted and logged"
+                        Command="{Binding RunFolderCommand}">
+                    <Image Source="{StaticResource Icon.ph_run_folder}" Width="18" Height="18" />
+                </Button>
+
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Stop the folder run"
+                        Command="{Binding StopFolderCommand}"
+                        Visibility="{Binding IsFolderRunning, Converter={StaticResource BoolToVisibility}}">
+                    <Image Source="{StaticResource Icon.ph_stop}" Width="18" Height="18" />
                 </Button>
 
                 <TextBlock Text="running…"

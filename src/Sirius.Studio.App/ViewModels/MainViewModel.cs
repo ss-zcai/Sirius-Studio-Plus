@@ -87,6 +87,8 @@ public sealed class MainViewModel : ObservableObject
         SaveGraphAsCommand = new RelayCommand(() => SaveGraphAs());
         RunCommand = new RelayCommand(RunEverything);
         ResetCountersCommand = new RelayCommand(ResetCounters);
+        RunFolderCommand = new RelayCommand(RunFolder, () => !IsFolderRunning);
+        StopFolderCommand = new RelayCommand(() => _folderRun?.Cancel(), () => IsFolderRunning);
         PreviewPortCommand = new RelayCommand<PreviewOption>(option =>
         {
             if (option is not null && Editor.SelectedNode is { } node)
@@ -561,6 +563,17 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>Starts every Counter in the recipe again from zero.</summary>
     public IRelayCommand ResetCountersCommand { get; }
+
+    /// <summary>Inspects every image of the recipe's Image Sequence in turn.</summary>
+    public IRelayCommand RunFolderCommand { get; }
+
+    /// <summary>Stops a folder run after the image it is on.</summary>
+    public IRelayCommand StopFolderCommand { get; }
+
+    /// <summary>True while a folder run is going.</summary>
+    public bool IsFolderRunning => _folderRun is not null;
+
+    private CancellationTokenSource? _folderRun;
 
     public IRelayCommand DeleteSelectionCommand { get; }
 
@@ -1116,6 +1129,119 @@ public sealed class MainViewModel : ObservableObject
     /// zeros - as a re-run after an edit, not an inspection, so nothing is
     /// counted.
     /// </summary>
+    /// <summary>
+    /// Runs the recipe over every image of its Image Sequence, each one an
+    /// inspection, and says how they went.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The re-run that a parameter change starts is held off for the
+    /// length of the run, and so is undo recording: stepping the sequence
+    /// is a parameter change, a hundred of them, and neither a hundred
+    /// re-runs racing the folder run nor a hundred steps of undo history
+    /// would be wanted. The sequence is put back on the image it was on.
+    /// </para>
+    /// <para>
+    /// Panels refresh a few times a second rather than on every image, so
+    /// drawing them does not set the pace of the run.
+    /// </para>
+    /// </remarks>
+    private async void RunFolder()
+    {
+        if (_folderRun is not null)
+            return;
+
+        if (FolderRun.SequenceIn(_graph) is not { } sequence)
+        {
+            Dialog.Inform(
+                "Run Folder steps an Image Sequence node through its folder. Add one, choose the folder, and " +
+                "wire it in place of the Image File.",
+                "Run Folder");
+            return;
+        }
+
+        if (sequence.Count == 0)
+        {
+            Dialog.Inform("The Image Sequence has no images. Choose a folder that holds some.", "Run Folder");
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        _folderRun = cancellation;
+        OnFolderRunChanged();
+
+        var startedOn = sequence.Index;
+
+        // Whatever pass is in flight finishes first: two passes on one
+        // cache free each other's buffers.
+        _runCancellation?.Cancel();
+        await _runInFlight.ConfigureAwait(true);
+
+        var paused = new List<IDisposable> { _mainDocument.Recorder.Pause() };
+        paused.AddRange(_subGraphDocuments.Values.Select(document => document.Recorder.Pause()));
+
+        var refreshed = System.Diagnostics.Stopwatch.StartNew();
+        FolderRunSummary? summary = null;
+
+        IsRunning = true;
+
+        try
+        {
+            summary = await FolderRun.RunAsync(
+                _graph,
+                _scheduler,
+                sequence,
+                async item =>
+                {
+                    StatusText = $"Running folder: {item.Index} of {item.Of}" +
+                                 (item.Name is null ? string.Empty : $"  {item.Name}");
+
+                    if (refreshed.ElapsedMilliseconds >= 250 || item.Index == item.Of)
+                    {
+                        await UpdateOutputsAsync(cancellation.Token).ConfigureAwait(true);
+                        RefreshReadouts();
+                        refreshed.Restart();
+                    }
+                },
+                cancellation.Token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            // Stopped between nodes rather than between images.
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Folder run stopped: {ExceptionText.Describe(ex)}";
+        }
+        finally
+        {
+            foreach (var pause in paused)
+                pause.Dispose();
+
+            IsRunning = false;
+            _folderRun = null;
+            cancellation.Dispose();
+            OnFolderRunChanged();
+
+            // Back where it was: a re-run after an edit, not an inspection,
+            // so nothing is counted twice.
+            sequence.Index = startedOn;
+        }
+
+        if (summary is not null)
+        {
+            StatusText = summary.Describe();
+            Dialog.Inform(summary.Describe(), "Run Folder");
+        }
+    }
+
+    private void OnFolderRunChanged()
+    {
+        OnPropertyChanged(nameof(IsFolderRunning));
+        RunFolderCommand.NotifyCanExecuteChanged();
+        StopFolderCommand.NotifyCanExecuteChanged();
+    }
+
     private void ResetCounters()
     {
         var counters = GraphTree.AllNodes(_graph).OfType<CounterNode>().ToArray();
@@ -1161,7 +1287,10 @@ public sealed class MainViewModel : ObservableObject
 
     private void OnNodeInvalidated(object? sender, VisionNode node)
     {
-        RequestRun();
+        // A folder run steps the sequence itself and inspects each image;
+        // a re-run started here as well would race it.
+        if (_folderRun is null)
+            RequestRun();
 
         // Editing a parameter is unsaved work, and the title is where that is
         // said. A node dragged on the canvas raises nothing, so the marker can
@@ -1184,6 +1313,9 @@ public sealed class MainViewModel : ObservableObject
     /// </remarks>
     private async void RequestRun(bool immediate = false, bool inspection = false)
     {
+        if (_folderRun is not null)
+            return;
+
         _runCancellation?.Cancel();
 
         var previous = _runInFlight;
@@ -1275,75 +1407,27 @@ public sealed class MainViewModel : ObservableObject
         Final(GraphTree.AllNodes(_graph, enabledOnly: true).OfType<IJudgingNode>()),
         port => _scheduler.GetOutput(port));
 
-    /// <summary>
-    /// The checks whose verdict nothing else judges further.
-    /// </summary>
-    /// <remarks>
-    /// Three Limit Checks wired into Check Logic are one decision, not
-    /// four: the recipe's verdict is Check Logic's, and counting the three
-    /// as well would report a failure twice. So a check whose verdict
-    /// reaches another enabled check, through any number of nodes, is left
-    /// to that one.
-    /// </remarks>
-    internal static IEnumerable<IJudgingNode> Final(IEnumerable<IJudgingNode> checks)
-    {
-        var all = checks.ToArray();
-
-        return all.Where(check =>
-        {
-            var ports = check is IGradingNode grading
-                ? new[] { check.VerdictPort, grading.GradePort }
-                : [check.VerdictPort];
-
-            var reached = new HashSet<VisionNode>();
-            var pending = new Stack<VisionNode>(
-                ports.SelectMany(port => port.Connections).Select(connection => connection.Target.Node));
-
-            while (pending.TryPop(out var node))
-            {
-                if (!reached.Add(node))
-                    continue;
-
-                if (node is IJudgingNode && node.Enabled && !ReferenceEquals(node, check))
-                    return false;
-
-                foreach (var next in node.Outputs.SelectMany(output => output.Connections))
-                    pending.Push(next.Target.Node);
-            }
-
-            return true;
-        });
-    }
+    /// <summary>The checks whose verdict nothing else judges further; see <see cref="Verdicts.Final"/>.</summary>
+    internal static IEnumerable<IJudgingNode> Final(IEnumerable<IJudgingNode> checks) => Verdicts.Final(checks);
 
     /// <summary>
     /// The wording, separated from where the checks come from so it can
     /// be read back without running a recipe.
     /// </summary>
-    internal static string? Verdict(
-        IEnumerable<IJudgingNode> checks, Func<OutputPort, object?> read)
+    internal static string? Verdict(IEnumerable<IJudgingNode> checks, Func<OutputPort, object?> read)
     {
-        var all = checks.ToArray();
+        var verdict = Verdicts.Of(checks, read);
 
-        if (all.Length == 0)
+        if (verdict.Passed is not { } passed)
             return null;
 
-        // Anything that is not a plain true fails, which covers a check
-        // downstream of a node that errored: its verdict was never
-        // computed, and "no answer" is not a pass.
-        var failed = all.Count(check => read(check.VerdictPort) is not true);
-
-        var verdict = failed == 0
-            ? all.Length == 1 ? "PASS" : $"PASS ({all.Length} checks)"
-            : all.Length == 1 ? "FAIL" : $"FAIL ({failed} of {all.Length})";
+        var words = passed
+            ? verdict.Checks == 1 ? "PASS" : $"PASS ({verdict.Checks} checks)"
+            : verdict.Checks == 1 ? "FAIL" : $"FAIL ({verdict.Failed} of {verdict.Checks})";
 
         // The grade, when something grades: the worst of them, which is
         // the part's.
-        var grade = Grade.Worst(all
-            .OfType<IGradingNode>()
-            .Select(check => read(check.GradePort) as Grade)
-            .OfType<Grade>());
-
-        return grade is null ? verdict : $"{verdict}  grade {grade.Name}";
+        return verdict.Grade is { } grade ? $"{words}  grade {grade.Name}" : words;
     }
 
     /// <summary>

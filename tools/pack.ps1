@@ -74,6 +74,21 @@ dotnet publish src/Sirius.Studio.App/Sirius.Studio.App.csproj `
     -p:DebugType=none
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 
+# ---- command-line runner ---------------------------------------------------
+
+# Into the same folder as the application, whose runtime and libraries it
+# shares: one copy of OpenCV, not two.
+Write-Host 'Publishing the command-line runner...'
+dotnet publish src/Sirius.Runner/Sirius.Runner.csproj `
+    --configuration Release `
+    --runtime win-x64 `
+    --self-contained true `
+    --output $staging `
+    --nologo `
+    --verbosity quiet `
+    -p:DebugType=none
+if ($LASTEXITCODE -ne 0) { throw 'The command-line runner did not publish.' }
+
 # ---- sample custom node library --------------------------------------------
 
 # Beside the application rather than in its plugins folder, so a tester
@@ -98,6 +113,7 @@ Get-ChildItem $sampleOut -File |
 $required = @(
     'SiriusStudioPlus.exe'
     'SiriusStudioPlus.dll'
+    'sirius-run.exe'
     'THIRD-PARTY-NOTICES.txt'
     'LICENSE-phosphor.txt'
     'LICENSE-apache-2.0.txt'
