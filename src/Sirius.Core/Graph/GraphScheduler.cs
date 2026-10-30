@@ -411,7 +411,8 @@ public sealed class GraphScheduler : IDisposable
             // cache never frees a buffer belonging to an upstream node.
             Bypass(node, inputs);
             SetEvaluationTime(node, stopwatch.Elapsed);
-            SetStatus(node, NodeStatus.Error, ex.Message);
+            // The whole chain: the reason is often a level or two down.
+            SetStatus(node, NodeStatus.Error, ExceptionText.Describe(ex));
             return EvaluationOutcome.Failed;
         }
 

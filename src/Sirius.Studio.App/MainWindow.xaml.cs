@@ -155,6 +155,25 @@ public partial class MainWindow : Window
         // The recipe loaded before the window had a size, so whatever framing
         // was attempted then had nothing to work with.
         FrameGraph();
+
+        CheckNativeLibraries();
+    }
+
+    /// <summary>
+    /// Says at once, and with the fix, when OpenCV cannot load on this PC -
+    /// rather than leaving every image node to fail with a message that
+    /// names the symptom.
+    /// </summary>
+    /// <remarks>
+    /// Off the UI thread: loading the native library is the slow part of
+    /// the first run either way, and the window should not wait for it.
+    /// </remarks>
+    private async void CheckNativeLibraries()
+    {
+        var problem = await Task.Run(Sirius.Vision.NativeLibraries.Problem).ConfigureAwait(true);
+
+        if (problem is not null)
+            Dialog.Warn(problem, "Image processing unavailable", this);
     }
 
     /// <summary>
