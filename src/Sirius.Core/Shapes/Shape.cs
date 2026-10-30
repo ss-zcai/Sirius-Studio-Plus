@@ -436,4 +436,10 @@ public static class ShapeMetric
     /// reference circle's. Positive is outside the circle.
     /// </summary>
     public const string Deviation = "deviation";
+
+    /// <summary>Where a stretch of a ring begins, in degrees clockwise from +X.</summary>
+    public const string StartAngle = "startAngle";
+
+    /// <summary>Where a stretch of a ring ends, in degrees clockwise from +X.</summary>
+    public const string EndAngle = "endAngle";
 }

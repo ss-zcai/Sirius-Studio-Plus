@@ -97,6 +97,9 @@ PHOSPHOR = {
     "file-csv": "ph_result_log",
     "funnel": "ph_filter_shapes",
 
+    # A seal with a mark on it: a round edge with something wrong.
+    "seal-warning": "ph_circle_defects",
+
     # tag-simple rather than tag: the plain outline keeps its shape under
     # the keyline at toolbox size, where tag's eyelet fills in.
     "tag-simple": "ph_label",

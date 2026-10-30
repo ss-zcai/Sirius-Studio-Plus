@@ -115,6 +115,132 @@ public static class CircleFit
         return result;
     }
 
+    /// <summary>
+    /// Fits the circle that the most points agree with, and then fits it
+    /// properly through those points alone.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// RANSAC: a circle through three points picked at random, counted by
+    /// how many of all the points lie within <paramref name="threshold"/>
+    /// of it, many times over; the best of those is refined by least
+    /// squares over the points that agree with it.
+    /// </para>
+    /// <para>
+    /// For an edge with a defect in it, which is the case
+    /// <see cref="FitRobust"/> is not built for. A notch or a burr covering
+    /// a tenth of the edge is not a few stray points but a run of them, and
+    /// it drags a least-squares fit towards itself before any rejection
+    /// starts - so the defect is measured against a circle that already
+    /// leans into it, and reads shallower than it is. Here the defect
+    /// simply loses the vote, up to nearly half the edge.
+    /// </para>
+    /// <para>
+    /// The draws come from a fixed seed, so one image fits to one circle
+    /// every time - an inspection that passed a part once and failed it
+    /// the next run, on the same picture, would be worse than useless.
+    /// </para>
+    /// </remarks>
+    /// <param name="threshold">How far from a circle a point may be and still agree with it, in pixels.</param>
+    /// <param name="iterations">How many three-point circles to try.</param>
+    public static CircleFitResult FitConsensus(
+        IReadOnlyList<Point2> points,
+        double threshold,
+        int iterations = 300)
+    {
+        if (points.Count < MinimumPoints)
+            return new CircleFitResult(default, double.NaN, double.NaN, points);
+
+        threshold = Math.Max(threshold, 1e-6);
+
+        var random = new Random(20261030);
+        var bestCount = -1;
+        var bestError = double.MaxValue;
+        (Point2 Centre, double Radius)? best = null;
+
+        for (var i = 0; i < iterations; i++)
+        {
+            var a = random.Next(points.Count);
+            var b = random.Next(points.Count);
+            var c = random.Next(points.Count);
+
+            if (a == b || b == c || a == c)
+                continue;
+
+            if (Through(points[a], points[b], points[c]) is not { } candidate)
+                continue;
+
+            var count = 0;
+            var error = 0.0;
+
+            foreach (var point in points)
+            {
+                var off = Math.Abs(Distance(point, candidate.Centre) - candidate.Radius);
+
+                if (off > threshold)
+                    continue;
+
+                count++;
+                error += off;
+            }
+
+            if (count > bestCount || (count == bestCount && error < bestError))
+            {
+                bestCount = count;
+                bestError = error;
+                best = candidate;
+            }
+        }
+
+        // Too few points, or all of them in a line: the plain fit says so.
+        if (best is not { } chosen)
+            return Fit(points);
+
+        // Refined twice: once over the points the winning triple agreed
+        // with, and again over those the refined circle agrees with, which
+        // is the circle the points actually describe rather than the one
+        // three of them happened to.
+        var result = new CircleFitResult(chosen.Centre, chosen.Radius, double.NaN, points);
+
+        for (var pass = 0; pass < 2; pass++)
+        {
+            var inliers = points
+                .Where(point => Math.Abs(Distance(point, result.Centre) - result.Radius) <= threshold)
+                .ToArray();
+
+            if (inliers.Length < MinimumPoints)
+                break;
+
+            var refined = Fit(inliers);
+
+            if (!refined.Success)
+                break;
+
+            result = refined;
+        }
+
+        return result.Success && !double.IsNaN(result.Error) ? result : Fit(points);
+    }
+
+    /// <summary>The circle through three points, or null when they lie on a line.</summary>
+    private static (Point2 Centre, double Radius)? Through(Point2 a, Point2 b, Point2 c)
+    {
+        var d = 2 * ((a.X * (b.Y - c.Y)) + (b.X * (c.Y - a.Y)) + (c.X * (a.Y - b.Y)));
+
+        if (Math.Abs(d) < 1e-9)
+            return null;
+
+        var a2 = (a.X * a.X) + (a.Y * a.Y);
+        var b2 = (b.X * b.X) + (b.Y * b.Y);
+        var c2 = (c.X * c.X) + (c.Y * c.Y);
+
+        var centre = new Point2(
+            ((a2 * (b.Y - c.Y)) + (b2 * (c.Y - a.Y)) + (c2 * (a.Y - b.Y))) / d,
+            ((a2 * (c.X - b.X)) + (b2 * (a.X - c.X)) + (c2 * (b.X - a.X))) / d);
+
+        return (centre, Distance(a, centre));
+    }
+
     /// <summary>Root-mean-square distance from the points to the circle.</summary>
     public static double Residual(IReadOnlyList<Point2> points, Point2 centre, double radius)
     {

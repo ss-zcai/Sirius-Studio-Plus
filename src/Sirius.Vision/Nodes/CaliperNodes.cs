@@ -386,18 +386,26 @@ public sealed class RingCalipersNode : VisionNode
     /// The band this run searches: the drawn one, moved to a wired point, or
     /// replaced by one around a wired circle.
     /// </summary>
-    internal Ring BandFor(EvalContext context)
-    {
-        var band = context.Param(nameof(Band), _band);
+    internal Ring BandFor(EvalContext context) => BandAround(
+        context,
+        context.Param(nameof(Band), _band),
+        CircleIn,
+        context.Param(nameof(BandWidth), _bandWidth),
+        context.Param(nameof(Offset), _offset));
 
-        if (context.Get<ShapeSet>(CircleIn) is not { Count: > 0 } shapes)
+    /// <summary>
+    /// <paramref name="band"/>, moved to a point wired into
+    /// <paramref name="circleIn"/>, or replaced by one around a wired
+    /// circle: <paramref name="width"/> wide, centred <paramref name="offset"/>
+    /// outside its edge.
+    /// </summary>
+    internal static Ring BandAround(EvalContext context, Ring band, InputPort circleIn, double width, double offset)
+    {
+        if (context.Get<ShapeSet>(circleIn) is not { Count: > 0 } shapes)
             return band;
 
         if (shapes.Count > 1)
             context.Warn($"{shapes.Count} shapes arrived on Circle; the band follows the first.");
-
-        var width = context.Param(nameof(BandWidth), _bandWidth);
-        var offset = context.Param(nameof(Offset), _offset);
 
         return shapes.Shapes[0] switch
         {

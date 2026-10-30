@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**62 nodes** across 14 categories.
+**63 nodes** across 14 categories.
 
 - **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -24,7 +24,7 @@ Socket shapes: square = image, circle = everything else.
 - **Analysis** — Histogram, Line Profile, Measure, Shape Table
 - **Calibration** — Calibrate
 - **Text And Code Reading** — Read Code, Read Text
-- **Judging** — Check Logic, Compare, Counter, Grade, Limit Check, Result Log, Worst Grade
+- **Judging** — Check Logic, Circle Defects, Compare, Counter, Grade, Limit Check, Result Log, Worst Grade
 - **Output** — Image Viewer, Label, Line Chart
 - **Sub Graph** — Graph Input, Graph Output, Sub Graph
 
@@ -1415,6 +1415,63 @@ Combines yes/no results - all, any, none, exactly one. Wiring an input adds anot
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
 | Rule | `LogicRule` | ComboBox | - |
+
+### Circle Defects
+
+`judging.circleDefects`
+
+Finds missing and extra material round a circular edge against a tolerance, and outlines each defect with its angle, depth, length and area. Passes when there are none.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Circle | `Shapes` | circle | optional |
+| Calibration | `Calibration` | circle | optional |
+| Band | `Ring` | circle | optional |
+| Band Width | `Number` | circle | optional |
+| Offset | `Number` | circle | optional |
+| Nominal Radius | `Number` | circle | optional |
+| Inner Tolerance | `Number` | circle | optional |
+| Outer Tolerance | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Defects | `Shapes` | circle | - |
+| Reference | `Shapes` | circle | - |
+| Points | `Shapes` | circle | - |
+| Profile | `Profile` | circle | - |
+| Count | `Integer` | circle | - |
+| Worst | `Number` | circle | - |
+| Pass | `Yes/No` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Band | `Ring` | Ring | - |
+| Band Width | `Number` | Slider | 1 to 400 |
+| Offset | `Number` | Slider | -400 to 400 |
+| Start Angle | `Number` | Slider | -360 to 360 |
+| Sweep | `Number` | Slider | 1 to 360 |
+| Calipers | `Integer` | Slider | 12 to 3600 |
+| Caliper Width | `Integer` | Slider | 1 to 101, odd only |
+| Sampling | `Number` | Slider | 0.1 to 2 |
+| Smoothing | `Integer` | Slider | 1 to 51, odd only |
+| Min Contrast | `Number` | Slider | 0 to 255 |
+| Polarity | `EdgePolarity` | ComboBox | - |
+| Edge | `EdgeChoice` | ComboBox | - |
+| Direction | `RadialDirection` | ComboBox | - |
+| Reference | `DefectReference` | ComboBox | - |
+| Nominal Radius | `Number` | TextBox | - |
+| Inner Tolerance | `Number` | TextBox | - |
+| Outer Tolerance | `Number` | TextBox | - |
+| Min Length | `Number` | Slider | 0 to 90 |
+| Merge Gap | `Integer` | Slider | 0 to 20 |
+| Decimals | `Integer` | Slider | 0 to 6 |
 
 ### Compare
 
