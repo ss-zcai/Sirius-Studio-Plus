@@ -55,6 +55,7 @@
         <KeyBinding Key="S" Modifiers="Ctrl" Command="{Binding SaveGraphCommand}" />
         <KeyBinding Key="F5" Command="{Binding RunCommand}" />
         <KeyBinding Key="F5" Modifiers="Control" Command="{Binding RunFolderCommand}" />
+        <KeyBinding Key="F6" Command="{Binding RunContinuouslyCommand}" />
         <KeyBinding Key="Delete" Command="{Binding DeleteSelectionCommand}" />
 
         <!-- The second redo gesture, which Windows applications also take. -->
@@ -425,6 +426,11 @@
                               Command="{Binding RunFolderCommand}" />
                     <MenuItem Header="_Stop Folder Run"
                               Command="{Binding StopFolderCommand}" />
+                    <MenuItem Header="Run C_ontinuously"
+                              InputGestureText="F6"
+                              IsCheckable="False"
+                              IsChecked="{Binding IsLive, Mode=OneWay}"
+                              Command="{Binding RunContinuouslyCommand}" />
                     <MenuItem Header="Reset _Counters"
                               Command="{Binding ResetCountersCommand}" />
                 </MenuItem>
@@ -555,6 +561,15 @@
                         Command="{Binding RunFolderCommand}">
                     <Image Source="{StaticResource Icon.ph_run_folder}" Width="18" Height="18" />
                 </Button>
+
+                <ToggleButton Style="{StaticResource ViewerToolButton}"
+                              Width="34"
+                              Height="28"
+                              ToolTip="Run Continuously (F6) — inspect frame after frame from the camera, until pressed again"
+                              IsChecked="{Binding IsLive, Mode=OneWay}"
+                              Command="{Binding RunContinuouslyCommand}">
+                    <Image Source="{StaticResource Icon.ph_live}" Width="18" Height="18" />
+                </ToggleButton>
 
                 <Button Style="{StaticResource ToolbarButton}"
                         ToolTip="Stop the folder run"

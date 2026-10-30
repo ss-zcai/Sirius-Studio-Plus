@@ -394,14 +394,31 @@ public sealed class ParameterViewModel : ObservableObject
     /// for CentreToCentre - as an <see cref="EnumOption"/>; the parameter
     /// still holds the value itself, so nothing saved changes.
     /// </remarks>
-    public IReadOnlyList<object> Options => _options ??=
-        _descriptor.ValueType.IsEnum
-            ? Enum.GetValues(_descriptor.ValueType)
-                .Cast<object>()
-                .Distinct()
-                .Select(value => (object)new EnumOption(value, TypeNames.Words(value.ToString()!)))
-                .ToArray()
-            : Array.Empty<object>();
+    public IReadOnlyList<object> Options => _descriptor.ValueType.IsEnum
+        ? _options ??= Enum.GetValues(_descriptor.ValueType)
+            .Cast<object>()
+            .Distinct()
+            .Select(value => (object)new EnumOption(value, TypeNames.Words(value.ToString()!)))
+            .ToArray()
+        : Choices();
+
+    /// <summary>
+    /// A text parameter's list, from its node - with the value it holds
+    /// first when that is not among them, so a camera that is unplugged
+    /// still shows which one the recipe wants.
+    /// </summary>
+    private IReadOnlyList<object> Choices()
+    {
+        if (_node is not IParameterChoices source)
+            return Array.Empty<object>();
+
+        var choices = source.ChoicesFor(_descriptor.Name).Cast<object>().ToList();
+
+        if (Raw is string { Length: > 0 } held && !choices.Contains(held))
+            choices.Insert(0, held);
+
+        return choices;
+    }
 
     private IReadOnlyList<object>? _options;
 

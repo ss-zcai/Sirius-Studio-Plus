@@ -110,6 +110,10 @@ PHOSPHOR = {
     # A frame scanned for something: finding a template.
     "scan": "ph_match_template",
 
+    # A camera for the Camera node, a video camera for running live.
+    "camera": "ph_camera",
+    "video-camera": "ph_live",
+
     # tag-simple rather than tag: the plain outline keeps its shape under
     # the keyline at toolbox size, where tag's eyelet fills in.
     "tag-simple": "ph_label",

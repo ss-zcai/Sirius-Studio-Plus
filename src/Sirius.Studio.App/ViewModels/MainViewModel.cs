@@ -103,8 +103,9 @@ public sealed class MainViewModel : ObservableObject
         SaveGraphAsCommand = new RelayCommand(() => SaveGraphAs());
         RunCommand = new RelayCommand(RunEverything);
         ResetCountersCommand = new RelayCommand(ResetCounters);
-        RunFolderCommand = new RelayCommand(RunFolder, () => !IsFolderRunning);
+        RunFolderCommand = new RelayCommand(RunFolder, () => !IsFolderRunning && !IsLive);
         StopFolderCommand = new RelayCommand(() => _folderRun?.Cancel(), () => IsFolderRunning);
+        RunContinuouslyCommand = new RelayCommand(ToggleLive, () => !IsFolderRunning);
         PreviewPortCommand = new RelayCommand<PreviewOption>(option =>
         {
             if (option is not null && Editor.SelectedNode is { } node)
@@ -590,6 +591,17 @@ public sealed class MainViewModel : ObservableObject
     public bool IsFolderRunning => _folderRun is not null;
 
     private CancellationTokenSource? _folderRun;
+
+    /// <summary>Starts or stops inspecting frame after frame.</summary>
+    public IRelayCommand RunContinuouslyCommand { get; }
+
+    /// <summary>True while running continuously.</summary>
+    public bool IsLive => _liveRun is not null;
+
+    private CancellationTokenSource? _liveRun;
+
+    /// <summary>A folder run or a continuous run, either of which does its own running.</summary>
+    private bool IsBatching => _folderRun is not null || _liveRun is not null;
 
     public IRelayCommand DeleteSelectionCommand { get; }
 
@@ -1164,7 +1176,7 @@ public sealed class MainViewModel : ObservableObject
     /// </remarks>
     private async void RunFolder()
     {
-        if (_folderRun is not null)
+        if (IsBatching)
             return;
 
         if (FolderRun.SequenceIn(_graph) is not { } sequence)
@@ -1254,8 +1266,103 @@ public sealed class MainViewModel : ObservableObject
     private void OnFolderRunChanged()
     {
         OnPropertyChanged(nameof(IsFolderRunning));
+        OnPropertyChanged(nameof(IsLive));
         RunFolderCommand.NotifyCanExecuteChanged();
         StopFolderCommand.NotifyCanExecuteChanged();
+        RunContinuouslyCommand.NotifyCanExecuteChanged();
+    }
+
+    private void ToggleLive()
+    {
+        if (_liveRun is { } running)
+            running.Cancel();
+        else
+            RunLive();
+    }
+
+    /// <summary>
+    /// Inspects frame after frame - each one taken by the recipe's Camera,
+    /// counted, logged and judged - until stopped.
+    /// </summary>
+    /// <remarks>
+    /// Edits made meanwhile are taken up by the next frame rather than
+    /// starting runs of their own, as during a folder run. Panels refresh
+    /// a few times a second, and the status line shows the rate and the
+    /// latest verdict. A run that fails - the camera unplugged, a trigger
+    /// that never came - stops, and says why.
+    /// </remarks>
+    private async void RunLive()
+    {
+        if (IsBatching)
+            return;
+
+        var cancellation = new CancellationTokenSource();
+        _liveRun = cancellation;
+        OnFolderRunChanged();
+
+        _runCancellation?.Cancel();
+        await _runInFlight.ConfigureAwait(true);
+
+        IsRunning = true;
+
+        var refreshed = System.Diagnostics.Stopwatch.StartNew();
+        var rate = System.Diagnostics.Stopwatch.StartNew();
+        var frames = 0;
+
+        try
+        {
+            while (!cancellation.IsCancellationRequested)
+            {
+                var result = await _scheduler.InspectAsync(cancellation.Token).ConfigureAwait(true);
+
+                if (result.Cancelled)
+                    break;
+
+                if (result.Error is not null)
+                {
+                    StatusText = $"Stopped running continuously: {result.Error}";
+                    break;
+                }
+
+                frames++;
+
+                if (refreshed.ElapsedMilliseconds >= 200)
+                {
+                    await UpdateOutputsAsync(cancellation.Token).ConfigureAwait(true);
+                    RefreshReadouts();
+
+                    var perSecond = frames / Math.Max(1e-3, rate.Elapsed.TotalSeconds);
+                    StatusText = $"Running continuously: {perSecond:0.0} frames/s" +
+                                 (Verdict() is { } verdict ? $"  -  {verdict}" : string.Empty);
+
+                    frames = 0;
+                    rate.Restart();
+                    refreshed.Restart();
+                }
+
+                // A breath for the window between frames, so it stays usable
+                // however fast the frames come.
+                await Task.Yield();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Stopped.
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Stopped running continuously: {ExceptionText.Describe(ex)}";
+        }
+        finally
+        {
+            IsRunning = false;
+            _liveRun = null;
+            cancellation.Dispose();
+            OnFolderRunChanged();
+        }
+
+        await UpdateOutputsAsync(CancellationToken.None).ConfigureAwait(true);
+        RefreshReadouts();
     }
 
     private void ResetCounters()
@@ -1303,9 +1410,9 @@ public sealed class MainViewModel : ObservableObject
 
     private void OnNodeInvalidated(object? sender, VisionNode node)
     {
-        // A folder run steps the sequence itself and inspects each image;
-        // a re-run started here as well would race it.
-        if (_folderRun is null)
+        // A folder run or a continuous run does its own running; a re-run
+        // started here as well would race it.
+        if (!IsBatching)
         {
             _edited = node;
             RequestRun();
@@ -1332,7 +1439,7 @@ public sealed class MainViewModel : ObservableObject
     /// </remarks>
     private async void RequestRun(bool immediate = false, bool inspection = false)
     {
-        if (_folderRun is not null)
+        if (IsBatching)
             return;
 
         _runCancellation?.Cancel();

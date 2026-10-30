@@ -112,6 +112,21 @@ public interface ISequenceNode
 }
 
 /// <summary>
+/// A node whose text parameters choose from a list it works out itself -
+/// the cameras attached, say - rather than from an enum fixed in the code.
+/// </summary>
+/// <remarks>
+/// Asked each time the editor is built, so a camera plugged in since is
+/// listed. The value is still the text, so a recipe naming a camera that
+/// is not here keeps it, and finds it again when it is.
+/// </remarks>
+public interface IParameterChoices
+{
+    /// <summary>What <paramref name="parameter"/> can be set to, or empty for no list.</summary>
+    IReadOnlyList<string> ChoicesFor(string parameter);
+}
+
+/// <summary>
 /// Marks a node property as an operator-editable parameter, and carries the UI
 /// hints needed to build an editor for it.
 /// </summary>

@@ -11,9 +11,9 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**65 nodes** across 14 categories.
+**66 nodes** across 14 categories.
 
-- **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
+- **Source** — Blank Image, Camera, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
 - **Combine** — Blend, Logic, Mask
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
@@ -49,6 +49,35 @@ Produces a blank grayscale image of a fixed size.
 | Width | `Integer` | Slider | 1 to 8192 |
 | Height | `Integer` | Slider | 1 to 8192 |
 | Value | `Integer` | Slider | 0 to 255 |
+
+### Camera
+
+`source.camera`
+
+Takes a picture from a camera on each inspection - each Run, each frame of Run Continuously - and keeps it while settings are tuned.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Exposure | `Number` | circle | optional |
+| Gain | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Out | `Image` | square | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Device | `Text` | ComboBox | - |
+| Exposure | `Number` | Slider | 10 to 1000000 |
+| Gain | `Number` | Slider | 0 to 48 |
+| Trigger | `CameraTrigger` | ComboBox | - |
+| Timeout | `Integer` | Slider | 100 to 60000 |
 
 ### Image File
 
