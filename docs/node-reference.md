@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**63 nodes** across 14 categories.
+**64 nodes** across 14 categories.
 
 - **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -21,7 +21,7 @@ Socket shapes: square = image, circle = everything else.
 - **Blob** — Filter Shapes, Find Blobs, Select Shape, Shape Style
 - **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
 - **Transformation** — Polar to Linear
-- **Analysis** — Histogram, Line Profile, Measure, Shape Table
+- **Analysis** — Histogram, Line Profile, Measure, Region Stats, Shape Table
 - **Calibration** — Calibrate
 - **Text And Code Reading** — Read Code, Read Text
 - **Judging** — Check Logic, Circle Defects, Compare, Counter, Grade, Limit Check, Result Log, Worst Grade
@@ -1285,6 +1285,37 @@ Reads a distance or angle between two shapes - or the radius, diameter, axes, or
 | Decimals | `Integer` | Slider | 0 to 6 |
 | Units | `Text` | TextBox | - |
 | Label | `Yes/No` | CheckBox | - |
+
+### Region Stats
+
+`analysis.regionStats`
+
+Mean, standard deviation, darkest and brightest inside a drawn region, or inside each shape wired in - written onto the shapes as well.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Shapes | `Shapes` | circle | optional |
+| Region | `Rectangle` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Mean | `Number` | circle | - |
+| Std Dev | `Number` | circle | - |
+| Min | `Number` | circle | - |
+| Max | `Number` | circle | - |
+| Shapes | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Region | `Rectangle` | Rect | - |
+| Stroke Width | `Integer` | Slider | 1 to 51 |
 
 ### Shape Table
 

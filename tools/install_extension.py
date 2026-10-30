@@ -104,6 +104,9 @@ PHOSPHOR = {
     "fast-forward": "ph_run_folder",
     "stop": "ph_stop",
 
+    # Brightness inside a region: a histogram-like bar in a frame.
+    "chart-bar": "ph_region_stats",
+
     # tag-simple rather than tag: the plain outline keeps its shape under
     # the keyline at toolbox size, where tag's eyelet fills in.
     "tag-simple": "ph_label",

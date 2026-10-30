@@ -49,6 +49,18 @@ public enum ShapeMeasure
 
     /// <summary>How far a fit's points lie from the fitted figure, root mean square.</summary>
     FitError,
+
+    /// <summary>The mean brightness inside a shape, from Region Stats.</summary>
+    Mean,
+
+    /// <summary>How much the brightness inside a shape varies, from Region Stats.</summary>
+    StdDev,
+
+    /// <summary>The darkest pixel inside a shape, from Region Stats.</summary>
+    Darkest,
+
+    /// <summary>The brightest pixel inside a shape, from Region Stats.</summary>
+    Brightest,
 }
 
 public static class ShapeMeasures
@@ -73,6 +85,10 @@ public static class ShapeMeasures
         ShapeMeasure.MinorAxis => ShapeMetric.MinorAxis,
         ShapeMeasure.Angle => ShapeMetric.Angle,
         ShapeMeasure.FitError => ShapeMetric.FitError,
+        ShapeMeasure.Mean => ShapeMetric.Mean,
+        ShapeMeasure.StdDev => ShapeMetric.StdDev,
+        ShapeMeasure.Darkest => ShapeMetric.Minimum,
+        ShapeMeasure.Brightest => ShapeMetric.Maximum,
         _ => null,
     };
 }

@@ -442,4 +442,16 @@ public static class ShapeMetric
 
     /// <summary>Where a stretch of a ring ends, in degrees clockwise from +X.</summary>
     public const string EndAngle = "endAngle";
+
+    /// <summary>The mean brightness inside a shape.</summary>
+    public const string Mean = "mean";
+
+    /// <summary>How much the brightness inside a shape varies: its standard deviation.</summary>
+    public const string StdDev = "stdDev";
+
+    /// <summary>The darkest pixel inside a shape.</summary>
+    public const string Minimum = "minimum";
+
+    /// <summary>The brightest pixel inside a shape.</summary>
+    public const string Maximum = "maximum";
 }
