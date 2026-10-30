@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**64 nodes** across 14 categories.
+**65 nodes** across 14 categories.
 
 - **Source** — Blank Image, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -21,7 +21,7 @@ Socket shapes: square = image, circle = everything else.
 - **Blob** — Filter Shapes, Find Blobs, Select Shape, Shape Style
 - **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
 - **Transformation** — Polar to Linear
-- **Analysis** — Histogram, Line Profile, Measure, Region Stats, Shape Table
+- **Analysis** — Histogram, Line Profile, Match Template, Measure, Region Stats, Shape Table
 - **Calibration** — Calibrate
 - **Text And Code Reading** — Read Code, Read Text
 - **Judging** — Check Logic, Circle Defects, Compare, Counter, Grade, Limit Check, Result Log, Worst Grade
@@ -1255,6 +1255,38 @@ Intensity sampled along a line, for the profile panel.
 | Sample Spacing | `Number` | TextBox | - |
 | Thickness | `Integer` | Slider | 1 to 101, odd only |
 | Interpolation | `ProfileInterpolation` | ComboBox | - |
+
+### Match Template
+
+`analysis.matchTemplate`
+
+Finds where a template image appears in the input, scored 0 to 1. Wire the template from an Image File of a good part through Crop. Position only, not rotation.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Template | `Image` | square | yes |
+| Min Score | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Matches | `Shapes` | circle | - |
+| Count | `Integer` | circle | - |
+| Best Score | `Number` | circle | - |
+| Position | `Point` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Min Score | `Number` | Slider | 0 to 1 |
+| Max Count | `Integer` | Slider | 1 to 500 |
+| Separation | `Number` | Slider | 0.05 to 1 |
+| Search Region | `Region` | Region | - |
 
 ### Measure
 

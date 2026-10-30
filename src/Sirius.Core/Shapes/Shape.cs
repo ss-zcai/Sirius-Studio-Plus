@@ -454,4 +454,7 @@ public static class ShapeMetric
 
     /// <summary>The brightest pixel inside a shape.</summary>
     public const string Maximum = "maximum";
+
+    /// <summary>How well a found shape matched what was looked for, 0 to 1.</summary>
+    public const string Score = "score";
 }

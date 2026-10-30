@@ -61,6 +61,9 @@ public enum ShapeMeasure
 
     /// <summary>The brightest pixel inside a shape, from Region Stats.</summary>
     Brightest,
+
+    /// <summary>How well a match scored, from Match Template.</summary>
+    Score,
 }
 
 public static class ShapeMeasures
@@ -89,6 +92,7 @@ public static class ShapeMeasures
         ShapeMeasure.StdDev => ShapeMetric.StdDev,
         ShapeMeasure.Darkest => ShapeMetric.Minimum,
         ShapeMeasure.Brightest => ShapeMetric.Maximum,
+        ShapeMeasure.Score => ShapeMetric.Score,
         _ => null,
     };
 }
