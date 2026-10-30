@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands at **1.0.4**, and what is left.
+Where the product stands at **1.0.5**, and what is left.
 
 Companion to `decisions.md`, which records why things are the way they are,
 and `interactive-tools-plan.md`, which is the plan for the next large piece
@@ -43,7 +43,7 @@ Small, known, and not yet done.
 order, a dirty-tracked cancellable scheduler with explicit buffer ownership,
 `.sgraph` serialisation with legacy migrations.
 
-**62 nodes** (61 in the toolbox) across Source, Basic, Combine, Filtering, Morphology, Blob,
+**66 nodes** (65 in the toolbox) across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis and Output - including masking from an
 image or a shape, image logic and eleven blend modes, colour-space
 conversion, and circle, ellipse and line fits that report their residual.
@@ -145,8 +145,10 @@ done. What remains, in order:
    against a known edge. Its ring is drawn on the viewer now, and can be
    moved and resized there; what item 3 would add is holding it as a
    `Shape` rather than as a `Ring` parameter of its own.
-5. **Partial evaluation** - evaluate a tool and its ancestors only, so
-   dragging a caliper does not re-run the whole recipe on every frame.
+5. **Partial evaluation - done.** A recipe slower than 60 ms runs the
+   edited node and its ancestors at once and the rest when the edits
+   pause, so dragging a caliper does not re-run the whole recipe on
+   every movement.
 
 ---
 
@@ -156,9 +158,9 @@ done. What remains, in order:
   measurement, with the rejected ones given too. Combining is done as
   well: the Image Viewer grows a socket per shape set, so several
   producers draw on one image without a node between them.
-- **Remapping shapes through Crop, Resize and Polar.** A `ShapeSet` reports
-  that its frame no longer matches; it cannot follow the image through a
-  geometry change.
+- **Remapping shapes is done**: Crop, Resize, Region of Interest and Polar
+  to Linear carry an Overlay of shapes through the same mapping as their
+  pixels (`ShapeMap`).
 - **Measurement in the graph is done.** The Measure node takes two shape
   sets and reads a distance or an angle between them - or one shape's
   radius, diameter, axes, orientation, area, perimeter or length -
@@ -213,9 +215,14 @@ done. What remains, in order:
   Still open in that direction: more languages than English, and a
   grading output for 2D codes - print quality against ISO 15415 is what
   a customer with a Data Matrix spec will eventually ask for.
-- **Template matching.**
-- **Camera acquisition.** Both earlier builds were file-only.
-- **Mean intensity over a region**, which belongs with the analysis nodes.
+- **Template matching - first version.** Match Template, position only.
+  Left: rotation, and a Teach button that keeps the template in the
+  recipe.
+- **Camera acquisition - first version.** The Camera node, Run
+  Continuously and a simulated camera, behind `ICameraDriver`. Left: the
+  Basler driver (pylon), then Hikrobot (MVS); GigE first, USB3 after.
+- **Mean intensity over a region is done** - Region Stats.
+- **Circular edge defects are done** - Circle Defects.
 - **Soft Light** blend mode, left out because several incompatible
   definitions are in common use. Add it when somebody says which one.
 
@@ -257,7 +264,8 @@ done. What remains, in order:
   later: reloading a library without a restart, icons a library supplies,
   IntelliSense for the `Sirius.Core` types in the package, and the Python
   host for algorithms with no C# equivalent.
-- **Batch/headless runner** - execute a `.sgraph` over a folder.
+- **Batch/headless runner - done.** Run Folder in the application, and
+  `sirius-run.exe` for scripts, sharing `FolderRun`.
 
 ---
 

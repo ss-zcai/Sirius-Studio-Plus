@@ -5,6 +5,94 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.5 — 30 October 2026
+
+Inspection over a folder, defects round a circular edge, and the first of
+the camera support, on top of everything in 1.0.4 below. Recipes saved in
+1.0.4 open unchanged.
+
+**62 nodes → 66** (65 in the toolbox).
+
+The camera support is a first version: the Camera node and Run
+Continuously work with the built-in *simulated camera*, but no real
+camera driver is in this build yet. Basler (pylon) comes next, then
+Hikrobot.
+
+### What to try first
+
+> Image Sequence → Find Circle → **Circle Defects** → Image Viewer, then **Edit ▸ Run Folder**
+
+Point the Image Sequence at a folder of parts. Circle Defects outlines
+missing material in red and extra in blue, each with its depth; Run
+Folder inspects every image and ends with a summary of how many passed.
+Add a **Counter** and a **Result Log** and they count and log each image.
+
+> **Camera** (Device: *Simulated test pattern*) → Find Circle → Limit Check, then **F6**
+
+Run Continuously inspects frame after frame. The status bar shows the
+rate and the verdict; press F6 again to stop.
+
+### New tools
+
+- **Circle Defects** — missing and extra material round a circular edge.
+  Calipers round a ring, measured against the circle most of the edge
+  agrees with (fitted so that a large defect does not drag it), or a
+  nominal radius, or a circle wired in. Separate **Inner** and **Outer
+  Tolerance**; **Min Length** ignores specks; **Merge Gap** joins near
+  neighbours. Each defect is outlined with its angle, depth, length and
+  area. Outputs Count, Worst and Pass, so it judges like Limit Check.
+- **Region Stats** — mean, standard deviation, darkest and brightest
+  inside a drawn region, or inside each shape wired in. The readings are
+  written onto the shapes, so a Shape Table lists them and Filter Shapes
+  can keep, say, the dark ones.
+- **Match Template** — finds where a template image appears, scored 0 to 1,
+  best first, positioned to a fraction of a pixel. Wire the template from
+  an Image File of a good part through Crop. Position only, not rotation.
+- **Camera** — takes a frame on each inspection and keeps it while you
+  tune, so a threshold is set against one picture. Exposure, gain, and
+  free-run, software or hardware trigger. Device lists the cameras found;
+  in this build that is the simulated one.
+
+### Changes you will notice
+
+- **Edit ▸ Run Folder** (Ctrl+F5, or the toolbar) inspects every image of
+  the Image Sequence - counted by Counter, written by Result Log - and ends
+  with a summary: passed, failed, yield, grades. **Stop Folder Run** stops
+  after the image in hand.
+- **Edit ▸ Run Continuously** (F6, or the toolbar) inspects frame after
+  frame until pressed again.
+- **sirius-run.exe** is in the package, beside the application: the same
+  folder run from a command line or a scheduled task -
+  `sirius-run recipe.sgraph --folder D:\parts`. It prints a line per image
+  and a summary, and exits 0 when all passed, 1 when some failed, 2 when
+  it could not run.
+- **Shapes follow the image.** Crop, Resize, Region of Interest and Polar
+  to Linear have an **Overlay** input and output: shapes found on the
+  input come out placed on the output.
+- **Label** has a **Result** input: wire a pass/fail or a grade in and it
+  writes PASS or FAIL in green or red. Text, if set, goes in front:
+  "Overall PASS".
+- **Slow recipes stay responsive.** When the recipe takes 60 ms or more,
+  dragging a band or a slider re-runs only the tool being changed; the
+  rest catches up when you stop.
+- **If OpenCV cannot load on a PC**, the application now says so at
+  start-up with the fix (usually the Windows Media Feature Pack), and
+  node errors show the cause rather than only "type initializer threw
+  an exception".
+- The Zoom to 100% button reads **1:1** again, and the Node Style palette
+  has its dots back.
+
+### Known issues, in addition to those below
+
+- **No real camera driver yet.** Only the simulated camera is listed.
+- **Match Template finds position only.** A part turned by more than a few
+  degrees scores poorly. The template is cut by hand with Crop; a Teach
+  button is to come.
+- **Run Continuously refreshes the panels about five times a second**,
+  not on every frame.
+
+---
+
 ## 1.0.4 — 29 October 2026
 
 Sub-graphs, edge points without a fit, and a full set of judging tools,
