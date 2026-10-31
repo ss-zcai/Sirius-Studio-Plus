@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands at **1.0.5**, and what is left.
+Where the product stands at **1.0.6**, and what is left.
 
 Companion to `decisions.md`, which records why things are the way they are,
 and `interactive-tools-plan.md`, which is the plan for the next large piece
@@ -215,12 +215,14 @@ done. What remains, in order:
   Still open in that direction: more languages than English, and a
   grading output for 2D codes - print quality against ISO 15415 is what
   a customer with a Data Matrix spec will eventually ask for.
-- **Template matching - first version.** Match Template, position only.
-  Left: rotation, and a Teach button that keeps the template in the
-  recipe.
-- **Camera acquisition - first version.** The Camera node, Run
-  Continuously and a simulated camera, behind `ICameraDriver`. Left: the
-  Basler driver (pylon), then Hikrobot (MVS); GigE first, USB3 after.
+- **Template matching.** Match Template, with Teach keeping the template
+  in the recipe. Left: rotation.
+- **Camera acquisition.** The Camera node, Run Continuously, a simulated
+  camera, and Basler (GigE and USB3) through pylon, behind
+  `ICameraDriver`. Left, on hold: Hikrobot (MVS) and plain USB webcams.
+  Basler is tested only against pylon's emulator so far.
+- **Circle Defects for parts that are not round is done**: Local Form
+  and Fitted Ellipse references, and a Form output.
 - **Mean intensity over a region is done** - Region Stats.
 - **Circular edge defects are done** - Circle Defects.
 - **Soft Light** blend mode, left out because several incompatible

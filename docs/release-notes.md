@@ -5,6 +5,75 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.6 — 31 October 2026
+
+Defect inspection for parts that are not perfectly round, Basler cameras,
+and a Teach button for Match Template, on top of everything in 1.0.5
+below. Recipes saved in 1.0.5 open unchanged.
+
+### What to try first
+
+> Image File → **Circle Defects** (Reference: *Local Form*) → Image Viewer, with a Line Chart on its Profile
+
+On a real part that is a little out of round, Circle Defects now measures
+the edge against its own smoothed shape, so the part's waviness is not a
+defect and only sharp notches and burrs are. The chart shows the
+deviation as a flat line with the defects standing out, and the form as
+a second trace.
+
+> **Camera** (Device: a Basler camera) → … , then **F6**
+
+With pylon installed, Basler cameras - GigE and USB3 - appear in the
+Camera node's Device list.
+
+### New and changed
+
+- **Circle Defects: Reference *Local Form*** - the default for new nodes.
+  The edge's own shape, smoothed over **Form Window** degrees (default 15),
+  is the reference. Make the window about three times the widest defect.
+  On a test lens it found two notches of about 2 px in an edge that waves
+  ±4 px, with no false rejects.
+- **Circle Defects: Reference *Fitted Ellipse*** - for parts that are oval.
+- **Circle Defects: Form output** - the part's own out-of-roundness
+  (largest radius less smallest), for a Limit Check of its own. The
+  Profile adds the form as a second trace.
+- **Basler cameras** through pylon, GigE and USB3. Exposure, gain, and
+  free-run, software or hardware trigger (Line 1, rising edge).
+- **Match Template: Teach.** Draw **Teach Region** round the feature on a
+  good part and press **Teach**: the feature is kept in the recipe. A
+  template wired into **Template** is still used instead while it is
+  wired. A new **Template** output shows the one in use.
+- **Buttons on nodes.** Some nodes have buttons above their settings in
+  the properties panel: Teach on Match Template, Reset on Counter.
+
+### Setting up a Basler camera
+
+1. Install the **pylon Runtime** on the PC (the full pylon Software Suite
+   also works). Without it, Basler cameras are simply not listed.
+2. For GigE: give the camera an IP address on the same subnet as the
+   network card (pylon IP Configurator), turn on **jumbo frames** on that
+   card, and install pylon's **GigE performance driver**.
+3. The recipe remembers the camera by serial number, so it is found again
+   after its IP address changes.
+
+To try the Camera node with no camera, pylon's camera emulator appears
+when the application is started with `PYLON_CAMEMU=1` set:
+
+```powershell
+$env:PYLON_CAMEMU = 1; & ".\SiriusStudioPlus.exe"
+```
+
+### Known issues, in addition to those below
+
+- **Real Basler cameras are untested.** The driver is tested against
+  pylon's emulator, which is monochrome; real GigE timing, hardware
+  triggering and colour cameras need checking on the bench.
+- **No Hikrobot or plain USB webcam support yet.** Both are on hold.
+- **Local Form needs a sensible Form Window.** A defect wider than about a
+  third of the window starts to be taken for form and reads shallower.
+
+---
+
 ## 1.0.5 — 30 October 2026
 
 Inspection over a folder, defects round a circular edge, and the first of
