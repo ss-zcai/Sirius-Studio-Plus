@@ -329,7 +329,7 @@ public static class GraphSerializer
         if (parameter is null)
             return false;
 
-        if (!element.TryGetDouble(out var bound))
+        if (element.ValueKind != JsonValueKind.Number || !element.TryGetDouble(out var bound))
             return false;
 
         var current = parameter.GetValue(node) is ValueRange range ? range : default;
@@ -364,7 +364,9 @@ public static class GraphSerializer
         var parameter = descriptor.Parameters.FirstOrDefault(
             p => p.ValueType == typeof(OrientedRect));
 
-        if (parameter is null || !element.TryGetDouble(out var number))
+        // A part was a number; anything else is not one of these, and asking
+        // an object for a number throws rather than saying no.
+        if (parameter is null || element.ValueKind != JsonValueKind.Number || !element.TryGetDouble(out var number))
             return false;
 
         var current = parameter.GetValue(node) is OrientedRect rect ? rect : default;
@@ -472,7 +474,7 @@ public static class GraphSerializer
         if (parameter is null || parameter.ValueType != typeof(string))
             return false;
 
-        if (!element.TryGetDouble(out var number))
+        if (element.ValueKind != JsonValueKind.Number || !element.TryGetDouble(out var number))
             return false;
 
         // Read back and rewritten, so X and Y land in the same list whichever
@@ -509,7 +511,7 @@ public static class GraphSerializer
 
         var parameter = descriptor.Parameters.FirstOrDefault(p => p.ValueType == typeof(Ring));
 
-        if (parameter is null || !element.TryGetDouble(out var number))
+        if (parameter is null || element.ValueKind != JsonValueKind.Number || !element.TryGetDouble(out var number))
             return false;
 
         var current = parameter.GetValue(node) is Ring ring ? ring : default;
@@ -543,6 +545,12 @@ public static class GraphSerializer
         // How the old full-image unwrap filled the corners outside the
         // circle. The band unwraps only the ring, so there are none.
         ["transform.polarToLinear"] = ["Warp"],
+
+        // The upright teach region of 1.0.6, saved by its corner. The turned
+        // one that replaced it is saved by its centre under another name,
+        // so the old value is not read as a centre half a box away; the
+        // taught template itself is kept.
+        ["analysis.matchTemplate"] = ["TeachRegion"],
     };
 
     private static bool IsRetired(NodeDescriptor descriptor, string name) =>
@@ -558,6 +566,11 @@ public static class GraphSerializer
         {
             var parameter = descriptor.Parameters.FirstOrDefault(p => p.Name == name);
 
+            // First: a retired parameter can be of any shape, and the
+            // migrations below would try to read it as theirs.
+            if (parameter is null && IsRetired(descriptor, name))
+                continue;
+
             if (parameter is null && TryApplyLegacyBound(node, descriptor, name, element))
                 continue;
 
@@ -568,9 +581,6 @@ public static class GraphSerializer
                 continue;
 
             if (parameter is null && TryApplyLegacyRingPart(node, descriptor, name, element))
-                continue;
-
-            if (parameter is null && IsRetired(descriptor, name))
                 continue;
 
             if (parameter is null)

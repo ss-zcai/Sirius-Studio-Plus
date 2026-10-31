@@ -27,9 +27,23 @@ public sealed class NodeViewModel : ObservableObject
                 .Where(descriptor => !descriptor.Attribute.Hidden)
                 .Select(descriptor => new ParameterViewModel(node, descriptor)));
 
-        Actions = node is INodeActions actions
-            ? actions.Actions.Select(action => new NodeActionViewModel(action)).ToArray()
+        var actions = node is INodeActions offered
+            ? offered.Actions.Select(action => new NodeActionViewModel(action)).ToList()
             : [];
+
+        // An action a parameter names sits beside that parameter; the rest
+        // above them all.
+        foreach (var parameter in Parameters)
+        {
+            if (parameter.ActionLabel is { } label &&
+                actions.FirstOrDefault(action => action.Label == label) is { } inline)
+            {
+                parameter.InlineAction = inline;
+                actions.Remove(inline);
+            }
+        }
+
+        Actions = actions;
 
         node.PropertyChanged += OnNodePropertyChanged;
     }

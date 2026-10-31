@@ -913,6 +913,7 @@
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="*" />
                                                                 <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
 
                                                             <TextBox Grid.Column="0"
@@ -930,6 +931,16 @@
                                                                     CommandParameter="{Binding}">
                                                                 <Image Source="{StaticResource Icon.ph_roi}" Width="14" Height="14" />
                                                             </Button>
+
+                                                            <!-- The node's own button for this region: Teach. -->
+                                                            <Button Grid.Column="2"
+                                                                    MinWidth="0"
+                                                                    Margin="4,0,0,0"
+                                                                    Padding="8,0"
+                                                                    Content="{Binding InlineAction.Label}"
+                                                                    ToolTip="{Binding InlineAction.Description}"
+                                                                    Command="{Binding InlineAction.Command}"
+                                                                    Visibility="{Binding HasInlineAction, Converter={StaticResource BoolToVisibility}}" />
                                                         </Grid>
 
                                                         <!--

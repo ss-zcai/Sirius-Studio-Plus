@@ -259,6 +259,14 @@ public sealed class ParameterViewModel : ObservableObject
     /// <summary>Opens a file dialog and writes the chosen path into the parameter.</summary>
     public IRelayCommand BrowseCommand { get; }
 
+    /// <summary>The label of the node action this parameter carries beside its editor, if any.</summary>
+    public string? ActionLabel => _descriptor.Attribute.Action;
+
+    /// <summary>The node's button beside this editor - Teach beside the region it teaches from.</summary>
+    public NodeActionViewModel? InlineAction { get; internal set; }
+
+    public bool HasInlineAction => InlineAction is not null;
+
     private void Browse()
     {
         // A log is a file to write, which need not exist yet - and an

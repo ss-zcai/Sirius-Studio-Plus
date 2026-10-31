@@ -203,6 +203,13 @@ public sealed class ParamAttribute : Attribute
     public bool Hidden { get; set; }
 
     /// <summary>
+    /// The label of one of the node's actions (<see cref="INodeActions"/>)
+    /// to show as a button beside this parameter's editor rather than above
+    /// the parameters - Teach beside the region it teaches from.
+    /// </summary>
+    public string? Action { get; set; }
+
+    /// <summary>
     /// Whether either end of a range may be left off, meaning no limit.
     /// </summary>
     /// <remarks>

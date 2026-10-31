@@ -2,6 +2,7 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Sirius.Core.Graph;
+using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
 using Sirius.Vision;
 using Sirius.Vision.Nodes;
@@ -173,7 +174,7 @@ public class MatchTemplateTests
     [Fact]
     public void A_taught_template_is_found_and_kept_in_the_recipe()
     {
-        var node = new MatchTemplateNode { TeachRegion = new System.Drawing.Rectangle(150, 60, 40, 30) };
+        var node = new MatchTemplateNode { TeachRect = new OrientedRect(170, 75, 40, 30, 0) };
 
         var graph = new VisionGraph();
         var scene = new PictureNode(() => WithPatches(new(150, 60), new(30, 170)));
@@ -215,6 +216,78 @@ public class MatchTemplateTests
         }
     }
 
+    /// <summary>
+    /// Taught at 25 degrees, the feature is found at that angle: on the
+    /// image it was taught on, where it was, and on the same image shifted,
+    /// shifted with it - drawn turned, as the region was.
+    /// </summary>
+    [Fact]
+    public void A_turned_teach_region_finds_the_feature_at_its_angle()
+    {
+        var node = new MatchTemplateNode { TeachRect = new OrientedRect(160, 120, 50, 36, 25), MinimumScore = 0.9 };
+        var shift = new System.Drawing.Point(12, -7);
+
+        Mat Scene() => Noise(11);
+
+        Mat Shifted()
+        {
+            using var scene = Noise(11);
+            var moved = new Mat(scene.Rows, scene.Cols, DepthType.Cv8U, 1);
+            moved.SetTo(new MCvScalar(0));
+            using var from = new Mat(scene, new System.Drawing.Rectangle(0, 7, scene.Cols - 12, scene.Rows - 7));
+            using var to = new Mat(moved, new System.Drawing.Rectangle(12, 0, scene.Cols - 12, scene.Rows - 7));
+            from.CopyTo(to);
+            return moved;
+        }
+
+        var graph = new VisionGraph();
+        var shown = Scene;
+        var picture = new PictureNode(() => shown());
+        graph.Add(picture);
+        graph.Add(node);
+        graph.TryConnect(picture.Out, node.ImageIn);
+
+        using var scheduler = Scheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+        Assert.Null(node.Teach());
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var here = Assert.IsType<OrientedRectShape>(Assert.Single(scheduler.GetOutput<ShapeSet>(node.MatchesOut)!.Shapes));
+        Assert.Equal(160, here.Centre.X, 0.5);
+        Assert.Equal(120, here.Centre.Y, 0.5);
+        Assert.Equal(25, here.AngleDegrees, 6);
+
+        shown = Shifted;
+        picture.Invalidate();
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var there = Assert.IsType<OrientedRectShape>(Assert.Single(scheduler.GetOutput<ShapeSet>(node.MatchesOut)!.Shapes));
+        Assert.Equal(160 + shift.X, there.Centre.X, 0.5);
+        Assert.Equal(120 + shift.Y, there.Centre.Y, 0.5);
+    }
+
+    /// <summary>
+    /// A recipe from 1.0.6 kept its upright teach region by its corner, as
+    /// "TeachRegion". It opens without complaint, and its taught template
+    /// is kept.
+    /// </summary>
+    [Fact]
+    public void A_teach_region_saved_by_1_0_6_is_set_aside_and_the_template_kept()
+    {
+        var graph = new VisionGraph();
+        graph.Add(new MatchTemplateNode { TaughtTemplate = "0|AAAA" });
+
+        var json = Sirius.Core.Serialization.GraphSerializer.Serialize(graph);
+        var start = json.IndexOf("\"TeachRect\"", StringComparison.Ordinal);
+        var end = json.IndexOf('}', start) + 1;
+        json = json[..start] + "\"TeachRegion\": { \"x\": 100, \"y\": 100, \"w\": 80, \"h\": 60 }" + json[end..];
+
+        var loaded = Sirius.Core.Serialization.GraphSerializer.Deserialize(json);
+
+        Assert.Empty(loaded.Warnings);
+        Assert.Equal("0|AAAA", loaded.Graph.Nodes.OfType<MatchTemplateNode>().Single().TaughtTemplate);
+    }
+
     [Fact]
     public void Teach_before_any_image_says_what_to_do()
     {
@@ -231,8 +304,8 @@ public class MatchTemplateTests
         var view = new Sirius.Studio.App.ViewModels.NodeViewModel(new MatchTemplateNode());
 
         Assert.DoesNotContain(view.Parameters, parameter => parameter.DisplayName == "Taught Template");
-        Assert.Contains(view.Parameters, parameter => parameter.DisplayName == "Teach Region");
-        Assert.Equal(["Teach"], view.Actions.Select(action => action.Label));
+        Assert.Contains(view.Parameters, parameter => parameter.DisplayName == "Teach Region" && parameter.HasInlineAction);
+        Assert.Empty(view.Actions);
     }
 
     private sealed class PictureNode : VisionNode

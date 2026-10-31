@@ -28,8 +28,15 @@ namespace Sirius.Vision.Nodes;
 /// The template is taught: draw Teach Region round the feature on a good
 /// part and press Teach, and the feature is kept in the recipe. Or wire
 /// one into Template - an Image File through Crop - which is used instead
-/// while it is wired. Position only - a part turned by more than a few
-/// degrees scores poorly.
+/// while it is wired.
+/// </para>
+/// <para>
+/// Teach Region may be turned, as Region of Interest's is. The feature is
+/// then straightened as it is cut, the angle is kept with it, and each
+/// image is searched turned by that angle - so a feature that sits at a
+/// known angle on a fixtured part is found, and drawn at that angle.
+/// Position only: a part turned by more than a few degrees from the taught
+/// angle scores poorly.
 /// </para>
 /// </remarks>
 [VisionNode(
@@ -42,10 +49,12 @@ namespace Sirius.Vision.Nodes;
 public sealed class MatchTemplateNode : VisionNode, INodeActions
 {
     private readonly object _gate = new();
-    private Rectangle _teachRegion = new(100, 100, 80, 60);
+    private OrientedRect _teachRect = new(140, 130, 80, 60, 0);
     private string _taught = string.Empty;
     private Mat? _taughtImage;
+    private double _taughtAngle;
     private Mat? _lastCut;
+    private double _lastCutAngle;
     private const uint Found = 0xFF22C55E;
 
     private double _minimumScore = 0.8;
@@ -77,17 +86,19 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
     /// <summary>The template in use, for a preview of what is being looked for.</summary>
     public OutputPort TemplateOut { get; }
 
-    [Param("Teach Region", Group = "Teach", Editor = ParamEditor.Region,
-        Description = "Round the feature to look for. Draw it on a good part, then press Teach.")]
-    public Rectangle TeachRegion
+    [Param("Teach Region", Group = "Teach", Editor = ParamEditor.Rect, Action = "Teach",
+        Description = "Round the feature to look for, as centre x, centre y, width, height and angle. Draw it " +
+                      "on a good part, then press Teach.")]
+    public OrientedRect TeachRect
     {
-        get => _teachRegion;
-        set => SetParam(ref _teachRegion, value);
+        get => _teachRect;
+        set => SetParam(ref _teachRect, value);
     }
 
     /// <summary>
-    /// The taught template, as a PNG in text, kept in the recipe. Set by
-    /// Teach; empty when nothing has been taught.
+    /// The taught template, kept in the recipe as the angle it was taught
+    /// at and a PNG, in text: "12.5|iVBOR...". Set by Teach; empty when
+    /// nothing has been taught.
     /// </summary>
     [Param("Taught Template", Hidden = true)]
     public string TaughtTemplate
@@ -135,7 +146,8 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
 
             using var png = new Emgu.CV.Util.VectorOfByte();
             CvInvoke.Imencode(".png", cut, png);
-            encoded = Convert.ToBase64String(png.ToArray());
+            encoded = _lastCutAngle.ToString("R", CultureInfo.InvariantCulture) + "|" +
+                      Convert.ToBase64String(png.ToArray());
         }
 
         // A parameter like any other: saved, undone, and the recipe re-runs.
@@ -196,7 +208,7 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
 
         KeepTeachRegion(image);
 
-        using var source = TemplateFor(context);
+        using var source = TemplateFor(context, out var angle);
 
         if (source is null)
         {
@@ -214,21 +226,22 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
             ? Rectangle.Intersect(_searchRegion, new Rectangle(0, 0, image.Width, image.Height))
             : new Rectangle(0, 0, image.Width, image.Height);
 
-        if (template.Width > region.Width || template.Height > region.Height)
+        context.Set(TemplateOut, ImageData.Adopt(source.Clone()));
+
+        using var grey = Grey(image);
+        using var pattern = Grey(source);
+        using var searched = new Mat(grey, region);
+        using var frame = Turned(searched, angle, out var back);
+
+        if (template.Width > frame.Width || template.Height > frame.Height)
         {
             throw new InvalidOperationException(
                 $"The template ({template.Width} x {template.Height}) is larger than where it is looked for " +
                 $"({region.Width} x {region.Height}).");
         }
 
-        context.Set(TemplateOut, ImageData.Adopt(source.Clone()));
-
-        using var grey = Grey(image);
-        using var pattern = Grey(source);
-        using var searched = new Mat(grey, region);
-
         var matches = Find(
-            searched,
+            frame,
             pattern,
             context.Param(nameof(MinimumScore), _minimumScore),
             _maximumCount,
@@ -236,8 +249,16 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
             context.CancellationToken);
 
         var shapes = matches
-            .Select(match => (Shape)Outline(
-                new Point2(match.TopLeft.X + region.X, match.TopLeft.Y + region.Y), template, match.Score))
+            .Select(match =>
+            {
+                // The middle of the match in the turned frame, carried back
+                // to where it is on the image.
+                var middle = back.MapPoint(new Point2(
+                    match.TopLeft.X + (template.Width / 2.0),
+                    match.TopLeft.Y + (template.Height / 2.0)))!.Value;
+
+                return (Shape)Outline(new Point2(middle.X + region.X, middle.Y + region.Y), template, angle, match.Score);
+            })
             .ToArray();
 
         if (!HasDetail(pattern))
@@ -338,26 +359,49 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
     }
 
     /// <summary>
-    /// A copy of what Teach Region holds on this image, for Teach to keep -
-    /// small, so it costs little to take on every run.
+    /// A copy of what Teach Region holds on this image, straightened, for
+    /// Teach to keep - small, so it costs little to take on every run.
     /// </summary>
     private void KeepTeachRegion(ImageData image)
     {
-        var cut = Rectangle.Intersect(_teachRegion, new Rectangle(0, 0, image.Width, image.Height));
+        var rect = _teachRect;
+        var width = (int)Math.Round(rect.Width);
+        var height = (int)Math.Round(rect.Height);
+
+        Mat? cut = null;
+
+        if (width > 1 && height > 1)
+        {
+            // As Region of Interest straightens: turned about the region's
+            // centre, which is then moved to the middle of the cut.
+            using var turn = new Matrix<double>(2, 3);
+            CvInvoke.GetRotationMatrix2D(
+                new PointF((float)rect.CentreX, (float)rect.CentreY), rect.Angle, 1, turn);
+            turn.Data[0, 2] += (width / 2.0) - rect.CentreX;
+            turn.Data[1, 2] += (height / 2.0) - rect.CentreY;
+
+            cut = new Mat();
+            CvInvoke.WarpAffine(
+                image.Mat, cut, turn, new Size(width, height), Inter.Linear, Warp.Default, BorderType.Replicate);
+        }
 
         lock (_gate)
         {
             _lastCut?.Dispose();
-            _lastCut = cut.Width > 1 && cut.Height > 1 ? new Mat(image.Mat, cut).Clone() : null;
+            _lastCut = cut;
+            _lastCutAngle = rect.Angle;
         }
     }
 
     /// <summary>
-    /// The template for this run: the one wired in, or the one taught - a
-    /// copy, the caller's to dispose - or null when there is neither.
+    /// The template for this run, and the angle it is looked for at: the
+    /// one wired in, upright, or the one taught at the angle it was taught
+    /// at - a copy, the caller's to dispose - or null when there is neither.
     /// </summary>
-    private Mat? TemplateFor(EvalContext context)
+    private Mat? TemplateFor(EvalContext context, out double angle)
     {
+        angle = 0;
+
         if (context.Get<ImageData>(TemplateIn) is { } wired)
             return wired.Mat.Clone();
 
@@ -365,28 +409,86 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
         {
             if (_taughtImage is null && _taught.Length > 0)
             {
-                var png = Convert.FromBase64String(_taught);
+                // "angle|png", or a bare png from before angles were kept.
+                var bar = _taught.IndexOf('|');
+
+                _taughtAngle = bar > 0 && double.TryParse(
+                    _taught[..bar], NumberStyles.Float, CultureInfo.InvariantCulture, out var taughtAt)
+                    ? taughtAt
+                    : 0;
+
                 _taughtImage = new Mat();
-                CvInvoke.Imdecode(png, ImreadModes.Unchanged, _taughtImage);
+                CvInvoke.Imdecode(Convert.FromBase64String(_taught[(bar + 1)..]), ImreadModes.Unchanged, _taughtImage);
             }
 
+            angle = _taughtAngle;
             return _taughtImage is { IsEmpty: false } taught ? taught.Clone() : null;
         }
     }
 
-    private static RectShape Outline(Point2 topLeft, Size template, double score) =>
-        new(new Bounds(topLeft.X, topLeft.Y, template.Width, template.Height))
+    /// <summary>
+    /// <paramref name="image"/> turned by <paramref name="angle"/>, on a
+    /// canvas big enough to hold all of it - so a feature at that angle
+    /// stands upright, as the template was cut - and the way back from it.
+    /// </summary>
+    private static Mat Turned(Mat image, double angle, out ShapeMap back)
+    {
+        if (Math.Abs(angle) < 0.01)
         {
-            Colour = Found,
-            StrokeWidth = 2,
-            Label = score.ToString("0.000", CultureInfo.InvariantCulture),
-            Metrics = new Dictionary<string, double>
-            {
-                [ShapeMetric.CentroidX] = topLeft.X + (template.Width / 2.0),
-                [ShapeMetric.CentroidY] = topLeft.Y + (template.Height / 2.0),
-                [ShapeMetric.Score] = score,
-            },
+            back = ShapeMap.Translation(0, 0);
+            return image.Clone();
+        }
+
+        using var turn = new Matrix<double>(2, 3);
+        CvInvoke.GetRotationMatrix2D(new PointF(image.Width / 2f, image.Height / 2f), angle, 1, turn);
+
+        var cos = Math.Abs(turn.Data[0, 0]);
+        var sin = Math.Abs(turn.Data[0, 1]);
+        var width = (int)Math.Ceiling((image.Width * cos) + (image.Height * sin));
+        var height = (int)Math.Ceiling((image.Width * sin) + (image.Height * cos));
+
+        turn.Data[0, 2] += (width / 2.0) - (image.Width / 2.0);
+        turn.Data[1, 2] += (height / 2.0) - (image.Height / 2.0);
+
+        var turned = new Mat();
+        CvInvoke.WarpAffine(image, turned, turn, new Size(width, height), Inter.Linear, Warp.Default, BorderType.Constant);
+
+        using var inverse = new Matrix<double>(2, 3);
+        CvInvoke.InvertAffineTransform(turn, inverse);
+
+        var m = inverse.Data;
+        back = ShapeMap.Affine(m[0, 0], m[0, 1], m[0, 2], m[1, 0], m[1, 1], m[1, 2]);
+        return turned;
+    }
+
+    /// <summary>A match drawn where it is: upright, or turned by the angle it was found at.</summary>
+    private static Shape Outline(Point2 centre, Size template, double angle, double score)
+    {
+        var metrics = new Dictionary<string, double>
+        {
+            [ShapeMetric.CentroidX] = centre.X,
+            [ShapeMetric.CentroidY] = centre.Y,
+            [ShapeMetric.Score] = score,
         };
+
+        var label = score.ToString("0.000", CultureInfo.InvariantCulture);
+
+        return Math.Abs(angle) < 0.01
+            ? new RectShape(new Bounds(centre.X - (template.Width / 2.0), centre.Y - (template.Height / 2.0), template.Width, template.Height))
+            {
+                Colour = Found,
+                StrokeWidth = 2,
+                Label = label,
+                Metrics = metrics,
+            }
+            : new OrientedRectShape(centre, template.Width, template.Height, angle)
+            {
+                Colour = Found,
+                StrokeWidth = 2,
+                Label = label,
+                Metrics = metrics,
+            };
+    }
 
     private static Mat Grey(ImageData image) => Grey(image.Mat);
 
