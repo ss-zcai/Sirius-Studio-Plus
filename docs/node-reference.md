@@ -1546,6 +1546,7 @@ Finds missing and extra material round a circular edge against a tolerance, and 
 | Profile | `Profile` | circle | - |
 | Count | `Integer` | circle | - |
 | Worst | `Number` | circle | - |
+| Form | `Number` | circle | - |
 | Pass | `Yes/No` | circle | - |
 
 **Parameters**
@@ -1570,6 +1571,7 @@ Finds missing and extra material round a circular edge against a tolerance, and 
 | Inner Tolerance | `Number` | TextBox | - |
 | Outer Tolerance | `Number` | TextBox | - |
 | Min Length | `Number` | Slider | 0 to 90 |
+| Form Window | `Number` | Slider | 2 to 180 |
 | Merge Gap | `Integer` | Slider | 0 to 20 |
 | Decimals | `Integer` | Slider | 0 to 6 |
 

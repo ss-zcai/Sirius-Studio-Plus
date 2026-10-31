@@ -393,7 +393,7 @@ public sealed class FitEllipseNode : ShapeFitNode
     }
 
     /// <summary>One ellipse through every point given, or null when they do not make one.</summary>
-    private static (Point2 Centre, double Major, double Minor, double Angle)? FitOnce(IReadOnlyList<Point2> points)
+    internal static (Point2 Centre, double Major, double Minor, double Angle)? FitOnce(IReadOnlyList<Point2> points)
     {
         using var vector = ToVector(points);
         var box = CvInvoke.FitEllipse(vector);
@@ -421,7 +421,7 @@ public sealed class FitEllipseNode : ShapeFitNode
     /// where the ellipse crosses it. Exact on a circle and close enough on
     /// anything that is nearly one, which is what gets fitted.
     /// </remarks>
-    private static double EllipseResidual(
+    internal static double EllipseResidual(
         Point2 point, Point2 centre, double major, double minor, double angle)
     {
         var radians = -angle * Math.PI / 180.0;

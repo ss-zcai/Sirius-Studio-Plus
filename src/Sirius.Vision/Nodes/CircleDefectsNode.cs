@@ -40,6 +40,16 @@ public enum DefectReference
 
     /// <summary>The circle wired into Circle, exactly as given.</summary>
     Wired,
+
+    /// <summary>
+    /// The edge's own shape, smoothed over Form Window: what a part that is
+    /// not quite round is meant to look like, so only what departs from it
+    /// sharply - a notch, a burr - is a defect.
+    /// </summary>
+    LocalForm,
+
+    /// <summary>An ellipse fitted to the edge, the points furthest off it set aside - for a part that is oval.</summary>
+    FittedEllipse,
 }
 
 /// <summary>
@@ -107,7 +117,8 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
     private EdgePolarity _polarity = EdgePolarity.Either;
     private EdgeChoice _choice = EdgeChoice.First;
     private RadialDirection _direction = RadialDirection.Inward;
-    private DefectReference _reference = DefectReference.Fitted;
+    private DefectReference _reference = DefectReference.LocalForm;
+    private double _formWindow = 15;
     private double _nominalRadius = 100;
     private double _innerTolerance = 2;
     private double _outerTolerance = 2;
@@ -127,6 +138,7 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
         ProfileOut = AddOutput<ProfileData>("Profile");
         CountOut = AddOutput<int>("Count");
         WorstOut = AddOutput<double>("Worst");
+        FormOut = AddOutput<double>("Form");
         PassOut = AddOutput<bool>("Pass");
     }
 
@@ -161,6 +173,14 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
 
     /// <summary>True when there are no defects.</summary>
     public OutputPort PassOut { get; }
+
+    /// <summary>
+    /// How far the reference itself is from round: its largest radius less
+    /// its smallest. Zero against a circle; the part's out-of-roundness
+    /// against an ellipse or its local form - for a Limit Check of its own,
+    /// apart from the defects.
+    /// </summary>
+    public OutputPort FormOut { get; }
 
     OutputPort IJudgingNode.VerdictPort => PassOut;
 
@@ -280,8 +300,9 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
     // ---- what is a defect ----------------------------------------------
 
     [Param("Reference", Group = "Tolerance",
-        Description = "Fitted: the circle most of the edge agrees with. Nominal: a known radius about the fitted " +
-                      "centre. Wired: the circle wired in.")]
+        Description = "Local Form: the edge's own shape, smoothed - for a part that is not quite round. Fitted: the " +
+                      "circle most of the edge agrees with. Nominal: a known radius about the fitted centre. Wired: " +
+                      "the circle wired in. Fitted Ellipse: for an oval part.")]
     public DefectReference ReferenceKind
     {
         get => _reference;
@@ -319,6 +340,15 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
     {
         get => _minimumLength;
         set => SetParam(ref _minimumLength, Math.Clamp(value, 0, 360));
+    }
+
+    [Param("Form Window", Group = "Tolerance", Min = 2, Max = 180, Step = 1,
+        Description = "With Reference set to Local Form: degrees of edge the form is smoothed over. Make it about " +
+                      "three times the widest defect, and narrower than the part's own waves.")]
+    public double FormWindow
+    {
+        get => _formWindow;
+        set => SetParam(ref _formWindow, Math.Clamp(value, 2, 180));
     }
 
     [Param("Merge Gap", Group = "Tolerance", Min = 0, Max = 20, Step = 1,
@@ -367,21 +397,24 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
             context.CancellationToken);
 
         var (width, height) = (image.Width, image.Height);
+        var step = CaliperScan.RingStep(_sweepAngle, _caliperCount);
 
-        if (ReferenceFor(context, edges, calibration, inner, outer) is not { } circle)
+        if (ReferenceFor(context, edges, calibration, inner, outer, step) is not { } reference)
         {
             context.Set(DefectsOut, new ShapeSet([], width, height));
             context.Set(ReferenceOut, new ShapeSet([], width, height));
             context.Set(PointsOut, new ShapeSet(
                 edges.Select(edge => (Shape)CaliperScan.RingPoint(edge, Evidence)).ToArray(), width, height));
-            context.Set(ProfileOut, Profile(Enumerable.Repeat(double.NaN, _caliperCount).ToArray(), calibration));
+            context.Set(ProfileOut, Profile(Enumerable.Repeat(double.NaN, _caliperCount).ToArray(), null, calibration));
             context.Set(CountOut, 0);
             context.Set(WorstOut, 0d);
+            context.Set(FormOut, 0d);
             context.Set(PassOut, false);
             return;
         }
 
-        // Deviation per caliper, in pixels; NaN where a caliper found no edge.
+        // Deviation per caliper, in pixels: the edge's radius less the
+        // reference's along the same ray. NaN where no edge was found.
         var deviation = new double[_caliperCount];
         Array.Fill(deviation, double.NaN);
 
@@ -389,61 +422,119 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
 
         foreach (var edge in edges)
         {
-            deviation[edge.Caliper] = edge.At.DistanceTo(circle.Centre) - circle.Radius;
+            deviation[edge.Caliper] = edge.At.DistanceTo(reference.Centre) - reference.Radius[edge.Caliper];
             byCaliper[edge.Caliper] = edge;
         }
 
-        var step = CaliperScan.RingStep(_sweepAngle, _caliperCount);
         var minimumCalipers = Math.Max(1, (int)Math.Ceiling(_minimumLength / step - 1e-9));
 
         var runs = FindRuns(deviation, inner, outer, _mergeGap, minimumCalipers, CaliperScan.IsFullCircle(_sweepAngle));
 
         var defects = runs
-            .Select(run => Outline(run, deviation, byCaliper, circle, band, step, calibration))
+            .Select(run => Outline(run, deviation, byCaliper, reference, band, step, calibration))
             .ToArray();
 
         var finite = deviation.Where(double.IsFinite).ToArray();
         var worst = finite.Length == 0 ? 0 : finite.MaxBy(value => Math.Abs(value));
 
+        var points = edges
+            .Select(edge => (Shape)new PointShape(edge.At)
+            {
+                Colour = Evidence,
+                Metrics = new Dictionary<string, double>
+                {
+                    [ShapeMetric.CentroidX] = edge.At.X,
+                    [ShapeMetric.CentroidY] = edge.At.Y,
+                    [ShapeMetric.Angle] = edge.Along,
+                    [ShapeMetric.Radius] = edge.At.DistanceTo(reference.Centre),
+                    [ShapeMetric.Deviation] = deviation[edge.Caliper],
+                    [ShapeMetric.Contrast] = Math.Abs(edge.Strength),
+                },
+            })
+            .ToArray();
+
+        var form = reference.Radius.Max() - reference.Radius.Min();
+
         context.Set(DefectsOut, new ShapeSet(defects, width, height));
-        context.Set(ReferenceOut, new ShapeSet(ReferenceShapes(circle, inner, outer), width, height));
-        context.Set(PointsOut, new ShapeSet(
-            edges.Select(edge => (Shape)CaliperScan.RingPoint(edge, Evidence, circle.Centre, circle.Radius)).ToArray(),
-            width,
-            height));
-        context.Set(ProfileOut, Profile(deviation, calibration));
+        context.Set(ReferenceOut, new ShapeSet(ReferenceShapes(reference, inner, outer), width, height));
+        context.Set(PointsOut, new ShapeSet(points, width, height));
+        context.Set(ProfileOut, Profile(deviation, reference.IsRound ? null : reference.Radius, calibration));
         context.Set(CountOut, defects.Length);
         context.Set(WorstOut, calibration.ToUnits(worst));
+        context.Set(FormOut, calibration.ToUnits(form));
         context.Set(PassOut, defects.Length == 0);
     }
 
-    /// <summary>The circle the edge is measured against, or null - having said why - when there is none.</summary>
-    private CircleShape? ReferenceFor(
-        EvalContext context, IReadOnlyList<EdgePoint> edges, Calibration calibration, double inner, double outer)
+    /// <summary>
+    /// What the edge is measured against: a centre, and for each caliper
+    /// the reference's radius along that caliper's ray, and its angle.
+    /// </summary>
+    /// <param name="Centre">Where radii are measured from.</param>
+    /// <param name="Radius">The reference radius along each caliper, in pixels.</param>
+    /// <param name="Angle">Each caliper's direction from <paramref name="Centre"/>, in radians.</param>
+    /// <param name="Drawn">The reference as a shape, carrying its measurements.</param>
+    /// <param name="IsRound">A circle: the same radius all round, so drawn as circles and with no form to plot.</param>
+    private sealed record ReferenceCurve(Point2 Centre, double[] Radius, double[] Angle, Shape Drawn, bool IsRound);
+
+    /// <summary>The reference for this run, or null - having said why - when there is none.</summary>
+    private ReferenceCurve? ReferenceFor(
+        EvalContext context,
+        IReadOnlyList<EdgePoint> edges,
+        Calibration calibration,
+        double inner,
+        double outer,
+        double step)
     {
         if (_reference == DefectReference.Wired)
         {
             if (context.Get<ShapeSet>(CircleIn)?.Shapes.FirstOrDefault() is CircleShape wired)
-                return wired;
+                return Round(wired.Centre, wired.Radius, edges, step, error: double.NaN, used: 0);
 
             context.Warn("Reference is Wired, but no circle is wired into Circle; fitting one instead.");
         }
 
         var points = edges.Select(edge => edge.At).ToArray();
+        var needed = _reference == DefectReference.FittedEllipse ? 5 : CircleFit.MinimumPoints;
 
-        if (points.Length < CircleFit.MinimumPoints)
+        if (points.Length < needed)
         {
             context.Warn(points.Length == 0
                 ? "No edge was found in the ring. Check the band covers the edge, and lower Min Contrast."
-                : $"Only {points.Length} edge points were found; a circle needs {CircleFit.MinimumPoints}.");
+                : $"Only {points.Length} edge points were found; the reference needs {needed}.");
             return null;
         }
 
         // Agreeing within the tolerance is what not being a defect means,
-        // so it is the right test for which points the circle should
-        // follow - with a floor, since a tolerance of nothing would leave
-        // the fit with no point that agrees exactly.
-        var fit = CircleFit.FitConsensus(points, Math.Max(Math.Min(inner, outer), 0.5));
+        // so it is the right test for which points a fit should follow -
+        // with a floor, since a tolerance of nothing would leave no point
+        // that agrees exactly.
+        var agree = Math.Max(Math.Min(inner, outer), 0.5);
+
+        switch (_reference)
+        {
+            case DefectReference.FittedEllipse:
+                return Elliptical(context, edges, points, agree, step);
+
+            case DefectReference.LocalForm:
+            {
+                // The centre only sets where radii are measured from; the
+                // baseline follows whatever shape the edge has round it. A
+                // plain fit over the whole ring finds the middle of a part
+                // that is not round, where a consensus would pick whichever
+                // arc happened to be most circular.
+                var centre = CircleFit.Fit(points);
+
+                if (!centre.Success)
+                {
+                    context.Warn("The edge points do not go round a centre.");
+                    return null;
+                }
+
+                return Local(centre.Centre, edges, step, agree);
+            }
+        }
+
+        var fit = CircleFit.FitConsensus(points, agree);
 
         if (!fit.Success)
         {
@@ -455,17 +546,307 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
             ? calibration.ToPixels(context.Param(nameof(NominalRadius), _nominalRadius))
             : fit.Radius;
 
-        return new CircleShape(fit.Centre, radius)
+        return Round(fit.Centre, radius, edges, step, fit.Error, fit.Used.Count);
+    }
+
+    /// <summary>Each caliper's direction from <paramref name="centre"/>: towards its edge point, or along the caliper where it found none.</summary>
+    private double[] AnglesFrom(Point2 centre, IReadOnlyList<EdgePoint> edges, double step)
+    {
+        var angles = new double[_caliperCount];
+
+        for (var i = 0; i < _caliperCount; i++)
+            angles[i] = (_startAngle + (i * step)) * Math.PI / 180;
+
+        foreach (var edge in edges)
+            angles[edge.Caliper] = Math.Atan2(edge.At.Y - centre.Y, edge.At.X - centre.X);
+
+        return angles;
+    }
+
+    private ReferenceCurve Round(
+        Point2 centre, double radius, IReadOnlyList<EdgePoint> edges, double step, double error, int used)
+    {
+        var radii = new double[_caliperCount];
+        Array.Fill(radii, radius);
+
+        var metrics = new Dictionary<string, double>
+        {
+            [ShapeMetric.CentroidX] = centre.X,
+            [ShapeMetric.CentroidY] = centre.Y,
+            [ShapeMetric.Radius] = radius,
+        };
+
+        if (!double.IsNaN(error))
+        {
+            metrics[ShapeMetric.FitError] = error;
+            metrics[ShapeMetric.FitPoints] = used;
+        }
+
+        return new ReferenceCurve(
+            centre,
+            radii,
+            AnglesFrom(centre, edges, step),
+            new CircleShape(centre, radius) { Metrics = metrics },
+            IsRound: true);
+    }
+
+    /// <summary>
+    /// An ellipse fitted to the edge, the points furthest off it set aside
+    /// and the fit made again - so a notch does not pull it, as a plain fit
+    /// would.
+    /// </summary>
+    private ReferenceCurve? Elliptical(
+        EvalContext context, IReadOnlyList<EdgePoint> edges, Point2[] points, double agree, double step)
+    {
+        var fit = FitEllipseNode.FitOnce(points);
+        var kept = points;
+
+        for (var pass = 0; pass < 4 && fit is { } current; pass++)
+        {
+            var residuals = points
+                .Select(point => Math.Abs(FitEllipseNode.EllipseResidual(
+                    point, current.Centre, current.Major, current.Minor, current.Angle)))
+                .ToArray();
+
+            // Three robust spreads, or the tolerance if that is wider: the
+            // edge's own scatter, never less than what counts as good.
+            var spread = 1.4826 * Median(residuals);
+            var limit = Math.Max(agree, 3 * spread);
+
+            var survivors = points.Where((_, i) => residuals[i] <= limit).ToArray();
+
+            if (survivors.Length < 5 || survivors.Length == kept.Length)
+                break;
+
+            kept = survivors;
+            fit = FitEllipseNode.FitOnce(survivors) ?? fit;
+        }
+
+        if (fit is not { } ellipse)
+        {
+            context.Warn("The edge points do not describe an ellipse.");
+            return null;
+        }
+
+        var angles = AnglesFrom(ellipse.Centre, edges, step);
+        var a = ellipse.Major / 2;
+        var b = ellipse.Minor / 2;
+        var tilt = ellipse.Angle * Math.PI / 180;
+
+        // Where the ellipse crosses each caliper's ray from its centre.
+        var radii = angles
+            .Select(angle =>
+            {
+                var along = angle - tilt;
+                return a * b / Math.Sqrt(Math.Pow(b * Math.Cos(along), 2) + Math.Pow(a * Math.Sin(along), 2));
+            })
+            .ToArray();
+
+        var drawn = new EllipseShape(ellipse.Centre, ellipse.Major, ellipse.Minor, ellipse.Angle)
         {
             Metrics = new Dictionary<string, double>
             {
-                [ShapeMetric.CentroidX] = fit.Centre.X,
-                [ShapeMetric.CentroidY] = fit.Centre.Y,
-                [ShapeMetric.Radius] = radius,
-                [ShapeMetric.FitError] = fit.Error,
-                [ShapeMetric.FitPoints] = fit.Used.Count,
+                [ShapeMetric.CentroidX] = ellipse.Centre.X,
+                [ShapeMetric.CentroidY] = ellipse.Centre.Y,
+                [ShapeMetric.MajorAxis] = ellipse.Major,
+                [ShapeMetric.MinorAxis] = ellipse.Minor,
+                [ShapeMetric.Angle] = ellipse.Angle,
+                [ShapeMetric.FitPoints] = kept.Length,
             },
         };
+
+        return new ReferenceCurve(ellipse.Centre, radii, angles, drawn, IsRound: false);
+    }
+
+    /// <summary>
+    /// The edge's own shape, smoothed: at each caliper, the median radius
+    /// of the calipers within half a Form Window either side.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A median rather than a mean because a notch narrower than half the
+    /// window does not move it: the baseline runs straight across the notch
+    /// and follows the part's slow form everywhere else, so what is left is
+    /// the notch.
+    /// </para>
+    /// <para>
+    /// Then again without what stood out. On a steep stretch of the form a
+    /// defect a third of the window wide still lifts the median towards
+    /// itself by a pixel or two, and reads that much shallower. So what
+    /// stands out is set aside, and a short curve - a quadratic over the
+    /// window - is fitted through what is left: it follows the slope and the
+    /// bend of the form straight across the gap, where a median of what is
+    /// left either side would jump. Each pass starts again from every
+    /// point, so one set aside wrongly comes back.
+    /// </para>
+    /// </remarks>
+    private ReferenceCurve Local(Point2 centre, IReadOnlyList<EdgePoint> edges, double step, double agree)
+    {
+        var radius = new double[_caliperCount];
+        Array.Fill(radius, double.NaN);
+
+        foreach (var edge in edges)
+            radius[edge.Caliper] = edge.At.DistanceTo(centre);
+
+        var window = Math.Max(3, (int)Math.Round(_formWindow / step) | 1);
+        var wraps = CaliperScan.IsFullCircle(_sweepAngle);
+        var baseline = LocalForm(radius, window, wraps);
+
+        for (var pass = 0; pass < 3; pass++)
+        {
+            var residual = radius.Select((r, i) => Math.Abs(r - baseline[i])).Where(double.IsFinite).ToArray();
+
+            if (residual.Length == 0)
+                break;
+
+            // Half the tolerance, or three of the edge's own robust spreads
+            // if it is that rough: what stands out from the form.
+            var limit = Math.Max(agree / 2, 3 * 1.4826 * Median(residual));
+
+            var kept = radius
+                .Select((r, i) => double.IsFinite(r) && Math.Abs(r - baseline[i]) <= limit ? r : double.NaN)
+                .ToArray();
+
+            baseline = LocalCurve(kept, window, wraps, fallback: baseline);
+        }
+        var angles = AnglesFrom(centre, edges, step);
+
+        var outline = baseline
+            .Select((r, i) => new Point2(centre.X + (r * Math.Cos(angles[i])), centre.Y + (r * Math.Sin(angles[i]))))
+            .ToArray();
+
+        var drawn = new PolygonShape(outline, CaliperScan.IsFullCircle(_sweepAngle))
+        {
+            Metrics = new Dictionary<string, double>
+            {
+                [ShapeMetric.CentroidX] = centre.X,
+                [ShapeMetric.CentroidY] = centre.Y,
+                [ShapeMetric.Radius] = baseline.Average(),
+            },
+        };
+
+        return new ReferenceCurve(centre, baseline, angles, drawn, IsRound: false);
+    }
+
+    /// <summary>
+    /// A running median of <paramref name="radius"/> over
+    /// <paramref name="window"/> calipers, centred - round the seam when
+    /// the ring is whole. Gaps (NaN) are left out of each median, and a
+    /// caliper with none either side takes its nearest neighbour's.
+    /// </summary>
+    public static double[] LocalForm(IReadOnlyList<double> radius, int window, bool wraps)
+    {
+        var count = radius.Count;
+        var half = window / 2;
+        var baseline = new double[count];
+        var span = new List<double>(window);
+
+        for (var i = 0; i < count; i++)
+        {
+            span.Clear();
+
+            for (var j = i - half; j <= i + half; j++)
+            {
+                var k = wraps ? ((j % count) + count) % count : j;
+
+                if (k >= 0 && k < count && double.IsFinite(radius[k]))
+                    span.Add(radius[k]);
+            }
+
+            baseline[i] = span.Count == 0 ? double.NaN : Median(span);
+        }
+
+        // Filled from the nearest caliper that has one.
+        var known = Enumerable.Range(0, count).Where(i => double.IsFinite(baseline[i])).ToArray();
+
+        if (known.Length == 0)
+            return baseline;
+
+        for (var i = 0; i < count; i++)
+        {
+            if (!double.IsFinite(baseline[i]))
+                baseline[i] = baseline[known.MinBy(k => Math.Abs(k - i))];
+        }
+
+        return baseline;
+    }
+
+    /// <summary>
+    /// At each caliper, a quadratic fitted by least squares through the
+    /// known points within half a window either side - where too few are
+    /// known, <paramref name="fallback"/>.
+    /// </summary>
+    internal static double[] LocalCurve(IReadOnlyList<double> radius, int window, bool wraps, IReadOnlyList<double> fallback)
+    {
+        var count = radius.Count;
+        var half = window / 2;
+        var curve = new double[count];
+
+        for (var i = 0; i < count; i++)
+        {
+            // Sums for the normal equations of y = c0 + c1 x + c2 x^2, with
+            // x the distance in calipers from this one.
+            double s0 = 0, s1 = 0, s2 = 0, s3 = 0, s4 = 0, t0 = 0, t1 = 0, t2 = 0;
+            var used = 0;
+            var left = 0;
+            var right = 0;
+
+            for (var j = i - half; j <= i + half; j++)
+            {
+                var k = wraps ? ((j % count) + count) % count : j;
+
+                if (k < 0 || k >= count || !double.IsFinite(radius[k]))
+                    continue;
+
+                double x = j - i;
+                var y = radius[k];
+                var x2 = x * x;
+
+                s0 += 1;
+                s1 += x;
+                s2 += x2;
+                s3 += x2 * x;
+                s4 += x2 * x2;
+                t0 += y;
+                t1 += x * y;
+                t2 += x2 * y;
+                used++;
+
+                if (j < i)
+                    left++;
+                else if (j > i)
+                    right++;
+            }
+
+            // A curve needs points to hold it: a few in all, and some on
+            // each side, or its ends swing wherever they like.
+            if (used < 6 || left == 0 || right == 0)
+            {
+                curve[i] = fallback[i];
+                continue;
+            }
+
+            // Cramer's rule on the 3 x 3 system.
+            var det = Determinant(s0, s1, s2, s1, s2, s3, s2, s3, s4);
+
+            curve[i] = Math.Abs(det) < 1e-9
+                ? t0 / s0
+                : Determinant(t0, s1, s2, t1, s2, s3, t2, s3, s4) / det;
+        }
+
+        return curve;
+    }
+
+    private static double Determinant(
+        double a, double b, double c, double d, double e, double f, double g, double h, double i) =>
+        (a * ((e * i) - (f * h))) - (b * ((d * i) - (f * g))) + (c * ((d * h) - (e * g)));
+
+    private static double Median(IReadOnlyList<double> values)
+    {
+        var sorted = values.Order().ToArray();
+        var middle = sorted.Length / 2;
+
+        return sorted.Length % 2 == 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
     }
 
     /// <summary>
@@ -604,43 +985,47 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
         : null;
 
     /// <summary>
-    /// A defect as a shape: the region between the edge and the circle,
+    /// A defect as a shape: the region between the edge and the reference,
     /// with its measurements.
     /// </summary>
     private PolygonShape Outline(
         DefectRun run,
         double[] deviation,
         EdgePoint?[] byCaliper,
-        CircleShape circle,
+        ReferenceCurve reference,
         Ring band,
         double step,
         Calibration calibration)
     {
         var count = deviation.Length;
         var indices = Enumerable.Range(0, run.Length).Select(i => (run.Start + i) % count).ToArray();
+        var radians = step * Math.PI / 180;
 
         var edgeSide = new List<Point2>();
-        var circleSide = new List<Point2>();
+        var referenceSide = new List<Point2>();
         var area = 0.0;
+        var length = 0.0;
         var worst = double.NaN;
-        var worstAt = circle.Centre;
+        var worstAt = reference.Centre;
 
         foreach (var index in indices)
         {
-            var angle = (_startAngle + (index * step)) * Math.PI / 180;
+            var angle = reference.Angle[index];
             var (ux, uy) = (Math.Cos(angle), Math.Sin(angle));
+            var expected = reference.Radius[index];
 
-            circleSide.Add(new Point2(circle.Centre.X + (ux * circle.Radius), circle.Centre.Y + (uy * circle.Radius)));
+            referenceSide.Add(new Point2(reference.Centre.X + (ux * expected), reference.Centre.Y + (uy * expected)));
+            length += expected * radians;
 
             if (byCaliper[index] is { } edge)
             {
                 edgeSide.Add(edge.At);
 
-                var radius = circle.Radius + deviation[index];
+                var radius = expected + deviation[index];
 
                 // The sector between the two radii, which summed over the
-                // calipers is the area between edge and circle.
-                area += Math.Abs((radius * radius) - (circle.Radius * circle.Radius)) / 2 * (step * Math.PI / 180);
+                // calipers is the area between edge and reference.
+                area += Math.Abs((radius * radius) - (expected * expected)) / 2 * radians;
 
                 if (double.IsNaN(worst) || Math.Abs(deviation[index]) > Math.Abs(worst))
                 {
@@ -656,11 +1041,12 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
                     : run.Kind == DefectKind.Excess ? band.OuterRadius
                     : _direction == RadialDirection.Inward ? band.OuterRadius : band.InnerRadius;
 
-                edgeSide.Add(new Point2(band.CentreX + (ux * reach), band.CentreY + (uy * reach)));
+                var nominal = (_startAngle + (index * step)) * Math.PI / 180;
+                edgeSide.Add(new Point2(band.CentreX + (Math.Cos(nominal) * reach), band.CentreY + (Math.Sin(nominal) * reach)));
             }
         }
 
-        var points = edgeSide.Concat(Enumerable.Reverse(circleSide)).ToArray();
+        var points = edgeSide.Concat(Enumerable.Reverse(referenceSide)).ToArray();
 
         var from = Normalise(_startAngle + (run.Start * step));
         var to = Normalise(_startAngle + ((run.Start + run.Length - 1) * step));
@@ -693,7 +1079,7 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
             [ShapeMetric.Angle] = middle,
             [ShapeMetric.StartAngle] = from,
             [ShapeMetric.EndAngle] = to,
-            [ShapeMetric.Length] = run.Length * step * Math.PI / 180 * circle.Radius,
+            [ShapeMetric.Length] = length,
             [ShapeMetric.Area] = area,
         };
 
@@ -714,28 +1100,90 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
         };
     }
 
-    /// <summary>The reference circle in green, with thin circles where the tolerances lie.</summary>
-    private static IReadOnlyList<Shape> ReferenceShapes(CircleShape circle, double inner, double outer)
+    /// <summary>The reference in green, with thin lines where the tolerances lie either side of it.</summary>
+    private static IReadOnlyList<Shape> ReferenceShapes(ReferenceCurve reference, double inner, double outer)
     {
-        var shapes = new List<Shape> { circle with { Colour = Reference, StrokeWidth = 2 } };
+        var shapes = new List<Shape> { reference.Drawn with { Colour = Reference, StrokeWidth = 2 } };
 
-        if (outer > 0)
-            shapes.Add(new CircleShape(circle.Centre, circle.Radius + outer) { Colour = ToleranceBand, StrokeWidth = 1 });
+        switch (reference.Drawn)
+        {
+            case CircleShape circle:
+                if (outer > 0)
+                    shapes.Add(new CircleShape(circle.Centre, circle.Radius + outer) { Colour = ToleranceBand, StrokeWidth = 1 });
 
-        if (inner > 0 && circle.Radius - inner > 0)
-            shapes.Add(new CircleShape(circle.Centre, circle.Radius - inner) { Colour = ToleranceBand, StrokeWidth = 1 });
+                if (inner > 0 && circle.Radius - inner > 0)
+                    shapes.Add(new CircleShape(circle.Centre, circle.Radius - inner) { Colour = ToleranceBand, StrokeWidth = 1 });
+
+                break;
+
+            case EllipseShape ellipse:
+                if (outer > 0)
+                {
+                    shapes.Add(ellipse with
+                    {
+                        MajorAxis = ellipse.MajorAxis + (2 * outer),
+                        MinorAxis = ellipse.MinorAxis + (2 * outer),
+                        Colour = ToleranceBand,
+                        StrokeWidth = 1,
+                        Metrics = new Dictionary<string, double>(),
+                    });
+                }
+
+                if (inner > 0 && ellipse.MinorAxis - (2 * inner) > 0)
+                {
+                    shapes.Add(ellipse with
+                    {
+                        MajorAxis = ellipse.MajorAxis - (2 * inner),
+                        MinorAxis = ellipse.MinorAxis - (2 * inner),
+                        Colour = ToleranceBand,
+                        StrokeWidth = 1,
+                        Metrics = new Dictionary<string, double>(),
+                    });
+                }
+
+                break;
+
+            case PolygonShape polygon:
+                foreach (var offset in new[] { outer, -inner })
+                {
+                    if (offset == 0)
+                        continue;
+
+                    var shifted = reference.Radius
+                        .Select((r, i) => new Point2(
+                            reference.Centre.X + ((r + offset) * Math.Cos(reference.Angle[i])),
+                            reference.Centre.Y + ((r + offset) * Math.Sin(reference.Angle[i]))))
+                        .ToArray();
+
+                    shapes.Add(new PolygonShape(shifted, polygon.Closed) { Colour = ToleranceBand, StrokeWidth = 1 });
+                }
+
+                break;
+        }
 
         return shapes;
     }
 
-    private ProfileData Profile(double[] deviation, Calibration calibration)
+    /// <summary>
+    /// Deviation against angle - and, when the reference is not a circle,
+    /// its form: how far its radius runs above or below its own average.
+    /// </summary>
+    private ProfileData Profile(double[] deviation, double[]? form, Calibration calibration)
     {
-        var samples = deviation
+        static float[] Samples(IEnumerable<double> values, Calibration calibration) => values
             .Select(value => double.IsNaN(value) ? float.NaN : (float)calibration.ToUnits(value))
             .ToArray();
 
+        var channels = new List<ProfileChannel> { new("Deviation", Samples(deviation, calibration)) };
+
+        if (form is not null)
+        {
+            var mean = form.Average();
+            channels.Add(new ProfileChannel("Form", Samples(form.Select(r => r - mean), calibration)));
+        }
+
         return new ProfileData(
-            [new ProfileChannel("Deviation", samples)],
+            channels,
             default,
             default,
             CaliperScan.RingStep(_sweepAngle, _caliperCount))
