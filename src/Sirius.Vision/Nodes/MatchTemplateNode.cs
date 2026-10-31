@@ -60,7 +60,7 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
     private double _minimumScore = 0.8;
     private int _maximumCount = 1;
     private double _separation = 0.5;
-    private Rectangle _searchRegion = Rectangle.Empty;
+    private OrientedRect _searchRect = new(0, 0, 0, 0, 0);
 
     public MatchTemplateNode()
     {
@@ -190,13 +190,14 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
         set => SetParam(ref _separation, Math.Clamp(value, 0.05, 1));
     }
 
-    [Param("Search Region", Editor = ParamEditor.Region,
-        Description = "Where to look. Left empty, the whole image. A smaller region is faster and cannot be " +
-                      "fooled by something alike elsewhere.")]
-    public Rectangle SearchRegion
+    [Param("Search Region", Editor = ParamEditor.Rect,
+        Description = "Where to look, as centre x, centre y, width, height and angle: a match counts when its " +
+                      "middle is inside. Left at 1 x 1, the whole image. A smaller region is faster and cannot " +
+                      "be fooled by something alike elsewhere.")]
+    public OrientedRect SearchRect
     {
-        get => _searchRegion;
-        set => SetParam(ref _searchRegion, value);
+        get => _searchRect;
+        set => SetParam(ref _searchRect, value);
     }
 
     /// <summary>One place the template was found.</summary>
@@ -222,16 +223,41 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
 
         var template = new Size(source.Width, source.Height);
 
-        var region = _searchRegion.Width > 0 && _searchRegion.Height > 0
-            ? Rectangle.Intersect(_searchRegion, new Rectangle(0, 0, image.Width, image.Height))
-            : new Rectangle(0, 0, image.Width, image.Height);
+        var whole = new Rectangle(0, 0, image.Width, image.Height);
+        // A turned rectangle is never smaller than a pixel, so "no region"
+        // is one of that size - the default.
+        var limited = _searchRect.Width > 1 && _searchRect.Height > 1;
+
+        var searchShape = limited
+            ? new OrientedRectShape(
+                new Point2(_searchRect.CentreX, _searchRect.CentreY), _searchRect.Width, _searchRect.Height, _searchRect.Angle)
+            : null;
+
+        // What is cut out and searched: the box round the search region, and
+        // half a template more each way - a match counts by its middle, and
+        // one whose middle is just inside reaches that far out.
+        var padX = (int)Math.Ceiling(template.Width / 2.0);
+        var padY = (int)Math.Ceiling(template.Height / 2.0);
+
+        var region = searchShape is null
+            ? whole
+            : Rectangle.Intersect(
+                Rectangle.FromLTRB(
+                    (int)Math.Floor(searchShape.Bounds.X) - padX,
+                    (int)Math.Floor(searchShape.Bounds.Y) - padY,
+                    (int)Math.Ceiling(searchShape.Bounds.Right) + padX,
+                    (int)Math.Ceiling(searchShape.Bounds.Bottom) + padY),
+                whole);
+
+        if (region.Width <= 0 || region.Height <= 0)
+            throw new InvalidOperationException("The search region lies outside the image.");
 
         context.Set(TemplateOut, ImageData.Adopt(source.Clone()));
 
         using var grey = Grey(image);
         using var pattern = Grey(source);
         using var searched = new Mat(grey, region);
-        using var frame = Turned(searched, angle, out var back);
+        using var frame = Turned(searched, angle, out var forward, out var back);
 
         if (template.Width > frame.Width || template.Height > frame.Height)
         {
@@ -240,13 +266,18 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
                 $"({region.Width} x {region.Height}).");
         }
 
+        using var allowed = searchShape is null
+            ? null
+            : Allowed(searchShape, region, forward, frame, template);
+
         var matches = Find(
             frame,
             pattern,
             context.Param(nameof(MinimumScore), _minimumScore),
             _maximumCount,
             _separation,
-            context.CancellationToken);
+            context.CancellationToken,
+            allowed);
 
         var shapes = matches
             .Select(match =>
@@ -278,9 +309,13 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
     /// The best places <paramref name="template"/> matches in
     /// <paramref name="image"/>, best first, as top-left corners.
     /// </summary>
+    /// <param name="allowed">
+    /// Where a match may be, as a mask over the top-left positions the scores
+    /// are for: zero rules a position out. Null allows everywhere.
+    /// </param>
     public static IReadOnlyList<Match> Find(
         Mat image, Mat template, double minimumScore, int maximumCount, double separation,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, Mat? allowed = null)
     {
         // A template of one grey level has nothing to match on, and OpenCV
         // scores it as a perfect match everywhere rather than nowhere.
@@ -293,6 +328,15 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
         // A flat patch of the image scores not-a-number, which would win
         // every comparison it is not part of.
         CvInvoke.PatchNaNs(scores, 0);
+
+        // Ruled out before any match is picked, so a likeness just outside
+        // the region cannot take the place of one inside it.
+        if (allowed is not null)
+        {
+            using var outside = new Mat();
+            CvInvoke.BitwiseNot(allowed, outside);
+            scores.SetTo(new MCvScalar(-1), outside);
+        }
 
         var found = new List<Match>();
         var clearX = Math.Max(1, (int)Math.Round(template.Width * separation));
@@ -431,10 +475,11 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
     /// canvas big enough to hold all of it - so a feature at that angle
     /// stands upright, as the template was cut - and the way back from it.
     /// </summary>
-    private static Mat Turned(Mat image, double angle, out ShapeMap back)
+    private static Mat Turned(Mat image, double angle, out ShapeMap forward, out ShapeMap back)
     {
         if (Math.Abs(angle) < 0.01)
         {
+            forward = ShapeMap.Translation(0, 0);
             back = ShapeMap.Translation(0, 0);
             return image.Clone();
         }
@@ -453,12 +498,44 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
         var turned = new Mat();
         CvInvoke.WarpAffine(image, turned, turn, new Size(width, height), Inter.Linear, Warp.Default, BorderType.Constant);
 
+        var f = turn.Data;
+        forward = ShapeMap.Affine(f[0, 0], f[0, 1], f[0, 2], f[1, 0], f[1, 1], f[1, 2]);
+
         using var inverse = new Matrix<double>(2, 3);
         CvInvoke.InvertAffineTransform(turn, inverse);
 
         var m = inverse.Data;
         back = ShapeMap.Affine(m[0, 0], m[0, 1], m[0, 2], m[1, 0], m[1, 1], m[1, 2]);
         return turned;
+    }
+
+    /// <summary>
+    /// The top-left positions, in the searched frame, at which a match would
+    /// have its middle inside the search region: the region's corners
+    /// carried into the frame and moved back by half the template.
+    /// </summary>
+    private static Mat Allowed(OrientedRectShape search, Rectangle region, ShapeMap forward, Mat frame, Size template)
+    {
+        var mask = new Mat(
+            Math.Max(1, frame.Height - template.Height + 1),
+            Math.Max(1, frame.Width - template.Width + 1),
+            DepthType.Cv8U,
+            1);
+
+        mask.SetTo(new MCvScalar(0));
+
+        var corners = search.Corners()
+            .Select(corner => forward.MapPoint(new Point2(corner.X - region.X, corner.Y - region.Y))!.Value)
+            .Select(corner => new Point(
+                (int)Math.Round(corner.X - (template.Width / 2.0)),
+                (int)Math.Round(corner.Y - (template.Height / 2.0))))
+            .ToArray();
+
+        using var outline = new Emgu.CV.Util.VectorOfPoint(corners);
+        using var outlines = new Emgu.CV.Util.VectorOfVectorOfPoint(outline);
+        CvInvoke.FillPoly(mask, outlines, new MCvScalar(255));
+
+        return mask;
     }
 
     /// <summary>A match drawn where it is: upright, or turned by the angle it was found at.</summary>

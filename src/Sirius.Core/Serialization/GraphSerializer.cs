@@ -545,13 +545,42 @@ public static class GraphSerializer
         // How the old full-image unwrap filled the corners outside the
         // circle. The band unwraps only the ring, so there are none.
         ["transform.polarToLinear"] = ["Warp"],
-
-        // The upright teach region of 1.0.6, saved by its corner. The turned
-        // one that replaced it is saved by its centre under another name,
-        // so the old value is not read as a centre half a box away; the
-        // taught template itself is kept.
-        ["analysis.matchTemplate"] = ["TeachRegion"],
     };
+
+    /// <summary>
+    /// Upright regions, saved by their corner, that became turnable ones
+    /// saved by their centre under a new name: node type and old name, to
+    /// the new name.
+    /// </summary>
+    private static readonly Dictionary<(string Type, string Name), string> UpgradedRectangles = new()
+    {
+        [("analysis.matchTemplate", "TeachRegion")] = "TeachRect",
+        [("analysis.matchTemplate", "SearchRegion")] = "SearchRect",
+    };
+
+    /// <summary>
+    /// An upright region from before it could be turned: the same region,
+    /// by its centre, at no angle - rather than its corner read as a centre,
+    /// which would put it half a box away.
+    /// </summary>
+    private static bool TryUpgradeRectangle(
+        VisionNode node, NodeDescriptor descriptor, string name, JsonElement element)
+    {
+        if (!UpgradedRectangles.TryGetValue((descriptor.TypeKey, name), out var upgraded) ||
+            descriptor.Parameters.FirstOrDefault(p => p.Name == upgraded) is not { } parameter ||
+            element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        double Part(string key) =>
+            element.TryGetProperty(key, out var part) && part.TryGetDouble(out var value) ? value : 0;
+
+        var (x, y, w, h) = (Part("x"), Part("y"), Part("w"), Part("h"));
+
+        parameter.SetValue(node, new OrientedRect(x + (w / 2), y + (h / 2), w, h, 0));
+        return true;
+    }
 
     private static bool IsRetired(NodeDescriptor descriptor, string name) =>
         RetiredParameters.TryGetValue(descriptor.TypeKey, out var retired) && retired.Contains(name);
@@ -569,6 +598,9 @@ public static class GraphSerializer
             // First: a retired parameter can be of any shape, and the
             // migrations below would try to read it as theirs.
             if (parameter is null && IsRetired(descriptor, name))
+                continue;
+
+            if (parameter is null && TryUpgradeRectangle(node, descriptor, name, element))
                 continue;
 
             if (parameter is null && TryApplyLegacyBound(node, descriptor, name, element))

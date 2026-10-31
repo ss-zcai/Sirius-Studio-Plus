@@ -1317,7 +1317,7 @@ Finds where a template appears in the input, scored 0 to 1. Draw Teach Region ro
 | Min Score | `Number` | Slider | 0 to 1 |
 | Max Count | `Integer` | Slider | 1 to 500 |
 | Separation | `Number` | Slider | 0.05 to 1 |
-| Search Region | `Region` | Region | - |
+| Search Region | `Rectangle` | Rect | - |
 
 ### Measure
 

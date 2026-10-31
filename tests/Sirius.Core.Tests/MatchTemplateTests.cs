@@ -107,7 +107,7 @@ public class MatchTemplateTests
     {
         var node = new MatchTemplateNode
         {
-            SearchRegion = new System.Drawing.Rectangle(100, 30, 150, 120),
+            SearchRect = new OrientedRect(175, 90, 150, 120, 0),
             MaximumCount = 5,
         };
 
@@ -267,12 +267,13 @@ public class MatchTemplateTests
     }
 
     /// <summary>
-    /// A recipe from 1.0.6 kept its upright teach region by its corner, as
-    /// "TeachRegion". It opens without complaint, and its taught template
-    /// is kept.
+    /// A recipe from 1.0.6 kept its upright regions by their corners, as
+    /// "TeachRegion" and "SearchRegion". It opens without complaint, the
+    /// regions where they were - now by their centres - and the taught
+    /// template kept.
     /// </summary>
     [Fact]
-    public void A_teach_region_saved_by_1_0_6_is_set_aside_and_the_template_kept()
+    public void Regions_saved_by_1_0_6_open_where_they_were()
     {
         var graph = new VisionGraph();
         graph.Add(new MatchTemplateNode { TaughtTemplate = "0|AAAA" });
@@ -282,10 +283,71 @@ public class MatchTemplateTests
         var end = json.IndexOf('}', start) + 1;
         json = json[..start] + "\"TeachRegion\": { \"x\": 100, \"y\": 100, \"w\": 80, \"h\": 60 }" + json[end..];
 
+        start = json.IndexOf("\"SearchRect\"", StringComparison.Ordinal);
+        end = json.IndexOf('}', start) + 1;
+        json = json[..start] + "\"SearchRegion\": { \"x\": 10, \"y\": 20, \"w\": 300, \"h\": 200 }" + json[end..];
+
         var loaded = Sirius.Core.Serialization.GraphSerializer.Deserialize(json);
+        var node = loaded.Graph.Nodes.OfType<MatchTemplateNode>().Single();
 
         Assert.Empty(loaded.Warnings);
-        Assert.Equal("0|AAAA", loaded.Graph.Nodes.OfType<MatchTemplateNode>().Single().TaughtTemplate);
+        Assert.Equal("0|AAAA", node.TaughtTemplate);
+        Assert.Equal(new OrientedRect(140, 130, 80, 60, 0), node.TeachRect);
+        Assert.Equal(new OrientedRect(160, 120, 300, 200, 0), node.SearchRect);
+    }
+
+    /// <summary>
+    /// A turned search region: of the copies of the feature, exactly those
+    /// whose middles lie inside the drawn region are found - including ones
+    /// inside the box round it but outside the region itself.
+    /// </summary>
+    [Fact]
+    public void A_turned_search_region_finds_exactly_what_lies_inside_it()
+    {
+        System.Drawing.Point[] corners = [new(60, 40), new(150, 60), new(230, 110), new(230, 30), new(110, 150)];
+        var search = new OrientedRect(190, 100, 240, 50, 30);
+
+        var node = new MatchTemplateNode { SearchRect = search, MaximumCount = 10, MinimumScore = 0.9 };
+
+        var graph = new VisionGraph();
+        var scene = new PictureNode(() => WithPatches(corners));
+        var template = new PictureNode(Patch);
+        graph.Add(scene);
+        graph.Add(template);
+        graph.Add(node);
+        graph.TryConnect(scene.Out, node.ImageIn);
+        graph.TryConnect(template.Out, node.TemplateIn);
+
+        // What the region drawn on the image holds, by its own outline.
+        var outline = new OrientedRectShape(new Point2(search.CentreX, search.CentreY), search.Width, search.Height, search.Angle)
+            .Corners()
+            .Select(p => new System.Drawing.PointF((float)p.X, (float)p.Y))
+            .ToArray();
+
+        using var polygon = new Emgu.CV.Util.VectorOfPointF(outline);
+
+        var inside = corners
+            .Select(c => new System.Drawing.PointF(c.X + 20, c.Y + 15))
+            .Where(middle => CvInvoke.PointPolygonTest(polygon, middle, false) > 0)
+            .ToArray();
+
+        var box = new OrientedRectShape(new Point2(search.CentreX, search.CentreY), search.Width, search.Height, search.Angle).Bounds;
+        var boxedOut = corners.Count(c =>
+            c.X + 20 >= box.X && c.X + 20 <= box.Right && c.Y + 15 >= box.Y && c.Y + 15 <= box.Bottom) - inside.Length;
+
+        Assert.NotEmpty(inside);
+        Assert.True(boxedOut > 0, "the test needs a copy in the box round the region but outside it");
+
+        using var scheduler = Scheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var found = scheduler.GetOutput<ShapeSet>(node.MatchesOut)!.Shapes
+            .Select(shape => ShapeGeometry.Centre(shape))
+            .Select(c => ((int)Math.Round(c.X), (int)Math.Round(c.Y)))
+            .Order()
+            .ToArray();
+
+        Assert.Equal(inside.Select(m => ((int)m.X, (int)m.Y)).Order(), found);
     }
 
     [Fact]
