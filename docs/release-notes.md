@@ -39,12 +39,24 @@ Camera node's Device list.
   Profile adds the form as a second trace.
 - **Basler cameras** through pylon, GigE and USB3. Exposure, gain, and
   free-run, software or hardware trigger (Line 1, rising edge).
-- **Match Template: Teach.** Draw **Teach Region** round the feature on a
-  good part and press **Teach**: the feature is kept in the recipe. A
-  template wired into **Template** is still used instead while it is
-  wired. A new **Template** output shows the one in use.
-- **Buttons on nodes.** Some nodes have buttons above their settings in
-  the properties panel: Teach on Match Template, Reset on Counter.
+- **Match Template: Teach.** **Teach Region** is a rectangle you can turn,
+  like Region of Interest's - typed, or drawn with the pick-up button -
+  with **Teach** beside it. Draw it round the feature on a good part and
+  press Teach: what it holds on the current image is kept in the recipe
+  as the template. A template wired into **Template** is still used
+  instead while it is wired. A new **Template** output shows the one in
+  use.
+- **Match Template: a turned Teach Region.** The feature is straightened
+  as it is cut and the angle is kept; each image is then searched at that
+  angle and the matches drawn turned - for a feature at a known angle on
+  a fixtured part.
+- **Match Template: Search Region** is a turnable rectangle too. A match
+  counts when its middle is inside. Left at 1 x 1, the whole image.
+- **Pick-up buttons edit their own region.** A node with two regions
+  shows the one whose button was pressed, drawn in its own colour - Teach
+  Region amber, Search Region violet - with its name at the corner.
+- **Buttons on nodes.** Some nodes have buttons in the properties panel:
+  Teach beside Match Template's Teach Region, Reset on Counter.
 
 ### Setting up a Basler camera
 
@@ -71,6 +83,10 @@ $env:PYLON_CAMEMU = 1; & ".\SiriusStudioPlus.exe"
 - **No Hikrobot or plain USB webcam support yet.** Both are on hold.
 - **Local Form needs a sensible Form Window.** A defect wider than about a
   third of the window starts to be taken for form and reads shallower.
+- **Match Template does not search over angles.** It finds the feature at
+  the angle it was taught at, give or take a few degrees. For parts that
+  turn, find the angle another way (Find Line, a blob's orientation) and
+  straighten with Region of Interest first.
 
 ---
 
