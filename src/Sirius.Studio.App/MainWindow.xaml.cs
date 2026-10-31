@@ -170,6 +170,10 @@ public partial class MainWindow : Window
     /// </remarks>
     private async void CheckNativeLibraries()
     {
+        // Camera drivers too, off the UI thread: the first search for GigE
+        // cameras waits for them to answer.
+        _ = Task.Run(() => Sirius.Vision.Cameras.CameraDrivers.LoadInstalled());
+
         var problem = await Task.Run(Sirius.Vision.NativeLibraries.Problem).ConfigureAwait(true);
 
         if (problem is not null)

@@ -39,6 +39,14 @@ Tesseract OCR  (5.3.4)  -  Apache 2.0  -  https://github.com/tesseract-ocr
   model from the tesseract-ocr/tessdata_fast repository, also Apache 2.0,
   shipped unmodified.
 
+Basler pylon .NET API  (Basler.Pylon.dll, pylon 26.10)  -  https://www.baslerweb.com
+  Copyright (c) Basler AG. All rights reserved. Used under the pylon
+  Software License Agreement (Acquisition Version), which permits
+  applications built on pylon, excluding vTools, to be distributed.
+  Used only to operate Basler cameras; to do so the pylon Runtime must be
+  installed on the PC, separately. Basler and pylon are trademarks of
+  Basler AG.
+
 Phosphor Icons  -  MIT  -  https://phosphoricons.com
   The application's icon set is derived from Phosphor Regular: the artwork
   is restyled, the geometry is theirs. The full licence text ships beside

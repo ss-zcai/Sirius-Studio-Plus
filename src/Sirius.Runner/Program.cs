@@ -67,6 +67,7 @@ public static class Program
 
         VisionNodeLibrary.Register();
         LoadCustomNodes();
+        Sirius.Vision.Cameras.CameraDrivers.LoadInstalled();
 
         var loaded = GraphSerializer.Load(recipe);
 

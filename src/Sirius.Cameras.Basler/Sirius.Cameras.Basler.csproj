@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Basler cameras, through pylon's .NET API.
+
+    Built against the API pylon installs (PYLON_DEV_DIR points at it). On a
+    PC without pylon there is nothing to build against, so the project
+    compiles to an empty library and the application simply lists no Basler
+    cameras - the solution still builds anywhere.
+
+    At run time the pylon runtime must be installed: the .NET API is copied
+    beside the application, but it calls into pylon's native libraries,
+    which the runtime installer puts on the path.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Sirius.Cameras.Basler</RootNamespace>
+    <PylonApi>$(PYLON_DEV_DIR)Assemblies\Basler.Pylon\net8.0\x64\Basler.Pylon.dll</PylonApi>
+    <HasPylon Condition="'$(PYLON_DEV_DIR)' != '' And Exists('$(PylonApi)')">true</HasPylon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(HasPylon)' != 'true'">
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sirius.Vision\Sirius.Vision.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(HasPylon)' == 'true'">
+    <Reference Include="Basler.Pylon">
+      <HintPath>$(PylonApi)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sirius.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

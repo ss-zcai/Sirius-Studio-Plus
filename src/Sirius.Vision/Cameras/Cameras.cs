@@ -1,3 +1,6 @@
+using System.Reflection;
+using Sirius.Core.Graph;
+
 namespace Sirius.Vision.Cameras;
 
 /// <summary>What starts a camera's exposure.</summary>
@@ -91,6 +94,73 @@ public static class CameraDrivers
     private static readonly object Gate = new();
     private static readonly List<ICameraDriver> Drivers = [new SimulatedCameraDriver()];
     private static readonly Dictionary<string, ICamera> Open = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly List<string> Problems = [];
+    private static bool _loaded;
+
+    /// <summary>Why a driver beside the application was left out - its maker's runtime missing, usually.</summary>
+    public static IReadOnlyList<string> LoadProblems
+    {
+        get
+        {
+            lock (Gate)
+                return Problems.ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Adds every camera driver beside the application - a
+    /// Sirius.Cameras.*.dll - that works here. Once; later calls do nothing.
+    /// </summary>
+    /// <remarks>
+    /// Each is asked to list its cameras before it joins, because a driver
+    /// whose runtime is missing fails then rather than when it is made:
+    /// left out with the reason kept, it does not fail every time the
+    /// cameras are listed afterwards. Slow on a network with GigE cameras -
+    /// the first search waits for them to answer - so the application does
+    /// this off its UI thread.
+    /// </remarks>
+    public static void LoadInstalled(string? folder = null)
+    {
+        lock (Gate)
+        {
+            if (_loaded)
+                return;
+
+            _loaded = true;
+        }
+
+        folder ??= AppContext.BaseDirectory;
+
+        if (!Directory.Exists(folder))
+            return;
+
+        foreach (var path in Directory.EnumerateFiles(folder, "Sirius.Cameras.*.dll"))
+        {
+            try
+            {
+                var types = Assembly.LoadFrom(path).GetTypes().Where(type =>
+                    typeof(ICameraDriver).IsAssignableFrom(type) &&
+                    !type.IsAbstract &&
+                    type.GetConstructor(Type.EmptyTypes) is not null);
+
+                foreach (var type in types)
+                {
+                    var driver = (ICameraDriver)Activator.CreateInstance(type)!;
+                    driver.Enumerate();
+                    Register(driver);
+                }
+            }
+            catch (Exception ex)
+            {
+                var cause = ex is ReflectionTypeLoadException { LoaderExceptions: { Length: > 0 } loader } && loader[0] is { } first
+                    ? first
+                    : ex;
+
+                lock (Gate)
+                    Problems.Add($"{Path.GetFileNameWithoutExtension(path)}: {ExceptionText.Describe(cause)}");
+            }
+        }
+    }
 
     /// <summary>Every driver available.</summary>
     public static IReadOnlyList<ICameraDriver> All
@@ -145,7 +215,18 @@ public static class CameraDrivers
 
         foreach (var driver in All)
         {
-            var info = driver.Enumerate().FirstOrDefault(camera =>
+            IReadOnlyList<CameraInfo> found;
+
+            try
+            {
+                found = driver.Enumerate();
+            }
+            catch (Exception)
+            {
+                continue;
+            }
+
+            var info = found.FirstOrDefault(camera =>
                 string.Equals(camera.Serial, serial, StringComparison.OrdinalIgnoreCase));
 
             if (info is null)

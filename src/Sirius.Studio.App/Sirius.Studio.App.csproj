@@ -27,6 +27,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Sirius.Core\Sirius.Core.csproj" />
     <ProjectReference Include="..\Sirius.Vision\Sirius.Vision.csproj" />
+    <!-- Loaded by name at start-up rather than called, so a PC without pylon still runs. -->
+    <ProjectReference Include="..\Sirius.Cameras.Basler\Sirius.Cameras.Basler.csproj" />
     <ProjectReference Include="..\Sirius.NodeEditor\Sirius.NodeEditor.csproj" />
   </ItemGroup>
 
