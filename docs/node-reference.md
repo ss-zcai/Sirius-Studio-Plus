@@ -1289,14 +1289,14 @@ Intensity sampled along a line, for the profile panel.
 
 `analysis.matchTemplate`
 
-Finds where a template image appears in the input, scored 0 to 1. Wire the template from an Image File of a good part through Crop. Position only, not rotation.
+Finds where a template appears in the input, scored 0 to 1. Draw Teach Region round the feature on a good part and press Teach, or wire a template in. Position only, not rotation.
 
 **Inputs**
 
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
-| Template | `Image` | square | yes |
+| Template | `Image` | square | optional |
 | Min Score | `Number` | circle | optional |
 
 **Outputs**
@@ -1307,11 +1307,13 @@ Finds where a template image appears in the input, scored 0 to 1. Wire the templ
 | Count | `Integer` | circle | - |
 | Best Score | `Number` | circle | - |
 | Position | `Point` | circle | - |
+| Template | `Image` | square | - |
 
 **Parameters**
 
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
+| Teach Region | `Region` | Region | - |
 | Min Score | `Number` | Slider | 0 to 1 |
 | Max Count | `Integer` | Slider | 1 to 500 |
 | Separation | `Number` | Slider | 0.05 to 1 |

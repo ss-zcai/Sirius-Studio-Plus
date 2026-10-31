@@ -25,9 +25,11 @@ namespace Sirius.Vision.Nodes;
 /// scores either side of the peak.
 /// </para>
 /// <para>
-/// The template is an image wired in: an Image File of a good part, with
-/// the feature cut out by Crop or Region of Interest. Position only - a
-/// part turned by more than a few degrees scores poorly.
+/// The template is taught: draw Teach Region round the feature on a good
+/// part and press Teach, and the feature is kept in the recipe. Or wire
+/// one into Template - an Image File through Crop - which is used instead
+/// while it is wired. Position only - a part turned by more than a few
+/// degrees scores poorly.
 /// </para>
 /// </remarks>
 [VisionNode(
@@ -35,10 +37,15 @@ namespace Sirius.Vision.Nodes;
     TypeKey = "analysis.matchTemplate",
     Category = NodeCategory.Analysis,
     Icon = "ph_match_template",
-    Description = "Finds where a template image appears in the input, scored 0 to 1. Wire the template from an " +
-                  "Image File of a good part through Crop. Position only, not rotation.")]
-public sealed class MatchTemplateNode : VisionNode
+    Description = "Finds where a template appears in the input, scored 0 to 1. Draw Teach Region round the " +
+                  "feature on a good part and press Teach, or wire a template in. Position only, not rotation.")]
+public sealed class MatchTemplateNode : VisionNode, INodeActions
 {
+    private readonly object _gate = new();
+    private Rectangle _teachRegion = new(100, 100, 80, 60);
+    private string _taught = string.Empty;
+    private Mat? _taughtImage;
+    private Mat? _lastCut;
     private const uint Found = 0xFF22C55E;
 
     private double _minimumScore = 0.8;
@@ -49,18 +56,92 @@ public sealed class MatchTemplateNode : VisionNode
     public MatchTemplateNode()
     {
         ImageIn = AddInput<ImageData>("In");
-        TemplateIn = AddInput<ImageData>("Template");
+        TemplateIn = AddInput<ImageData>("Template", isRequired: false);
 
         MatchesOut = AddOutput<ShapeSet>("Matches");
         CountOut = AddOutput<int>("Count");
         ScoreOut = AddOutput<double>("Best Score");
         PositionOut = AddOutput<Point2>("Position");
+        TemplateOut = AddOutput<ImageData>("Template");
     }
 
     public InputPort ImageIn { get; }
 
-    /// <summary>What to look for: an image of the feature, cut from a good part.</summary>
+    /// <summary>
+    /// What to look for, when it comes from elsewhere: an image of the
+    /// feature, cut from a good part. Used instead of the taught template
+    /// while it is wired.
+    /// </summary>
     public InputPort TemplateIn { get; }
+
+    /// <summary>The template in use, for a preview of what is being looked for.</summary>
+    public OutputPort TemplateOut { get; }
+
+    [Param("Teach Region", Group = "Teach", Editor = ParamEditor.Region,
+        Description = "Round the feature to look for. Draw it on a good part, then press Teach.")]
+    public Rectangle TeachRegion
+    {
+        get => _teachRegion;
+        set => SetParam(ref _teachRegion, value);
+    }
+
+    /// <summary>
+    /// The taught template, as a PNG in text, kept in the recipe. Set by
+    /// Teach; empty when nothing has been taught.
+    /// </summary>
+    [Param("Taught Template", Hidden = true)]
+    public string TaughtTemplate
+    {
+        get => _taught;
+        set
+        {
+            if (!SetParam(ref _taught, value ?? string.Empty))
+                return;
+
+            lock (_gate)
+            {
+                _taughtImage?.Dispose();
+                _taughtImage = null;
+            }
+        }
+    }
+
+    /// <summary>Teach: keep what Teach Region holds on the latest image as the template.</summary>
+    public IReadOnlyList<NodeAction> Actions =>
+    [
+        new NodeAction(
+            "Teach",
+            "Keep what Teach Region holds on the current image as the template to look for.",
+            Teach),
+    ];
+
+    /// <summary>
+    /// The feature under Teach Region on the latest image, kept as the
+    /// template - or why it cannot be.
+    /// </summary>
+    /// <remarks>
+    /// From the image the node last ran on, which is the one on screen; a
+    /// copy of the region is kept from each run for the purpose, since the
+    /// image itself is not the node's to hold.
+    /// </remarks>
+    public string? Teach()
+    {
+        string encoded;
+
+        lock (_gate)
+        {
+            if (_lastCut is not { IsEmpty: false } cut)
+                return "There is no image to teach from yet. Run the recipe with a good part, then press Teach.";
+
+            using var png = new Emgu.CV.Util.VectorOfByte();
+            CvInvoke.Imencode(".png", cut, png);
+            encoded = Convert.ToBase64String(png.ToArray());
+        }
+
+        // A parameter like any other: saved, undone, and the recipe re-runs.
+        TaughtTemplate = encoded;
+        return null;
+    }
 
     /// <summary>One rectangle per match, the template's size, with its score.</summary>
     public OutputPort MatchesOut { get; }
@@ -112,7 +193,22 @@ public sealed class MatchTemplateNode : VisionNode
     protected override void OnEvaluate(EvalContext context)
     {
         var image = context.Get<ImageData>(ImageIn)!;
-        var template = context.Get<ImageData>(TemplateIn)!;
+
+        KeepTeachRegion(image);
+
+        using var source = TemplateFor(context);
+
+        if (source is null)
+        {
+            context.Warn("No template yet: draw Teach Region round the feature on a good part and press Teach, or wire one into Template.");
+            context.Set(MatchesOut, new ShapeSet([], image.Width, image.Height));
+            context.Set(CountOut, 0);
+            context.Set(ScoreOut, 0d);
+            context.Set(PositionOut, default(Point2));
+            return;
+        }
+
+        var template = new Size(source.Width, source.Height);
 
         var region = _searchRegion.Width > 0 && _searchRegion.Height > 0
             ? Rectangle.Intersect(_searchRegion, new Rectangle(0, 0, image.Width, image.Height))
@@ -125,8 +221,10 @@ public sealed class MatchTemplateNode : VisionNode
                 $"({region.Width} x {region.Height}).");
         }
 
+        context.Set(TemplateOut, ImageData.Adopt(source.Clone()));
+
         using var grey = Grey(image);
-        using var pattern = Grey(template);
+        using var pattern = Grey(source);
         using var searched = new Mat(grey, region);
 
         var matches = Find(
@@ -239,7 +337,44 @@ public sealed class MatchTemplateNode : VisionNode
         return new Point2(peak.X + x, peak.Y + y);
     }
 
-    private static RectShape Outline(Point2 topLeft, ImageData template, double score) =>
+    /// <summary>
+    /// A copy of what Teach Region holds on this image, for Teach to keep -
+    /// small, so it costs little to take on every run.
+    /// </summary>
+    private void KeepTeachRegion(ImageData image)
+    {
+        var cut = Rectangle.Intersect(_teachRegion, new Rectangle(0, 0, image.Width, image.Height));
+
+        lock (_gate)
+        {
+            _lastCut?.Dispose();
+            _lastCut = cut.Width > 1 && cut.Height > 1 ? new Mat(image.Mat, cut).Clone() : null;
+        }
+    }
+
+    /// <summary>
+    /// The template for this run: the one wired in, or the one taught - a
+    /// copy, the caller's to dispose - or null when there is neither.
+    /// </summary>
+    private Mat? TemplateFor(EvalContext context)
+    {
+        if (context.Get<ImageData>(TemplateIn) is { } wired)
+            return wired.Mat.Clone();
+
+        lock (_gate)
+        {
+            if (_taughtImage is null && _taught.Length > 0)
+            {
+                var png = Convert.FromBase64String(_taught);
+                _taughtImage = new Mat();
+                CvInvoke.Imdecode(png, ImreadModes.Unchanged, _taughtImage);
+            }
+
+            return _taughtImage is { IsEmpty: false } taught ? taught.Clone() : null;
+        }
+    }
+
+    private static RectShape Outline(Point2 topLeft, Size template, double score) =>
         new(new Bounds(topLeft.X, topLeft.Y, template.Width, template.Height))
         {
             Colour = Found,
@@ -253,21 +388,23 @@ public sealed class MatchTemplateNode : VisionNode
             },
         };
 
+    private static Mat Grey(ImageData image) => Grey(image.Mat);
+
     /// <summary>One channel, 8-bit or float, as matching needs: a colour image as its brightness.</summary>
-    private static Mat Grey(ImageData image)
+    private static Mat Grey(Mat image)
     {
         var grey = new Mat();
 
-        switch (image.Channels)
+        switch (image.NumberOfChannels)
         {
             case 3:
-                CvInvoke.CvtColor(image.Mat, grey, ColorConversion.Bgr2Gray);
+                CvInvoke.CvtColor(image, grey, ColorConversion.Bgr2Gray);
                 break;
             case 4:
-                CvInvoke.CvtColor(image.Mat, grey, ColorConversion.Bgra2Gray);
+                CvInvoke.CvtColor(image, grey, ColorConversion.Bgra2Gray);
                 break;
             default:
-                image.Mat.CopyTo(grey);
+                image.CopyTo(grey);
                 break;
         }
 

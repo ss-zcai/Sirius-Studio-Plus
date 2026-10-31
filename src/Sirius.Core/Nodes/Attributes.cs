@@ -112,6 +112,21 @@ public interface ISequenceNode
 }
 
 /// <summary>
+/// Something a node can be asked to do, shown as a button in the
+/// properties panel: Teach, Reset.
+/// </summary>
+/// <param name="Label">The button's text.</param>
+/// <param name="Description">Its tooltip.</param>
+/// <param name="Run">Does it, and returns null - or, when it cannot, why not, which is shown.</param>
+public sealed record NodeAction(string Label, string Description, Func<string?> Run);
+
+/// <summary>A node with buttons of its own in the properties panel.</summary>
+public interface INodeActions
+{
+    IReadOnlyList<NodeAction> Actions { get; }
+}
+
+/// <summary>
 /// A node whose text parameters choose from a list it works out itself -
 /// the cameras attached, say - rather than from an enum fixed in the code.
 /// </summary>
@@ -179,6 +194,13 @@ public sealed class ParamAttribute : Attribute
     /// file to write, which need not exist yet, rather than one to open.
     /// </summary>
     public bool SaveFile { get; set; }
+
+    /// <summary>
+    /// Saved with the recipe, undone and copied like any other parameter,
+    /// but not shown in the properties panel - for what a node keeps that
+    /// nobody types, such as a taught template.
+    /// </summary>
+    public bool Hidden { get; set; }
 
     /// <summary>
     /// Whether either end of a range may be left off, meaning no limit.

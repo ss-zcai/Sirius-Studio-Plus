@@ -149,6 +149,92 @@ public class MatchTemplateTests
         }
     }
 
+    // ---- Teach ------------------------------------------------------------------------
+
+    private static GraphScheduler Scheduler(VisionGraph graph)
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            return new GraphScheduler(graph);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
+
+    /// <summary>
+    /// Teach Region drawn round the feature on a good part, Teach pressed:
+    /// the feature is kept, and found - and still found after the recipe is
+    /// saved and opened again, with nothing wired into Template.
+    /// </summary>
+    [Fact]
+    public void A_taught_template_is_found_and_kept_in_the_recipe()
+    {
+        var node = new MatchTemplateNode { TeachRegion = new System.Drawing.Rectangle(150, 60, 40, 30) };
+
+        var graph = new VisionGraph();
+        var scene = new PictureNode(() => WithPatches(new(150, 60), new(30, 170)));
+        graph.Add(scene);
+        graph.Add(node);
+        graph.TryConnect(scene.Out, node.ImageIn);
+
+        using (var scheduler = Scheduler(graph))
+        {
+            scheduler.RunAsync().GetAwaiter().GetResult();
+            Assert.Equal(NodeStatus.Warning, node.Status);
+
+            Assert.Null(node.Teach());
+            Assert.NotEmpty(node.TaughtTemplate);
+
+            node.MaximumCount = 5;
+            scheduler.RunAsync().GetAwaiter().GetResult();
+
+            Assert.Equal(2, scheduler.GetOutput(node.CountOut));
+            Assert.Equal((40, 30), (scheduler.GetOutput<ImageData>(node.TemplateOut)!.Width, scheduler.GetOutput<ImageData>(node.TemplateOut)!.Height));
+        }
+
+        var reopened = Sirius.Core.Serialization.GraphSerializer.Deserialize(
+            Sirius.Core.Serialization.GraphSerializer.Serialize(graph)).Graph;
+        var again = reopened.Nodes.OfType<MatchTemplateNode>().Single();
+
+        // The picture node is not in the catalogue, so wire a fresh one in.
+        var picture = new PictureNode(() => WithPatches(new System.Drawing.Point(150, 60)));
+        reopened.Add(picture);
+        reopened.TryConnect(picture.Out, again.ImageIn);
+
+        using (var scheduler = Scheduler(reopened))
+        {
+            scheduler.RunAsync().GetAwaiter().GetResult();
+
+            var found = Assert.IsType<RectShape>(Assert.Single(scheduler.GetOutput<ShapeSet>(again.MatchesOut)!.Shapes));
+            Assert.Equal(150, found.Rect.X, 1);
+            Assert.Equal(60, found.Rect.Y, 1);
+        }
+    }
+
+    [Fact]
+    public void Teach_before_any_image_says_what_to_do()
+    {
+        var message = new MatchTemplateNode().Teach();
+
+        Assert.NotNull(message);
+        Assert.Contains("Run the recipe", message, StringComparison.Ordinal);
+    }
+
+    /// <summary>The taught template is saved, not shown; Teach is a button.</summary>
+    [Fact]
+    public void Teach_is_a_button_and_the_template_is_not_a_field()
+    {
+        var view = new Sirius.Studio.App.ViewModels.NodeViewModel(new MatchTemplateNode());
+
+        Assert.DoesNotContain(view.Parameters, parameter => parameter.DisplayName == "Taught Template");
+        Assert.Contains(view.Parameters, parameter => parameter.DisplayName == "Teach Region");
+        Assert.Equal(["Teach"], view.Actions.Select(action => action.Label));
+    }
+
     private sealed class PictureNode : VisionNode
     {
         private readonly Func<Mat> _picture;

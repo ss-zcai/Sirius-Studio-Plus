@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Sirius.Core.Graph;
+using Sirius.Core.Nodes;
 
 namespace Sirius.Studio.App.ViewModels;
 
@@ -22,7 +23,13 @@ public sealed class NodeViewModel : ObservableObject
             node.Outputs.Select(port => new ConnectorViewModel(this, port)));
 
         Parameters = new ObservableCollection<ParameterViewModel>(
-            node.Descriptor.Parameters.Select(descriptor => new ParameterViewModel(node, descriptor)));
+            node.Descriptor.Parameters
+                .Where(descriptor => !descriptor.Attribute.Hidden)
+                .Select(descriptor => new ParameterViewModel(node, descriptor)));
+
+        Actions = node is INodeActions actions
+            ? actions.Actions.Select(action => new NodeActionViewModel(action)).ToArray()
+            : [];
 
         node.PropertyChanged += OnNodePropertyChanged;
     }
@@ -34,6 +41,11 @@ public sealed class NodeViewModel : ObservableObject
     public ObservableCollection<ConnectorViewModel> Outputs { get; }
 
     public ObservableCollection<ParameterViewModel> Parameters { get; }
+
+    /// <summary>The node's own buttons - Teach, Reset - above its parameters.</summary>
+    public IReadOnlyList<NodeActionViewModel> Actions { get; }
+
+    public bool HasActions => Actions.Count > 0;
 
     public string Title => Node.Name;
 

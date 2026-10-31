@@ -91,7 +91,7 @@ foreach (var group in descriptors.GroupBy(d => d.Category))
             builder.AppendLine("| Name | Type | Editor | Range |");
             builder.AppendLine("| --- | --- | --- | --- |");
 
-            foreach (var parameter in descriptor.Parameters)
+            foreach (var parameter in descriptor.Parameters.Where(p => !p.Attribute.Hidden))
             {
                 var attribute = parameter.Attribute;
                 // A parameter may take its bounds from other parameters, in

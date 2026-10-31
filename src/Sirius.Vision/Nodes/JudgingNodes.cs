@@ -594,7 +594,7 @@ public sealed class WorstGradeNode : VisionNode, IGradingNode, IGrowingPorts
     Icon = "ph_counter",
     Description = "Counts inspections - each Run, each image of a folder run - and how many passed, failed " +
                   "and took each grade. Reset from the Run menu.")]
-public sealed class CounterNode : VisionNode, IInspectionNode
+public sealed class CounterNode : VisionNode, IInspectionNode, INodeActions
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, (int Rank, bool Passes, int Count)> _byGrade = new(StringComparer.Ordinal);
@@ -627,6 +627,17 @@ public sealed class CounterNode : VisionNode, IInspectionNode
 
     /// <summary>Each grade and its count - "A 12, B 3, Reject 1" - best first, failing grades last.</summary>
     public OutputPort CountsOut { get; }
+
+    /// <summary>Reset, on the node itself as well as for every counter on the Edit menu.</summary>
+    public IReadOnlyList<NodeAction> Actions =>
+    [
+        new NodeAction("Reset", "Start this counter again from zero.", () =>
+        {
+            Reset();
+            Invalidate();
+            return null;
+        }),
+    ];
 
     /// <summary>Starts every count again from zero.</summary>
     public void Reset()

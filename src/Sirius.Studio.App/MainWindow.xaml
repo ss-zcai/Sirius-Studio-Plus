@@ -803,6 +803,25 @@
                                               ToolTip="Clear to bypass this node, passing its input straight through"
                                               Margin="0,0,0,12" />
 
+                                    <!-- The node's own buttons: Teach, Reset. -->
+                                    <ItemsControl ItemsSource="{Binding Actions}"
+                                                  Margin="0,0,0,12"
+                                                  Visibility="{Binding HasActions, Converter={StaticResource BoolToVisibility}}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:NodeActionViewModel}">
+                                                <Button Content="{Binding Label}"
+                                                        ToolTip="{Binding Description}"
+                                                        Command="{Binding Command}"
+                                                        Margin="0,0,6,0" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
                                     <ItemsControl ItemsSource="{Binding Parameters}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="{x:Type vm:ParameterViewModel}">
