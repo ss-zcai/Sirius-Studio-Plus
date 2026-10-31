@@ -277,6 +277,44 @@ public class RingTests
     }
 
     /// <summary>
+    /// A node with two regions - Match Template's Teach Region and Search
+    /// Region - edits the one whose pick button was pressed, drawn in its
+    /// own colour and named, not always the first.
+    /// </summary>
+    [Fact]
+    public void The_pick_button_edits_its_own_region()
+    {
+        OnStaThread(() =>
+        {
+            var model = new MainViewModel();
+            var item = model.Palette
+                .SelectMany(group => group.Items)
+                .First(entry => entry.DisplayName == "Match Template");
+
+            var node = model.AddNodeAt(item, new Point(40, 40))!;
+            var teach = node.Parameters.Single(p => p.DisplayName == "Teach Region");
+            var search = node.Parameters.Single(p => p.DisplayName == "Search Region");
+
+            Assert.Same(teach, model.ActiveRegionParameter);
+
+            model.DrawRegionCommand.Execute(search);
+
+            Assert.Same(search, model.ActiveRegionParameter);
+
+            var preview = Assert.Single(model.NodePanels.OfType<PreviewPanelViewModel>());
+            Assert.Same(search, preview.RegionParameter);
+            Assert.Equal("Search Region", preview.RoiLabel);
+            Assert.Equal(System.Windows.Media.Color.FromRgb(0xA7, 0x8B, 0xFA), preview.RoiColour);
+
+            // And back.
+            model.DrawRegionCommand.Execute(teach);
+
+            Assert.Same(teach, preview.RegionParameter);
+            Assert.Equal(System.Windows.Media.Color.FromRgb(0xF5, 0x9E, 0x0B), preview.RoiColour);
+        });
+    }
+
+    /// <summary>
     /// The pick button opens a preview that was closed, rather than doing
     /// nothing because one used to exist.
     /// </summary>

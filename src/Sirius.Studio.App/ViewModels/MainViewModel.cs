@@ -123,6 +123,16 @@ public sealed class MainViewModel : ObservableObject
             if (input is null)
                 return;
 
+            // This region, not whichever of the node's came first: a node
+            // with two - Teach Region and Search Region - is edited one at
+            // a time, the one whose button was pressed.
+            if (parameter.Kind is ParamEditor.Region or ParamEditor.Rect)
+                ActiveRegionParameter = parameter;
+            else if (parameter.Kind == ParamEditor.Ring)
+                ActiveRingParameter = parameter;
+
+            PushRegionsToPanels();
+
             // A band is drawn with a tool; a rectangle is dragged straight
             // onto the image, so only the first needs arming.
             var arm = parameter.Kind == ParamEditor.Ring ? ViewerTool.Ring : ViewerTool.None;
@@ -445,10 +455,19 @@ public sealed class MainViewModel : ObservableObject
             : [];
 
         RefreshReadouts();
+        PushRegionsToPanels();
+    }
 
-        // Previews as well as viewers: the Draw button opens a preview of
-        // the node's input, and a region cannot be dragged on a panel that
-        // was never told there is one.
+    /// <summary>
+    /// Tells every image panel which region and band are being edited.
+    /// </summary>
+    /// <remarks>
+    /// Previews as well as viewers: the Draw button opens a preview of the
+    /// node's input, and a region cannot be dragged on a panel that was
+    /// never told there is one.
+    /// </remarks>
+    private void PushRegionsToPanels()
+    {
         foreach (var panel in NodePanels.OfType<ImagePanelViewModel>())
         {
             panel.RegionParameter = ActiveRegionParameter;

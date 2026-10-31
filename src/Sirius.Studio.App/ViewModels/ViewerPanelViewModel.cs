@@ -344,11 +344,36 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
                 OnPropertyChanged(nameof(Roi));
                 OnPropertyChanged(nameof(IsRoiEnabled));
                 OnPropertyChanged(nameof(RoiAngle));
+                OnPropertyChanged(nameof(RoiColour));
+                OnPropertyChanged(nameof(RoiLabel));
             }
         }
     }
 
     public bool IsRoiEnabled => _regionParameter is not null;
+
+    /// <summary>
+    /// The colour the region's box is drawn in - its own, so which of a
+    /// node's regions is being dragged can be seen.
+    /// </summary>
+    public System.Windows.Media.Color RoiColour
+    {
+        get
+        {
+            try
+            {
+                return (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(
+                    _regionParameter?.RegionColour ?? "#F59E0B");
+            }
+            catch (FormatException)
+            {
+                return System.Windows.Media.Color.FromRgb(0xF5, 0x9E, 0x0B);
+            }
+        }
+    }
+
+    /// <summary>The region's name, written beside its box: "Search Region".</summary>
+    public string? RoiLabel => _regionParameter?.DisplayName;
 
     /// <summary>
     /// The selected node's search band, if it has one.

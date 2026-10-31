@@ -244,6 +244,32 @@ public partial class ImageViewer : UserControl
         typeof(ImageViewer),
         new FrameworkPropertyMetadata(false, OnRoiChanged));
 
+    /// <summary>The region box's colour - its parameter's own, so two regions of one node can be told apart.</summary>
+    public static readonly DependencyProperty RoiColourProperty = DependencyProperty.Register(
+        nameof(RoiColour),
+        typeof(Color),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(Color.FromRgb(0xF5, 0x9E, 0x0B), OnRoiChanged));
+
+    /// <summary>The region's name, written at its corner: which region is being dragged.</summary>
+    public static readonly DependencyProperty RoiLabelProperty = DependencyProperty.Register(
+        nameof(RoiLabel),
+        typeof(string),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(null, OnRoiChanged));
+
+    public Color RoiColour
+    {
+        get => (Color)GetValue(RoiColourProperty);
+        set => SetValue(RoiColourProperty, value);
+    }
+
+    public string? RoiLabel
+    {
+        get => (string?)GetValue(RoiLabelProperty);
+        set => SetValue(RoiLabelProperty, value);
+    }
+
     public static readonly DependencyProperty ActiveToolProperty = DependencyProperty.Register(
         nameof(ActiveTool),
         typeof(ViewerTool),
@@ -2852,6 +2878,10 @@ public partial class ImageViewer : UserControl
         if (!visible)
             return;
 
+        var colour = RoiColour;
+        RoiShape.Stroke = new SolidColorBrush(colour);
+        RoiShape.Fill = new SolidColorBrush(Color.FromArgb(0x22, colour.R, colour.G, colour.B));
+
         Canvas.SetLeft(RoiShape, roi.X);
         Canvas.SetTop(RoiShape, roi.Y);
         RoiShape.Width = roi.Width;
@@ -2869,6 +2899,35 @@ public partial class ImageViewer : UserControl
 
         DrawCornerMarks(roi);
         DrawRotateKnob(roi);
+        DrawRoiLabel(roi);
+    }
+
+    /// <summary>
+    /// The region's name just above its top-left corner, upright whatever
+    /// the region's angle, and the same size on screen at any zoom.
+    /// </summary>
+    private void DrawRoiLabel(DrawingRectangle roi)
+    {
+        if (string.IsNullOrEmpty(RoiLabel))
+            return;
+
+        var centre = new Point(roi.X + (roi.Width / 2.0), roi.Y + (roi.Height / 2.0));
+        var corner = RotateByAngle(new Point(roi.Left, roi.Top), centre);
+
+        var label = new TextBlock
+        {
+            Text = RoiLabel,
+            FontSize = 11 * ScreenPixel,
+            Foreground = RoiShape.Stroke,
+            Background = new SolidColorBrush(Color.FromArgb(0xB0, 0x1A, 0x1B, 0x1E)),
+            Padding = new Thickness(3 * ScreenPixel, 0, 3 * ScreenPixel, 0),
+            IsHitTestVisible = false,
+        };
+
+        Canvas.SetLeft(label, corner.X);
+        Canvas.SetTop(label, corner.Y - (16 * ScreenPixel));
+
+        HandleLayer.Children.Add(label);
     }
 
     /// <summary>

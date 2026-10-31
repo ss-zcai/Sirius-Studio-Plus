@@ -293,8 +293,9 @@ done. What remains, in order:
   knows it, and for the converter and the histogram to scale by that.
 
 - **Histogram handles 8-bit only.** Other depths warn and pass through.
-- **One ROI at a time.** A node with more than one region parameter exposes
-  only the first to the viewer.
+- **One ROI at a time - done differently.** A node with more than one
+  region parameter shows its first when selected; each region's pick button
+  makes that one the one dragged, drawn in its own colour and named.
 - **`NumberVector` has no consumer.** The Vector node produces one and
   nothing takes one as input. It takes any number of components now, which
   makes it useful to more things than the old fixed pair would have been -

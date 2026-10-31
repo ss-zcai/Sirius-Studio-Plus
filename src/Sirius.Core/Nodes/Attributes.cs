@@ -210,6 +210,13 @@ public sealed class ParamAttribute : Attribute
     public string? Action { get; set; }
 
     /// <summary>
+    /// For a region drawn on the image: the colour of its box, as #RRGGBB,
+    /// so two regions of one node - Teach Region and Search Region - can be
+    /// told apart while either is dragged. Amber when not given.
+    /// </summary>
+    public string? RegionColour { get; set; }
+
+    /// <summary>
     /// Whether either end of a range may be left off, meaning no limit.
     /// </summary>
     /// <remarks>

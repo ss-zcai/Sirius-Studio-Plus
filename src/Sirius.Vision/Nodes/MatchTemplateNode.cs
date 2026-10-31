@@ -190,7 +190,7 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
         set => SetParam(ref _separation, Math.Clamp(value, 0.05, 1));
     }
 
-    [Param("Search Region", Editor = ParamEditor.Rect,
+    [Param("Search Region", Editor = ParamEditor.Rect, RegionColour = "#A78BFA",
         Description = "Where to look, as centre x, centre y, width, height and angle: a match counts when its " +
                       "middle is inside. Left at 1 x 1, the whole image. A smaller region is faster and cannot " +
                       "be fooled by something alike elsewhere.")]

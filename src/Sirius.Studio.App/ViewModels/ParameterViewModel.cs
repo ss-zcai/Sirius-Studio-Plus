@@ -259,6 +259,9 @@ public sealed class ParameterViewModel : ObservableObject
     /// <summary>Opens a file dialog and writes the chosen path into the parameter.</summary>
     public IRelayCommand BrowseCommand { get; }
 
+    /// <summary>The colour a region parameter's box is drawn in on the image.</summary>
+    public string RegionColour => _descriptor.Attribute.RegionColour ?? "#F59E0B";
+
     /// <summary>The label of the node action this parameter carries beside its editor, if any.</summary>
     public string? ActionLabel => _descriptor.Attribute.Action;
 
