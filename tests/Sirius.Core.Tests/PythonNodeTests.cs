@@ -352,6 +352,62 @@ public class PythonNodeTests
         Assert.Equal(3.0, reopened.Descriptor.Parameters.Single(parameter => parameter.Name == "gain").GetValue(reopened));
     }
 
+    /// <summary>
+    /// The sample library from samples/PythonNodes, with numpy arrays both
+    /// ways. Passes without checking where Python lacks numpy or OpenCV.
+    /// </summary>
+    [Theory]
+    [InlineData(1, DepthType.Cv8U)]
+    [InlineData(3, DepthType.Cv8U)]
+    [InlineData(1, DepthType.Cv16U)]
+    public void The_sample_library_runs_with_numpy_and_opencv(int channels, DepthType depth)
+    {
+        if (Sample.Value is not { Nodes.Count: > 0 } library)
+            return;
+
+        var darkSpots = library.Nodes.Single(node => node.DisplayName == "Dark Spots");
+
+        var (graph, node) = Wired(darkSpots, () =>
+        {
+            var bright = depth == DepthType.Cv16U ? 50_000 : 200;
+            var mat = new Mat(50, 80, depth, channels);
+            mat.SetTo(new MCvScalar(bright, bright, bright));
+            using (var spot = new Mat(mat, new System.Drawing.Rectangle(30, 10, 15, 10)))
+                spot.SetTo(new MCvScalar(0, 0, 0));
+            return ImageData.Adopt(mat);
+        });
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.True(node.Status == NodeStatus.Ready, node.StatusMessage);
+        Assert.Equal(1, (int)scheduler.GetOutput(node.FindOutput("count")!)!);
+
+        var spot = Assert.IsType<OrientedRectShape>(Assert.Single(scheduler.GetOutput<ShapeSet>(node.FindOutput("spots")!)!.Shapes));
+        Assert.Equal(150, spot.Metric("area"));
+        Assert.Equal("150 px", spot.Label);
+        Assert.Equal(37, spot.Centre.X, 0.5);
+        Assert.Equal(14.5, spot.Centre.Y, 0.5);
+
+        var mask = scheduler.GetOutput<ImageData>(node.FindOutput("mask")!)!;
+        Assert.Equal(DepthType.Cv8U, mask.Mat.Depth);
+        Assert.Equal(150, CvInvoke.CountNonZero(mask.Mat));
+    }
+
+    private static readonly Lazy<PluginLibrary?> Sample = new(() =>
+    {
+        var script = Path.Combine(CustomNodeTests.Scratch(), "dark_spots.py");
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "python-samples", "dark_spots.py"), script);
+
+        if (PythonInterpreter.Find(script, out _) is null)
+            return null;
+
+        // Without numpy and OpenCV the import fails, which is the sample's
+        // problem to report, not this test's.
+        var library = PythonLibraries.Load(script);
+        return library.Problems.Any(problem => problem.Contains("No module named", StringComparison.Ordinal)) ? null : library;
+    }, LazyThreadSafetyMode.ExecutionAndPublication);
+
     // ---- helpers ------------------------------------------------------------------
 
     /// <summary>The test library's nodes, or null when this machine has no Python.</summary>

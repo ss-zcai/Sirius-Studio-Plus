@@ -33,4 +33,11 @@
     <ProjectReference Include="..\..\samples\SampleNodes\SampleNodes.csproj" />
   </ItemGroup>
 
+  <!-- The sample Python library, run through the application when numpy and OpenCV are there. -->
+  <ItemGroup>
+    <None Include="../../samples/PythonNodes/dark_spots.py"
+          Link="python-samples/dark_spots.py"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
