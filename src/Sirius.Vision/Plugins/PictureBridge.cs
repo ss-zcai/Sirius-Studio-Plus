@@ -59,28 +59,47 @@ internal static class PictureBridge
     }
 
     /// <summary>A new image holding a copy of <paramref name="picture"/>.</summary>
-    public static unsafe ImageData ToImage(Picture picture)
+    public static ImageData ToImage(Picture picture) =>
+        ToImage(picture.Bytes, picture.Width, picture.Height, picture.Channels, picture.Pixels, picture.Layout);
+
+    /// <summary>
+    /// A new image holding a copy of rows of samples, top to bottom with no
+    /// padding - what a Python node sends back.
+    /// </summary>
+    public static unsafe ImageData ToImage(
+        ReadOnlySpan<byte> source, int width, int height, int channels, PixelType pixels, ColourLayout layout)
     {
-        var mat = new Mat(picture.Height, picture.Width, DepthOf(picture.Pixels), picture.Channels);
+        if (width < 1 || height < 1 || channels is < 1 or > 4)
+            throw new ArgumentException($"A {width}x{height} image with {channels} channels cannot be made.");
+
+        var stride = width * channels * SampleSize(pixels);
+        if (source.Length != (long)stride * height)
+        {
+            throw new ArgumentException(
+                $"A {width}x{height}x{channels} image of {pixels} needs {(long)stride * height} bytes, not {source.Length}.");
+        }
+
+        if (LayoutOf(SpaceOf(layout) ?? ColourSpace.Gray, channels) != layout)
+            layout = ColourLayout.Unknown;
+
+        var mat = new Mat(height, width, DepthOf(pixels), channels);
 
         try
         {
-            var source = picture.Bytes;
-
-            if (mat.IsContinuous && mat.Step == picture.Stride)
+            if (mat.IsContinuous && mat.Step == stride)
             {
                 source.CopyTo(new Span<byte>((void*)mat.DataPointer, source.Length));
             }
             else
             {
-                for (var y = 0; y < picture.Height; y++)
+                for (var y = 0; y < height; y++)
                 {
-                    var row = source.Slice(y * picture.Stride, picture.Stride);
-                    row.CopyTo(new Span<byte>((byte*)mat.DataPointer + ((long)y * mat.Step), picture.Stride));
+                    var row = source.Slice(y * stride, stride);
+                    row.CopyTo(new Span<byte>((byte*)mat.DataPointer + ((long)y * mat.Step), stride));
                 }
             }
 
-            return ImageData.Adopt(mat, SpaceOf(picture.Layout));
+            return ImageData.Adopt(mat, SpaceOf(layout));
         }
         catch
         {
@@ -88,6 +107,13 @@ internal static class PictureBridge
             throw;
         }
     }
+
+    private static int SampleSize(PixelType pixels) => pixels switch
+    {
+        PixelType.UInt16 => 2,
+        PixelType.Float32 => 4,
+        _ => 1,
+    };
 
     internal static PixelType? PixelsOf(DepthType depth) => depth switch
     {

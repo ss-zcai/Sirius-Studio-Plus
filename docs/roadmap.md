@@ -264,8 +264,12 @@ done. What remains, in order:
     the end of the node rather than where it was.
 - **Custom nodes - done, interface 1.0.** See `custom-nodes.md`. Left for
   later: reloading a library without a restart, icons a library supplies,
-  IntelliSense for the `Sirius.Core` types in the package, and the Python
-  host for algorithms with no C# equivalent.
+  IntelliSense for the `Sirius.Core` types in the package.
+- **Python custom nodes - done.** See `python-nodes.md`: a `.py` library
+  runs in its own Python process with its own environment, models load
+  once, images cross as numpy arrays, results come back as our shapes,
+  numbers, text and images. Left for later: shared memory for images,
+  a Python log view, warming workers in parallel at startup.
 - **Batch/headless runner - done.** Run Folder in the application, and
   `sirius-run.exe` for scripts, sharing `FolderRun`.
 

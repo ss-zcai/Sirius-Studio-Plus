@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using Microsoft.Win32;
 using Sirius.Studio.App.ViewModels;
 
@@ -46,14 +47,26 @@ public partial class CustomNodesWindow : Window
         var dialog = new OpenFileDialog
         {
             Title = "Add Custom Node Library",
-            Filter = "Custom node library (*.dll)|*.dll|All files (*.*)|*.*",
+            Filter = "Custom node library (*.dll;*.py)|*.dll;*.py|.NET library (*.dll)|*.dll|" +
+                     "Python library (*.py)|*.py|All files (*.*)|*.*",
             CheckFileExists = true,
         };
 
         if (dialog.ShowDialog(this) != true)
             return;
 
-        var row = _model.Add(dialog.FileName);
+        // A Python library is loaded by starting its Python and importing
+        // it, which for a deep-learning stack can take a while.
+        CustomNodeLibraryViewModel row;
+        Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            row = _model.Add(dialog.FileName);
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
 
         // The new entry is at the bottom, which may be out of sight; the
         // operator wants to see whether it worked.

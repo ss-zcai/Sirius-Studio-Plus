@@ -91,7 +91,8 @@ public static class PluginLoader
     /// A library is a DLL that references <c>Sirius.Plugins</c>, found by
     /// reading its metadata rather than loading it. Everything else - the
     /// libraries' own dependencies, native DLLs - is passed over, so a
-    /// library can sit in a folder with whatever it needs.
+    /// library can sit in a folder with whatever it needs. Python libraries
+    /// are found alongside, as <see cref="PythonLibraries.Find"/> describes.
     /// </remarks>
     public static IReadOnlyList<string> FindLibraries(string folder)
     {
@@ -101,6 +102,7 @@ public static class PluginLoader
         return Directory
             .EnumerateFiles(folder, "*.dll", SearchOption.AllDirectories)
             .Where(path => Probe(path).ReferencesSdk)
+            .Concat(PythonLibraries.Find(folder))
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -154,6 +156,9 @@ public static class PluginLoader
         var fullPath = System.IO.Path.GetFullPath(path);
         var fileName = System.IO.Path.GetFileNameWithoutExtension(fullPath);
         var problems = new List<string>();
+
+        if (PythonLibraries.IsPythonFile(fullPath))
+            return PythonLibraries.Load(fullPath);
 
         if (!File.Exists(fullPath))
             return Failed(fullPath, fileName, null, "The file does not exist.");

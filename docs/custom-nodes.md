@@ -488,26 +488,18 @@ There is nothing to mock. No graph, no scheduler, no OpenCV, no window.
 
 ## 8. Python
 
-The decision for now is **C# first**: migrate an algorithm into a C# node
-wherever that is not a significant difficulty. Where a Python algorithm
-depends on a library with no C# equivalent, a Python host is the plan:
+Built, as **out-of-process workers** - see [python-nodes.md](python-nodes.md).
+A `.py` file declaring `@node` classes is a library like a DLL: found in the
+same plugins folders, added in the same window, its nodes filed under the
+same `custom/` keys and saved in recipes the same way.
 
-**One plugin that hosts Python.** A single `Python Script` node - settings
-being a script path and a few typed arguments - embedding CPython and
-handing each `Picture` to the script as a NumPy array over the same memory.
-Every such algorithm then becomes a script, with no DLL each. The caveat is
-the GIL: independent branches of a graph evaluate concurrently, and Python
-calls queue behind one another. For one Python node in a recipe that is
-invisible; for four in parallel it is not.
-
-If that bites, the same node can move to **out-of-process workers** - a pool
-of Python processes, buffers over shared memory - which removes the GIL
-contention and means a crash in somebody's C extension cannot take the
-application down, at the cost of a little latency and a Python runtime for
-the installer to deal with.
-
-Neither needs any change to this interface. That is the payoff of §2: the
-contract is a pixel buffer, which is exactly what Python wants.
+Each library runs in its own Python process, with the interpreter it names
+in `sirius.json` (or a `.venv` beside it, or PATH), so libraries with
+conflicting packages - two CUDA stacks, two torch versions - sit in one
+recipe, and a crash in an extension ends that process rather than the
+application. The process stays up between images, so models load once.
+Pixels cross as raw buffers over a pipe and arrive as NumPy arrays: the
+contract is still a pixel buffer, as §2 intended.
 
 ---
 
@@ -540,4 +532,5 @@ Not built, each of which can be added without breaking a 1.0 library:
   documents every one a node uses, and the `Sirius.Plugins` types show
   their documentation in the editor; `Shape`, `ShapeSet` and the rest do
   not yet.
-- **The Python host** (§8).
+- **Python: shared memory for images, and reloading a changed
+  declaration** without a restart (§8).
