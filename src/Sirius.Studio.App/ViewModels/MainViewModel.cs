@@ -251,12 +251,13 @@ public sealed class MainViewModel : ObservableObject
     /// <remarks>
     /// The same matching the long dropdowns use, so search behaves one way
     /// throughout. The description is searched so a tool can be found by
-    /// what it does - "qr" finds Read Code, "ocr" Read Text - and the group
-    /// so "morph" brings up everything under Morphology.
+    /// what it does - "qr" finds Read Code, "ocr" Read Text - the group so
+    /// "morph" brings up everything under Morphology, and a custom node's
+    /// library so "python" or a library's name brings up what it added.
     /// </remarks>
     internal static bool MatchesToolboxSearch(NodeDescriptor descriptor, string search) =>
         Controls.FilterComboBox.Matches(
-            $"{descriptor.DisplayName} {PaletteGroupViewModel.NameOf(descriptor.Category)} {descriptor.Description}",
+            $"{descriptor.DisplayName} {PaletteGroupViewModel.NameOf(descriptor.Category)} {descriptor.Description} {descriptor.Origin}",
             search);
 
     private string _toolboxSearch = string.Empty;

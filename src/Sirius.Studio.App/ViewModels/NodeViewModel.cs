@@ -99,6 +99,9 @@ public sealed class NodeViewModel : ObservableObject
 
     public string? Description => Node.Descriptor.Description;
 
+    /// <summary>The description, and for a custom node which library it came from.</summary>
+    public string? ToolTipText => PaletteItemViewModel.ToolTipFor(Node.Descriptor);
+
     public NodeStatus Status => Node.Status;
 
     public string? StatusMessage => Node.StatusMessage;

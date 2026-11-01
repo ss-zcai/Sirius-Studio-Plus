@@ -24,6 +24,8 @@ namespace Sirius.Core.Tests;
 /// </remarks>
 public class PythonNodeTests
 {
+    public PythonNodeTests() => TestCatalog.Ensure();
+
     private const string Library = """
         import os
         from sirius_nodes import node, Input, Output, Setting, Rect, Circle, Image
@@ -192,6 +194,27 @@ public class PythonNodeTests
 
         // The connectable setting's socket, after the declared inputs.
         Assert.Equal(new[] { "image", "gain" }, node.Inputs.Select(port => port.Name));
+    }
+
+    /// <summary>
+    /// A library's node is filed where its author chose, so its tooltip says
+    /// where it came from, and the toolbox search finds it by library.
+    /// </summary>
+    [Fact]
+    public void A_python_node_says_which_library_it_came_from()
+    {
+        if (Load(out _) is not { } nodes)
+            return;
+
+        var tip = Sirius.Studio.App.ViewModels.PaletteItemViewModel.ToolTipFor(nodes[0]);
+
+        Assert.StartsWith("Inverts." + Environment.NewLine + "From pytest_nodes.py (Python ", tip);
+        Assert.Equal("From " + nodes[1].Origin, Sirius.Studio.App.ViewModels.PaletteItemViewModel.ToolTipFor(nodes[1]));
+        Assert.True(Sirius.Studio.App.ViewModels.MainViewModel.MatchesToolboxSearch(nodes[0], "pytest_nodes"));
+        Assert.True(Sirius.Studio.App.ViewModels.MainViewModel.MatchesToolboxSearch(nodes[0], "python"));
+
+        var builtIn = NodeCatalog.FindByTypeKey("basic.threshold")!;
+        Assert.Equal(builtIn.Description, Sirius.Studio.App.ViewModels.PaletteItemViewModel.ToolTipFor(builtIn));
     }
 
     [Fact]

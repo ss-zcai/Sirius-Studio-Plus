@@ -52,7 +52,10 @@ class LabelReader:
 - **`group`** is the toolbox section: `Source`, `Basic`, `Combine`,
   `Filtering`, `Morphology`, `Blob`, `Fitting`, `Transformation`,
   `Analysis`, `Calibration`, `TextAndCodeReading`, `Judging`, `Output` or
-  `Custom` (the default).
+  `Custom` (the default). File a node where an operator would look for
+  what it does; its tooltip in the toolbox and on the canvas always adds
+  which library it came from, and searching the toolbox for the library's
+  name finds its nodes.
 - **`run()`** is called once per image with the inputs as keyword
   arguments, named as the class attributes are. Settings are attributes:
   `self.min_score`.

@@ -18,7 +18,26 @@ public sealed class PaletteItemViewModel
 
     public string? Description => Descriptor.Description;
 
+    /// <summary>The description, and for a custom node which library it came from.</summary>
+    public string? ToolTipText => ToolTipFor(Descriptor);
+
     public string? IconKey => Descriptor.Icon;
+
+    /// <summary>
+    /// "Finds dark spots." over "From dark_spots.py (Python 3.14.5)" - a node
+    /// a library added says so, wherever its author filed it, so nobody hunts
+    /// through the application for a fault in somebody's library.
+    /// </summary>
+    internal static string? ToolTipFor(NodeDescriptor descriptor)
+    {
+        if (string.IsNullOrWhiteSpace(descriptor.Origin))
+            return descriptor.Description;
+
+        var origin = $"From {descriptor.Origin}";
+        return string.IsNullOrWhiteSpace(descriptor.Description)
+            ? origin
+            : $"{descriptor.Description}{Environment.NewLine}{origin}";
+    }
 }
 
 /// <summary>Palette entries grouped by category.</summary>
