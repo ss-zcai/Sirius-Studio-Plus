@@ -147,7 +147,11 @@ declare no node, and anything inside `.venv`, `venv`, `site-packages` or
    A relative path is from the library's folder; `%VARIABLES%` are expanded.
    A venv folder or a conda environment folder works too.
 2. A `.venv` or `venv` folder beside it.
-3. `python.exe` on PATH, then the `py` launcher.
+3. `python.exe` on PATH, then the `py` launcher. A real install is
+   preferred to the Microsoft Store alias in `WindowsApps`: Python started
+   through the alias runs inside a package and cannot see files under
+   `%AppData%`, so it cannot load a library from the per-user plugins
+   folder.
 
 For anything with GPU or pinned packages, use `sirius.json`: PATH differs
 from machine to machine.
@@ -189,6 +193,10 @@ memory, if that matters, can come later without changing a library.
 | Importing took more than 2 minutes | Custom Nodes window |
 | `load()` or `run()` raised | On the node, with the file and line |
 | The process died | On the node, with its exit code and last output |
+
+A library that failed to load is tried again when it is added again in
+**Tools ▸ Custom Nodes ▸ Add Library** - install the missing package, or
+fix `sirius.json`, and add the same file; no restart needed.
 
 ---
 

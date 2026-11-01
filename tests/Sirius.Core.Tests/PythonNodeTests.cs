@@ -131,6 +131,38 @@ public class PythonNodeTests
         Assert.Contains("does not exist", Assert.Single(library.Problems));
     }
 
+    /// <summary>
+    /// The WindowsApps python.exe runs Python inside a package, where
+    /// AppData is virtualised and the per-user plugins folder is invisible.
+    /// </summary>
+    [Theory]
+    [InlineData(@"C:\Users\me\AppData\Local\Microsoft\WindowsApps\python.exe", true)]
+    [InlineData(@"C:\Users\me\AppData\Local\Python\bin\python.exe", false)]
+    [InlineData(@"C:\Python312\python.exe", false)]
+    public void The_WindowsApps_alias_is_recognised(string path, bool alias) =>
+        Assert.Equal(alias, PythonInterpreter.IsAlias(path));
+
+    [Fact]
+    public void A_library_that_failed_is_tried_again_when_installed_again()
+    {
+        var folder = CustomNodeTests.Scratch();
+        var script = Write(folder, "pytest_retry.py", Library.Replace("pytest.", "pytest-retry.", StringComparison.Ordinal));
+
+        if (PythonInterpreter.Find(script, out _) is null)
+            return;
+
+        var settings = Write(folder, "sirius.json", """{ "python": "C:\\no\\such\\python.exe" }""");
+        var failed = PluginLoader.Install(script);
+        Assert.Empty(failed.Nodes);
+
+        File.Delete(settings);
+        var retried = PluginLoader.Install(script);
+
+        Assert.Equal(2, retried.Nodes.Count);
+        Assert.Same(retried, PluginLoader.Install(script));
+        Assert.DoesNotContain(failed, PluginLoader.Libraries);
+    }
+
     // ---- loading ------------------------------------------------------------------
 
     [Fact]

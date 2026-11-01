@@ -61,11 +61,18 @@ public sealed record PythonInterpreter(string Executable, IReadOnlyList<string> 
                 return new PythonInterpreter(executable, [], $"the {name} beside it");
         }
 
-        if (OnPath("python.exe") is { } python)
-            return new PythonInterpreter(python, [], "on PATH");
+        // An app execution alias - the python.exe in WindowsApps - starts
+        // Python inside a package, where AppData is virtualised: it cannot
+        // see a library in the per-user plugins folder. Any real install
+        // on PATH comes first; the alias only when there is nothing else.
+        foreach (var alias in new[] { false, true })
+        {
+            if (OnPath("python.exe", alias) is { } python)
+                return new PythonInterpreter(python, [], "on PATH");
 
-        if (OnPath("py.exe") is { } launcher)
-            return new PythonInterpreter(launcher, ["-3"], "the py launcher");
+            if (OnPath("py.exe", alias) is { } launcher)
+                return new PythonInterpreter(launcher, ["-3"], "the py launcher");
+        }
 
         problem = "No Python was found. Install Python and add it to PATH, or put a " +
                   $"{SettingsFile} beside the library naming the one to use: " +
@@ -87,7 +94,7 @@ public sealed record PythonInterpreter(string Executable, IReadOnlyList<string> 
             .FirstOrDefault(File.Exists);
     }
 
-    private static string? OnPath(string file) =>
+    private static string? OnPath(string file, bool alias) =>
         (Environment.GetEnvironmentVariable("PATH") ?? "")
         .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         .Select(folder =>
@@ -101,7 +108,11 @@ public sealed record PythonInterpreter(string Executable, IReadOnlyList<string> 
                 return null;
             }
         })
+        .Where(path => path is not null && IsAlias(path) == alias)
         .FirstOrDefault(File.Exists);
+
+    internal static bool IsAlias(string path) =>
+        path.Contains(@"\Microsoft\WindowsApps\", StringComparison.OrdinalIgnoreCase);
 
     public override string ToString() => $"{Executable} ({Source})";
 }

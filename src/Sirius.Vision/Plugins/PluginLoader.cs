@@ -109,7 +109,11 @@ public static class PluginLoader
 
     /// <summary>
     /// Loads a library and adds its nodes to the catalogue. Installing the
-    /// same file twice returns the first result.
+    /// same file twice returns the first result - unless it is a Python
+    /// library that added no nodes, when it is tried again: what stopped
+    /// it, a missing package or a wrong path in sirius.json, is fixed
+    /// outside the application. A DLL that failed stays failed until
+    /// restart; the version it was is the one loaded.
     /// </summary>
     public static PluginLibrary Install(string path)
     {
@@ -120,7 +124,12 @@ public static class PluginLoader
         lock (InstallGate)
         {
             if (Installed.TryGetValue(fullPath, out var existing))
-                return existing;
+            {
+                if (existing.Nodes.Count > 0 || !PythonLibraries.IsPythonFile(fullPath))
+                    return existing;
+
+                Order.Remove(existing);
+            }
 
             var loaded = Load(fullPath);
             var nodes = new List<NodeDescriptor>();

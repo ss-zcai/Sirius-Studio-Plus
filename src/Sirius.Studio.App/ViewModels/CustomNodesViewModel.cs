@@ -142,6 +142,24 @@ public sealed class CustomNodesViewModel : ObservableObject
 
         if (Find(fullPath) is { } existing)
         {
+            // A Python library added again after it failed: try it again,
+            // in the same place in the list - its environment may have been
+            // put right since.
+            if (existing.Failed && PythonLibraries.IsPythonFile(fullPath))
+            {
+                var retried = new CustomNodeLibraryViewModel(PluginLoader.Install(fullPath), existing.Source);
+                Libraries[Libraries.IndexOf(existing)] = retried;
+                OnPropertyChanged(nameof(ProblemSummary));
+
+                if (existing.Source == CustomNodeSource.Added)
+                    Remember(fullPath);
+
+                if (!retried.Failed)
+                    CatalogueChanged?.Invoke(this, EventArgs.Empty);
+
+                return retried;
+            }
+
             // Removed and then added again in the same session: it never
             // stopped being loaded, so just remember it again.
             if (existing.IsRemoved)
