@@ -36,6 +36,9 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     private ParameterViewModel? _pathParameter;
     private ShapeSet? _shapes;
     private ShapeSet? _pendingShapes;
+    private IReadOnlyList<ShapeSpan> _spans = [];
+    private IReadOnlyList<ShapeSpan> _pendingSpans = [];
+    private OutputPort? _shownSource;
     private LineProfileSource? _profileSource;
     private LineProfileSource? _pendingProfileSource;
     private bool _isProfilingEnabled;
@@ -67,8 +70,15 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
 
         _selection.Changed += (_, port) =>
         {
-            if (ReferenceEquals(port, ShapeProducer))
-                OnPropertyChanged(nameof(SelectedShapeIndex));
+            if (!_spans.Any(span => ReferenceEquals(span.Source, port)))
+                return;
+
+            // What was picked last is what this panel shows, wherever it was
+            // picked - here, or in a table reading one of the same wires.
+            if (_selection.For(port) is not null)
+                _shownSource = port;
+
+            OnPropertyChanged(nameof(SelectedShapeIndex));
         };
 
         // Opening a recipe replaces the node's set wholesale, and a panel
@@ -87,9 +97,32 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     /// <summary>
     /// The port the drawn shapes came from - the key shared with any table
     /// reading the same wire, so selecting a blob in one highlights it in the
-    /// other. Null when this panel shows no shapes.
+    /// other. Null when this panel shows no shapes, or shapes from several
+    /// ports - see <see cref="SpansOf"/>.
     /// </summary>
-    protected abstract OutputPort? ShapeProducer { get; }
+    protected virtual OutputPort? ShapeProducer => null;
+
+    /// <summary>
+    /// A run of the drawn shapes that came from one port: shapes
+    /// <see cref="Start"/> onwards, <see cref="Count"/> of them, are that
+    /// port's shapes 0 onwards.
+    /// </summary>
+    protected readonly record struct ShapeSpan(OutputPort Source, int Start, int Count);
+
+    /// <summary>
+    /// Where each of the drawn shapes came from, so a shape picked here
+    /// selects the same shape in a table reading its wire - and back.
+    /// </summary>
+    /// <remarks>
+    /// Selection is kept per producing port, by the shape's index in that
+    /// port's set. A panel drawing several sets at once numbers them as one
+    /// list, so it has to say which part of the list each port is, or the
+    /// fifth shape here would light up the fifth row of a table that does
+    /// not hold it. Called on a worker thread with the shapes
+    /// <see cref="Read"/> gave.
+    /// </remarks>
+    protected virtual IReadOnlyList<ShapeSpan> SpansOf(GraphScheduler scheduler, ShapeSet? shapes) =>
+        ShapeProducer is { } producer ? [new ShapeSpan(producer, 0, shapes?.Count ?? 0)] : [];
 
     /// <summary>
     /// Reads what this panel draws out of the evaluated graph.
@@ -163,10 +196,42 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         nameof(Measurements));
 
     /// <summary>The selected shape, counting from zero, or -1 for none.</summary>
+    /// <remarks>
+    /// One shape at a time, across every set drawn here: picking a shape
+    /// puts down whatever was picked from the other sets, so a table on one
+    /// of them never shows a row selected that this panel does not.
+    /// </remarks>
     public int SelectedShapeIndex
     {
-        get => _selection.For(ShapeProducer) ?? -1;
-        set => _selection.Select(ShapeProducer, value);
+        get
+        {
+            // The set picked from last, then any other with a pick in it.
+            foreach (var span in _spans.OrderByDescending(span => ReferenceEquals(span.Source, _shownSource)))
+            {
+                if (_selection.For(span.Source) is { } local && local < span.Count)
+                    return span.Start + local;
+            }
+
+            return -1;
+        }
+        set
+        {
+            var hit = _spans.FirstOrDefault(span => value >= span.Start && value < span.Start + span.Count);
+
+            // The pick first, so the panel never reads as having nothing
+            // selected while the others are put down.
+            if (hit.Source is not null)
+            {
+                _shownSource = hit.Source;
+                _selection.Select(hit.Source, value - hit.Start);
+            }
+
+            foreach (var span in _spans)
+            {
+                if (!ReferenceEquals(span.Source, hit.Source))
+                    _selection.Select(span.Source, null);
+            }
+        }
     }
 
     private BitmapSource? _pendingImage;
@@ -200,6 +265,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         // Managed geometry, so it can be handed straight over - there is no
         // native buffer here to go out from under the UI thread.
         _pendingShapes = shapes;
+        _pendingSpans = SpansOf(scheduler, shapes);
 
         // Prepared here, where the graph's buffer is still alive. Keeping the
         // ImageData itself instead would be a use-after-free waiting to happen:
@@ -217,10 +283,15 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     {
         Image = _pendingImage;
         SizeText = _pendingSize;
+        _spans = _pendingSpans;
         Shapes = _pendingShapes;
 
-        if (SelectedShapeIndex >= (Shapes?.Count ?? 0))
-            _selection.Select(ShapeProducer, null);
+        // A pick past the end of a set that came back shorter is gone.
+        foreach (var span in _spans)
+        {
+            if (_selection.For(span.Source) >= span.Count)
+                _selection.Select(span.Source, null);
+        }
 
         OnPropertyChanged(nameof(SelectedShapeIndex));
 
@@ -555,31 +626,29 @@ public sealed class ViewerPanelViewModel : ImagePanelViewModel
 
     protected override string ContentIdPrefix => "viewer";
 
-    /// <summary>
-    /// The port the drawn shapes came from, when they all came from one.
-    /// </summary>
-    /// <remarks>
-    /// This key is what ties a blob on the image to a row in a table reading
-    /// the same wire, and it does that by index. Merge two producers and the
-    /// indices no longer mean the same thing on both sides - picking the
-    /// fifth shape on the image would light up the fifth row of a table that
-    /// does not contain it. So a merged viewer shares no selection at all,
-    /// which is honest, rather than sharing a wrong one.
-    /// </remarks>
-    protected override OutputPort? ShapeProducer
-    {
-        get
-        {
-            var connected = Source.ShapeInputs
-                .Where(port => port.Connection is not null)
-                .ToArray();
-
-            return connected.Length == 1 ? connected[0].Connection!.Source : null;
-        }
-    }
-
     protected override (ImageData? Image, ShapeSet? Shapes) Read(GraphScheduler scheduler) =>
         (scheduler.GetInput<ImageData>(Source.ImageIn), ReadShapes(scheduler));
+
+    /// <summary>
+    /// Each drawn set's place in the merged list, keyed by the port that
+    /// produced it - so a blob picked here is the blob a table on Find
+    /// Blobs shows, even with a fitted curve drawn over the same picture.
+    /// </summary>
+    protected override IReadOnlyList<ShapeSpan> SpansOf(GraphScheduler scheduler, ShapeSet? shapes)
+    {
+        var spans = new List<ShapeSpan>();
+        var start = 0;
+
+        foreach (var (socket, set) in Drawn(scheduler))
+        {
+            if (socket.Connection?.Source is { } source)
+                spans.Add(new ShapeSpan(source, start, set.Count));
+
+            start += set.Count;
+        }
+
+        return spans;
+    }
 
     /// <summary>
     /// Every connected shapes socket, drawn as one.
@@ -600,29 +669,45 @@ public sealed class ViewerPanelViewModel : ImagePanelViewModel
     /// </remarks>
     private ShapeSet? ReadShapes(GraphScheduler scheduler)
     {
-        var sets = Source.ShapeInputs
-            .Select(scheduler.GetInput<ShapeSet>)
-            .Where(set => set is { Count: > 0 })
-            .Cast<ShapeSet>()
-            .ToArray();
+        var drawn = Drawn(scheduler);
 
-        if (sets.Length == 0)
+        if (drawn.Length == 0)
             return Source.ShapeInputs.Select(scheduler.GetInput<ShapeSet>).FirstOrDefault(s => s is not null);
 
-        if (sets.Length == 1)
-            return sets[0];
+        if (drawn.Length == 1)
+            return drawn[0].Set;
+
+        var frame = drawn.Select(each => each.Set).FirstOrDefault(set => set.FrameWidth > 0 && set.FrameHeight > 0);
+
+        return new ShapeSet(
+            drawn.SelectMany(each => each.Set.Shapes).ToArray(), frame?.FrameWidth ?? 0, frame?.FrameHeight ?? 0);
+    }
+
+    /// <summary>
+    /// The sets that are drawn, in socket order, with the socket each came
+    /// in on: those with shapes in them, and in the frame of the first
+    /// that knows its frame.
+    /// </summary>
+    private (InputPort Socket, ShapeSet Set)[] Drawn(GraphScheduler scheduler)
+    {
+        var sets = Source.ShapeInputs
+            .Select(socket => (Socket: socket, Set: scheduler.GetInput<ShapeSet>(socket)))
+            .Where(each => each.Set is { Count: > 0 })
+            .Select(each => (each.Socket, Set: each.Set!))
+            .ToArray();
+
+        if (sets.Length < 2)
+            return sets;
 
         // The first set that knows its frame decides; the rest have to agree
         // with it or be left out.
-        var frame = sets.FirstOrDefault(set => set.FrameWidth > 0 && set.FrameHeight > 0);
+        var frame = sets.FirstOrDefault(each => each.Set.FrameWidth > 0 && each.Set.FrameHeight > 0).Set;
         var width = frame?.FrameWidth ?? 0;
         var height = frame?.FrameHeight ?? 0;
 
         // Said out loud by the node rather than here: a dropped set is
         // otherwise just shapes that are not there, and the node's status is
         // where this application already reports that sort of thing.
-        var kept = sets.Where(set => set.MatchesFrame(width, height));
-
-        return new ShapeSet(kept.SelectMany(set => set.Shapes).ToArray(), width, height);
+        return sets.Where(each => each.Set.MatchesFrame(width, height)).ToArray();
     }
 }

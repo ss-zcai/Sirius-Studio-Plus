@@ -698,7 +698,12 @@ public partial class ImageViewer : UserControl
     // ---- graph geometry --------------------------------------------------
 
     /// <summary>Colour for shapes whose producer did not choose one.</summary>
-    private static readonly Color DefaultShapeColour = Color.FromRgb(0xA7, 0x8B, 0xFA);
+    /// <remarks>
+    /// The green the fitting tools draw what they found in. It was violet,
+    /// which on a grey part or a backlit field all but disappears - and blobs
+    /// are drawn this colour, so they were the results hardest to see.
+    /// </remarks>
+    private static readonly Color DefaultShapeColour = Color.FromRgb(0x22, 0xC5, 0x5E);
 
     /// <summary>
     /// Draws the shapes the graph produced.

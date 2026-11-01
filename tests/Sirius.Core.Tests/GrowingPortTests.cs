@@ -377,39 +377,84 @@ public class GrowingPortTests
     }
 
     /// <summary>
-    /// One producer still shares its selection with a table reading the same
-    /// wire. Two producers share none, because the merged indices no longer
-    /// mean the same thing on both sides - picking the fifth shape would
-    /// light up the fifth row of a table that does not contain it.
+    /// Two producers on one viewer - a fitted curve over found blobs - and a
+    /// table on the blobs. Picking the second blob on the image is picking
+    /// the blobs' second row, though on the image it is the fifth shape.
     /// </summary>
     [Fact]
-    public void Selection_is_shared_only_while_there_is_one_producer()
+    public void A_shape_picked_on_a_merged_viewer_selects_it_in_its_own_set()
     {
-        var rig = Build();
-        var first = AddProducer(rig);
+        var (viewer, curve, blobs, scheduler) = Merged();
+        var selection = new ShapeSelectionService();
 
-        rig.Graph.TryConnect(ShapesOf(first), rig.Viewer.ShapesIn);
-        rig.Viewer.Fit();
+        var panel = new ViewerPanelViewModel(viewer, selection);
+        panel.Prepare(scheduler);
+        panel.Commit();
 
-        var panel = new ViewerPanelViewModel(rig.Viewer, new ShapeSelectionService());
-        panel.Prepare(CreateScheduler(rig.Graph));
+        panel.SelectedShapeIndex = 4;
 
-        Assert.NotNull(Producer(panel));
+        Assert.Equal(1, selection.For(blobs.ShapesOut));
+        Assert.Null(selection.For(curve.ShapesOut));
 
-        var second = AddProducer(rig);
-        rig.Graph.TryConnect(ShapesOf(second), rig.Viewer.ShapeInputs[1]);
-        rig.Viewer.Fit();
+        panel.SelectedShapeIndex = -1;
 
-        Assert.Null(Producer(panel));
+        Assert.Null(selection.For(blobs.ShapesOut));
 
         panel.Dispose();
+        scheduler.Dispose();
     }
 
-    private static OutputPort? Producer(ViewerPanelViewModel panel) =>
-        (OutputPort?)typeof(ImagePanelViewModel)
-            .GetProperty("ShapeProducer", System.Reflection.BindingFlags.Instance
-                | System.Reflection.BindingFlags.NonPublic)!
-            .GetValue(panel);
+    /// <summary>The other way: a row picked in the table lights up its shape here.</summary>
+    [Fact]
+    public void A_row_picked_in_a_table_shows_on_a_merged_viewer()
+    {
+        var (viewer, curve, blobs, scheduler) = Merged();
+        var selection = new ShapeSelectionService();
+
+        var panel = new ViewerPanelViewModel(viewer, selection);
+        panel.Prepare(scheduler);
+        panel.Commit();
+
+        selection.Select(blobs.ShapesOut, 0);
+        Assert.Equal(3, panel.SelectedShapeIndex);
+
+        // Picking from the other set on the image puts the row down, so the
+        // table never shows a selection the image does not.
+        panel.SelectedShapeIndex = 2;
+
+        Assert.Equal(2, selection.For(curve.ShapesOut));
+        Assert.Null(selection.For(blobs.ShapesOut));
+        Assert.Equal(2, panel.SelectedShapeIndex);
+
+        panel.Dispose();
+        scheduler.Dispose();
+    }
+
+    /// <summary>Three curve shapes on the first socket, two blobs on the second, run once.</summary>
+    private static (ViewerNode Viewer, ShapeSourceNode Curve, ShapeSourceNode Blobs, GraphScheduler Scheduler) Merged()
+    {
+        var graph = new VisionGraph();
+        var source = new ConstantImageNode { Width = 64, Height = 48, Value = 200 };
+        var viewer = new ViewerNode();
+        var curve = new ShapeSourceNode { Set = Blobs(3) };
+        var blobs = new ShapeSourceNode { Set = Blobs(2) };
+
+        graph.Add(source);
+        graph.Add(viewer);
+        graph.Add(curve);
+        graph.Add(blobs);
+        graph.TryConnect(source.ImageOut, viewer.ImageIn);
+
+        graph.TryConnect(curve.ShapesOut, viewer.ShapesIn);
+        viewer.Fit();
+        graph.TryConnect(blobs.ShapesOut, viewer.ShapeInputs[1]);
+        viewer.Fit();
+
+        var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        return (viewer, curve, blobs, scheduler);
+    }
 
     // ---- the canvas keeps up -------------------------------------------------
 

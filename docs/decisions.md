@@ -1615,7 +1615,8 @@ It does cost the shared selection. The key that ties a blob on the image to
 a row in a table is the producing port, and the correspondence is by index;
 merge two producers and the fifth shape on the image is no longer the fifth
 row of either table. So a viewer with one producer shares its selection
-exactly as before, and a viewer with several shares none. A wrong
+exactly as before, and a viewer with several shares none (replaced by
+section 54, which maps the merged index back to its own set). A wrong
 highlight would be worse than no highlight.
 
 A set measured in a different image size is dropped rather than drawn in the
@@ -2037,3 +2038,22 @@ library to agree with itself: a board rendered through a homography and
 bent by a set barrel distortion, four views at different tilts. The fit
 finds the focal length within 3% and k1 within 0.04; corrected, the
 board's rows are straight to the accuracy the corners can be found to.
+
+## 54. Picking a shape on a viewer with several shape wires
+
+Section 46 had a viewer with more than one shapes socket share no selection,
+since a merged index means nothing to a table on one of the sets. In use that
+was the common case - a fitted curve styled and drawn over the blobs a table
+lists - and it read as a broken click: nothing happened on the image or in
+the table.
+
+The viewer now keeps, from each pass, which run of the merged list came from
+which producing port. A shape picked on the image is selected in its own set,
+by its index there, so the table on that set highlights the right row; a row
+picked in the table is shown at its place in the merged list. One shape at a
+time: picking from one set puts down the pick in the others, so no table shows
+a row selected that the image does not.
+
+Shapes nobody coloured are now drawn green, the colour the fitting tools draw
+what they found in. The violet they were drawn in all but disappeared on grey
+parts, and blobs - which no node colours - were the results it hid most.
