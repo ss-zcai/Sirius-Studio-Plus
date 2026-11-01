@@ -972,6 +972,34 @@
                                                             </Button>
                                                         </Grid>
 
+                                                        <!--
+                                                            A search path: its corners and its
+                                                            width as one line, and a button to
+                                                            draw it along the edge instead.
+                                                        -->
+                                                        <Grid Visibility="{Binding IsPath, Converter={StaticResource BoolToVisibility}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBox Grid.Column="0"
+                                                                     Text="{Binding PathText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                                     ToolTip="Corners as x, y; x, y; ... then | width, and | closed for a closed path" />
+
+                                                            <Button Grid.Column="1"
+                                                                    MinWidth="0"
+                                                                    Width="24"
+                                                                    Margin="4,0,0,0"
+                                                                    Padding="0"
+                                                                    ToolTip="Draw this path on the node's input image"
+                                                                    Command="{Binding DataContext.DrawRegionCommand,
+                                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <Image Source="{StaticResource Icon.ph_find_curve}" Width="14" Height="14" />
+                                                            </Button>
+                                                        </Grid>
+
                                                         <CheckBox IsChecked="{Binding BoolValue, Mode=TwoWay}"
                                                                   Visibility="{Binding IsCheckBox, Converter={StaticResource BoolToVisibility}}" />
 

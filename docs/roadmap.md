@@ -133,18 +133,30 @@ done. What remains, in order:
    machinery that already exists - fitted by total least squares with
    outlier rejection. Measured error against a known edge is zero across
    smoothing widths 1 to 21.
-3. **Geometry parameters** - `Shape`-valued, with handle editing and
-   serialisation. The `Shape` vocabulary built for blob *output* is the one
-   a search region needs as *input*. This is also what retires
-   `ActiveRegionParameter`, the mechanism that pushes the selected node's
-   region to every viewer and lets a region be drawn in the wrong
-   coordinate space.
-4. **Find Curve** on the same caliper core. **Find Circle is done** - a
+3. **Geometry parameters - done, as shapes on a wire.** Every region a
+   node can wire - a rectangle, a turned rectangle, a band, a point, a
+   path - takes a shape set as readily as its own type (`ShapeRegions`):
+   Find Blobs' box is where Find Line looks, Find Circle's circle is the
+   band Ring Calipers searches, a good part's contour is the path Find
+   Curve follows. What the shape does not say - a line's width, a band's
+   - comes from the drawn value, and a shape that can be written several
+   ways round is taken the way the drawn region faces, so which side the
+   calipers start from does not depend on how the shape was reported.
+   The drawn values stay their own types rather than becoming `Shape`
+   parameters: each is what its tool reads, and a wire is where the
+   shape vocabulary was wanted. The wrong-coordinate-space fault this
+   item was also meant to retire went with port-bound previews: a region
+   is drawn only on the preview of its own node's input.
+4. **Find Curve - done.** A path drawn corner by corner - a third
+   gesture beside the rectangle and the band - with a band either side,
+   calipers square across it, and a curve fitted locally through the
+   edge with outliers set aside. A closed path gives a closed curve.
+   Followed to a tenth of a pixel on a test wave with slopes past 40
+   degrees. **Find Circle is done** - a
    centre and a band, radial calipers through it, a circle fitted to the
    edges with outlier rejection, accurate to better than a fifth of a pixel
-   against a known edge. Its ring is drawn on the viewer now, and can be
-   moved and resized there; what item 3 would add is holding it as a
-   `Shape` rather than as a `Ring` parameter of its own.
+   against a known edge. Its ring is drawn on the viewer, and can be
+   moved and resized there.
 5. **Partial evaluation - done.** A recipe slower than 60 ms runs the
    edited node and its ancestors at once and the rest when the edits
    pause, so dragging a caliper does not re-run the whole recipe on
@@ -192,9 +204,19 @@ done. What remains, in order:
   changes one.
 
   Areas are calibrated too: Shape Table and Measure report them in
-  square units. Still open: **lens calibration** from a target grid, for
-  optics where a single scale is not enough - not worth building until
-  somebody's lens needs it.
+  square units.
+
+  **Lens calibration is done**: Lens Calibration fits a lens's
+  distortion to views of a chessboard or dot grid - Add View a few
+  times, the target in different places and tilts - and Undistort takes
+  it out of every picture after. The views are kept in the recipe, so
+  the target can be put away. It also gives a scale in the target's
+  plane. Tested only against synthetic views through a known lens so
+  far; a real wide lens is the test still to do.
+- **Straight-edge defects are done**: Line Defects, Circle Defects'
+  counterpart for an edge meant to be straight, against a voted line, a
+  wired one or the edge's own smoothed form. Line Calipers reports
+  **Straightness** and a profile along the edge.
 - **Circular and polygonal regions.** Rectangles are handled at any angle.
 
 ---

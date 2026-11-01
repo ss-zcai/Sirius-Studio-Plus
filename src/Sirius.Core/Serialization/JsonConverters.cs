@@ -345,3 +345,82 @@ public sealed class ColorJsonConverter : JsonConverter<Color>
     public override void Write(Utf8JsonWriter writer, Color value, JsonSerializerOptions options) =>
         writer.WriteStringValue($"#{value.A:X2}{value.R:X2}{value.G:X2}{value.B:X2}");
 }
+
+/// <summary>
+/// Stores a search path as <c>{ "points": [[x, y], ...], "closed": false, "width": 40 }</c>.
+/// </summary>
+public sealed class PathBandJsonConverter : JsonConverter<PathBand>
+{
+    public override PathBand Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var points = new List<Shapes.Point2>();
+        var closed = false;
+        var width = PathBand.Default.Width;
+
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException("Expected an object for a path.");
+
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+        {
+            if (reader.TokenType != JsonTokenType.PropertyName)
+                continue;
+
+            var name = reader.GetString();
+            reader.Read();
+
+            switch (name)
+            {
+                case "closed": closed = reader.GetBoolean(); break;
+                case "width": width = reader.GetDouble(); break;
+
+                case "points":
+                    if (reader.TokenType != JsonTokenType.StartArray)
+                        throw new JsonException("Expected an array of points.");
+
+                    while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+                    {
+                        if (reader.TokenType != JsonTokenType.StartArray)
+                            throw new JsonException("Expected a point as [x, y].");
+
+                        reader.Read();
+                        var x = reader.GetDouble();
+                        reader.Read();
+                        var y = reader.GetDouble();
+
+                        while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+                        {
+                        }
+
+                        points.Add(new Shapes.Point2(x, y));
+                    }
+
+                    break;
+
+                default:
+                    reader.Skip();
+                    break;
+            }
+        }
+
+        return points.Count < 2 ? PathBand.Default : new PathBand(points, closed, width);
+    }
+
+    public override void Write(Utf8JsonWriter writer, PathBand value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteStartArray("points");
+
+        foreach (var point in value.Points)
+        {
+            writer.WriteStartArray();
+            writer.WriteNumberValue(point.X);
+            writer.WriteNumberValue(point.Y);
+            writer.WriteEndArray();
+        }
+
+        writer.WriteEndArray();
+        writer.WriteBoolean("closed", value.Closed);
+        writer.WriteNumber("width", value.Width);
+        writer.WriteEndObject();
+    }
+}

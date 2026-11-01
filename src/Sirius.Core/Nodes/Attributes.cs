@@ -69,6 +69,13 @@ public enum ParamEditor
     /// on the image - a centre, the edge, then the width either side.
     /// </summary>
     Ring,
+
+    /// <summary>
+    /// A search band along a path, as "x, y; x, y; ... | width", with a
+    /// button to draw it on the image - corner by corner, finished with a
+    /// double-click, or closed by clicking the first corner again.
+    /// </summary>
+    Path,
     /// <summary>Structuring-element shape + size + anchor.</summary>
     Kernel,
     /// <summary>Text box with a browse button that opens a file dialog.</summary>

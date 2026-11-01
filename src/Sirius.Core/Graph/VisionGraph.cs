@@ -252,7 +252,15 @@ public sealed class VisionGraph : ObservableObject
         target.IsAssignableFrom(source) ||
         source == typeof(object) ||
         (IsNumeric(source) && IsNumeric(target)) ||
-        IsVectorForPoint(source, target);
+        IsVectorForPoint(source, target) ||
+        IsShapeForRegion(source, target);
+
+    /// <summary>
+    /// Shapes may drive a region, a band, a path or a point - a found box
+    /// is where the next tool should look. See <see cref="Shapes.ShapeRegions"/>.
+    /// </summary>
+    private static bool IsShapeForRegion(Type source, Type target) =>
+        source == typeof(Shapes.ShapeSet) && Shapes.ShapeRegions.CanDrive(target);
 
     /// <summary>
     /// A matrix may drive a point, since a point is a two-value vector.

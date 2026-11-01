@@ -143,6 +143,23 @@ public sealed class EvalContext
             return (T)(object)new Shapes.Point2(matrix.At(0), matrix.At(1));
         }
 
+        // A region is a shape: a found box, line or circle says where the
+        // next tool looks, and the editor value says what the shape leaves
+        // out - see ShapeRegions.
+        if (value is Shapes.ShapeSet shapes && Shapes.ShapeRegions.CanDrive(typeof(T)))
+        {
+            if (shapes.Count == 0)
+            {
+                Warn($"No shape arrived on '{parameterName}'; using the editor value.");
+                return fallback;
+            }
+
+            if (shapes.Count > 1)
+                Warn($"{shapes.Count} shapes arrived on '{parameterName}'; using the first.");
+
+            return (T)Shapes.ShapeRegions.From(shapes.Shapes[0], typeof(T), fallback);
+        }
+
         try
         {
             return (T)System.Convert.ChangeType(value, typeof(T), CultureInfo.InvariantCulture);

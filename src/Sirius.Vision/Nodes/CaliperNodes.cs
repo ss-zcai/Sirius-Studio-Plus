@@ -486,14 +486,36 @@ public sealed class RingCalipersNode : VisionNode
     }
 }
 
+/// <summary>What Line Calipers plots along the region.</summary>
+public enum LineProfileValue
+{
+    /// <summary>Each point's distance off the straight line through them all - the straightness profile.</summary>
+    Deviation,
+
+    /// <summary>Each point's distance off the middle of the region.</summary>
+    Offset,
+
+    /// <summary>How sharp the edge was - where it is weak.</summary>
+    Contrast,
+}
+
 /// <summary>
 /// Casts calipers across a rectangle and gives every edge they find.
 /// </summary>
 /// <remarks>
-/// Find Line without the line - the same calipers and region, nothing fitted
-/// and nothing rejected. Each point knows how far along the region it is and
-/// how far off its middle, so the points read as a straightness profile; the
+/// <para>
+/// Find Line without the line - the same calipers and region, nothing
+/// rejected. Each point knows how far along the region it is, how far off
+/// its middle, and how far off the straight line through all of them; the
 /// contour joins them into the edge as it actually is.
+/// </para>
+/// <para>
+/// Straightness is the last of those, end to end: the highest point above
+/// the line less the lowest below it. The line is the least-squares one
+/// through every point, nothing rejected, because a burr or a dip is what
+/// straightness is asked about and rejecting it as an outlier would hide
+/// it - the same reason Ring Calipers' roundness fits nothing out.
+/// </para>
 /// </remarks>
 [VisionNode(
     "Line Calipers",
@@ -517,23 +539,43 @@ public sealed class LineCalipersNode : VisionNode
     private EdgePolarity _polarity = EdgePolarity.Either;
     private EdgeChoice _choice = EdgeChoice.Strongest;
     private ScanDirection _direction = ScanDirection.Across;
+    private LineProfileValue _profileValue = LineProfileValue.Deviation;
 
     public LineCalipersNode()
     {
         ImageIn = AddInput<ImageData>("In");
         PointsOut = AddOutput<ShapeSet>("Points");
         ContourOut = AddOutput<ShapeSet>("Contour");
+        ProfileOut = AddOutput<ProfileData>("Profile");
+        StraightnessOut = AddOutput<double>("Straightness");
         CountOut = AddOutput<int>("Count");
         MissedOut = AddOutput<int>("Missed");
     }
 
     public InputPort ImageIn { get; }
 
-    /// <summary>Every edge found, in order along the region, each with its distance along, offset and contrast.</summary>
+    /// <summary>
+    /// Every edge found, in order along the region, each with its distance
+    /// along, its offset, its deviation from the line through them all and
+    /// its contrast.
+    /// </summary>
     public OutputPort PointsOut { get; }
 
     /// <summary>An open outline through the points in order, with its length as its perimeter.</summary>
     public OutputPort ContourOut { get; }
+
+    /// <summary>
+    /// The chosen value at every caliper, against distance along the
+    /// region - a gap where a caliper found nothing. Wire it to a Line Chart.
+    /// </summary>
+    public OutputPort ProfileOut { get; }
+
+    /// <summary>
+    /// How far from straight the edge is: the largest deviation above the
+    /// least-squares line through the points less the largest below it, in
+    /// pixels. Zero with fewer than three points.
+    /// </summary>
+    public OutputPort StraightnessOut { get; }
 
     public OutputPort CountOut { get; }
 
@@ -613,6 +655,15 @@ public sealed class LineCalipersNode : VisionNode
         set => SetParam(ref _direction, value);
     }
 
+    [Param("Profile", Group = "Measure",
+        Description = "What the Profile output plots along the region: deviation from the straight line through " +
+                      "the points, offset from the region's middle, or contrast.")]
+    public LineProfileValue ProfileValue
+    {
+        get => _profileValue;
+        set => SetParam(ref _profileValue, value);
+    }
+
     protected override void OnEvaluate(EvalContext context)
     {
         if (!context.TryGet<ImageData>(ImageIn, out var image))
@@ -637,13 +688,63 @@ public sealed class LineCalipersNode : VisionNode
 
         var contour = Outline.Through(edges.Select(edge => edge.At).ToArray(), closed: false, Contour);
 
-        context.Set(
-            PointsOut,
-            new ShapeSet(edges.Select(edge => (Shape)CaliperScan.LinePoint(edge, Evidence)).ToArray(), image.Width, image.Height));
+        // Plain least squares, nothing rejected: a burr is what is being
+        // looked for. Three points, because two always lie on their line.
+        var deviation = edges.Count >= 3
+            ? CaliperScan.Deviations(edges, LineFit.Fit(edges.Select(edge => edge.At).ToArray()), region)
+            : new double[edges.Count];
 
+        var points = edges
+            .Select((edge, i) =>
+            {
+                var point = CaliperScan.LinePoint(edge, Evidence);
+                var metrics = new Dictionary<string, double>(point.Metrics) { [ShapeMetric.Deviation] = deviation[i] };
+
+                return (Shape)(point with { Metrics = metrics });
+            })
+            .ToArray();
+
+        context.Set(PointsOut, new ShapeSet(points, image.Width, image.Height));
         context.Set(ContourOut, new ShapeSet(contour is null ? [] : [contour], image.Width, image.Height));
+        context.Set(ProfileOut, ProfileOf(edges, deviation, region));
+        context.Set(StraightnessOut, deviation.Length == 0 ? 0d : deviation.Max() - deviation.Min());
         context.Set(CountOut, edges.Count);
         context.Set(MissedOut, _caliperCount - edges.Count);
+    }
+
+    /// <summary>The chosen value at every caliper in turn, a gap where one found nothing.</summary>
+    private ProfileData ProfileOf(IReadOnlyList<EdgePoint> edges, IReadOnlyList<double> deviation, OrientedRect region)
+    {
+        var name = _profileValue switch
+        {
+            LineProfileValue.Offset => "Offset",
+            LineProfileValue.Contrast => "Contrast",
+            _ => "Deviation",
+        };
+
+        var samples = new float[_caliperCount];
+        Array.Fill(samples, float.NaN);
+
+        for (var i = 0; i < edges.Count; i++)
+        {
+            samples[edges[i].Caliper] = (float)(_profileValue switch
+            {
+                LineProfileValue.Offset => edges[i].Across,
+                LineProfileValue.Contrast => Math.Abs(edges[i].Strength),
+                _ => deviation[i],
+            });
+        }
+
+        return new ProfileData(
+            [new ProfileChannel(name, samples)],
+            default,
+            default,
+            region.Width / Math.Max(1, _caliperCount - 1))
+        {
+            ValueFormat = _profileValue == LineProfileValue.Contrast ? "0.#" : "0.###",
+            GapLabel = "missed",
+            IsLine = false,
+        };
     }
 }
 

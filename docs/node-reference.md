@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**66 nodes** across 14 categories.
+**70 nodes** across 14 categories.
 
 - **Source** — Blank Image, Camera, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
@@ -19,12 +19,12 @@ Socket shapes: square = image, circle = everything else.
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
 - **Morphology** — Advanced Morphology, Dilate, Erode
 - **Blob** — Filter Shapes, Find Blobs, Select Shape, Shape Style
-- **Fitting** — Find Circle, Find Line, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
+- **Fitting** — Find Circle, Find Curve, Find Line, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
 - **Transformation** — Polar to Linear
 - **Analysis** — Histogram, Line Profile, Match Template, Measure, Region Stats, Shape Table
-- **Calibration** — Calibrate
+- **Calibration** — Calibrate, Lens Calibration, Undistort
 - **Text And Code Reading** — Read Code, Read Text
-- **Judging** — Check Logic, Circle Defects, Compare, Counter, Grade, Limit Check, Result Log, Worst Grade
+- **Judging** — Check Logic, Circle Defects, Compare, Counter, Grade, Limit Check, Line Defects, Result Log, Worst Grade
 - **Output** — Image Viewer, Label, Line Chart
 - **Sub Graph** — Graph Input, Graph Output, Sub Graph
 
@@ -960,6 +960,45 @@ Casts radial calipers through a ring and fits a circle to the edges they find.
 | Direction | `RadialDirection` | ComboBox | - |
 | Reject Above | `Number` | Slider | 0 to 6 |
 
+### Find Curve
+
+`fitting.findcurve`
+
+Casts calipers along a drawn path and fits a smooth curve through the edge they find - for an edge that is neither a line nor a circle.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Path | `PathBand` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Curve | `Shapes` | circle | - |
+| Points | `Shapes` | circle | - |
+| Profile | `Profile` | circle | - |
+| Count | `Integer` | circle | - |
+| Missed | `Integer` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Path | `PathBand` | Path | - |
+| Calipers | `Integer` | Slider | 3 to 2000 |
+| Caliper Width | `Integer` | Slider | 1 to 101, odd only |
+| Sampling | `Number` | Slider | 0.1 to 2 |
+| Smoothing | `Integer` | Slider | 1 to 51, odd only |
+| Min Contrast | `Number` | Slider | 0 to 255 |
+| Polarity | `EdgePolarity` | ComboBox | - |
+| Edge | `EdgeChoice` | ComboBox | - |
+| Direction | `ScanDirection` | ComboBox | - |
+| Fit Window | `Integer` | Slider | 3 to 101, odd only |
+| Reject Above | `Number` | Slider | 0 to 6 |
+
 ### Find Line
 
 `fitting.findline`
@@ -1099,6 +1138,8 @@ Casts calipers across a rectangle and gives every edge they find, as points and 
 | --- | --- | --- | --- |
 | Points | `Shapes` | circle | - |
 | Contour | `Shapes` | circle | - |
+| Profile | `Profile` | circle | - |
+| Straightness | `Number` | circle | - |
 | Count | `Integer` | circle | - |
 | Missed | `Integer` | circle | - |
 
@@ -1115,6 +1156,7 @@ Casts calipers across a rectangle and gives every edge they find, as points and 
 | Polarity | `EdgePolarity` | ComboBox | - |
 | Edge | `EdgeChoice` | ComboBox | - |
 | Direction | `ScanDirection` | ComboBox | - |
+| Profile | `LineProfileValue` | ComboBox | - |
 
 ### Points to Polygon
 
@@ -1427,6 +1469,60 @@ Says what a pixel is worth, so readings come out in real units.
 | Units per Pixel | `Number` | TextBox | - |
 | Unit | `Text` | TextBox | - |
 
+### Lens Calibration
+
+`calibration.lens`
+
+Works out a lens's distortion from views of a chessboard or dot grid, for Undistort to take out. Press Add View with the target in sight, a few times at different places.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | optional |
+| Spacing | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Lens | `LensModel` | circle | - |
+| Calibration | `Calibration` | circle | - |
+| Error | `Number` | circle | - |
+| Views | `Integer` | circle | - |
+| Target | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Target | `CalibrationTarget` | ComboBox | - |
+| Columns | `Integer` | Slider | 2 to 100 |
+| Rows | `Integer` | Slider | 2 to 100 |
+| Spacing | `Number` | TextBox | - |
+| Unit | `Text` | TextBox | - |
+| Distortion | `DistortionModel` | ComboBox | - |
+| Find Target | `Yes/No` | CheckBox | - |
+
+### Undistort
+
+`calibration.undistort`
+
+Takes a lens's distortion out of the picture, using the lens from Lens Calibration.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Lens | `LensModel` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Out | `Image` | square | - |
+
 ## Text And Code Reading
 
 ### Read Code
@@ -1700,6 +1796,61 @@ Passes or fails a number against limits, and colours the measurement.
 | Tolerance | `Number` | TextBox | - |
 | Decimals | `Integer` | Slider | 0 to 6 |
 | Verdict | `Yes/No` | CheckBox | - |
+
+### Line Defects
+
+`judging.lineDefects`
+
+Finds missing and extra material along a straight edge against a tolerance, and outlines each defect with its position, depth, length and area. Passes when there are none.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Line | `Shapes` | circle | optional |
+| Calibration | `Calibration` | circle | optional |
+| Region | `Rectangle` | circle | optional |
+| Band Width | `Number` | circle | optional |
+| Offset | `Number` | circle | optional |
+| Inner Tolerance | `Number` | circle | optional |
+| Outer Tolerance | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Defects | `Shapes` | circle | - |
+| Reference | `Shapes` | circle | - |
+| Points | `Shapes` | circle | - |
+| Profile | `Profile` | circle | - |
+| Count | `Integer` | circle | - |
+| Worst | `Number` | circle | - |
+| Form | `Number` | circle | - |
+| Pass | `Yes/No` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Region | `Rectangle` | Rect | - |
+| Band Width | `Number` | Slider | 1 to 400 |
+| Offset | `Number` | Slider | -400 to 400 |
+| Calipers | `Integer` | Slider | 6 to 3000 |
+| Caliper Width | `Integer` | Slider | 1 to 101, odd only |
+| Sampling | `Number` | Slider | 0.1 to 2 |
+| Smoothing | `Integer` | Slider | 1 to 51, odd only |
+| Min Contrast | `Number` | Slider | 0 to 255 |
+| Polarity | `EdgePolarity` | ComboBox | - |
+| Edge | `EdgeChoice` | ComboBox | - |
+| Direction | `ScanDirection` | ComboBox | - |
+| Reference | `LineDefectReference` | ComboBox | - |
+| Inner Tolerance | `Number` | TextBox | - |
+| Outer Tolerance | `Number` | TextBox | - |
+| Min Length | `Number` | TextBox | - |
+| Form Window | `Number` | TextBox | - |
+| Merge Gap | `Integer` | Slider | 0 to 20 |
+| Decimals | `Integer` | Slider | 0 to 6 |
 
 ### Result Log
 

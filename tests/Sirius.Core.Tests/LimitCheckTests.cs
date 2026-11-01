@@ -354,7 +354,7 @@ public class LimitCheckTests
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(["Check Logic", "Circle Defects", "Compare", "Grade", "Limit Check", "Worst Grade"], judging);
+        Assert.Equal(["Check Logic", "Circle Defects", "Compare", "Grade", "Limit Check", "Line Defects", "Worst Grade"], judging);
     }
 
     // ---- what the status line says ----------------------------------------

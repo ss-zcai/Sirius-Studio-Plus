@@ -33,6 +33,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     private string? _sizeText;
     private ParameterViewModel? _regionParameter;
     private ParameterViewModel? _ringParameter;
+    private ParameterViewModel? _pathParameter;
     private ShapeSet? _shapes;
     private ShapeSet? _pendingShapes;
     private LineProfileSource? _profileSource;
@@ -400,6 +401,39 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     public bool IsRingEnabled => _ringParameter is not null;
 
     /// <summary>
+    /// The selected node's search path, if it has one - Find Curve's. A
+    /// third kind beside the region and the band, for the same reason the
+    /// band is a second: drawn with a gesture of its own.
+    /// </summary>
+    public ParameterViewModel? PathParameter
+    {
+        get => _pathParameter;
+        set
+        {
+            if (SetProperty(ref _pathParameter, Accepts(value) ? value : null))
+            {
+                OnPropertyChanged(nameof(GuidePath));
+                OnPropertyChanged(nameof(IsPathEnabled));
+            }
+        }
+    }
+
+    public bool IsPathEnabled => _pathParameter is not null;
+
+    public PathBand? GuidePath
+    {
+        get => _pathParameter?.PathValue;
+        set
+        {
+            if (_pathParameter is null || value is null || _pathParameter.PathValue == value)
+                return;
+
+            _pathParameter.PathValue = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
     /// The tool this panel's viewer has in hand.
     /// </summary>
     /// <remarks>
@@ -499,6 +533,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         OnPropertyChanged(nameof(Roi));
         OnPropertyChanged(nameof(RoiAngle));
         OnPropertyChanged(nameof(Ring));
+        OnPropertyChanged(nameof(GuidePath));
     }
 }
 

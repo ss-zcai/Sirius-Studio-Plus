@@ -1951,3 +1951,89 @@ Integer, Float and Vector are gone rather than mapped. The project is in
 first testing, and the serialiser already reports an unknown node type as
 a warning and loads the rest of the recipe - so an old file opens with
 the unsupported nodes listed rather than failing.
+
+## 53. Straight-edge defects, Find Curve, regions as shapes, lens calibration
+
+Four pieces asked for together, three of them on the caliper core.
+
+### Line Defects is Circle Defects along a rectangle
+
+The runs, the merging, the out-of-band rules and the local form are
+Circle Defects' own code, called with the edge open rather than wrapped,
+so a stretch out of tolerance means the same thing on a straight edge as
+on a round one. What is new is which side the part is on. A circle has an
+inside; a line does not, so Direction says it: the calipers start outside
+the part, which is also what makes Edge = First find the top of a burr and
+the floor of a chip, as it does scanning inward round a ring.
+
+The reference line is chosen by a vote between lines through pairs of
+points (`LineFit.FitConsensus`), for the reason the circle is: a chip a
+quarter of the edge long tilts a least-squares line towards itself before
+any clipping can start, and reads shallow. Deviations are taken along the
+calipers and turned square to the reference, so a tilted edge in an
+upright region reads its true depth.
+
+Line Calipers' Straightness is the opposite choice, deliberately: plain
+least squares, nothing rejected, peak to valley. A burr is what
+straightness is asked about.
+
+### Find Curve's ends, and why it bridges gaps
+
+The local form starts from a running median, which is right for finding
+defects - a notch narrower than half the window does not move it - and
+wrong in two places for fitting a curve, which the first test found:
+
+- **At the ends of an open edge** the median is a median of one side, and
+  on a slope it lags the edge by the slope across half a window: seven
+  pixels on the test wave. The ends are now a quadratic through the first
+  (or last) window's worth of known points, read where each end caliper
+  is. This applies to the defect tools too, on an open edge.
+- **At a peak** the median cuts the top off, the peak's own points are set
+  aside for disagreeing with it, and a seven-caliper window then cannot
+  reach past the gap - so the cut-off median stood for good. Find Curve
+  bridges: where the window has too few points either side it widens until
+  it has. The defect tools do not, because there a stretch set aside is a
+  defect, and the median across it is the form the part should have had.
+
+Starting from the local curve instead of the median fixed the peak and
+broke the spike test - a spike pulled its neighbours out with it - which
+is what settled on bridging rather than a different start.
+
+### A region is a shape on a wire
+
+The plan had geometry parameters becoming `Shape`-valued. What was
+actually wanted was the other half: a shape a tool found being where the
+next tool looks. So every region type a node can wire - `OrientedRect`,
+`Ring`, `Rectangle`, `Point2`, and the new `PathBand` - accepts a shape
+set (`ShapeRegions`), and the drawn values stay their own types, because
+each is what its tool reads and none gained anything from being a
+`Shape`.
+
+A shape never says everything a region needs, so the drawn value fills
+the rest: a wired line sets where Find Line looks and the drawn region
+still sets how wide. And a box, a line or an ellipse can each be written
+several ways round; the one nearest the drawn region's angle is taken.
+Without that, which side the calipers start from - and so which way
+Line Defects thinks the part is - would depend on which way round
+another tool happened to report a line.
+
+The path is its own type, `PathBand`, rather than a `PolygonShape`
+parameter, because the viewer has to draw the band and a polygon has no
+width. It is what `Ring` is to a circle.
+
+### Lens calibration keeps corners, not pictures
+
+The views kept in the recipe are the corners found in each, a few
+kilobytes, and the lens is fitted again from them when the recipe opens.
+Under three views the centre, the aspect and the third radial term are
+held: one upright view of a flat target cannot tell a longer lens from a
+nearer target, and a free fit finds a confident wrong answer. That
+degeneracy does not change what Undistort does to the pixels - focal
+length and distortion trade off exactly - so one view is still a usable
+correction for a camera looking straight down.
+
+The test makes its views through a known lens rather than trusting the
+library to agree with itself: a board rendered through a homography and
+bent by a set barrel distortion, four views at different tilts. The fit
+finds the focal length within 3% and k1 within 0.04; corrected, the
+board's rows are straight to the accuracy the corners can be found to.

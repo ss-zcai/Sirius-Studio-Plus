@@ -44,6 +44,13 @@ public enum ViewerTool
     Ring,
 
     /// <summary>
+    /// Draws a search path corner by corner: a double-click finishes it,
+    /// a click on the first corner closes it. Like the band, it writes a
+    /// parameter rather than leaving an annotation.
+    /// </summary>
+    Path,
+
+    /// <summary>
     /// Intensity sampled along a line, charted beneath the image.
     /// </summary>
     /// <remarks>
@@ -147,6 +154,7 @@ public sealed class Measurement
         ViewerTool.CircleThreePoint => "Circle (3 point)",
         ViewerTool.LineProfile => "Line profile",
         ViewerTool.Ring => "Search band",
+        ViewerTool.Path => "Search path",
         _ => "Pointer",
     };
 

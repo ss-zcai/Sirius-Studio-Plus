@@ -689,26 +689,11 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
             radius[edge.Caliper] = edge.At.DistanceTo(centre);
 
         var window = Math.Max(3, (int)Math.Round(_formWindow / step) | 1);
-        var wraps = CaliperScan.IsFullCircle(_sweepAngle);
-        var baseline = LocalForm(radius, window, wraps);
 
-        for (var pass = 0; pass < 3; pass++)
-        {
-            var residual = radius.Select((r, i) => Math.Abs(r - baseline[i])).Where(double.IsFinite).ToArray();
+        // Half the tolerance, or three of the edge's own robust spreads if
+        // it is that rough: what stands out from the form.
+        var baseline = EdgeForm.Follow(radius, window, CaliperScan.IsFullCircle(_sweepAngle), agree / 2, sigma: 3);
 
-            if (residual.Length == 0)
-                break;
-
-            // Half the tolerance, or three of the edge's own robust spreads
-            // if it is that rough: what stands out from the form.
-            var limit = Math.Max(agree / 2, 3 * 1.4826 * Median(residual));
-
-            var kept = radius
-                .Select((r, i) => double.IsFinite(r) && Math.Abs(r - baseline[i]) <= limit ? r : double.NaN)
-                .ToArray();
-
-            baseline = LocalCurve(kept, window, wraps, fallback: baseline);
-        }
         var angles = AnglesFrom(centre, edges, step);
 
         var outline = baseline
@@ -841,7 +826,7 @@ public sealed class CircleDefectsNode : VisionNode, IJudgingNode
         double a, double b, double c, double d, double e, double f, double g, double h, double i) =>
         (a * ((e * i) - (f * h))) - (b * ((d * i) - (f * g))) + (c * ((d * h) - (e * g)));
 
-    private static double Median(IReadOnlyList<double> values)
+    internal static double Median(IReadOnlyList<double> values)
     {
         var sorted = values.Order().ToArray();
         var middle = sorted.Length / 2;

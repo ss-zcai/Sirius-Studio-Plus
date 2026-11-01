@@ -154,6 +154,16 @@
                         <Image Source="{StaticResource Icon.ph_fit_circle}" Width="17" Height="17" />
                     </ToggleButton>
 
+                    <!-- Draws a Find Curve's search path, on the same terms as the band. -->
+                    <ToggleButton x:Name="PathToolButton"
+                                  Style="{StaticResource ViewerToolButton}"
+                                  Tag="Path"
+                                  Visibility="Collapsed"
+                                  ToolTip="Search path — click each corner along the edge, double-click to finish, or click the first corner to close it"
+                                  Click="OnToolClick">
+                        <Image Source="{StaticResource Icon.ph_find_curve}" Width="17" Height="17" />
+                    </ToggleButton>
+
                     <Border Style="{StaticResource ToolbarDivider}" />
 
                     <!--
@@ -258,6 +268,33 @@
                       Stroke="#38BDF8"
                       StrokeThickness="1"
                       Fill="#2238BDF8"
+                      Visibility="Collapsed" />
+
+                <!--
+                    A Find Curve's search path. The band is the path itself
+                    stroked as wide as the band, translucent, so its corners
+                    round off the way the calipers' reach does; the line and
+                    the corner squares are drawn over it, a screen pixel wide.
+                -->
+                <Path x:Name="PathBandShape"
+                      Stroke="#2638BDF8"
+                      StrokeLineJoin="Round"
+                      StrokeStartLineCap="Flat"
+                      StrokeEndLineCap="Flat"
+                      IsHitTestVisible="False"
+                      Visibility="Collapsed" />
+
+                <Path x:Name="PathLineShape"
+                      Stroke="#38BDF8"
+                      StrokeThickness="1"
+                      IsHitTestVisible="False"
+                      Visibility="Collapsed" />
+
+                <Path x:Name="PathHandleShape"
+                      Stroke="#38BDF8"
+                      Fill="#38BDF8"
+                      StrokeThickness="1"
+                      IsHitTestVisible="False"
                       Visibility="Collapsed" />
 
                 <Canvas x:Name="HandleLayer" Visibility="Collapsed" />

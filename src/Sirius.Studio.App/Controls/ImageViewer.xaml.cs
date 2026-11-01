@@ -99,6 +99,15 @@ public partial class ImageViewer : UserControl
 
         /// <summary>Dragging the band's outer edge.</summary>
         ResizeRingOuter,
+
+        /// <summary>Sliding the whole search path.</summary>
+        MovePath,
+
+        /// <summary>Dragging one corner of the search path.</summary>
+        MovePathCorner,
+
+        /// <summary>Dragging the edge of the path's band, which sets its width.</summary>
+        ResizePath,
     }
 
     /// <summary>What part of a search band a point is over.</summary>
@@ -681,6 +690,7 @@ public partial class ImageViewer : UserControl
     {
         ZoomText.Text = $"{Scale * 100:0}%";
         UpdateRoiVisual();
+        UpdatePathVisual();
         RedrawMeasurements();
         RedrawShapes();
     }
@@ -1033,6 +1043,21 @@ public partial class ImageViewer : UserControl
     {
         switch (e.Key)
         {
+            case Key.Back when _pathClicks.Count > 0:
+                UndoPathClick();
+                e.Handled = true;
+                break;
+
+            case Key.Enter when _pathClicks.Count >= 2:
+                FinishPath(closed: false);
+                e.Handled = true;
+                break;
+
+            case Key.Escape when _pathClicks.Count > 0:
+                ResetPath();
+                e.Handled = true;
+                break;
+
             case Key.Delete or Key.Back when _selected is not null:
                 DeleteSelected();
                 e.Handled = true;
@@ -1731,6 +1756,12 @@ public partial class ImageViewer : UserControl
             return;
         }
 
+        if (ActiveTool == ViewerTool.Path)
+        {
+            HintText.Text = PathHint();
+            return;
+        }
+
         if (ActiveTool == ViewerTool.Ring)
         {
             HintText.Text = _ringClicks.Count switch
@@ -1969,6 +2000,14 @@ public partial class ImageViewer : UserControl
             e.Handled = true;
             return;
         }
+        else if (ActiveTool == ViewerTool.Path)
+        {
+            // Writes a parameter, as the band does, so it keeps out of the
+            // measurement gesture sequence.
+            AddPathClick(ClampToImage(_dragStartImage), e.ClickCount);
+            e.Handled = true;
+            return;
+        }
         else if (ActiveTool != ViewerTool.None && ShowMeasurements)
         {
             if (!BeginMeasureStep(ClampToImage(_dragStartImage)))
@@ -1986,6 +2025,13 @@ public partial class ImageViewer : UserControl
             // the more specific target, and it is only there once selected.
             _editIndex = handle;
             _dragMode = DragMode.MovePoint;
+        }
+        else if (HitTestPath(_dragStartScreen) is not PathPart.None)
+        {
+            // Before the band and the region for the same reason the band
+            // comes before the region: it is drawn inside them, and is the
+            // more specific thing under the pointer.
+            BeginPathDrag(_dragStartImage);
         }
         else if (HitTestRing(_dragStartScreen) is var part and not RingPart.None)
         {
@@ -2080,6 +2126,7 @@ public partial class ImageViewer : UserControl
             // it never ran, and the band appeared only once the third click
             // committed it.
             TrackRingPreview(image);
+            TrackPathPreview(image);
 
             // Between steps of a multi-part measurement the cursor stands in
             // for the point not yet placed, so the shape is visible before it
@@ -2131,6 +2178,12 @@ public partial class ImageViewer : UserControl
             case DragMode.ResizeRingInner:
             case DragMode.ResizeRingOuter:
                 DragRing(_dragMode, image);
+                break;
+
+            case DragMode.MovePath:
+            case DragMode.MovePathCorner:
+            case DragMode.ResizePath:
+                DragPath(_dragMode, image);
                 break;
 
             case DragMode.DrawRoi:
@@ -2194,6 +2247,7 @@ public partial class ImageViewer : UserControl
         }
 
         TrackRingPreview(image);
+        TrackPathPreview(image);
         UpdateReadout(image);
         e.Handled = true;
     }
@@ -2216,6 +2270,8 @@ public partial class ImageViewer : UserControl
         _dragMode = DragMode.None;
         _activeEdge = Edge.None;
         _editIndex = -1;
+        _pathCorner = -1;
+        _dragStartPath = null;
         Surface.ReleaseMouseCapture();
         e.Handled = true;
     }
@@ -2738,6 +2794,12 @@ public partial class ImageViewer : UserControl
         if (HitTestHandle(screen) >= 0)
         {
             Surface.Cursor = Cursors.SizeAll;
+            return;
+        }
+
+        if (PathCursor(screen) is { } overPath)
+        {
+            Surface.Cursor = overPath;
             return;
         }
 

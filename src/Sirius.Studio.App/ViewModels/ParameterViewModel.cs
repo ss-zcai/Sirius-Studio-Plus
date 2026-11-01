@@ -149,6 +149,8 @@ public sealed class ParameterViewModel : ObservableObject
 
     public bool IsRing => Kind == ParamEditor.Ring;
 
+    public bool IsPath => Kind == ParamEditor.Path;
+
     public bool IsFilePath => Kind == ParamEditor.FilePath;
 
     public bool IsSequence => Kind == ParamEditor.Sequence;
@@ -204,6 +206,7 @@ public sealed class ParameterViewModel : ObservableObject
         ParamEditor.Range,
         ParamEditor.Rect,
         ParamEditor.Ring,
+        ParamEditor.Path,
         ParamEditor.FilePath,
         ParamEditor.Sequence,
         ParamEditor.Colour,
@@ -647,6 +650,32 @@ public sealed class ParameterViewModel : ObservableObject
         }
     }
 
+    public PathBand PathValue
+    {
+        get => Raw as PathBand ?? PathBand.Default;
+        set
+        {
+            if (PathValue != value)
+                Raw = value;
+        }
+    }
+
+    /// <summary>
+    /// The path as "x, y; x, y; ... | width", with "| closed" for a closed
+    /// one. Rejected text leaves the value alone, and the box reverts.
+    /// </summary>
+    public string PathText
+    {
+        get => PathValue.ToString();
+        set
+        {
+            if (PathBand.TryParse(value, PathValue.Width, out var parsed))
+                PathValue = parsed;
+
+            OnPropertyChanged();
+        }
+    }
+
     public ValueRange RangeValue
     {
         get => Raw is ValueRange range ? range : new ValueRange(Minimum, Maximum);
@@ -756,6 +785,8 @@ public sealed class ParameterViewModel : ObservableObject
         OnPropertyChanged(nameof(RectValue));
         OnPropertyChanged(nameof(RectText));
         OnPropertyChanged(nameof(RegionAngle));
+        OnPropertyChanged(nameof(PathValue));
+        OnPropertyChanged(nameof(PathText));
         OnPropertyChanged(nameof(RangeValue));
         OnPropertyChanged(nameof(AllowsNoLimit));
         OnPropertyChanged(nameof(RangeLow));

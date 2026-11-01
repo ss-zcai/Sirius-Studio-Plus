@@ -443,6 +443,12 @@ public static class ShapeMetric
     /// <summary>Where a stretch of a ring ends, in degrees clockwise from +X.</summary>
     public const string EndAngle = "endAngle";
 
+    /// <summary>Where a stretch of a straight edge begins, in pixels along it from the region's start.</summary>
+    public const string StartAlong = "startAlong";
+
+    /// <summary>Where a stretch of a straight edge ends, in pixels along it from the region's start.</summary>
+    public const string EndAlong = "endAlong";
+
     /// <summary>The mean brightness inside a shape.</summary>
     public const string Mean = "mean";
 

@@ -22,6 +22,20 @@ namespace Sirius.Vision;
 public readonly record struct EdgePoint(Point2 At, double Strength, int Caliper, double Along, double Across);
 
 /// <summary>
+/// Where one caliper is cast along a path: a point on the path, the
+/// direction across it, and how far along the path the point is.
+/// </summary>
+/// <param name="At">The point on the path the caliper is centred on.</param>
+/// <param name="NormalX">Unit direction across the path, X - the path's direction turned a quarter clockwise.</param>
+/// <param name="NormalY">Unit direction across the path, Y.</param>
+/// <param name="Along">Distance along the path from its first point, in pixels.</param>
+public readonly record struct PathStation(Point2 At, double NormalX, double NormalY, double Along)
+{
+    /// <summary>The point <paramref name="across"/> pixels across the path from this station.</summary>
+    public Point2 Across(double across) => new(At.X + (NormalX * across), At.Y + (NormalY * across));
+}
+
+/// <summary>
 /// How the calipers read an edge - everything but where they are cast.
 /// </summary>
 public readonly record struct CaliperSettings(
@@ -160,6 +174,124 @@ public static class CaliperScan
         return edges;
     }
 
+    /// <summary>
+    /// Where <paramref name="count"/> calipers fall along a path, evenly by
+    /// distance along it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An open path has one at each end; a closed one divides its length by
+    /// the count, as a full ring does, so the last does not land on the
+    /// first.
+    /// </para>
+    /// <para>
+    /// Each caliper crosses the path square to the chord either side of it
+    /// rather than to the side it sits on, so one at a corner bisects the
+    /// corner instead of taking whichever side it happened to fall on. The
+    /// chord spans a caliper's spacing, which is what the calipers can
+    /// resolve anyway.
+    /// </para>
+    /// </remarks>
+    public static IReadOnlyList<PathStation> Stations(PathBand path, int count)
+    {
+        var length = path.Length;
+
+        if (length <= 0 || count < 1)
+            return [];
+
+        var step = path.Closed ? length / count : length / Math.Max(1, count - 1);
+        var reach = Math.Max(0.5, step / 2);
+        var stations = new PathStation[count];
+
+        for (var i = 0; i < count; i++)
+        {
+            var along = count == 1 && !path.Closed ? length / 2 : i * step;
+
+            var behind = PointAt(path, path.Closed ? along - reach : Math.Max(0, along - reach));
+            var ahead = PointAt(path, path.Closed ? along + reach : Math.Min(length, along + reach));
+
+            var dx = ahead.X - behind.X;
+            var dy = ahead.Y - behind.Y;
+            var chord = Math.Sqrt((dx * dx) + (dy * dy));
+
+            var (nx, ny) = chord < 1e-12 ? (0.0, 1.0) : (-dy / chord, dx / chord);
+
+            stations[i] = new PathStation(PointAt(path, along), nx, ny, along);
+        }
+
+        return stations;
+    }
+
+    /// <summary>The point <paramref name="along"/> pixels along a path, round again when it is closed.</summary>
+    public static Point2 PointAt(PathBand path, double along)
+    {
+        var points = path.Points;
+        var length = path.Length;
+
+        if (points.Count == 0)
+            return default;
+
+        if (path.Closed && length > 0)
+            along = ((along % length) + length) % length;
+
+        var sides = path.Closed ? points.Count : points.Count - 1;
+
+        for (var i = 0; i < sides; i++)
+        {
+            var a = points[i];
+            var b = points[(i + 1) % points.Count];
+            var side = a.DistanceTo(b);
+
+            if (along <= side || i == sides - 1)
+            {
+                var t = side < 1e-12 ? 0 : Math.Clamp(along / side, 0, 1);
+                return new Point2(a.X + ((b.X - a.X) * t), a.Y + ((b.Y - a.Y) * t));
+            }
+
+            along -= side;
+        }
+
+        return points[^1];
+    }
+
+    /// <summary>
+    /// Calipers spaced along a path, each crossing it, the band's width wide.
+    /// </summary>
+    /// <param name="direction">
+    /// Across scans from the side the path's direction turned a quarter
+    /// anticlockwise points to - on the image, the left of the path as it
+    /// is drawn - to the other.
+    /// </param>
+    public static List<EdgePoint> AlongPath(
+        LineProfileSource sampler,
+        PathBand path,
+        IReadOnlyList<PathStation> stations,
+        ScanDirection direction,
+        CaliperSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var edges = new List<EdgePoint>(stations.Count);
+        var half = path.HalfWidth;
+
+        var (fromAcross, toAcross) = direction == ScanDirection.Across ? (-half, half) : (half, -half);
+
+        for (var i = 0; i < stations.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var station = stations[i];
+
+            if (!TryRead(sampler, station.Across(fromAcross), station.Across(toAcross), settings, cancellationToken, out var hit))
+                continue;
+
+            var across = direction == ScanDirection.Across ? fromAcross + hit.Offset : fromAcross - hit.Offset;
+
+            edges.Add(new EdgePoint(station.Across(across), hit.Strength, i, station.Along, across));
+        }
+
+        return edges;
+    }
+
     /// <summary>Whether a sweep goes all the way round, so the first and last calipers meet.</summary>
     public static bool IsFullCircle(double sweepAngle) => sweepAngle >= 359.999;
 
@@ -241,6 +373,34 @@ public static class CaliperScan
             },
         };
 
+    /// <summary>
+    /// Each edge's distance off <paramref name="line"/>, signed the way
+    /// its offset is: positive towards the side of the region the
+    /// calipers' Across direction ends on.
+    /// </summary>
+    /// <remarks>
+    /// A fitted line's direction comes out either way round, so the sign is
+    /// taken from the region rather than the line - otherwise a burr would
+    /// read positive on one image and negative on the next.
+    /// </remarks>
+    public static double[] Deviations(IReadOnlyList<EdgePoint> edges, LineFitResult line, OrientedRect region)
+    {
+        if (!line.Success)
+            return new double[edges.Count];
+
+        var radians = region.Angle * Math.PI / 180.0;
+        var (acrossX, acrossY) = (-Math.Sin(radians), Math.Cos(radians));
+
+        var (nx, ny) = (-line.DirectionY, line.DirectionX);
+
+        if ((nx * acrossX) + (ny * acrossY) < 0)
+            (nx, ny) = (-nx, -ny);
+
+        return edges
+            .Select(edge => ((edge.At.X - line.Point.X) * nx) + ((edge.At.Y - line.Point.Y) * ny))
+            .ToArray();
+    }
+
     private static bool TryRead(
         LineProfileSource sampler,
         Point2 start,
@@ -274,6 +434,17 @@ public static class CaliperScan
             settings.Smoothing,
             settings.Choice,
             out hit);
+    }
+
+    /// <summary>
+    /// A point given in a rectangle's own frame - <paramref name="along"/>
+    /// its long axis from its centre, <paramref name="across"/> its short
+    /// one - in image coordinates.
+    /// </summary>
+    public static Point2 InRect(OrientedRect region, double along, double across)
+    {
+        var radians = region.Angle * Math.PI / 180.0;
+        return InRect(region, Math.Cos(radians), Math.Sin(radians), along, across);
     }
 
     /// <summary>A point in a rectangle's own frame, in image coordinates.</summary>

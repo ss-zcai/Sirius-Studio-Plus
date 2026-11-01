@@ -156,6 +156,92 @@ public static class LineFit
         return result;
     }
 
+    /// <summary>
+    /// The line the most points agree with, to within
+    /// <paramref name="threshold"/>, refined over the points that agree.
+    /// </summary>
+    /// <remarks>
+    /// For a straight edge with a defect in it. Sigma clipping starts from a
+    /// fit over every point, and a chip covering a fifth of the edge has
+    /// already tilted that fit towards itself before anything is clipped;
+    /// a vote between lines through pairs of points lets the good edge
+    /// outvote the chip however large it is, as long as it is the larger
+    /// part. Seeded, so the same points always give the same line.
+    /// </remarks>
+    public static LineFitResult FitConsensus(
+        IReadOnlyList<Point2> points,
+        double threshold,
+        int iterations = 300)
+    {
+        if (points.Count < MinimumPoints)
+            return Fit(points);
+
+        threshold = Math.Max(threshold, 1e-6);
+
+        var random = new Random(20261101);
+        var bestCount = -1;
+        var bestError = double.MaxValue;
+        LineFitResult? best = null;
+
+        for (var i = 0; i < iterations; i++)
+        {
+            var a = points[random.Next(points.Count)];
+            var b = points[random.Next(points.Count)];
+            var length = a.DistanceTo(b);
+
+            if (length < 1e-9)
+                continue;
+
+            var candidate = new LineFitResult(a, (b.X - a.X) / length, (b.Y - a.Y) / length, 0, points);
+            var count = 0;
+            var error = 0.0;
+
+            foreach (var point in points)
+            {
+                var off = candidate.DistanceTo(point);
+
+                if (off > threshold)
+                    continue;
+
+                count++;
+                error += off;
+            }
+
+            if (count > bestCount || (count == bestCount && error < bestError))
+            {
+                bestCount = count;
+                bestError = error;
+                best = candidate;
+            }
+        }
+
+        if (best is not { } chosen)
+            return Fit(points);
+
+        // No error until it has been refined: a pair of points is not a fit.
+        var result = chosen with { Error = double.NaN };
+
+        // Refined twice, as the circle is: over the points the winning pair
+        // agreed with, then over those the refined line agrees with.
+        for (var pass = 0; pass < 2; pass++)
+        {
+            var line = result;
+            var inliers = points.Where(point => line.DistanceTo(point) <= threshold).ToArray();
+
+            if (inliers.Length < MinimumPoints)
+                break;
+
+            var refined = Fit(inliers);
+
+            if (!refined.Success)
+                break;
+
+            result = refined;
+        }
+
+        return result.Success ? result : Fit(points);
+    }
+
     private static double Residual(IReadOnlyList<Point2> points, LineFitResult line)
     {
         if (points.Count == 0)

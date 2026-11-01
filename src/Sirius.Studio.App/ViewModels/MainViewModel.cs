@@ -130,12 +130,19 @@ public sealed class MainViewModel : ObservableObject
                 ActiveRegionParameter = parameter;
             else if (parameter.Kind == ParamEditor.Ring)
                 ActiveRingParameter = parameter;
+            else if (parameter.Kind == ParamEditor.Path)
+                ActivePathParameter = parameter;
 
             PushRegionsToPanels();
 
-            // A band is drawn with a tool; a rectangle is dragged straight
-            // onto the image, so only the first needs arming.
-            var arm = parameter.Kind == ParamEditor.Ring ? ViewerTool.Ring : ViewerTool.None;
+            // A band and a path are drawn with a tool; a rectangle is
+            // dragged straight onto the image, so needs no arming.
+            var arm = parameter.Kind switch
+            {
+                ParamEditor.Ring => ViewerTool.Ring,
+                ParamEditor.Path => ViewerTool.Path,
+                _ => ViewerTool.None,
+            };
 
             OpenPreview(node.Node, input, arm);
         });
@@ -451,6 +458,9 @@ public sealed class MainViewModel : ObservableObject
         ActiveRingParameter = selected?.Parameters
             .FirstOrDefault(parameter => parameter.Kind is ParamEditor.Ring);
 
+        ActivePathParameter = selected?.Parameters
+            .FirstOrDefault(parameter => parameter.Kind is ParamEditor.Path);
+
         SelectedNodePreviews = selected is not null
             ? PreviewablePorts(selected.Node).Select(PreviewOption.For).ToArray()
             : [];
@@ -473,6 +483,7 @@ public sealed class MainViewModel : ObservableObject
         {
             panel.RegionParameter = ActiveRegionParameter;
             panel.RingParameter = ActiveRingParameter;
+            panel.PathParameter = ActivePathParameter;
         }
     }
 
@@ -672,6 +683,15 @@ public sealed class MainViewModel : ObservableObject
         get => _activeRingParameter;
         private set => SetProperty(ref _activeRingParameter, value);
     }
+
+    /// <summary>The selected node's search path, pushed to every panel - which take it only if it is theirs.</summary>
+    public ParameterViewModel? ActivePathParameter
+    {
+        get => _activePathParameter;
+        private set => SetProperty(ref _activePathParameter, value);
+    }
+
+    private ParameterViewModel? _activePathParameter;
 
     public string Title =>
         (IsModified ? "*" : string.Empty) +
