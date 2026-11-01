@@ -28,3 +28,7 @@ res/phosphor-icons/SVGs/*
 
 # Written by Claude Code; machine-local permissions, not project settings.
 .claude/settings.local.json
+
+# Python: bytecode, and each machine's own interpreter choice
+__pycache__/
+samples/PythonNodes/sirius.json
