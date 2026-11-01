@@ -218,7 +218,7 @@ public sealed class ShapeTablePanelViewModel : NodePanelViewModel
 
         _selection.Changed += (_, port) =>
         {
-            if (ReferenceEquals(port, Producer))
+            if (ShapeSelectionService.Same(Producer, port))
                 OnPropertyChanged(nameof(SelectedIndex));
         };
     }

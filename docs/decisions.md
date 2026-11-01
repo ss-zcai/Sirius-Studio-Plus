@@ -2057,3 +2057,15 @@ a row selected that the image does not.
 Shapes nobody coloured are now drawn green, the colour the fitting tools draw
 what they found in. The violet they were drawn in all but disappeared on grey
 parts, and blobs - which no node colours - were the results it hid most.
+
+The selected shape is drawn in its own colour at over twice the weight, not in
+white: on a light grey part white was the one colour that did not stand out.
+Its number is its row in its own set's table, not its place among everything
+the viewer draws.
+
+A Shape Style between a finder and the viewer is a different port handing on
+the same shapes in the same order, so a table on the finder and a viewer on
+the styled wire each kept a selection of their own. A node that hands its
+shapes on one for one now says so (`IKeepsShapeOrder`), and the selection is
+keyed by the port the shapes were first produced on. Select Shape and Filter
+Shapes do not say it: they drop shapes, and the indices would not agree.

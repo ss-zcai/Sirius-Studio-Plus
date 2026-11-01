@@ -370,6 +370,12 @@ public partial class ImageViewer : UserControl
             FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
             OnSelectedShapeChanged));
 
+    public static readonly DependencyProperty SelectedShapeNumberProperty = DependencyProperty.Register(
+        nameof(SelectedShapeNumber),
+        typeof(int),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(0, OnSelectedShapeChanged));
+
     public static readonly DependencyProperty ProfileLinesProperty = DependencyProperty.Register(
         nameof(ProfileLines),
         typeof(ObservableCollection<ProfileLinePanelViewModel>),
@@ -472,6 +478,17 @@ public partial class ImageViewer : UserControl
     {
         get => (int)GetValue(SelectedShapeIndexProperty);
         set => SetValue(SelectedShapeIndexProperty, value);
+    }
+
+    /// <summary>
+    /// The number written beside the selected shape: its row in the table
+    /// on its own set, which is not its place here when several sets are
+    /// drawn. 0 numbers it by its place here.
+    /// </summary>
+    public int SelectedShapeNumber
+    {
+        get => (int)GetValue(SelectedShapeNumberProperty);
+        set => SetValue(SelectedShapeNumberProperty, value);
     }
 
     /// <summary>
@@ -734,13 +751,7 @@ public partial class ImageViewer : UserControl
 
         foreach (var group in set.Shapes.GroupBy(shape => (shape.Colour, shape.StrokeWidth)))
         {
-            var colour = group.Key.Colour is { } packed
-                ? Color.FromArgb(
-                    (byte)(packed >> 24), (byte)(packed >> 16), (byte)(packed >> 8), (byte)packed)
-                : DefaultShapeColour;
-
-            var brush = new SolidColorBrush(colour);
-            brush.Freeze();
+            var brush = ShapeBrush(group.First());
 
             var geometry = new StreamGeometry();
 
@@ -769,8 +780,8 @@ public partial class ImageViewer : UserControl
             });
         }
 
-        // The selected one is drawn again on top, brighter and heavier, so it
-        // stands out from a field of identical blobs.
+        // The selected one is drawn again on top, heavier, so it stands out
+        // from a field of identical blobs.
         if (selected >= 0 && selected < set.Count)
             DrawSelectedShape(set.Shapes[selected], width);
 
@@ -790,7 +801,10 @@ public partial class ImageViewer : UserControl
             if (shape.Label is { Length: > 0 } label)
                 DrawShapeLabel(label, shape, LabelBrush(shape));
             else if (i == selected)
-                DrawShapeLabel((i + 1).ToString(CultureInfo.CurrentCulture), shape, Brushes.White);
+                DrawShapeLabel(
+                    (SelectedShapeNumber > 0 ? SelectedShapeNumber : i + 1).ToString(CultureInfo.CurrentCulture),
+                    shape,
+                    Brushes.White);
         }
 
         ReportShapeFrame(set, matches);
@@ -898,7 +912,23 @@ public partial class ImageViewer : UserControl
         return brush;
     }
 
+    /// <summary>The brush a shape is drawn with: its own colour, or the default.</summary>
+    private static SolidColorBrush ShapeBrush(GraphShape shape)
+    {
+        var colour = shape.Colour is { } packed
+            ? Color.FromArgb((byte)(packed >> 24), (byte)(packed >> 16), (byte)(packed >> 8), (byte)packed)
+            : DefaultShapeColour;
+
+        var brush = new SolidColorBrush(colour);
+        brush.Freeze();
+        return brush;
+    }
+
     /// <summary>Redraws one shape picked out from the rest.</summary>
+    /// <remarks>
+    /// In its own colour, at well over twice the weight. It was white, which
+    /// on a light grey part is the one colour that does not stand out.
+    /// </remarks>
     private void DrawSelectedShape(GraphShape shape, double width)
     {
         var geometry = new StreamGeometry();
@@ -911,8 +941,8 @@ public partial class ImageViewer : UserControl
         ShapeLayer.Children.Add(new Path
         {
             Data = geometry,
-            Stroke = Brushes.White,
-            StrokeThickness = width * 2.4,
+            Stroke = ShapeBrush(shape),
+            StrokeThickness = Math.Max(width, (shape.StrokeWidth ?? 0) * ScreenPixel) * 2.4,
             IsHitTestVisible = false,
         });
     }

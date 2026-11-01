@@ -418,6 +418,10 @@ public class GrowingPortTests
         selection.Select(blobs.ShapesOut, 0);
         Assert.Equal(3, panel.SelectedShapeIndex);
 
+        // Numbered on the image by its row in the blobs' table, not by its
+        // place among everything drawn.
+        Assert.Equal(1, panel.SelectedShapeNumber);
+
         // Picking from the other set on the image puts the row down, so the
         // table never shows a selection the image does not.
         panel.SelectedShapeIndex = 2;
@@ -428,6 +432,47 @@ public class GrowingPortTests
 
         panel.Dispose();
         scheduler.Dispose();
+    }
+
+    /// <summary>
+    /// A Shape Style between the finder and the viewer hands on the same
+    /// shapes in the same order, so a table on the finder itself still
+    /// shares the viewer's selection.
+    /// </summary>
+    [Fact]
+    public void A_shape_style_between_finder_and_viewer_keeps_the_selection_shared()
+    {
+        var graph = new VisionGraph();
+        var source = new ConstantImageNode { Width = 64, Height = 48, Value = 200 };
+        var viewer = new ViewerNode();
+        var blobs = new ShapeSourceNode { Set = Blobs(3) };
+        var style = new ShapeStyleNode();
+
+        graph.Add(source);
+        graph.Add(viewer);
+        graph.Add(blobs);
+        graph.Add(style);
+        graph.TryConnect(source.ImageOut, viewer.ImageIn);
+        graph.TryConnect(blobs.ShapesOut, style.ShapesIn);
+        graph.TryConnect(style.ShapesOut, viewer.ShapesIn);
+        viewer.Fit();
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var selection = new ShapeSelectionService();
+        var panel = new ViewerPanelViewModel(viewer, selection);
+        panel.Prepare(scheduler);
+        panel.Commit();
+
+        // The table, on the finder's own wire.
+        selection.Select(blobs.ShapesOut, 2);
+        Assert.Equal(2, panel.SelectedShapeIndex);
+
+        panel.SelectedShapeIndex = 1;
+        Assert.Equal(1, selection.For(blobs.ShapesOut));
+
+        panel.Dispose();
     }
 
     /// <summary>Three curve shapes on the first socket, two blobs on the second, run once.</summary>

@@ -34,15 +34,45 @@ public sealed class ShapeSelectionService
 {
     private readonly Dictionary<OutputPort, int> _selected = new();
 
-    /// <summary>Raised with the port whose selection changed.</summary>
+    /// <summary>Raised with the port whose selection changed, as <see cref="Origin"/> gives it.</summary>
     public event EventHandler<OutputPort>? Changed;
+
+    /// <summary>
+    /// The port these shapes were first produced on: back through any node
+    /// that hands its shapes on one for one, such as Shape Style.
+    /// </summary>
+    /// <remarks>
+    /// The key, rather than the port itself, so a viewer on the styled wire
+    /// and a table on the finder's wire are one selection - the same shapes
+    /// at the same indices.
+    /// </remarks>
+    public static OutputPort? Origin(OutputPort? port)
+    {
+        // A wire loop is refused by the graph; the count only stops a
+        // mistake there from hanging the interface.
+        for (var step = 0; step < 64 && port?.Node is IKeepsShapeOrder keeper; step++)
+        {
+            if (!ReferenceEquals(port, keeper.ShapesOut) || keeper.ShapesIn.Connection?.Source is not { } upstream)
+                break;
+
+            port = upstream;
+        }
+
+        return port;
+    }
+
+    /// <summary>Whether two ports carry the same shapes at the same indices.</summary>
+    public static bool Same(OutputPort? a, OutputPort? b) =>
+        a is not null && ReferenceEquals(Origin(a), Origin(b));
 
     /// <summary>The selected index for a producer, counting from zero.</summary>
     public int? For(OutputPort? source) =>
-        source is not null && _selected.TryGetValue(source, out var index) ? index : null;
+        Origin(source) is { } origin && _selected.TryGetValue(origin, out var index) ? index : null;
 
     public void Select(OutputPort? source, int? index)
     {
+        source = Origin(source);
+
         if (source is null)
             return;
 

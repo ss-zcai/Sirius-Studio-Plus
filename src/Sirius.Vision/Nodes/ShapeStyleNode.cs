@@ -70,7 +70,7 @@ public enum ShapeLabelling
     Category = NodeCategory.Blob,
     Icon = "ph_shape_style",
     Description = "Sets the colour, weight, form and labels of a set of shapes.")]
-public sealed class ShapeStyleNode : VisionNode
+public sealed class ShapeStyleNode : VisionNode, IKeepsShapeOrder
 {
     private ShapeForm _form = ShapeForm.Outline;
     private ShapeLabelling _labelling = ShapeLabelling.Keep;

@@ -538,7 +538,8 @@
                               IsProfilingEnabled="{Binding IsProfilingEnabled, Mode=TwoWay}"
                               ProfileLines="{Binding ProfileLines}"
                               Shapes="{Binding Shapes}"
-                              SelectedShapeIndex="{Binding SelectedShapeIndex, Mode=TwoWay}" />
+                              SelectedShapeIndex="{Binding SelectedShapeIndex, Mode=TwoWay}"
+                              SelectedShapeNumber="{Binding SelectedShapeNumber}" />
     </DataTemplate>
 
     <!--
@@ -573,7 +574,8 @@
                                   IsProfilingEnabled="{Binding IsProfilingEnabled, Mode=TwoWay}"
                                   ProfileLines="{Binding ProfileLines}"
                                   Shapes="{Binding Shapes}"
-                                  SelectedShapeIndex="{Binding SelectedShapeIndex, Mode=TwoWay}" />
+                                  SelectedShapeIndex="{Binding SelectedShapeIndex, Mode=TwoWay}"
+                                  SelectedShapeNumber="{Binding SelectedShapeNumber}" />
 
             <GridSplitter Grid.Row="1"
                           Height="4"

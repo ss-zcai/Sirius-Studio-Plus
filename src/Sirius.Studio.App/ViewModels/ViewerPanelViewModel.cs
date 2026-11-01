@@ -70,7 +70,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
 
         _selection.Changed += (_, port) =>
         {
-            if (!_spans.Any(span => ReferenceEquals(span.Source, port)))
+            if (!_spans.Any(span => ShapeSelectionService.Same(span.Source, port)))
                 return;
 
             // What was picked last is what this panel shows, wherever it was
@@ -78,7 +78,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
             if (_selection.For(port) is not null)
                 _shownSource = port;
 
-            OnPropertyChanged(nameof(SelectedShapeIndex));
+            RaiseSelectedShape();
         };
 
         // Opening a recipe replaces the node's set wholesale, and a panel
@@ -206,13 +206,8 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         get
         {
             // The set picked from last, then any other with a pick in it.
-            foreach (var span in _spans.OrderByDescending(span => ReferenceEquals(span.Source, _shownSource)))
-            {
-                if (_selection.For(span.Source) is { } local && local < span.Count)
-                    return span.Start + local;
-            }
-
-            return -1;
+            var (index, _) = Selected();
+            return index;
         }
         set
         {
@@ -222,16 +217,46 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
             // selected while the others are put down.
             if (hit.Source is not null)
             {
-                _shownSource = hit.Source;
+                _shownSource = ShapeSelectionService.Origin(hit.Source);
                 _selection.Select(hit.Source, value - hit.Start);
             }
 
             foreach (var span in _spans)
             {
-                if (!ReferenceEquals(span.Source, hit.Source))
+                if (!ShapeSelectionService.Same(span.Source, hit.Source))
                     _selection.Select(span.Source, null);
             }
         }
+    }
+
+    /// <summary>
+    /// The selected shape's row in its own set, counting from one - the
+    /// number a table on that set shows beside it - or 0 for none.
+    /// </summary>
+    /// <remarks>
+    /// Not <see cref="SelectedShapeIndex"/> + 1: with a curve drawn over
+    /// the blobs, the second blob is the third shape here but row 2 in the
+    /// blobs' table, and the number on the image is there to find the row.
+    /// </remarks>
+    public int SelectedShapeNumber => Selected().Local + 1;
+
+    /// <summary>The selected shape's place here and in its own set, or -1 for both.</summary>
+    private (int Index, int Local) Selected()
+    {
+        // The set picked from last, then any other with a pick in it.
+        foreach (var span in _spans.OrderByDescending(span => ShapeSelectionService.Same(span.Source, _shownSource)))
+        {
+            if (_selection.For(span.Source) is { } local && local < span.Count)
+                return (span.Start + local, local);
+        }
+
+        return (-1, -1);
+    }
+
+    private void RaiseSelectedShape()
+    {
+        OnPropertyChanged(nameof(SelectedShapeNumber));
+        OnPropertyChanged(nameof(SelectedShapeIndex));
     }
 
     private BitmapSource? _pendingImage;
@@ -293,7 +318,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
                 _selection.Select(span.Source, null);
         }
 
-        OnPropertyChanged(nameof(SelectedShapeIndex));
+        RaiseSelectedShape();
 
         ProfileSource = _pendingProfileSource;
         _pendingProfileSource = null;
