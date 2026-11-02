@@ -136,7 +136,17 @@ internal sealed class HikrobotCamera : ICamera
 
         try
         {
-            Mvs.Check(_device.Open(), $"Opening {info.Label}");
+            var opened = _device.Open();
+
+            if (opened == MvError.MV_E_ACCESS_DENIED)
+            {
+                throw new InvalidOperationException(
+                    $"{info.Label} is in use by another program - the MVS client, or another copy of this one. " +
+                    "Close it there and try again. If nothing else has it, restart the camera - a virtual one " +
+                    "in MVS's Virtual Device Tool.");
+            }
+
+            Mvs.Check(opened, $"Opening {info.Label}");
 
             // The largest packet the network between here and the camera
             // carries; MVS's own default is smaller, and costs frames.

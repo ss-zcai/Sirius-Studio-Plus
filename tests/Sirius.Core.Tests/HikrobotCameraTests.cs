@@ -63,21 +63,30 @@ public class HikrobotCameraTests
         {
             var camera = CameraDrivers.Acquire(info.Label)!;
 
-            camera.Trigger = trigger;
-            camera.Exposure = 5000;
-            camera.Gain = 1;
+            try
+            {
+                camera.Trigger = trigger;
+                camera.Exposure = 5000;
+                camera.Gain = 1;
 
-            using var first = camera.Grab(TimeSpan.FromSeconds(5), CancellationToken.None);
-            using var second = camera.Grab(TimeSpan.FromSeconds(5), CancellationToken.None);
+                using var first = camera.Grab(TimeSpan.FromSeconds(5), CancellationToken.None);
+                using var second = camera.Grab(TimeSpan.FromSeconds(5), CancellationToken.None);
 
-            Assert.True(first.Width > 0 && first.Height > 0);
-            Assert.Equal((first.Width, first.Height), (second.Width, second.Height));
+                Assert.True(first.Width > 0 && first.Height > 0);
+                Assert.Equal((first.Width, first.Height), (second.Width, second.Height));
 
-            // Hikrobot names a mono model ...M and a colour one ...C.
-            if (info.Model.EndsWith('M'))
-                Assert.Equal(1, first.Channels);
-            else if (info.Model.EndsWith('C'))
-                Assert.Equal(3, first.Channels);
+                // Hikrobot names a mono model ...M and a colour one ...C.
+                if (info.Model.EndsWith('M'))
+                    Assert.Equal(1, first.Channels);
+                else if (info.Model.EndsWith('C'))
+                    Assert.Equal(3, first.Channels);
+            }
+            finally
+            {
+                // Let go, as the application does when it closes: a camera
+                // a test run leaves open can stay taken after it ends.
+                CameraDrivers.Release(camera);
+            }
         }
     }
 
@@ -89,13 +98,19 @@ public class HikrobotCameraTests
             return;
 
         var camera = CameraDrivers.Acquire(info.Label)!;
-        camera.Trigger = CameraTrigger.Hardware;
 
-        var clock = Stopwatch.StartNew();
-        Assert.Throws<TimeoutException>(() => camera.Grab(TimeSpan.FromMilliseconds(300), CancellationToken.None));
-        Assert.InRange(clock.ElapsedMilliseconds, 250, 3000);
+        try
+        {
+            camera.Trigger = CameraTrigger.Hardware;
 
-        camera.Trigger = CameraTrigger.Software;
+            var clock = Stopwatch.StartNew();
+            Assert.Throws<TimeoutException>(() => camera.Grab(TimeSpan.FromMilliseconds(300), CancellationToken.None));
+            Assert.InRange(clock.ElapsedMilliseconds, 250, 3000);
+        }
+        finally
+        {
+            CameraDrivers.Release(camera);
+        }
     }
 
     [Fact]
@@ -124,9 +139,17 @@ public class HikrobotCameraTests
         {
             scheduler.InspectAsync().GetAwaiter().GetResult();
 
-            Assert.Equal(NodeStatus.Ready, node.Status);
-            Assert.True(scheduler.GetOutput<ImageData>(node.ImageOut)!.Width > 0);
-            Assert.Contains(info.Label, node.ChoicesFor(nameof(CameraNode.Device)));
+            try
+            {
+                Assert.Equal(NodeStatus.Ready, node.Status);
+                Assert.True(scheduler.GetOutput<ImageData>(node.ImageOut)!.Width > 0);
+                Assert.Contains(info.Label, node.ChoicesFor(nameof(CameraNode.Device)));
+            }
+            finally
+            {
+                if (CameraDrivers.Acquire(info.Label) is { } camera)
+                    CameraDrivers.Release(camera);
+            }
         }
     }
 

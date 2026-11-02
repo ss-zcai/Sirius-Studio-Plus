@@ -55,6 +55,12 @@ public static class Program
             Console.Error.WriteLine($"Could not run: {ExceptionText.Describe(ex)}");
             return CouldNotRun;
         }
+        finally
+        {
+            // A GigE camera left open counts as taken until its heartbeat
+            // runs out - and MVS's virtual cameras, it seems, never.
+            Sirius.Vision.Cameras.CameraDrivers.CloseAll();
+        }
     }
 
     private static async Task<int> RunAsync(string recipe, string? folder, bool quiet)
