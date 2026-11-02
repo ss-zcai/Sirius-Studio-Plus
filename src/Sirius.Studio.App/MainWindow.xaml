@@ -1227,14 +1227,29 @@
                                                             which left "In" padded out to look
                                                             like a much longer word.
                                                         -->
-                                                        <Button Content="{Binding Label}"
-                                                                ToolTip="{Binding Description}"
+                                                        <Button ToolTip="{Binding Description}"
                                                                 Margin="0,0,6,6"
                                                                 MinWidth="0"
-                                                                Padding="8,2"
+                                                                Padding="7,2,8,2"
                                                                 Command="{Binding DataContext.PreviewPortCommand,
                                                                           RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding}" />
+                                                                CommandParameter="{Binding}">
+                                                            <!--
+                                                                The socket's swatch, as on the canvas
+                                                                and in the help, so what a button
+                                                                opens - an image, shapes, a number -
+                                                                reads before it is pressed.
+                                                            -->
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Border Width="9"
+                                                                        Height="9"
+                                                                        Margin="0,0,6,0"
+                                                                        VerticalAlignment="Center"
+                                                                        CornerRadius="{Binding DataTypeName, Converter={StaticResource PortTypeToCornerRadius}}"
+                                                                        Background="{Binding DataTypeName, Converter={StaticResource PortTypeToBrush}}" />
+                                                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                        </Button>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>

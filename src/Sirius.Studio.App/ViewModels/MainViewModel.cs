@@ -1917,6 +1917,9 @@ public sealed class MainViewModel : ObservableObject
                 port.DisplayName,
                 $"Show the {side} \"{port.DisplayName}\" in a window of its own");
         }
+
+        /// <summary>The port's type, which picks the swatch its socket has on the canvas.</summary>
+        public string DataTypeName => Port.DataType.Name;
     }
 
     private ViewerPanelViewModel CreateViewerPanel(ViewerNode viewer)
