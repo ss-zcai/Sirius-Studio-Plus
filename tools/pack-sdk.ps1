@@ -1,7 +1,8 @@
 <#
 .SYNOPSIS
-    Packs the custom node SDK: the Sirius.Plugins package, the guide, and a
-    sample library that builds against the package.
+    Packs the custom node SDK: the Sirius.Plugins package, the guides, a C#
+    sample library that builds against the package, and the Python SDK with
+    a sample library of its own.
 
 .DESCRIPTION
     What a team writing custom nodes is handed. Unzip it anywhere, and
@@ -18,6 +19,11 @@
     repository, where neither Directory.Build.props nor central package
     management can quietly supply something the package forgot. A package
     that only builds inside the repository it came from is not a package.
+
+    The Python sample's tests are run the same way, against the packaged
+    sirius_nodes.py, when SIRIUS_SDK_PYTHON names a python.exe with numpy
+    and opencv-python. Without it they are skipped, with a warning: Python
+    is not something every PC that packs the SDK has.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools/pack-sdk.ps1
@@ -191,6 +197,19 @@ with Codex and other tools so every agent follows the same rules.
 
     Copy-Item 'docs/custom-nodes.md' $staging
 
+    # ---- the Python SDK and its sample ---------------------------------------
+
+    # The same sirius_nodes.py the application ships in its python folder,
+    # for writing and testing a library without the application.
+    $python = Join-Path $staging 'python'
+    $pythonSample = Join-Path $staging 'PythonNodes'
+    New-Item -ItemType Directory -Force $python, $pythonSample | Out-Null
+
+    Copy-Item 'src/Sirius.Vision/Python/sirius_nodes.py' $python
+    Copy-Item 'samples/PythonNodes/*.py' $pythonSample
+    Copy-Item 'samples/PythonNodes/sirius.json.example' $pythonSample
+    Copy-Item 'docs/python-nodes.md' $staging
+
     # ---- prove it builds from the package alone -----------------------------
 
     Write-Host 'Building and testing the sample against the package, outside the repository...'
@@ -211,6 +230,34 @@ with Codex and other tools so every agent follows the same rules.
     }
     finally {
         Remove-Item -Recurse -Force $cache -ErrorAction SilentlyContinue
+    }
+
+    # ---- and the Python sample against the packaged SDK ----------------------
+
+    if ($env:SIRIUS_SDK_PYTHON) {
+        Write-Host 'Testing the Python sample against the packaged sirius_nodes.py...'
+
+        # Plain test functions, called in turn: no pytest needed to check them.
+        $check = @"
+import sys
+sys.path[:0] = [r'$python', r'$pythonSample']
+import test_dark_spots as t
+tests = [f for name, f in sorted(vars(t).items()) if name.startswith('test_') and callable(f)]
+for f in tests:
+    f()
+print(f'{len(tests)} Python sample tests passed')
+"@
+        Push-Location $pythonSample
+        try {
+            & $env:SIRIUS_SDK_PYTHON -B -c $check
+            if ($LASTEXITCODE -ne 0) { throw 'The Python sample tests fail against the packaged SDK; nothing was zipped.' }
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    else {
+        Write-Warning 'The Python sample was not tested: set SIRIUS_SDK_PYTHON to a python.exe with numpy and opencv-python.'
     }
 
     $built = Get-ChildItem -Path $sample -Recurse -Filter 'Sirius.SampleNodes.dll' |

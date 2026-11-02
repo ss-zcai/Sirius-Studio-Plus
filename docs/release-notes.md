@@ -5,6 +5,116 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.7 — 2 November 2026
+
+Custom nodes written in Python, Hikrobot cameras, two new measuring
+tools and lens calibration, on top of everything in 1.0.6 below. Recipes
+saved in 1.0.6 open unchanged. **If 1.0.6 was skipped, read its notes
+too** - Circle Defects' Local Form, Basler cameras and Match Template's
+Teach arrived there.
+
+**66 nodes → 70**: Find Curve, Line Defects, Lens Calibration, Undistort.
+
+### What to try first
+
+> Image File → **Line Defects** → Image Viewer
+
+On a part with a straight edge - a cut, a lid, a strip - draw the Region
+across the edge with the part on the side **Direction** says. Notches and
+burrs are outlined with their depth and length; the line they are
+measured from is fitted so that a long chip does not tilt it.
+
+> Image File → **Find Curve** → Image Viewer
+
+For an edge that is neither a line nor a circle. Press **Draw** beside
+Path, click along the edge on the input preview, double-click to finish
+(or click the first corner to close it). Drag a corner, the band or its
+edge afterwards.
+
+> **Tools ▸ Custom Nodes ▸ Add Library** → `samples\PythonNodes\dark_spots.py`
+
+A node library written in Python. Needs Python 3 with `numpy` and
+`opencv-python` installed. **Dark Spots** appears under Blob and
+**Sharpness** under Analysis; `docs\python-nodes.md` says how to write one.
+
+> **Camera** (Device: a Hikrobot camera) → … , then **F6**
+
+With MVS installed, Hikrobot cameras appear in the Camera node's Device
+list beside Basler ones. Run Continuously now shows the picture at up to
+30 frames a second.
+
+### New and changed
+
+- **Python custom nodes.** A `.py` file declares nodes with inputs,
+  outputs and settings; it runs in its own Python - named in a
+  `sirius.json` beside it, a `.venv`, or the Python on PATH - so two
+  libraries can use different Pythons and packages in one recipe. Errors
+  say which Python ran and what went wrong, in the Custom Nodes window or
+  on the node. **Restart Python** on a node re-reads the file after an
+  edit.
+- **Custom nodes say where they came from**: their tooltip names the
+  library, and searching the toolbox for a library's name finds its nodes.
+- **Hikrobot cameras** through MVS, GigE and USB3. Exposure, gain, and
+  free-run, software or hardware trigger (**Line 0**, rising edge - Basler's
+  is Line 1). A camera another program has open says so.
+- **Line Defects** (Judging): Circle Defects for a straight edge. Reference
+  *Fitted*, *Wired* (a line from Find Line) or *Local Form* for an edge
+  that bows a little.
+- **Line Calipers: Straightness and Profile outputs.**
+- **Find Curve** (Fitting): calipers along a drawn path, a smooth curve
+  fitted through the edge, stray points set aside. The new **Path** tool
+  draws and edits the path; it can also be typed as `x, y; x, y | width`.
+- **A shape can drive a region.** Wire Shapes - Find Blobs' boxes, a
+  found circle - into a region input such as Find Line's Region or Find
+  Circle's Band, and the tool searches where the shape is. What the shape
+  does not say (a band's width) comes from the drawn region.
+- **Lens Calibration and Undistort** (Calibration): press **Add View** a
+  few times with a chessboard or dot grid in different places and tilts;
+  Undistort then takes the lens distortion out of every picture.
+- **Run Continuously shows frames at the screen's rate**, up to 30 a
+  second, and fewer when drawing is slow. The status line says both rates:
+  *412 frames/s inspected, 30 shown*.
+- **Picking shapes on a viewer with several shape wires** now selects the
+  row in the Shape Table on that set, through a Shape Style as well. The
+  selected shape is drawn heavier in its own colour, numbered by its row.
+- **Unstyled shapes are green**, not violet, which disappeared on grey
+  parts.
+- **The help window** lines its text up and colours each type as its
+  socket is coloured on the canvas; the Preview buttons carry the same
+  swatches.
+
+### Setting up a Hikrobot camera
+
+1. Install **MVS** from Hikrobot's site (machine vision, service,
+   download). Without it, Hikrobot cameras are simply not listed.
+2. For GigE: set the camera's IP address with MVS's IP Configurator, and
+   turn on jumbo frames on the network card.
+3. Start Sirius Studio Plus **after** installing MVS, so it finds MVS's
+   runtime.
+
+To try the Camera node with no camera, make a virtual camera in MVS's
+**Virtual Device Tool**; it is listed like a real one.
+
+### Known issues, in addition to those below
+
+- **Real Basler and Hikrobot cameras are untested.** Both drivers are
+  tested only against their makers' emulators; GigE timing, hardware
+  triggering and colour need checking on the bench.
+- **A virtual Hikrobot camera can stay "in use"** after a program that had
+  it open ended. Restart it in the Virtual Device Tool.
+- **Lens Calibration is tested only on synthetic views.** A real wide lens
+  is the test still to do.
+- **A wired shape is used as it is**: its position is in the image it was
+  found in. Between a finder and the tool it drives, nothing may move the
+  pixels - a crop, a turn, Polar to Linear.
+- **A Python node's inputs, outputs or settings changed** need the
+  application restarted; Restart Python only re-reads `run()` and the rest
+  of the code.
+- **Images cross to Python and back** for each run: about 13 ms for a 5 MP
+  colour frame.
+
+---
+
 ## 1.0.6 — 31 October 2026
 
 Defect inspection for parts that are not perfectly round, Basler cameras,

@@ -13,11 +13,18 @@ namespace Sirius.Core.Tests;
 /// Device Tool.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The driver is found the way the application finds it - by loading
 /// whatever Sirius.Cameras.*.dll sits beside the program. On a PC without
 /// MVS there is no Hikrobot driver, and without a virtual camera there is
 /// nothing to grab from: either way these pass having checked only what
 /// they can.
+/// </para>
+/// <para>
+/// Virtual cameras only, as the Basler tests use only pylon's emulator: a
+/// real camera on the bench may be open in the application, or wired to a
+/// trigger, and a test run is no business grabbing from it.
+/// </para>
 /// </remarks>
 [Collection(HikrobotCollection.Name)]
 public class HikrobotCameraTests
@@ -30,8 +37,11 @@ public class HikrobotCameraTests
         return CameraDrivers.All.FirstOrDefault(driver => driver.Name == "Hikrobot");
     }
 
-    /// <summary>The first camera MVS lists - on a test PC, the virtual one.</summary>
-    private static CameraInfo? Any(ICameraDriver driver) => driver.Enumerate().FirstOrDefault();
+    /// <summary>The virtual cameras MVS lists - their serial numbers start "Vir".</summary>
+    private static IEnumerable<CameraInfo> Virtual(ICameraDriver driver) =>
+        driver.Enumerate().Where(camera => camera.Serial.StartsWith("Vir", StringComparison.OrdinalIgnoreCase));
+
+    private static CameraInfo? Any(ICameraDriver driver) => Virtual(driver).FirstOrDefault();
 
     [Fact]
     public void The_driver_loads_where_MVS_is_installed()
@@ -59,7 +69,7 @@ public class HikrobotCameraTests
 
         // Every camera there is - a mono and a colour one, ideally, so both
         // ways a frame becomes an image are taken.
-        foreach (var info in driver.Enumerate())
+        foreach (var info in Virtual(driver))
         {
             var camera = CameraDrivers.Acquire(info.Label)!;
 

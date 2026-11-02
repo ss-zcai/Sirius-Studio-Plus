@@ -1,7 +1,7 @@
 # Custom node API reference
 
 Every public type a custom node uses, with exact signatures. Interface
-version **1.0.0**. For why things are the way they are, see
+version **1.0.1**. For why things are the way they are, see
 `custom-nodes.md`; this page is the lookup.
 
 Namespaces: `Sirius.Plugins` (the interface), `Sirius.Plugins.Testing`

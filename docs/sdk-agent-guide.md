@@ -1,11 +1,24 @@
 # AGENTS.md — writing Sirius Studio Plus custom nodes
 
 Instructions for a coding agent (Codex, Claude Code, or similar) working in
-this SDK folder. The usual job is **migrating a Python algorithm into a C#
-custom node**. Humans should start with `README.md`. These rules apply to
-you as well.
+this SDK folder. The usual jobs are **migrating a Python algorithm into a C#
+custom node** and **wrapping Python code as a Python node**. Humans should
+start with `README.md`. These rules apply to you as well.
 
-## Read first
+## C# or Python
+
+Do what the user asked for. If they did not say:
+
+- **Python node** when the code depends on a Python-only library (PyTorch,
+  ONNX Runtime, TensorFlow, a vendor SDK), or the user wants the original
+  code kept as it is.
+- **C# node** when the code is NumPy/OpenCV arithmetic that is new, or
+  must be fast, or the line PC should not need Python.
+
+Say which you chose and why. The C# rules follow; the Python ones are in
+**Writing a Python node** below.
+
+## Read first (C#)
 
 1. `custom-nodes-api.md`: every public type and signature you may use.
    Do not guess an API; look it up here.
@@ -17,7 +30,7 @@ you as well.
 5. `custom-nodes.md` §3.5 covers the translations from NumPy and OpenCV-Python.
    The rest of that file explains the rules below.
 
-## Commands
+## Commands (C#)
 
 ```
 dotnet build SampleNodes.sln -c Release
@@ -27,7 +40,7 @@ dotnet test  SampleNodes.sln -c Release
 Both must pass before you report a task done. `nuget.config` points NuGet at
 `packages/`, so no other setup is needed.
 
-## Hard rules
+## Hard rules (C#)
 
 - **Reference only the `Sirius.Plugins` package.** It already contains
   `Sirius.Core`. Do not add OpenCvSharp, Emgu.CV, System.Drawing,
@@ -152,6 +165,49 @@ public sealed class NameNode : ICustomNode
 }
 ```
 
+## Writing a Python node
+
+Read `python-nodes.md` first: the types, settings and shapes are all there.
+`PythonNodes/dark_spots.py` is the reference pattern and
+`PythonNodes/test_dark_spots.py` how one is tested.
+
+- **The two C# rules that hold here too:** never reimplement a step the
+  application has as a built-in node, and the `key=` is permanent.
+- **Import only from `sirius_nodes`** for the node machinery; never copy or
+  edit `python/sirius_nodes.py`. The application always runs a library
+  with its own copy.
+- **One `.py` file declares the nodes**; helpers go in modules beside it,
+  which the library imports. Files named `test_*.py` are not loaded as
+  libraries.
+- **Load models and open files in `load()`**, not in `run()` and not at
+  import. Mark settings that change what `load()` does with `reload=True`.
+- **Images are numpy arrays in BGR**, `uint8`, `uint16` or `float32`.
+  Handle each dtype the node accepts; for any other, `self.warn(...)` and
+  return the input unchanged.
+- **Detections, words and features are shapes** (`Rect`, `Box`, `Circle`,
+  ...), with measurements as keywords - `score=`, `class_id=` - so Filter
+  Shapes and Shape Table can use them. Do not return them as text.
+- **Raise for real failures; `self.warn` for "produced a result, but look
+  at this".**
+- **Every setting gets a default and a `description=`.** Numbers the
+  operator tunes get `min`, `max` and `step`.
+- **List the packages the library needs** in its docstring, and if it needs
+  a particular Python, a `sirius.json` beside it (see
+  `PythonNodes/sirius.json.example`). Do not install packages unless the
+  user asks.
+
+Test it with `NodeRunner`, as `test_dark_spots.py` does: one test checking
+a known output computed from the original code on the same synthetic
+input, one per dtype handled, and one per warning or failure path. Run
+
+```
+set PYTHONPATH=..\python
+python -m pytest
+```
+
+in the library's folder, and report the node(s), their keys, the
+packages needed, and the built-in nodes to wire ahead of them.
+
 ## Do not
 
 - Add a `Version=` to `Sirius.Plugins` other than the one already in the
@@ -162,4 +218,5 @@ public sealed class NameNode : ICustomNode
   arrive on ports.
 - Reach for reflection, `unsafe` code or `Marshal` to get at a picture's
   memory. `Row<T>` and `Samples<T>` are spans and already fast.
-- Report success without having run `dotnet test`.
+- Report success without having run `dotnet test`, or `pytest` for a
+  Python node.

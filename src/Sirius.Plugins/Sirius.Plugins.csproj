@@ -22,10 +22,15 @@
       The contract is versioned on its own, not with the application. The
       loader refuses a plugin built against a different major version, so
       this moves to 2.0 only for a change that breaks existing plugins.
+
+      The assembly version stays at the major version's .0.0.0: the loader
+      compares only the major, and a library built against 1.0.0 then binds
+      to 1.0.1 without a question being asked. 1.0.1 added the Python SDK
+      to the package's folder, not anything to this assembly.
     -->
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <FileVersion>1.0.1.0</FileVersion>
 
     <!-- The package other teams reference. tools/pack-sdk.ps1 builds it. -->
     <PackageId>Sirius.Plugins</PackageId>

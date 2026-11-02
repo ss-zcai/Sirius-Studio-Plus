@@ -108,6 +108,17 @@ Get-ChildItem $sampleOut -File |
     Where-Object { $_.Name -match '^(Sirius\.Plugins|Sirius\.Core|CommunityToolkit\.Mvvm)\.' } |
     Remove-Item -Force
 
+# ---- sample Python node library ---------------------------------------------
+
+# Beside the C# one, for the same reason, with the guide to go with it. Not
+# sirius.json: that names a Python on the machine it was written on.
+Write-Host 'Adding the sample Python node library...'
+$pythonSample = Join-Path $staging 'samples/PythonNodes'
+New-Item -ItemType Directory -Force $pythonSample | Out-Null
+Copy-Item 'samples/PythonNodes/*.py' $pythonSample
+Copy-Item 'samples/PythonNodes/sirius.json.example' $pythonSample
+Copy-Item 'docs/python-nodes.md' (Join-Path $staging 'docs')
+
 # ---- check -----------------------------------------------------------------
 
 $required = @(
@@ -123,6 +134,17 @@ $required = @(
     'tessdata/eng.traineddata'
     'Sirius.Plugins.dll'
     'samples/SampleNodes/Sirius.SampleNodes.dll'
+    'python/sirius_nodes.py'
+    'python/sirius_worker.py'
+    'samples/PythonNodes/dark_spots.py'
+    'docs/python-nodes.md'
+
+    # The camera makers' .NET APIs. Without them the drivers build empty and
+    # the package lists no Basler or Hikrobot cameras, which nothing else
+    # would notice: pack from a shell that has PYLON_DEV_DIR and
+    # MVCAM_COMMON_RUNENV - one opened after pylon and MVS were installed.
+    'Basler.Pylon.dll'
+    'MvCameraControl.Net.dll'
 )
 
 $missing = $required | Where-Object { -not (Test-Path (Join-Path $staging $_)) }
