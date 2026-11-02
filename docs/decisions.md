@@ -2069,3 +2069,22 @@ the styled wire each kept a selection of their own. A node that hands its
 shapes on one for one now says so (`IKeepsShapeOrder`), and the selection is
 keyed by the port the shapes were first produced on. Select Shape and Filter
 Shapes do not say it: they drop shapes, and the indices would not agree.
+
+## 55. Showing a continuous run at the screen's rate
+
+Running continuously, every frame is inspected but the panels were refreshed
+on a fixed 200 ms timer. Against a simulated camera at 400 frames a second
+the status line read 400 and the picture moved five times a second, which
+looked like a stalled camera; on a line faster than five parts a second some
+parts were never on the screen at all.
+
+A refresh has to happen between two inspections, while the frame's buffer is
+alive, so the run waits for it, and showing every frame at 400 a second would
+spend the run drawing. `LiveDisplay` now shows the latest frame at up to 30 a
+second, and less often when a refresh is slow - its smoothed cost is kept
+under a quarter of the run. A camera slower than the screen has every frame
+shown. The status line says both rates, "412 frames/s inspected, 30 shown",
+twice a second.
+
+Holding the last failed frame on screen, so a reject is not gone in 33 ms,
+belongs to the operator runtime.

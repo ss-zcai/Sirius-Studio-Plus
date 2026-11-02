@@ -1326,10 +1326,11 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     /// <remarks>
     /// Edits made meanwhile are taken up by the next frame rather than
-    /// starting runs of their own, as during a folder run. Panels refresh
-    /// a few times a second, and the status line shows the rate and the
-    /// latest verdict. A run that fails - the camera unplugged, a trigger
-    /// that never came - stops, and says why.
+    /// starting runs of their own, as during a folder run. Panels show the
+    /// latest frame at up to the screen's rate, as <see cref="LiveDisplay"/>
+    /// paces them, and the status line shows how many frames are inspected
+    /// and how many shown, and the latest verdict. A run that fails - the
+    /// camera unplugged, a trigger that never came - stops, and says why.
     /// </remarks>
     private async void RunLive()
     {
@@ -1345,9 +1346,8 @@ public sealed class MainViewModel : ObservableObject
 
         IsRunning = true;
 
-        var refreshed = System.Diagnostics.Stopwatch.StartNew();
-        var rate = System.Diagnostics.Stopwatch.StartNew();
-        var frames = 0;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var display = new LiveDisplay(0);
 
         try
         {
@@ -1364,20 +1364,22 @@ public sealed class MainViewModel : ObservableObject
                     break;
                 }
 
-                frames++;
+                display.Inspected();
 
-                if (refreshed.ElapsedMilliseconds >= 200)
+                var now = clock.Elapsed.TotalSeconds;
+
+                if (display.IsDue(now))
                 {
                     await UpdateOutputsAsync(cancellation.Token).ConfigureAwait(true);
                     RefreshReadouts();
 
-                    var perSecond = frames / Math.Max(1e-3, rate.Elapsed.TotalSeconds);
-                    StatusText = $"Running continuously: {perSecond:0.0} frames/s" +
-                                 (Verdict() is { } verdict ? $"  -  {verdict}" : string.Empty);
+                    display.Shown(now, clock.Elapsed.TotalSeconds);
+                }
 
-                    frames = 0;
-                    rate.Restart();
-                    refreshed.Restart();
+                if (display.Report(clock.Elapsed.TotalSeconds) is { } rates)
+                {
+                    StatusText = $"Running continuously: {rates}" +
+                                 (Verdict() is { } verdict ? $"  -  {verdict}" : string.Empty);
                 }
 
                 // A breath for the window between frames, so it stays usable
