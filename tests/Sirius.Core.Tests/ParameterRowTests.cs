@@ -118,6 +118,9 @@ public class ParameterRowTests
             // shows beside whichever row is up. Listed rather than filtered
             // out by shape, so a genuinely stale row still fails.
             .Append("IsDriven")
+
+            // Nor this: the note under a band or region a wire placed.
+            .Append("IsPlaced")
             .ToHashSet(StringComparer.Ordinal);
 
         var unknown = BoundFlags.Where(flag => !known.Contains(flag)).ToArray();

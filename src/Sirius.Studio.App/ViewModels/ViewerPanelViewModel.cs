@@ -403,6 +403,11 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
 
     public override void Dispose()
     {
+        // Parameters outlive the panels that show them.
+        RegionParameter = null;
+        RingParameter = null;
+        PathParameter = null;
+
         foreach (var line in ProfileLines)
             line.Dispose();
 
@@ -436,8 +441,11 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         get => _regionParameter;
         set
         {
+            var old = _regionParameter;
+
             if (SetProperty(ref _regionParameter, Accepts(value) ? value : null))
             {
+                Follow(old, _regionParameter);
                 OnPropertyChanged(nameof(Roi));
                 OnPropertyChanged(nameof(IsRoiEnabled));
                 OnPropertyChanged(nameof(RoiAngle));
@@ -486,8 +494,11 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         get => _ringParameter;
         set
         {
+            var old = _ringParameter;
+
             if (SetProperty(ref _ringParameter, AcceptsRing(value) ? value : null))
             {
+                Follow(old, _ringParameter);
                 OnPropertyChanged(nameof(Ring));
                 OnPropertyChanged(nameof(IsRingEnabled));
             }
@@ -506,8 +517,11 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         get => _pathParameter;
         set
         {
+            var old = _pathParameter;
+
             if (SetProperty(ref _pathParameter, Accepts(value) ? value : null))
             {
+                Follow(old, _pathParameter);
                 OnPropertyChanged(nameof(GuidePath));
                 OnPropertyChanged(nameof(IsPathEnabled));
             }
@@ -518,13 +532,15 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
 
     public PathBand? GuidePath
     {
-        get => _pathParameter?.PathValue;
+        get => _pathParameter?.ShownPath;
         set
         {
-            if (_pathParameter is null || value is null || _pathParameter.PathValue == value)
+            if (_pathParameter is null || value is null || _pathParameter.ShownPath == value)
                 return;
 
-            _pathParameter.PathValue = value;
+            using (Edit(_pathParameter))
+                _pathParameter.ShownPath = value;
+
             OnPropertyChanged();
         }
     }
@@ -545,15 +561,22 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         set => SetProperty(ref _activeTool, value);
     }
 
+    /// <summary>
+    /// The band as the node last searched it - round a wired circle, say -
+    /// rather than as it was drawn, when the two differ. See
+    /// <see cref="ParameterViewModel.ShownRing"/>.
+    /// </summary>
     public Ring Ring
     {
-        get => _ringParameter?.RingValue ?? default;
+        get => _ringParameter?.ShownRing ?? default;
         set
         {
-            if (_ringParameter is null || _ringParameter.RingValue == value)
+            if (_ringParameter is null || _ringParameter.ShownRing == value)
                 return;
 
-            _ringParameter.RingValue = value;
+            using (Edit(_ringParameter))
+                _ringParameter.ShownRing = value;
+
             OnPropertyChanged();
         }
     }
@@ -564,26 +587,30 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     /// </summary>
     public double RoiAngle
     {
-        get => _regionParameter?.RegionAngle ?? 0;
+        get => _regionParameter?.ShownAngle ?? 0;
         set
         {
-            if (_regionParameter is null || Math.Abs(_regionParameter.RegionAngle - value) < 1e-9)
+            if (_regionParameter is null || Math.Abs(_regionParameter.ShownAngle - value) < 1e-9)
                 return;
 
-            _regionParameter.RegionAngle = value;
+            using (Edit(_regionParameter))
+                _regionParameter.ShownAngle = value;
+
             OnPropertyChanged();
         }
     }
 
     public Rectangle Roi
     {
-        get => _regionParameter?.RegionValue ?? Rectangle.Empty;
+        get => _regionParameter?.ShownRegion ?? Rectangle.Empty;
         set
         {
-            if (_regionParameter is null || _regionParameter.RegionValue == value)
+            if (_regionParameter is null || _regionParameter.ShownRegion == value)
                 return;
 
-            _regionParameter.RegionValue = value;
+            using (Edit(_regionParameter))
+                _regionParameter.ShownRegion = value;
+
             OnPropertyChanged();
         }
     }
@@ -622,6 +649,55 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     /// the same.
     /// </remarks>
     protected virtual bool AcceptsRing(ParameterViewModel? parameter) => Accepts(parameter);
+
+    /// <summary>
+    /// Opens one undo step for a drawing, when the shell has said how.
+    /// </summary>
+    /// <remarks>
+    /// A drawing over a band placed round a wired circle sets two settings,
+    /// Offset and Band Width. Recorded one by one they alternate, never
+    /// merge, and a drag becomes a hundred steps to undo; batched, each
+    /// frame of the drag is one edit and the frames merge as any drag's do.
+    /// </remarks>
+    public Func<string, IDisposable?>? BeginEdit { get; set; }
+
+    private IDisposable? Edit(ParameterViewModel parameter) =>
+        BeginEdit?.Invoke($"Change {parameter.DisplayName}");
+
+    /// <summary>
+    /// Follows a parameter's shown geometry, which a run can move - placing
+    /// a band round a circle that has moved - without anything being edited.
+    /// </summary>
+    private void Follow(ParameterViewModel? old, ParameterViewModel? now)
+    {
+        if (old is not null)
+            old.PropertyChanged -= OnGeometryChanged;
+
+        if (now is not null)
+            now.PropertyChanged += OnGeometryChanged;
+    }
+
+    private void OnGeometryChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(ParameterViewModel.ShownRing) when ReferenceEquals(sender, _ringParameter):
+                OnPropertyChanged(nameof(Ring));
+                break;
+
+            case nameof(ParameterViewModel.ShownRegion) when ReferenceEquals(sender, _regionParameter):
+                OnPropertyChanged(nameof(Roi));
+                break;
+
+            case nameof(ParameterViewModel.ShownAngle) when ReferenceEquals(sender, _regionParameter):
+                OnPropertyChanged(nameof(RoiAngle));
+                break;
+
+            case nameof(ParameterViewModel.ShownPath) when ReferenceEquals(sender, _pathParameter):
+                OnPropertyChanged(nameof(GuidePath));
+                break;
+        }
+    }
 
     /// <summary>Re-reads the region after it was changed elsewhere.</summary>
     public void RefreshRegion()

@@ -250,9 +250,16 @@ public sealed class PolarToLinearNode : VisionNode
 
         if (context.Get<ShapeSet>(CircleIn) is not { Count: > 0 } shapes)
         {
-            return empty
-                ? new Ring(centreX, centreY, 0, Math.Min(image.Width, image.Height) / 2.0)
-                : band with { CentreX = centreX, CentreY = centreY };
+            if (!empty)
+                return band with { CentreX = centreX, CentreY = centreY };
+
+            // Shown, so an empty band does not look like nothing unwrapped.
+            var largest = new Ring(centreX, centreY, 0, Math.Min(image.Width, image.Height) / 2.0);
+
+            context.Place(nameof(Band), new Placement(
+                largest, "Nothing drawn, so the largest circle that fits the image. Drawing a band replaces it."));
+
+            return largest;
         }
 
         if (shapes.Count > 1)
@@ -264,14 +271,14 @@ public sealed class PolarToLinearNode : VisionNode
         switch (shapes.Shapes[0])
         {
             case CircleShape circle:
-                return Ring.FromMean(circle.Centre.X, circle.Centre.Y, circle.Radius + offset, width / 2);
+                return RingCalipersNode.Around(context, circle.Centre, circle.Radius, width, offset);
 
             // A fitted ellipse is near enough a circle for this to be the
             // useful reading of it; anything rounder than that would be a
             // circle in the first place.
             case EllipseShape ellipse:
-                return Ring.FromMean(
-                    ellipse.Centre.X, ellipse.Centre.Y, ((ellipse.MajorAxis + ellipse.MinorAxis) / 4) + offset, width / 2);
+                return RingCalipersNode.Around(
+                    context, ellipse.Centre, (ellipse.MajorAxis + ellipse.MinorAxis) / 4, width, offset);
 
             // A point, or any other shape: its centre, with the band's own
             // radii - or, with none drawn, the largest circle that fits there.
@@ -280,13 +287,18 @@ public sealed class PolarToLinearNode : VisionNode
                 var centre = other is PointShape point ? point.At : other.Bounds.Centre;
 
                 if (!empty)
-                    return band with { CentreX = centre.X, CentreY = centre.Y };
+                    return RingCalipersNode.CentredOn(context, band, centre);
 
                 var reach = Math.Min(
                     Math.Min(centre.X, image.Width - centre.X),
                     Math.Min(centre.Y, image.Height - centre.Y));
 
-                return new Ring(centre.X, centre.Y, 0, Math.Max(1, reach));
+                var largest = new Ring(centre.X, centre.Y, 0, Math.Max(1, reach));
+
+                context.Place(nameof(Band), new Placement(
+                    largest, "Centred on the wired point, as large as fits the image. Drawing it sets the radii."));
+
+                return largest;
             }
         }
     }

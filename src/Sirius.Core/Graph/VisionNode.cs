@@ -165,6 +165,26 @@ public abstract class VisionNode : ObservableObject
         internal set => SetProperty(ref _statusMessage, value);
     }
 
+    internal static readonly IReadOnlyDictionary<string, Placement> NothingPlaced =
+        new Dictionary<string, Placement>(StringComparer.Ordinal);
+
+    private IReadOnlyDictionary<string, Placement> _placements = NothingPlaced;
+
+    /// <summary>
+    /// Where the last successful run put the geometry that something wired
+    /// in moved, by parameter name - empty when everything is where it was
+    /// drawn.
+    /// </summary>
+    /// <remarks>
+    /// Written by the engine, like <see cref="Status"/>, so it is neither
+    /// saved nor undone.
+    /// </remarks>
+    public IReadOnlyDictionary<string, Placement> Placements
+    {
+        get => _placements;
+        internal set => SetProperty(ref _placements, value);
+    }
+
     /// <summary>Wall-clock duration of the most recent evaluation.</summary>
     public TimeSpan LastEvaluationTime
     {

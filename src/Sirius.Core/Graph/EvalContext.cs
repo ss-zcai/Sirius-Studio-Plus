@@ -43,6 +43,23 @@ public sealed class EvalContext
 
     internal string? Warning { get; private set; }
 
+    private Dictionary<string, Placement>? _placements;
+
+    /// <summary>What this run placed, by parameter name. See <see cref="Place"/>.</summary>
+    internal IReadOnlyDictionary<string, Placement> Placements =>
+        _placements ?? VisionNode.NothingPlaced;
+
+    /// <summary>
+    /// Records where this run put a parameter's geometry, when something
+    /// wired in moved it from where it was drawn - so the image shows the
+    /// band or region actually searched.
+    /// </summary>
+    public void Place(string parameterName, Placement placement)
+    {
+        ArgumentNullException.ThrowIfNull(placement);
+        (_placements ??= new Dictionary<string, Placement>(StringComparer.Ordinal))[parameterName] = placement;
+    }
+
     /// <summary>
     /// Reads an input. Returns null when nothing is connected or the upstream
     /// node produced null. Throws if <paramref name="port"/> is not an input of
@@ -157,7 +174,16 @@ public sealed class EvalContext
             if (shapes.Count > 1)
                 Warn($"{shapes.Count} shapes arrived on '{parameterName}'; using the first.");
 
-            return (T)Shapes.ShapeRegions.From(shapes.Shapes[0], typeof(T), fallback);
+            var placed = (T)Shapes.ShapeRegions.From(shapes.Shapes[0], typeof(T), fallback);
+
+            if (placed is not Shapes.Point2)
+            {
+                Place(parameterName, new Placement(
+                    placed,
+                    "Placed by the shape wired into it. Drawing it sets only what the shape leaves out, such as its width."));
+            }
+
+            return placed;
         }
 
         try

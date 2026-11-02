@@ -2122,3 +2122,35 @@ documentation is searched by.
 Tested against two virtual cameras made with MVS's Virtual Device Tool, an
 MV-CS023-10GM (mono) and an MV-CS050-10GC (colour). A real camera - GigE
 timing, Line 0, colour - is still to do.
+
+## 57. Showing geometry where a wire put it
+
+A fitted circle wired into Ring Calipers, to find a second circle a hundred
+pixels inside it, found nothing. The wired circle replaces the drawn band
+with one Band Width wide round its own edge, moved by Offset; with the
+defaults that was forty pixels round the circle already found. The image
+still showed the band drawn by hand, which was nowhere near where the node
+looked, and the drawn radii did nothing at all.
+
+Now a run reports where it put any geometry a wire moved
+(`EvalContext.Place`, read back as `VisionNode.Placements`), and the image
+shows that instead of the drawn value, with a note under the parameter
+saying what placed it:
+
+- **Ring Calipers, Circle Defects and Polar to Linear** with a circle wired
+  in: the band round the circle. Drawing over it sets Offset and Band Width
+  from the circle's edge, and the circle keeps the centre, so a band drawn
+  once on a good part follows the circle from part to part. A drag sets
+  both settings each frame, batched so it undoes in one step; a setting
+  that is itself wired is left alone. A wired point moves the drawn band,
+  whose radii drawing still sets.
+- **Any region, band or path driven by a shape** (`ShapeRegions`) - Find
+  Line's region on a wired line, Find Circle's band on a wired circle: shown
+  where the shape put it. Drawing still stores the value, which sets what
+  the shape leaves out, its width.
+- **Polar to Linear with nothing drawn** shows the largest circle that fits,
+  which is what it unwraps.
+
+Reported by the run rather than worked out by the editor, because only the
+node knows what it did with what arrived. Not saved and not undone, like
+Status.

@@ -437,6 +437,9 @@ public sealed class GraphScheduler : IDisposable
         Commit(node, context);
         SetEvaluationTime(node, stopwatch.Elapsed);
 
+        var placements = context.Placements;
+        OnUiThread(() => node.Placements = placements);
+
         SetStatus(
             node,
             context.Warning is null ? NodeStatus.Ready : NodeStatus.Warning,

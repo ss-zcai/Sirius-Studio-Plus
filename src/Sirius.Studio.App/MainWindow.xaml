@@ -973,6 +973,20 @@
                                                         </Grid>
 
                                                         <!--
+                                                            Where a wire put this geometry on the last
+                                                            run, and what drawing it still changes - the
+                                                            box above holds the drawn value, which a
+                                                            wired circle, say, does not use.
+                                                        -->
+                                                        <TextBlock Text="{Binding PlacementNote}"
+                                                                   Margin="0,3,0,0"
+                                                                   FontSize="11"
+                                                                   FontStyle="Italic"
+                                                                   TextWrapping="Wrap"
+                                                                   Foreground="#FBBF24"
+                                                                   Visibility="{Binding IsPlaced, Converter={StaticResource BoolToVisibility}}" />
+
+                                                        <!--
                                                             A search path: its corners and its
                                                             width as one line, and a button to
                                                             draw it along the edge instead.

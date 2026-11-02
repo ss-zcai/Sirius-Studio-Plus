@@ -484,6 +484,7 @@ public sealed class MainViewModel : ObservableObject
             panel.RegionParameter = ActiveRegionParameter;
             panel.RingParameter = ActiveRingParameter;
             panel.PathParameter = ActivePathParameter;
+            panel.BeginEdit = label => Undo?.Begin(label);
         }
     }
 

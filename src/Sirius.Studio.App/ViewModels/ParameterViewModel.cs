@@ -79,6 +79,15 @@ public sealed class ParameterViewModel : ObservableObject
                 return;
             }
 
+            // A run placed the geometry again, so a drawing waiting for it
+            // has been overtaken.
+            if (e.PropertyName == nameof(VisionNode.Placements))
+            {
+                _drawn = null;
+                RaiseShownChanged();
+                return;
+            }
+
             // A bound living on another parameter has moved, so the slider's
             // range changed even though this value did not.
             if (e.PropertyName == descriptor.Attribute.NameSource)
@@ -676,6 +685,151 @@ public sealed class ParameterViewModel : ObservableObject
         }
     }
 
+    // ---- what the image shows ----------------------------------------------
+
+    /// <summary>
+    /// Where the last run put this geometry, when something wired in moved
+    /// it from where it was drawn; null when it is where it was drawn.
+    /// </summary>
+    public Placement? Placement =>
+        _node.Placements.TryGetValue(_descriptor.Name, out var placement) ? placement : null;
+
+    public bool IsPlaced => Placement is not null;
+
+    /// <summary>What placed it, and what drawing over it still changes.</summary>
+    public string? PlacementNote => Placement?.Note;
+
+    /// <summary>
+    /// A drawing made since the last run, shown until the run places the
+    /// geometry again - so a drag is not pulled back to the old placement
+    /// for the moment before the run catches up.
+    /// </summary>
+    private object? _drawn;
+
+    /// <summary>The geometry the image draws: where the run put it, else where it was drawn.</summary>
+    private object? Shown => _drawn ?? Placement?.Value ?? Raw;
+
+    /// <summary>The band the image shows and edits.</summary>
+    public Ring ShownRing
+    {
+        get => Shown is Ring ring ? ring : default;
+        set
+        {
+            if (ShownRing != value)
+                Draw(value, () => RingValue = value);
+        }
+    }
+
+    /// <summary>The region the image shows and edits, upright.</summary>
+    public Rectangle ShownRegion
+    {
+        get => Upright(Shown);
+        set
+        {
+            if (ShownRegion == value)
+                return;
+
+            object drawn = Shown is OrientedRect rect
+                ? rect.WithUpright(value.X, value.Y, value.Width, value.Height)
+                : value;
+
+            Draw(drawn, () => RegionValue = value);
+        }
+    }
+
+    /// <summary>How far the shown region is turned.</summary>
+    public double ShownAngle
+    {
+        get => Shown is OrientedRect rect ? rect.Angle : 0;
+        set
+        {
+            if (Shown is OrientedRect rect && Math.Abs(rect.Angle - value) > 1e-9)
+                Draw(rect with { Angle = value }, () => RegionAngle = value);
+        }
+    }
+
+    /// <summary>The path the image shows and edits.</summary>
+    public PathBand ShownPath
+    {
+        get => Shown as PathBand ?? PathValue;
+        set
+        {
+            if (ShownPath != value)
+                Draw(value, () => PathValue = value);
+        }
+    }
+
+    private static Rectangle Upright(object? value)
+    {
+        if (value is Rectangle rectangle)
+            return rectangle;
+
+        if (value is OrientedRect rect)
+        {
+            var (x, y, width, height) = rect.Upright;
+            return new Rectangle(
+                (int)Math.Round(x), (int)Math.Round(y),
+                (int)Math.Round(width), (int)Math.Round(height));
+        }
+
+        return Rectangle.Empty;
+    }
+
+    /// <summary>
+    /// Keeps a drawing: as the parameter's value, or - where the run placed
+    /// the geometry and says how - as the settings that put it there.
+    /// </summary>
+    /// <remarks>
+    /// A band round a wired circle is the case that needs the second: its
+    /// own radii are not used at all, so a drawing stored there would change
+    /// nothing, and the drawing becomes the band's offset and width from the
+    /// circle instead. A setting that is itself wired is left alone - the
+    /// wire would overrule it anyway.
+    /// </remarks>
+    private void Draw(object drawn, Action store)
+    {
+        if (Placement is not { } placement)
+        {
+            store();
+            return;
+        }
+
+        if (placement.Redraw?.Invoke(drawn) is { } redrawn)
+        {
+            foreach (var (name, value) in redrawn.Settings)
+            {
+                if (_node.FindInput(name)?.IsConnected == true ||
+                    _node.Descriptor.Parameters.FirstOrDefault(p => p.Name == name) is not { } setting)
+                {
+                    continue;
+                }
+
+                setting.SetValue(_node, System.Convert.ChangeType(value, setting.ValueType, CultureInfo.InvariantCulture));
+            }
+
+            _drawn = redrawn.Shown;
+        }
+        else
+        {
+            // First, so the change the store raises already shows the drawing.
+            _drawn = drawn;
+            store();
+        }
+
+        RaiseShownChanged();
+    }
+
+    private void RaiseShownChanged()
+    {
+        OnPropertyChanged(nameof(Placement));
+        OnPropertyChanged(nameof(IsPlaced));
+        OnPropertyChanged(nameof(PlacementNote));
+        OnPropertyChanged(nameof(ShownRing));
+        OnPropertyChanged(nameof(ShownRegion));
+        OnPropertyChanged(nameof(ShownAngle));
+        OnPropertyChanged(nameof(ShownPath));
+    }
+
     public ValueRange RangeValue
     {
         get => Raw is ValueRange range ? range : new ValueRange(Minimum, Maximum);
@@ -797,6 +951,9 @@ public sealed class ParameterViewModel : ObservableObject
         OnPropertyChanged(nameof(RegionY));
         OnPropertyChanged(nameof(RegionWidth));
         OnPropertyChanged(nameof(RegionHeight));
+        OnPropertyChanged(nameof(RingValue));
+        OnPropertyChanged(nameof(RingText));
+        RaiseShownChanged();
     }
 }
 

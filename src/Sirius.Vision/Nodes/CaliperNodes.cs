@@ -409,17 +409,62 @@ public sealed class RingCalipersNode : VisionNode
 
         return shapes.Shapes[0] switch
         {
-            CircleShape circle =>
-                Ring.FromMean(circle.Centre.X, circle.Centre.Y, circle.Radius + offset, width / 2),
+            CircleShape circle => Around(context, circle.Centre, circle.Radius, width, offset),
 
             // Near enough a circle for its mean radius to be what is meant.
-            EllipseShape ellipse => Ring.FromMean(
-                ellipse.Centre.X, ellipse.Centre.Y, ((ellipse.MajorAxis + ellipse.MinorAxis) / 4) + offset, width / 2),
+            EllipseShape ellipse => Around(
+                context, ellipse.Centre, (ellipse.MajorAxis + ellipse.MinorAxis) / 4, width, offset),
 
-            PointShape point => band with { CentreX = point.At.X, CentreY = point.At.Y },
+            PointShape point => CentredOn(context, band, point.At),
 
-            var other => band with { CentreX = other.Bounds.Centre.X, CentreY = other.Bounds.Centre.Y },
+            var other => CentredOn(context, band, other.Bounds.Centre),
         };
+    }
+
+    /// <summary>
+    /// A band <paramref name="width"/> wide round a circle's edge, moved
+    /// <paramref name="offset"/> outward - recorded as placed, so the image
+    /// shows it and drawing over it sets Offset and Band Width.
+    /// </summary>
+    /// <remarks>
+    /// Every node that searches round a wired circle names those settings
+    /// Band, Band Width and Offset, so one placement serves them all.
+    /// </remarks>
+    internal static Ring Around(EvalContext context, Point2 centre, double radius, double width, double offset)
+    {
+        var ring = Ring.FromMean(centre.X, centre.Y, radius + offset, width / 2);
+
+        context.Place(nameof(Band), new Placement(
+            ring,
+            "Placed round the wired circle. Drawing it sets Offset and Band Width; the circle sets its centre.")
+        {
+            // The drawn radii, as distances from the circle's edge. The
+            // centre stays the circle's: drawing cannot move what a wire
+            // decides, and showing it moved until the next run would be a
+            // promise the run then breaks.
+            Redraw = drawn => drawn is Ring ring
+                ? new Redrawn(
+                    new Dictionary<string, object>
+                    {
+                        [nameof(Offset)] = Math.Round(ring.MeanRadius - radius, 1),
+                        [nameof(BandWidth)] = Math.Round(ring.OuterRadius - ring.InnerRadius, 1),
+                    },
+                    new Ring(centre.X, centre.Y, ring.InnerRadius, ring.OuterRadius))
+                : null,
+        });
+
+        return ring;
+    }
+
+    /// <summary>The drawn band, moved to a wired point - recorded as placed.</summary>
+    internal static Ring CentredOn(EvalContext context, Ring band, Point2 centre)
+    {
+        var ring = band.WithCentre(centre.X, centre.Y);
+
+        context.Place(nameof(Band), new Placement(
+            ring, "Centred on the wired point. Drawing it sets the radii; the point sets the centre."));
+
+        return ring;
     }
 
     /// <summary>The centre each radius is measured from, and the radius deviation is measured against.</summary>
