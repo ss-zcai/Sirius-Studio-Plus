@@ -2154,3 +2154,24 @@ saying what placed it:
 Reported by the run rather than worked out by the editor, because only the
 node knows what it did with what arrived. Not saved and not undone, like
 Status.
+
+## 58. Saving a viewer's picture
+
+Every viewer and preview has a save button beside the zoom buttons, with two
+choices: **Save Image…**, the picture alone, and **Save Image with
+Overlays…**, with the results and measurements the viewer is showing. The
+toolbar's show buttons are the options: a hidden layer is left out. PNG by
+default, being lossless, so a saved frame run through a recipe again gives
+the same answer; JPEG, BMP and TIFF are offered. The name offered is the
+panel's and the time, and the last folder is offered again.
+
+Both are at the image's full resolution. The overlays are drawn again for the
+purpose rather than captured off the screen, which would give the panel's
+size and whatever part the zoom shows. Their lines and labels keep a fixed
+weight on screen, so saved they are given the weight they would have with the
+image a thousand pixels across - two or three pixels on a 5 MP frame. The
+selected shape stays picked out; the band or region being edited is left
+out, being a handle rather than a result.
+
+The picture saved is the one shown, which is 8-bit: a 16-bit or float image
+is saved as the viewer scales it for the screen, not with its own values.

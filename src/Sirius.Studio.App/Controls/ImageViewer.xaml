@@ -73,6 +73,30 @@
                         <Image Source="{StaticResource Icon.ph_zoom_actual}" Width="17" Height="17" />
                     </Button>
 
+                    <!--
+                        Near the front, so a narrow viewer does not fold it
+                        into the overflow menu. One button and a menu rather
+                        than two buttons: the choice is made once per save,
+                        and a second floppy disc beside the first would only
+                        be told apart by its tooltip.
+                    -->
+                    <Button x:Name="SaveImageButton"
+                            Style="{StaticResource ToolbarButton}"
+                            ToolTip="Save the image to a file"
+                            Click="OnSaveImageClick">
+                        <Image Source="{StaticResource Icon.ph_save}" Width="16" Height="16" />
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Save Image…"
+                                          ToolTip="The picture alone, at full resolution"
+                                          Click="OnSavePlainClick" />
+                                <MenuItem Header="Save Image with Overlays…"
+                                          ToolTip="With the results and measurements as shown, at full resolution. Hide either with its button on this toolbar to leave it out."
+                                          Click="OnSaveWithOverlaysClick" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+
                     <Border Style="{StaticResource ToolbarDivider}" />
 
                     <!-- Tag carries the tool each button selects. -->

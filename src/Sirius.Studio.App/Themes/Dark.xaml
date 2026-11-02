@@ -522,6 +522,7 @@
 
     <DataTemplate DataType="{x:Type vm:ImagePanelViewModel}">
         <controls:ImageViewer ImageSource="{Binding Image}"
+                              SaveName="{Binding Title}"
                               ImageSizeText="{Binding SizeText}"
                               Ring="{Binding Ring, Mode=TwoWay}"
                               IsRingEnabled="{Binding IsRingEnabled}"
@@ -558,6 +559,7 @@
 
             <controls:ImageViewer Grid.Row="0"
                                   ImageSource="{Binding Image}"
+                                  SaveName="{Binding Title}"
                                   ImageSizeText="{Binding SizeText}"
                                   Ring="{Binding Ring, Mode=TwoWay}"
                                   IsRingEnabled="{Binding IsRingEnabled}"

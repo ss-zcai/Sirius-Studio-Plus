@@ -619,7 +619,13 @@ public partial class ImageViewer : UserControl
     private double Scale => SceneTransform.Matrix.M11;
 
     /// <summary>One screen pixel, expressed in image units at the current zoom.</summary>
-    private double ScreenPixel => 1 / Math.Max(Scale, 1e-6);
+    private double ScreenPixel => _savingPixel ?? 1 / Math.Max(Scale, 1e-6);
+
+    /// <summary>
+    /// The size of a screen pixel, in image pixels, while a picture with
+    /// overlays is drawn for saving. See <see cref="RenderWithOverlays"/>.
+    /// </summary>
+    private double? _savingPixel;
 
     private Point ScreenToImage(Point screen)
     {
@@ -978,6 +984,161 @@ public partial class ImageViewer : UserControl
         HintText.Text =
             $"Shapes were found on a {set.FrameWidth} x {set.FrameHeight} image; " +
             "this one is a different size, so they are drawn where they were measured, not where they are.";
+    }
+
+    // ---- saving the picture ----------------------------------------------
+
+    public static readonly DependencyProperty SaveNameProperty = DependencyProperty.Register(
+        nameof(SaveName),
+        typeof(string),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(null));
+
+    /// <summary>What a saved picture is named after - the panel's title.</summary>
+    public string? SaveName
+    {
+        get => (string?)GetValue(SaveNameProperty);
+        set => SetValue(SaveNameProperty, value);
+    }
+
+    /// <summary>Where the last picture was saved, offered again for the next - from any viewer.</summary>
+    private static string? _saveFolder;
+
+    private void OnSaveImageClick(object sender, RoutedEventArgs e)
+    {
+        if (SaveImageButton.ContextMenu is not { } menu)
+            return;
+
+        menu.PlacementTarget = SaveImageButton;
+        menu.Placement = PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
+
+    private void OnSavePlainClick(object sender, RoutedEventArgs e) => SaveImage(withOverlays: false);
+
+    private void OnSaveWithOverlaysClick(object sender, RoutedEventArgs e) => SaveImage(withOverlays: true);
+
+    private void SaveImage(bool withOverlays)
+    {
+        if (ImageSource is null)
+        {
+            HintText.Text = "There is no image here to save yet.";
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = withOverlays ? "Save Image with Overlays" : "Save Image",
+            Filter = Imaging.ImageFileWriter.Filter,
+            DefaultExt = ".png",
+            AddExtension = true,
+            FileName = Imaging.ImageFileWriter.SuggestedName(SaveName, DateTime.Now),
+            InitialDirectory = _saveFolder ?? Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+        };
+
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true)
+            return;
+
+        try
+        {
+            var picture = withOverlays ? RenderWithOverlays() : ImageSource;
+            Imaging.ImageFileWriter.Save(picture, dialog.FileName);
+
+            _saveFolder = System.IO.Path.GetDirectoryName(dialog.FileName);
+            HintText.Text = $"Saved {System.IO.Path.GetFileName(dialog.FileName)}";
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or NotSupportedException
+                                       or InvalidOperationException or ArgumentException)
+        {
+            Dialog.Warn(
+                $"The image could not be saved to {dialog.FileName}.\n\n{ex.Message}",
+                "Save Image",
+                Window.GetWindow(this));
+        }
+    }
+
+    /// <summary>
+    /// The picture at full resolution with the results and measurements this
+    /// viewer is showing drawn over it - each layer only if it is shown, so
+    /// the toolbar's show buttons are the options.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Drawn again for the purpose rather than captured off the screen: a
+    /// capture is the size of the panel and whatever part of the image the
+    /// zoom happens to show, where a saved picture is wanted whole and sharp.
+    /// </para>
+    /// <para>
+    /// Lines and labels keep a fixed weight on screen however far in the
+    /// view is zoomed, so at full resolution they need a weight of their own.
+    /// They are drawn as they would look with the image a thousand pixels
+    /// across on screen - about a report's width - so a 5 MP frame gets
+    /// lines two or three pixels wide and labels that can be read without
+    /// zooming, and a small one is drawn exactly as at 1:1.
+    /// </para>
+    /// <para>
+    /// The selected shape stays picked out, as it is on screen: saving a
+    /// picture to show somebody a particular blob is the commonest reason to
+    /// have selected it. The search band or region being edited is left
+    /// out - it is a handle for editing, not a result.
+    /// </para>
+    /// </remarks>
+    private BitmapSource RenderWithOverlays()
+    {
+        var image = ImageSource!;
+        var (width, height) = (image.PixelWidth, image.PixelHeight);
+        var area = new Rect(0, 0, width, height);
+
+        _savingPixel = Math.Max(1, Math.Max(width, height) / 1000.0);
+
+        try
+        {
+            RedrawShapes();
+            RedrawMeasurements();
+
+            // Labels are bordered text, which has no size until laid out.
+            Scene.UpdateLayout();
+
+            var visual = new DrawingVisual();
+
+            using (var context = visual.RenderOpen())
+            {
+                context.DrawImage(image, area);
+
+                foreach (var layer in new[] { ShapeLayer, MeasureLayer })
+                {
+                    if (layer.Visibility != Visibility.Visible || layer.Children.Count == 0)
+                        continue;
+
+                    // The layer's own coordinates are image pixels, so its
+                    // picture is laid over the image one to one.
+                    context.DrawRectangle(
+                        new VisualBrush(layer)
+                        {
+                            Viewbox = area,
+                            ViewboxUnits = BrushMappingMode.Absolute,
+                            Viewport = area,
+                            ViewportUnits = BrushMappingMode.Absolute,
+                            Stretch = Stretch.None,
+                            AlignmentX = AlignmentX.Left,
+                            AlignmentY = AlignmentY.Top,
+                        },
+                        null,
+                        area);
+                }
+            }
+
+            var picture = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            picture.Render(visual);
+            picture.Freeze();
+            return picture;
+        }
+        finally
+        {
+            _savingPixel = null;
+            RedrawShapes();
+            RedrawMeasurements();
+        }
     }
 
     // ---- toolbar ---------------------------------------------------------
