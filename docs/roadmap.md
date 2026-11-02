@@ -240,9 +240,10 @@ done. What remains, in order:
 - **Template matching.** Match Template, with Teach keeping the template
   in the recipe. Left: rotation.
 - **Camera acquisition.** The Camera node, Run Continuously, a simulated
-  camera, and Basler (GigE and USB3) through pylon, behind
-  `ICameraDriver`. Left, on hold: Hikrobot (MVS) and plain USB webcams.
-  Basler is tested only against pylon's emulator so far.
+  camera, Basler (GigE and USB3) through pylon and Hikrobot (GigE and
+  USB3) through MVS, behind `ICameraDriver`. Left, on hold: plain USB
+  webcams. Basler is tested only against pylon's emulator and Hikrobot
+  only against MVS's virtual cameras so far.
 - **Circle Defects for parts that are not round is done**: Local Form
   and Fitted Ellipse references, and a Form output.
 - **Mean intensity over a region is done** - Region Stats.

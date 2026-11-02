@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Hikrobot (Hikvision industrial) cameras, through the MVS SDK's .NET API.
+
+    Built against the API MVS installs (MVCAM_COMMON_RUNENV points at its
+    Development folder). On a PC without MVS there is nothing to build
+    against, so the project compiles to an empty library and the application
+    simply lists no Hikrobot cameras - the solution still builds anywhere.
+
+    At run time MVS (or its runtime) must be installed: the .NET API is
+    copied beside the application, but it calls into MvCameraControl.dll,
+    which the installer puts on the path.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Sirius.Cameras.Hikrobot</RootNamespace>
+    <MvsApi>$(MVCAM_COMMON_RUNENV)\DotNet\win64\netstandard2.0\MvCameraControl.Net.dll</MvsApi>
+    <HasMvs Condition="'$(MVCAM_COMMON_RUNENV)' != '' And Exists('$(MvsApi)')">true</HasMvs>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(HasMvs)' != 'true'">
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sirius.Vision\Sirius.Vision.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(HasMvs)' == 'true'">
+    <Reference Include="MvCameraControl.Net">
+      <HintPath>$(MvsApi)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sirius.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

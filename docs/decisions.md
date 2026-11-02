@@ -2088,3 +2088,37 @@ twice a second.
 
 Holding the last failed frame on screen, so a reject is not gone in 33 ms,
 belongs to the operator runtime.
+
+## 56. Hikrobot cameras through MVS
+
+A second driver beside Basler's, `Sirius.Cameras.Hikrobot`, built against the
+.NET API MVS installs (`MVCAM_COMMON_RUNENV`) and empty where MVS is missing,
+as the Basler one is with pylon. It uses the SDK's object API
+(`MvCameraControl`), which Hikrobot recommends for new code, not the older one
+that mirrors the C calls.
+
+It differs from the Basler driver where the cameras do:
+
+- **Hardware trigger is Line 0**, the opto-isolated input on Hikrobot cameras;
+  Basler's is Line 1. The trigger selector is `FrameBurstStart`.
+- **Eight frame buffers.** MVS's default is one, which drops frames.
+- **No grab strategy on virtual cameras.** MVS's virtual cameras refuse
+  `StartGrabbing` with a strategy (`MV_E_DEV_SUPPORT`) and grab one by one, so
+  the driver falls back to the plain call and, free running, clears the queue
+  before each grab so a frame is never a stale one.
+- **A software trigger may be dropped.** One sent before the camera is ready -
+  as grabbing starts, or while the last frame is still going - is ignored
+  without a word, and MVS has no way to ask whether it is ready, as pylon has.
+  Seen on the virtual cameras: the second of two quick grabs never came. A
+  software trigger not answered within two frame times and the exposure is
+  sent again; any extra frame is cleared before the next grab. A hardware
+  trigger is never repeated.
+
+Packed Mono10 and 12 become 8-bit through MVS's converter; Mono10, 12 and 16
+sent as whole 16-bit pixels are copied as they are. Errors carry the SDK's own
+name for the code, `MV_E_NODATA (0x80000007)`, which is what its
+documentation is searched by.
+
+Tested against two virtual cameras made with MVS's Virtual Device Tool, an
+MV-CS023-10GM (mono) and an MV-CS050-10GC (colour). A real camera - GigE
+timing, Line 0, colour - is still to do.
