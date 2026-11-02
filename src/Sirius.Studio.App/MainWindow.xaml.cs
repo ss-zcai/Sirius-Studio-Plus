@@ -51,6 +51,18 @@ public partial class MainWindow : Window
     /// <summary>Dockable panels created for panel-producing nodes, by ContentId.</summary>
     private readonly Dictionary<string, LayoutAnchorable> _panelAnchorables = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Profile charts the operator closed, whose line is on its way out of
+    /// the viewer - not to be floated again in the meantime.
+    /// </summary>
+    private readonly HashSet<string> _closedCharts = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Panels floated in this dispatcher turn, whose window AvalonDock has not
+    /// shown yet. See <see cref="CloseAnchorable"/>.
+    /// </summary>
+    private readonly HashSet<LayoutAnchorable> _floatingPending = [];
+
     /// <summary>Panels whose title is already being followed.</summary>
     private readonly HashSet<PanelViewModel> _titleBound = new();
 
@@ -419,13 +431,33 @@ public partial class MainWindow : Window
                 // opened it, so leaving the view-model behind made every
                 // closed preview reappear the next time anything opened a
                 // window.
-                if (_nodePanels.FirstOrDefault(panel => panel.ContentId == contentId)
-                    is PreviewPanelViewModel closed)
+                var owner = _nodePanels.FirstOrDefault(panel => panel.ContentId == contentId);
+
+                if (owner is PreviewPanelViewModel closed)
                 {
                     _nodePanels.Remove(closed);
                     closed.Dispose();
                     _panelContent.Remove(contentId);
                     _panelTitles.Remove(contentId);
+                }
+
+                // A profile chart likewise: it was being floated again, so a
+                // closed chart came back whenever any panel changed. And when
+                // that was Clear All taking the lines away one by one, the
+                // chart was floated and then closed before AvalonDock had
+                // shown its window, which threw from inside AvalonDock.
+                // Closing the chart removes its line, which is the only way
+                // the viewer offers to have a chart and so the only way to
+                // get it back - draw the line again.
+                else if (owner is ProfileLinePanelViewModel chart)
+                {
+                    _closedCharts.Add(contentId);
+                    _panelContent.Remove(contentId);
+                    _panelTitles.Remove(contentId);
+
+                    // Not from inside this pass: removing the line changes
+                    // the panel list, which runs this method again.
+                    Dispatcher.BeginInvoke(() => RemoveProfileLine(chart), DispatcherPriority.Background);
                 }
 
                 continue;
@@ -434,26 +466,18 @@ public partial class MainWindow : Window
             if (live.ContainsKey(contentId))
                 continue;
 
-            // Closing can fail if AvalonDock already detached it; the panel is
-            // gone either way, and failing here must not stop the pass that
-            // creates the new panels below.
-            try
-            {
-                anchorable.Close();
-            }
-            catch (Exception)
-            {
-                // Nothing useful to do - it is being forgotten regardless.
-            }
+            CloseAnchorable(anchorable);
 
             _panelAnchorables.Remove(contentId);
             _panelContent.Remove(contentId);
             _panelTitles.Remove(contentId);
         }
 
+        _closedCharts.IntersectWith(live.Keys);
+
         foreach (var panel in _nodePanels)
         {
-            if (_panelAnchorables.ContainsKey(panel.ContentId))
+            if (_panelAnchorables.ContainsKey(panel.ContentId) || _closedCharts.Contains(panel.ContentId))
                 continue;
 
             var anchorable = new LayoutAnchorable
@@ -512,6 +536,59 @@ public partial class MainWindow : Window
 
         anchorable.AddToLayout(Docking, AnchorableShowStrategy.Most);
         anchorable.Float();
+
+        // AvalonDock shows the window on a later pass, at Send priority, so by
+        // Loaded it is up and the panel may be closed like any other.
+        _floatingPending.Add(anchorable);
+        Dispatcher.BeginInvoke(() => _floatingPending.Remove(anchorable), DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// Closes a panel's tab or window - after AvalonDock has shown it, if it
+    /// was only just floated.
+    /// </summary>
+    /// <remarks>
+    /// AvalonDock builds a floating window at once and shows it on a later
+    /// dispatcher pass. Closed in between, the window's layout is gone by the
+    /// time it is shown, and AvalonDock throws a NullReferenceException from
+    /// <c>LayoutAnchorableFloatingWindowControl.OnInitialized</c> - which
+    /// reached a tester as an "Unexpected error" on clearing profile lines.
+    /// </remarks>
+    private void CloseAnchorable(LayoutAnchorable anchorable)
+    {
+        if (_floatingPending.Contains(anchorable))
+        {
+            Dispatcher.BeginInvoke(() => CloseAnchorable(anchorable), DispatcherPriority.Background);
+            return;
+        }
+
+        // Closing can fail if AvalonDock already detached it; the panel is
+        // gone either way, and failing here must not stop the pass that
+        // creates the new panels.
+        try
+        {
+            anchorable.Close();
+        }
+        catch (Exception)
+        {
+            // Nothing useful to do - it is being forgotten regardless.
+        }
+    }
+
+    /// <summary>
+    /// Takes a closed chart's line off the viewer it was drawn on, which
+    /// takes the chart out of the panel list in turn.
+    /// </summary>
+    private void RemoveProfileLine(ProfileLinePanelViewModel chart)
+    {
+        if (_nodePanels is null)
+            return;
+
+        foreach (var image in _nodePanels.OfType<ImagePanelViewModel>().ToArray())
+        {
+            if (image.ProfileLines.Remove(chart))
+                return;
+        }
     }
 
     /// <summary>

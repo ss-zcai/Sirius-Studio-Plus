@@ -240,6 +240,63 @@ public class ViewerProfileWiringTests
     }
 
     /// <summary>
+    /// Closing a chart's window takes its line off the image. It was being
+    /// floated again instead, and during Clear All that meant floated and
+    /// closed before AvalonDock had shown it - which threw from AvalonDock.
+    /// </summary>
+    [Fact]
+    public void Closing_a_chart_removes_its_line()
+    {
+        OnStaThread(() =>
+        {
+            using var harness = new Harness();
+
+            harness.Pick("LineProfile");
+            harness.Settle();
+            harness.Draw(new Point(2, 10), new Point(60, 10));
+            harness.Draw(new Point(2, 20), new Point(60, 20));
+            harness.Settle();
+            Assert.Equal(2, harness.Panel.ProfileLines.Count);
+
+            // What the shell does when the chart's window is closed.
+            harness.Panel.ProfileLines.RemoveAt(0);
+            harness.Settle();
+
+            Assert.Single(harness.Measurements);
+            Assert.Single(harness.Panel.ProfileLines);
+            Assert.Single(harness.Viewer.Measurements!);
+        });
+    }
+
+    /// <summary>Clear All with several lines: every chart goes, once.</summary>
+    [Fact]
+    public void Clear_all_closes_every_chart()
+    {
+        OnStaThread(() =>
+        {
+            using var harness = new Harness();
+            var removed = 0;
+            harness.Panel.ProfileLines.CollectionChanged += (_, e) => removed += e.OldItems?.Count ?? 0;
+
+            harness.Pick("LineProfile");
+            harness.Settle();
+
+            for (var y = 5; y <= 25; y += 10)
+                harness.Draw(new Point(2, y), new Point(60, y));
+
+            harness.Settle();
+            Assert.Equal(3, harness.Panel.ProfileLines.Count);
+
+            harness.Viewer.ClearMeasurements();
+            harness.Settle();
+
+            Assert.Empty(harness.Panel.ProfileLines);
+            Assert.Empty(harness.Measurements);
+            Assert.Equal(3, removed);
+        });
+    }
+
+    /// <summary>
     /// Deleting the line closes its window, and putting the tool away releases
     /// the frame - it is four bytes a pixel for as long as it is held.
     /// </summary>

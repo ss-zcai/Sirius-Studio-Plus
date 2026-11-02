@@ -380,7 +380,7 @@ public partial class ImageViewer : UserControl
         nameof(ProfileLines),
         typeof(ObservableCollection<ProfileLinePanelViewModel>),
         typeof(ImageViewer),
-        new FrameworkPropertyMetadata(null));
+        new FrameworkPropertyMetadata(null, OnProfileLinesChanged));
 
     public BitmapSource? ImageSource
     {
@@ -499,6 +499,48 @@ public partial class ImageViewer : UserControl
     {
         get => (ObservableCollection<ProfileLinePanelViewModel>?)GetValue(ProfileLinesProperty);
         set => SetValue(ProfileLinesProperty, value);
+    }
+
+    private static void OnProfileLinesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var viewer = (ImageViewer)d;
+
+        if (e.OldValue is ObservableCollection<ProfileLinePanelViewModel> old)
+            old.CollectionChanged -= viewer.OnProfilePanelsChanged;
+
+        if (e.NewValue is ObservableCollection<ProfileLinePanelViewModel> now)
+            now.CollectionChanged += viewer.OnProfilePanelsChanged;
+    }
+
+    /// <summary>
+    /// A chart taken away from outside - its window closed - takes its line
+    /// with it: a line with no chart shows nothing, and drawing it again is
+    /// how a chart is had back.
+    /// </summary>
+    /// <remarks>
+    /// The viewer's own removals take the line out of
+    /// <see cref="_profilePanels"/> first, so they do not come round here.
+    /// </remarks>
+    private void OnProfilePanelsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        var gone = (e.OldItems?.OfType<ProfileLinePanelViewModel>() ?? [])
+            .Select(panel => _profilePanels.FirstOrDefault(pair => ReferenceEquals(pair.Value, panel)).Key)
+            .OfType<Measurement>()
+            .ToArray();
+
+        if (gone.Length == 0)
+            return;
+
+        foreach (var measurement in gone)
+        {
+            _profilePanels[measurement].ResampleRequested -= OnResampleRequested;
+            _profilePanels.Remove(measurement);
+            _measurements.Remove(measurement);
+        }
+
+        // Redraws, and brings profiling and the reading up to date.
+        Select(_selected is { } selected && _measurements.Contains(selected) ? selected : null);
+        Publish();
     }
 
     private static void OnImageSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
