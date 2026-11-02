@@ -22,19 +22,13 @@
 
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" />
-            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                <TextBlock Text="{Binding Category}"
-                           Foreground="{StaticResource Text.Secondary}"
-                           FontSize="11" />
-                <TextBlock Text="  ·  "
-                           Foreground="{StaticResource Text.Secondary}"
-                           FontSize="11" />
-                <TextBlock Text="{Binding TypeKey}"
-                           Foreground="{StaticResource Text.Secondary}"
-                           FontFamily="Consolas"
-                           FontSize="11"
-                           ToolTip="What a saved recipe records for this tool" />
-            </StackPanel>
+            <!--
+                Runs in one TextBlock rather than TextBlocks side by side:
+                runs on a line share a baseline, where separate blocks are
+                aligned by their tops - and Consolas, shorter in the ascent
+                than the interface font, then sits a pixel or two high.
+            -->
+            <TextBlock Margin="0,2,0,0" FontSize="11" Foreground="{StaticResource Text.Secondary}"><Run Text="{Binding Category, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding TypeKey, Mode=OneWay}" FontFamily="Consolas" ToolTip="What a saved recipe records for this tool" /></TextBlock>
 
             <TextBlock Text="{Binding Summary}"
                        TextWrapping="Wrap"
@@ -52,20 +46,34 @@
                             <DataTemplate>
                                 <Grid Margin="0,0,0,3">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="130" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding Type}"
-                                               Foreground="{StaticResource Text.Secondary}"
-                                               FontFamily="Consolas" />
-                                    <TextBlock Grid.Column="2"
-                                               Text="{Binding Note}"
+
+                                    <!-- The socket as the canvas draws it: its colour, square for an image. -->
+                                    <Border Grid.Column="0"
+                                            Width="9"
+                                            Height="9"
+                                            Margin="0,0,7,0"
+                                            VerticalAlignment="Center"
+                                            CornerRadius="{Binding DataTypeName, Converter={StaticResource PortTypeToCornerRadius}}"
+                                            Background="{Binding DataTypeName, Converter={StaticResource PortTypeToBrush}}" />
+
+                                    <!--
+                                        Columns are separate blocks, which align by
+                                        their tops. Each carries a space in the other
+                                        font, so every cell's line is as tall above
+                                        the baseline as the others and the baselines
+                                        meet.
+                                    -->
+                                    <TextBlock Grid.Column="1" FontWeight="SemiBold"><Run Text="{Binding Name, Mode=OneWay}" /><Run Text=" " FontFamily="Consolas" /></TextBlock>
+                                    <TextBlock Grid.Column="2" Foreground="{Binding DataTypeName, Converter={StaticResource PortTypeToBrush}}"><Run Text="{Binding Type, Mode=OneWay}" FontFamily="Consolas" /><Run Text=" " /></TextBlock>
+                                    <TextBlock Grid.Column="3"
                                                Margin="8,0,0,0"
                                                FontStyle="Italic"
-                                               Foreground="{StaticResource Text.Secondary}" />
+                                               Foreground="{StaticResource Text.Secondary}"><Run Text="{Binding Note, Mode=OneWay}" /><Run Text=" " FontFamily="Consolas" /></TextBlock>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -80,14 +88,21 @@
                             <DataTemplate>
                                 <Grid Margin="0,0,0,3">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="130" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding Type}"
-                                               Foreground="{StaticResource Text.Secondary}"
-                                               FontFamily="Consolas" />
+                                    <Border Grid.Column="0"
+                                            Width="9"
+                                            Height="9"
+                                            Margin="0,0,7,0"
+                                            VerticalAlignment="Center"
+                                            CornerRadius="{Binding DataTypeName, Converter={StaticResource PortTypeToCornerRadius}}"
+                                            Background="{Binding DataTypeName, Converter={StaticResource PortTypeToBrush}}" />
+
+                                    <!-- A space in the other font in each, as for the inputs. -->
+                                    <TextBlock Grid.Column="1" FontWeight="SemiBold"><Run Text="{Binding Name, Mode=OneWay}" /><Run Text=" " FontFamily="Consolas" /></TextBlock>
+                                    <TextBlock Grid.Column="2" Foreground="{Binding DataTypeName, Converter={StaticResource PortTypeToBrush}}"><Run Text="{Binding Type, Mode=OneWay}" FontFamily="Consolas" /><Run Text=" " /></TextBlock>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -101,17 +116,8 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Margin="0,0,0,10">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Type}"
-                                                   Margin="8,0,0,0"
-                                                   FontFamily="Consolas"
-                                                   Foreground="{StaticResource Text.Secondary}" />
-                                        <TextBlock Text="{Binding Range}"
-                                                   Margin="8,0,0,0"
-                                                   Foreground="{StaticResource Text.Secondary}"
-                                                   Visibility="{Binding HasRange, Converter={StaticResource BoolToVisibility}}" />
-                                    </StackPanel>
+                                    <!-- One line of runs, so all three share a baseline. -->
+                                    <TextBlock TextWrapping="Wrap"><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding Type, Mode=OneWay}" FontFamily="Consolas" Foreground="{Binding DataTypeName, Converter={StaticResource PortTypeToBrush}}" /><Run Text="   " /><Run Text="{Binding Range, Mode=OneWay}" Foreground="{StaticResource Text.Secondary}" /></TextBlock>
                                     <TextBlock Text="{Binding Description}"
                                                TextWrapping="Wrap"
                                                Margin="0,2,0,0"

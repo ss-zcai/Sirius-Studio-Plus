@@ -67,13 +67,15 @@ public sealed class NodeHelpViewModel : ObservableObject
     private static PortHelp Describe(Port port) => new(
         port.DisplayName,
         TypeNames.Friendly(port.DataType),
-        port is InputPort { IsRequired: false } ? "optional" : string.Empty);
+        port is InputPort { IsRequired: false } ? "optional" : string.Empty,
+        port.DataType.Name);
 
     private static ParameterHelp Describe(ParamDescriptor parameter) => new(
         parameter.DisplayName,
         TypeNames.Friendly(parameter.ValueType),
         RangeOf(parameter),
-        parameter.Description ?? string.Empty);
+        parameter.Description ?? string.Empty,
+        parameter.ValueType.Name);
 
     /// <summary>
     /// The bounds, where there are fixed ones. A bound read from another
@@ -115,12 +117,12 @@ public sealed class NodeHelpViewModel : ObservableObject
 }
 
 /// <summary>One port, as the help window shows it.</summary>
-public sealed record PortHelp(string Name, string Type, string Note);
+/// <param name="DataTypeName">The type's own name, which picks its colour - the socket's colour on the canvas.</param>
+public sealed record PortHelp(string Name, string Type, string Note, string DataTypeName);
 
 /// <summary>One parameter, as the help window shows it.</summary>
-public sealed record ParameterHelp(string Name, string Type, string Range, string Description)
+/// <param name="DataTypeName">The type's own name, which picks its colour, as for a port.</param>
+public sealed record ParameterHelp(string Name, string Type, string Range, string Description, string DataTypeName)
 {
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
-
-    public bool HasRange => !string.IsNullOrWhiteSpace(Range);
 }
