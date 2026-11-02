@@ -1,4 +1,6 @@
 using System.IO;
+using Emgu.CV;
+using Emgu.CV.CvEnum;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -8,9 +10,9 @@ namespace Sirius.Studio.App.Imaging;
 /// Writes a picture from a viewer to a file, in the format its name asks for.
 /// </summary>
 /// <remarks>
-/// PNG unless the name says otherwise: lossless, so a saved frame can be run
-/// through a recipe again and give the same answer, which a JPEG's
-/// compression would not promise.
+/// PNG unless the name says otherwise: lossless, and 16 bits deep where the
+/// picture is, so a saved frame can be run through a recipe again and give
+/// the same answer, which a JPEG's compression would not promise.
 /// </remarks>
 public static class ImageFileWriter
 {
@@ -38,6 +40,54 @@ public static class ImageFileWriter
         {
             using (var stream = File.Create(temporary))
                 encoder.Save(stream);
+
+            File.Move(temporary, path, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporary))
+                File.Delete(temporary);
+        }
+    }
+
+    /// <summary>
+    /// Whether a file at <paramref name="path"/> keeps pixels of
+    /// <paramref name="depth"/> as they are: PNG and TIFF take 16 bits, TIFF
+    /// alone takes float, and JPEG and BMP take 8 bits only.
+    /// </summary>
+    public static bool CanHold(DepthType depth, string path)
+    {
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        var tiff = extension is ".tif" or ".tiff";
+        var png = extension is ".png";
+
+        return depth switch
+        {
+            DepthType.Cv8U => true,
+            DepthType.Cv16U => png || tiff,
+            DepthType.Cv32F => tiff,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Saves an image's own pixels - 16-bit, float - through OpenCV, which
+    /// writes them as they are where WPF cannot: its TIFF encoder turns
+    /// float into 16-bit without a word.
+    /// </summary>
+    public static void Save(Mat pixels, string path)
+    {
+        ArgumentNullException.ThrowIfNull(pixels);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        // OpenCV picks the format by the extension, so the temporary file
+        // keeps it.
+        var temporary = Path.ChangeExtension(path, ".saving" + Path.GetExtension(path));
+
+        try
+        {
+            if (!CvInvoke.Imwrite(temporary, pixels))
+                throw new IOException($"OpenCV could not write {Path.GetFileName(path)}.");
 
             File.Move(temporary, path, overwrite: true);
         }

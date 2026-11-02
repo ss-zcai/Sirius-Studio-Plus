@@ -1043,6 +1043,23 @@ public partial class ImageViewer : UserControl
         set => SetValue(SaveNameProperty, value);
     }
 
+    public static readonly DependencyProperty OriginalPictureProperty = DependencyProperty.Register(
+        nameof(OriginalPicture),
+        typeof(Imaging.IOriginalPicture),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(null));
+
+    /// <summary>
+    /// The picture on show with its own values, for a plain save of a frame
+    /// deeper than the 8 bits it is displayed in - a 12-bit camera's, a
+    /// float result. The panel keeps it; the viewer has only the display.
+    /// </summary>
+    public Imaging.IOriginalPicture? OriginalPicture
+    {
+        get => (Imaging.IOriginalPicture?)GetValue(OriginalPictureProperty);
+        set => SetValue(OriginalPictureProperty, value);
+    }
+
     /// <summary>Where the last picture was saved, offered again for the next - from any viewer.</summary>
     private static string? _saveFolder;
 
@@ -1068,13 +1085,22 @@ public partial class ImageViewer : UserControl
             return;
         }
 
+        // With overlays it is a coloured drawing, 8 bits a channel whatever
+        // was under it; alone, it is the image's own values.
+        var depth = withOverlays ? null : OriginalPicture?.OriginalDepth;
+
+        // A float image keeps its values only in a TIFF, so that is offered.
+        var isFloat = depth == Emgu.CV.CvEnum.DepthType.Cv32F;
+        var name = Imaging.ImageFileWriter.SuggestedName(SaveName, DateTime.Now);
+
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Title = withOverlays ? "Save Image with Overlays" : "Save Image",
             Filter = Imaging.ImageFileWriter.Filter,
-            DefaultExt = ".png",
+            FilterIndex = isFloat ? 4 : 1,
+            DefaultExt = isFloat ? ".tif" : ".png",
             AddExtension = true,
-            FileName = Imaging.ImageFileWriter.SuggestedName(SaveName, DateTime.Now),
+            FileName = isFloat ? System.IO.Path.ChangeExtension(name, ".tif") : name,
             InitialDirectory = _saveFolder ?? Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
         };
 
@@ -1083,11 +1109,25 @@ public partial class ImageViewer : UserControl
 
         try
         {
-            var picture = withOverlays ? RenderWithOverlays() : ImageSource;
-            Imaging.ImageFileWriter.Save(picture, dialog.FileName);
+            var path = dialog.FileName;
+            var keeps = depth is { } deep && Imaging.ImageFileWriter.CanHold(deep, path);
 
-            _saveFolder = System.IO.Path.GetDirectoryName(dialog.FileName);
-            HintText.Text = $"Saved {System.IO.Path.GetFileName(dialog.FileName)}";
+            if (withOverlays)
+                Imaging.ImageFileWriter.Save(RenderWithOverlays(), path);
+            else if (keeps)
+                OriginalPicture!.SaveOriginal(path);
+            else
+                Imaging.ImageFileWriter.Save(ImageSource, path);
+
+            _saveFolder = System.IO.Path.GetDirectoryName(path);
+
+            var file = System.IO.Path.GetFileName(path);
+
+            HintText.Text = depth is null ? $"Saved {file}"
+                : keeps ? $"Saved {file}, {(isFloat ? "32-bit float" : "16-bit")} as the image is"
+                : isFloat ? $"Saved {file} as shown, 8-bit: only a TIFF keeps a float image's values"
+                : depth == Emgu.CV.CvEnum.DepthType.Cv16U ? $"Saved {file} as shown, 8-bit: a PNG or TIFF keeps all 16 bits"
+                : $"Saved {file} as shown, 8-bit";
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or NotSupportedException
                                        or InvalidOperationException or ArgumentException)

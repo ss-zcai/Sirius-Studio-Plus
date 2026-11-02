@@ -27,7 +27,7 @@ namespace Sirius.Studio.App.ViewModels;
 /// node to edit its parameters silently changed what you were looking at.
 /// </para>
 /// </remarks>
-public abstract class ImagePanelViewModel : NodePanelViewModel
+public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
 {
     private BitmapSource? _image;
     private string? _sizeText;
@@ -41,6 +41,24 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
     private OutputPort? _shownSource;
     private LineProfileSource? _profileSource;
     private LineProfileSource? _pendingProfileSource;
+
+    /// <summary>
+    /// The last frame's own pixels, when it is deeper than 8 bits - for
+    /// saving it as it is. See <see cref="ReadOriginal"/>.
+    /// </summary>
+    /// <remarks>
+    /// Two buffers, filled and swapped rather than allocated: a 12-bit camera
+    /// running live would otherwise put a new frame-sized array on the heap
+    /// for every refresh, to be saved perhaps once. An 8-bit frame needs
+    /// neither - its display bitmap is already its own values.
+    /// </remarks>
+    private Emgu.CV.Mat? _deep;
+
+    private Emgu.CV.Mat? _pendingDeep;
+
+    private bool _pendingIsDeep;
+
+    private readonly object _deepLock = new();
     private bool _isProfilingEnabled;
     private IReadOnlyList<MeasurementRecord> _measurements = [];
     private bool _writingMeasurements;
@@ -282,6 +300,19 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
 
         var (image, shapes) = Read(scheduler);
 
+        // Copied here, while the graph's buffer is alive, as the profile
+        // source is below.
+        lock (_deepLock)
+        {
+            _pendingIsDeep = image is not null && image.Mat.Depth != Emgu.CV.CvEnum.DepthType.Cv8U;
+
+            if (_pendingIsDeep)
+            {
+                _pendingDeep ??= new Emgu.CV.Mat();
+                image!.Mat.CopyTo(_pendingDeep);
+            }
+        }
+
         // The conversion is the costly part, and the result is frozen, so it
         // can be built here and handed to the UI thread as-is.
         _pendingImage = MatImageConverter.ToBitmapSource(image);
@@ -306,6 +337,22 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
 
     public override void Commit()
     {
+        lock (_deepLock)
+        {
+            // The spare buffer is kept for the next deep frame.
+            if (_pendingIsDeep)
+                (_deep, _pendingDeep) = (_pendingDeep, _deep);
+            else if (_deep is not null)
+            {
+                if (_pendingDeep is null)
+                    _pendingDeep = _deep;
+                else
+                    _deep.Dispose();
+
+                _deep = null;
+            }
+        }
+
         Image = _pendingImage;
         SizeText = _pendingSize;
         _spans = _pendingSpans;
@@ -401,8 +448,40 @@ public abstract class ImagePanelViewModel : NodePanelViewModel
         }
     }
 
+    /// <summary>
+    /// How deep the picture on show is, when deeper than the 8 bits it is
+    /// displayed in; null when the display bitmap already is its own values.
+    /// </summary>
+    public Emgu.CV.CvEnum.DepthType? OriginalDepth
+    {
+        get
+        {
+            lock (_deepLock)
+                return _deep?.Depth;
+        }
+    }
+
+    /// <summary>Saves the picture on show with its own values - 16-bit, float.</summary>
+    public void SaveOriginal(string path)
+    {
+        lock (_deepLock)
+        {
+            if (_deep is null)
+                throw new InvalidOperationException("The picture on show is 8-bit; save the displayed one.");
+
+            ImageFileWriter.Save(_deep, path);
+        }
+    }
+
     public override void Dispose()
     {
+        lock (_deepLock)
+        {
+            _deep?.Dispose();
+            _pendingDeep?.Dispose();
+            (_deep, _pendingDeep) = (null, null);
+        }
+
         // Parameters outlive the panels that show them.
         RegionParameter = null;
         RingParameter = null;

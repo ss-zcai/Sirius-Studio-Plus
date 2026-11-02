@@ -2173,5 +2173,13 @@ image a thousand pixels across - two or three pixels on a 5 MP frame. The
 selected shape stays picked out; the band or region being edited is left
 out, being a handle rather than a result.
 
-The picture saved is the one shown, which is 8-bit: a 16-bit or float image
-is saved as the viewer scales it for the screen, not with its own values.
+Save Image keeps an image's own values. The viewer shows a deeper image
+squeezed into 8 bits - a 12-bit camera's frame divided by 257, a float result
+stretched across its range - and a frame saved mid-process is usually saved to
+be run through a recipe again, which the squeezed one would not answer the
+same. So each panel keeps the last frame's own pixels when it is deeper than 8
+bits, in two buffers it fills and swaps rather than a new array a refresh, and
+a plain save writes them through OpenCV: 16-bit in a PNG or TIFF, float in a
+TIFF (WPF's TIFF encoder turns float into 16-bit, which is why not WPF). The
+dialog offers TIFF for a float image. Saved as JPEG or BMP, or with overlays,
+it is the 8-bit picture shown, and the status line says so.

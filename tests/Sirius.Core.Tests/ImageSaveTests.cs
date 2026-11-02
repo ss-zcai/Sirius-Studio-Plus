@@ -1,5 +1,12 @@
 using System.IO;
 using System.Reflection;
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
+using Sirius.Core.Graph;
+using Sirius.Studio.App.ViewModels;
+using Sirius.Vision;
+using Sirius.Vision.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -94,6 +101,131 @@ public class ImageSaveTests : IDisposable
         Assert.Equal(
             "a-b-c 2026-11-02 153012.png",
             ImageFileWriter.SuggestedName("a/b:c", new DateTime(2026, 11, 2, 15, 30, 12)));
+
+    // ---- deeper than 8 bits -------------------------------------------------------
+
+    /// <summary>
+    /// A 16-bit frame is saved 16-bit. The viewer shows it divided by 257,
+    /// and saved like that a 12-bit camera's frame lost its low bits and
+    /// could not be run through a recipe again with the same answer.
+    /// </summary>
+    [Theory]
+    [InlineData("deep.png")]
+    [InlineData("deep.tif")]
+    public void A_16_bit_frame_is_saved_with_its_own_values(string name)
+    {
+        using var mat = Ramp16(64, 32);
+        var path = Path.Combine(_folder, name);
+
+        Assert.True(ImageFileWriter.CanHold(DepthType.Cv16U, path));
+
+        ImageFileWriter.Save(mat, path);
+
+        using var read = CvInvoke.Imread(path, ImreadModes.AnyDepth | ImreadModes.AnyColor);
+        Assert.Equal(DepthType.Cv16U, read.Depth);
+        Assert.Equal(Values16(mat), Values16(read));
+    }
+
+    /// <summary>
+    /// Readable by other programs too, which see the red where it is -
+    /// OpenCV's frames are BGR, a PNG's are RGB.
+    /// </summary>
+    [Fact]
+    public void A_16_bit_colour_frame_comes_out_in_the_right_order() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            using var mat = new Mat(4, 4, DepthType.Cv16U, 3);
+            mat.SetTo(new MCvScalar(1000, 2000, 3000)); // blue, green, red
+            var path = Path.Combine(_folder, "colour.png");
+
+            ImageFileWriter.Save(mat, path);
+
+            var read = Read(path);
+            Assert.Equal(PixelFormats.Rgb48, read.Format);
+
+            var first = new ushort[3];
+            read.CopyPixels(new Int32Rect(0, 0, 1, 1), first, 6, 0);
+            Assert.Equal(new ushort[] { 3000, 2000, 1000 }, first);
+        });
+
+    /// <summary>A float result keeps its values in a TIFF - and only there.</summary>
+    [Fact]
+    public void A_float_image_keeps_its_values_in_a_tiff()
+    {
+        using var mat = new Mat(8, 8, DepthType.Cv32F, 1);
+        mat.SetTo(new MCvScalar(-12.5));
+        var path = Path.Combine(_folder, "float.tif");
+
+        Assert.True(ImageFileWriter.CanHold(DepthType.Cv32F, path));
+        Assert.False(ImageFileWriter.CanHold(DepthType.Cv32F, Path.Combine(_folder, "float.png")));
+
+        ImageFileWriter.Save(mat, path);
+
+        using var read = CvInvoke.Imread(path, ImreadModes.AnyDepth | ImreadModes.AnyColor);
+        Assert.Equal(DepthType.Cv32F, read.Depth);
+
+        var values = new float[64];
+        read.CopyTo(values);
+        Assert.All(values, value => Assert.Equal(-12.5f, value));
+    }
+
+    [Theory]
+    [InlineData("a.png", true)]
+    [InlineData("a.tif", true)]
+    [InlineData("a.jpg", false)]
+    [InlineData("a.bmp", false)]
+    public void Only_png_and_tiff_hold_16_bits(string name, bool holds) =>
+        Assert.Equal(holds, ImageFileWriter.CanHold(DepthType.Cv16U, name));
+
+    /// <summary>
+    /// The panel keeps the last deep frame to save, and lets it go when an
+    /// 8-bit one replaces it - whose display bitmap is its own values.
+    /// </summary>
+    [Fact]
+    public void A_viewer_saves_the_deep_frame_it_is_showing() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var source = new FrameNode { Frame = () => Ramp16(64, 32) };
+            var viewer = new ViewerNode();
+            var graph = new VisionGraph();
+            graph.Add(source);
+            graph.Add(viewer);
+            graph.TryConnect(source.Out, viewer.ImageIn);
+
+            var previous = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+            using var scheduler = new GraphScheduler(graph);
+            SynchronizationContext.SetSynchronizationContext(previous);
+
+            using var panel = new ViewerPanelViewModel(viewer, new ShapeSelectionService());
+
+            void Pass()
+            {
+                source.Invalidate();
+                scheduler.RunAsync().GetAwaiter().GetResult();
+                panel.Prepare(scheduler);
+                panel.Commit();
+            }
+
+            Pass();
+            Assert.Equal(DepthType.Cv16U, panel.OriginalDepth);
+
+            var path = Path.Combine(_folder, "from-viewer.png");
+            panel.SaveOriginal(path);
+
+            using (var expected = Ramp16(64, 32))
+            using (var read = CvInvoke.Imread(path, ImreadModes.AnyDepth | ImreadModes.AnyColor))
+                Assert.Equal(Values16(expected), Values16(read));
+
+            source.Frame = () => new Mat(32, 16, DepthType.Cv8U, 1);
+            Pass();
+            Assert.Null(panel.OriginalDepth);
+
+            // And back again, into the buffer kept from the first.
+            source.Frame = () => Ramp16(64, 32);
+            Pass();
+            Assert.Equal(DepthType.Cv16U, panel.OriginalDepth);
+        });
 
     // ---- with overlays ----------------------------------------------------------
 
@@ -200,10 +332,41 @@ public class ImageSaveTests : IDisposable
         return BitmapSource.Create(width, height, 96, 96, PixelFormats.Gray8, null, pixels, width);
     }
 
+    /// <summary>A 16-bit ramp using the whole range, low bits and all.</summary>
+    private static Mat Ramp16(int width, int height)
+    {
+        var mat = new Mat(height, width, DepthType.Cv16U, 1);
+        var values = new ushort[width * height];
+
+        for (var i = 0; i < values.Length; i++)
+            values[i] = (ushort)(i * 31 + 7);
+
+        mat.SetTo(values);
+        return mat;
+    }
+
+    private static ushort[] Values16(Mat mat)
+    {
+        var values = new ushort[mat.Width * mat.Height];
+        mat.CopyTo(values);
+        return values;
+    }
+
+    private sealed class FrameNode : VisionNode
+    {
+        public FrameNode() => Out = AddOutput<ImageData>("Out");
+
+        public OutputPort Out { get; }
+
+        public Func<Mat> Frame { get; set; } = () => new Mat();
+
+        protected override void OnEvaluate(EvalContext context) => context.Set(Out, ImageData.Adopt(Frame()));
+    }
+
     private static BitmapSource Read(string path)
     {
         using var stream = File.OpenRead(path);
-        return BitmapDecoder.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames[0];
+        return BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
     }
 
     private static byte[] Pixels(BitmapSource picture)
