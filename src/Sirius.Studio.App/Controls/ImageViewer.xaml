@@ -97,6 +97,22 @@
                         </Button.ContextMenu>
                     </Button>
 
+                    <!--
+                        How a 16-bit picture is shown, offered only for one.
+                        A 12-bit camera's frame is a 16-bit image whose values
+                        stop at 4095, and shown across the full 16 bits it is
+                        nearly black.
+                    -->
+                    <ComboBox x:Name="DisplayRangePicker"
+                              Style="{DynamicResource {x:Type ComboBox}}"
+                              Width="86"
+                              Margin="2,0"
+                              VerticalAlignment="Center"
+                              Visibility="Collapsed"
+                              ToolTip="How this 16-bit picture is shown: the bits that carry it - 12 for a 12-bit camera, whose values stop at 4095 - or stretched from its darkest pixel to its brightest. The readout shows the picture's own values either way."
+                              DisplayMemberPath="Name"
+                              SelectionChanged="OnDisplayRangeChanged" />
+
                     <Border Style="{StaticResource ToolbarDivider}" />
 
                     <!-- Tag carries the tool each button selects. -->

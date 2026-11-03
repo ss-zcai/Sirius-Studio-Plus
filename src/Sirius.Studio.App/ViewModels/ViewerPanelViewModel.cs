@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 using System.Drawing;
 using System.Windows.Media.Imaging;
 using Sirius.Core.Graph;
@@ -315,7 +316,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
 
         // The conversion is the costly part, and the result is frozen, so it
         // can be built here and handed to the UI thread as-is.
-        _pendingImage = MatImageConverter.ToBitmapSource(image);
+        _pendingImage = MatImageConverter.ToBitmapSource(image, DisplayBits);
         _pendingSize = image is null ? null : $"{image.Width} x {image.Height} x {image.Channels}";
 
         // Managed geometry, so it can be handed straight over - there is no
@@ -355,6 +356,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
 
         Image = _pendingImage;
         SizeText = _pendingSize;
+        OnPropertyChanged(nameof(IsSixteenBit));
         _spans = _pendingSpans;
         Shapes = _pendingShapes;
 
@@ -458,6 +460,96 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
         {
             lock (_deepLock)
                 return _deep?.Depth;
+        }
+    }
+
+    /// <summary>
+    /// What the last preview was set to, for the next one opened: a
+    /// recipe's 12-bit images are 12-bit wherever they are looked at.
+    /// </summary>
+    private static int _lastDisplayBits = MatImageConverter.FullRange;
+
+    private int _displayBits = _lastDisplayBits;
+
+    /// <summary>
+    /// How a 16-bit picture is shown - the bits that carry it, or
+    /// <see cref="MatImageConverter.Stretch"/>. See
+    /// <see cref="MatImageConverter.ToBitmapSource(Emgu.CV.Mat?, int)"/>.
+    /// </summary>
+    /// <remarks>
+    /// Redrawn at once from the frame on show, without running anything:
+    /// how a picture looks is not something the recipe computes.
+    /// </remarks>
+    public int DisplayBits
+    {
+        get => ReadDisplayBits();
+        set
+        {
+            if (value == ReadDisplayBits())
+                return;
+
+            WriteDisplayBits(value);
+            OnPropertyChanged();
+
+            lock (_deepLock)
+            {
+                if (_deep is { Depth: Emgu.CV.CvEnum.DepthType.Cv16U })
+                    Image = MatImageConverter.ToBitmapSource(_deep, value);
+            }
+        }
+    }
+
+    /// <summary>Where the setting is kept: the panel, or the Viewer node's recipe.</summary>
+    protected virtual int ReadDisplayBits() => _displayBits;
+
+    protected virtual void WriteDisplayBits(int bits) => _displayBits = _lastDisplayBits = bits;
+
+    /// <summary>Whether the picture on show is 16-bit, which is when how it is shown is a choice.</summary>
+    public bool IsSixteenBit => OriginalDepth == Emgu.CV.CvEnum.DepthType.Cv16U;
+
+    /// <summary>
+    /// The picture's own value at a pixel - "I 4095" on a 12-bit frame,
+    /// not the 8-bit level it is shown at - or null for an 8-bit picture.
+    /// </summary>
+    public string? Reading(int x, int y)
+    {
+        lock (_deepLock)
+        {
+            if (_deep is not { } mat || x < 0 || y < 0 || x >= mat.Width || y >= mat.Height)
+                return null;
+
+            var values = new double[mat.NumberOfChannels];
+            var row = mat.DataPointer + (nint)((long)y * mat.Step);
+            var size = mat.ElementSize / values.Length;
+
+            for (var c = 0; c < values.Length; c++)
+            {
+                var at = ((x * values.Length) + c) * size;
+
+                values[c] = mat.Depth switch
+                {
+                    Emgu.CV.CvEnum.DepthType.Cv16U => (ushort)Marshal.ReadInt16(row, at),
+                    Emgu.CV.CvEnum.DepthType.Cv16S => Marshal.ReadInt16(row, at),
+                    Emgu.CV.CvEnum.DepthType.Cv32S => Marshal.ReadInt32(row, at),
+                    Emgu.CV.CvEnum.DepthType.Cv32F => BitConverter.Int32BitsToSingle(Marshal.ReadInt32(row, at)),
+                    Emgu.CV.CvEnum.DepthType.Cv64F => BitConverter.Int64BitsToDouble(Marshal.ReadInt64(row, at)),
+                    Emgu.CV.CvEnum.DepthType.Cv8S => (sbyte)Marshal.ReadByte(row, at),
+                    _ => double.NaN,
+                };
+            }
+
+            string Text(double value) => value.ToString(
+                mat.Depth is Emgu.CV.CvEnum.DepthType.Cv32F or Emgu.CV.CvEnum.DepthType.Cv64F ? "0.###" : "0",
+                System.Globalization.CultureInfo.CurrentCulture);
+
+            // OpenCV's colour is BGR.
+            return values.Length switch
+            {
+                1 => $"I {Text(values[0])}",
+                3 => $"R {Text(values[2])}  G {Text(values[1])}  B {Text(values[0])}",
+                4 => $"R {Text(values[2])}  G {Text(values[1])}  B {Text(values[0])}  A {Text(values[3])}",
+                _ => string.Join(' ', values.Select(Text)),
+            };
         }
     }
 
@@ -805,6 +897,11 @@ public sealed class ViewerPanelViewModel : ImagePanelViewModel
     public ViewerNode Source { get; }
 
     protected override string ContentIdPrefix => "viewer";
+
+    /// <summary>Kept on the node, so it is saved with the recipe.</summary>
+    protected override int ReadDisplayBits() => Source.DisplayBits;
+
+    protected override void WriteDisplayBits(int bits) => Source.DisplayBits = bits;
 
     protected override (ImageData? Image, ShapeSet? Shapes) Read(GraphScheduler scheduler) =>
         (scheduler.GetInput<ImageData>(Source.ImageIn), ReadShapes(scheduler));

@@ -34,7 +34,7 @@ public sealed class ImageFileSourceNode : VisionNode
         set => SetParam(ref _filePath, value);
     }
 
-    [Param("Read Mode", Description = "How the file is decoded (colour, grayscale, unchanged).")]
+    [Param("Read Mode", Description = "How the file is decoded. Any Color and Grayscale give 8 bits: a 12- or 16-bit file is squeezed into them and loses its fine steps. Unchanged keeps its own depth - 0 to 4095 for a 12-bit camera.")]
     public ImreadModes Mode
     {
         get => _mode;

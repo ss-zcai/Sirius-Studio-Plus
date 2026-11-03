@@ -1942,6 +1942,11 @@ Terminal node; its input is shown in its own image panel.
 | In | `Image` | square | yes |
 | Shapes | `Shapes` | circle | optional |
 
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+
 ### Label
 
 `output.label`

@@ -305,24 +305,27 @@ done. What remains, in order:
 
 ## Smaller known gaps
 
-- **10-bit and 12-bit images load, and then look almost black.** Measured,
-  in `HighBitDepthTests`. A camera delivers 10 or 12 bits inside a 16-bit
-  container, so the values stop at 1023 or 4095 rather than 65535, and
-  nothing in the file says which. Two separate problems follow:
+- **10-bit and 12-bit images: shown and read properly - partly done.**
+  A camera delivers 10 or 12 bits inside a 16-bit container, so the values
+  stop at 1023 or 4095, and nothing in the file says which.
 
-  1. **The Image File node defaults to `ImreadModes.AnyColor`**, which is
-     8-bit, so the extra bits are discarded on load unless the read mode is
-     changed to `Unchanged` or `AnyDepth`. The dropdown is there; the
-     default is wrong for anybody who has a high-depth camera.
-  2. **The display assumes a full 16-bit range.** `MatImageConverter`
-     divides by 257, which is right for true 16-bit and takes a 12-bit peak
-     to 16/255 and a 10-bit peak to 4/255 - six and two per cent of full
-     scale. It reads as a lighting fault rather than a software one.
+  Done: every viewer and preview showing a 16-bit picture offers
+  **Display** - 16, 14, 12 or 10 bits, or stretched - kept with a Viewer
+  node's recipe; the readout gives the picture's own value, 0 to 4095,
+  however it is shown; and Save Image keeps the 16 bits.
 
-  The converter cannot guess: scaling by the brightest pixel would make a
-  genuinely dark 16-bit frame jump to full scale. The fix is for
-  `ImageData` to carry the significant bit count, set by the source that
-  knows it, and for the converter and the histogram to scale by that.
+  Still to do:
+
+  1. **Image File and Image Sequence default to `AnyColor`**, which is
+     8-bit: a 12-bit file is divided by 256 on loading, so it arrives nearly
+     black with its fine steps gone, before any viewer sees it. The Read
+     Mode description now says to choose Unchanged. Changing the default
+     waits on point 2.
+  2. **Most tools' settings assume 8 bits** - Threshold's 0-255, Find
+     Blobs', Min Contrast. A 12-bit image through them needs thresholds
+     sixteen times larger. The real fix is for `ImageData` to carry its
+     significant bits, set by the source that knows them (a Mono12 camera
+     does), and for ranges and the histogram to follow.
 
 - **Histogram handles 8-bit only.** Other depths warn and pass through.
 - **One ROI at a time - done differently.** A node with more than one

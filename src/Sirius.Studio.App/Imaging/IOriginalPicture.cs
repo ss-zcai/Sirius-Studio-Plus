@@ -13,4 +13,10 @@ public interface IOriginalPicture
 
     /// <summary>Writes it to <paramref name="path"/>, in the format the name asks for.</summary>
     void SaveOriginal(string path);
+
+    /// <summary>
+    /// Its own value at a pixel, as the viewer's readout shows it - "I 4095"
+    /// on a 12-bit frame - or null when it is 8-bit and shown as it is.
+    /// </summary>
+    string? Reading(int x, int y);
 }

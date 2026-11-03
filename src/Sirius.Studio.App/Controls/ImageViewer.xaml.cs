@@ -210,6 +210,7 @@ public partial class ImageViewer : UserControl
         _templateReady = true;
 
         SyncColourPicker(_colour);
+        SyncDisplayRange();
         UpdateHint();
     }
 
@@ -1058,6 +1059,66 @@ public partial class ImageViewer : UserControl
     {
         get => (Imaging.IOriginalPicture?)GetValue(OriginalPictureProperty);
         set => SetValue(OriginalPictureProperty, value);
+    }
+
+    // ---- how a 16-bit picture is shown ------------------------------------
+
+    /// <summary>The choices: the bits that carry the picture, or stretched.</summary>
+    public sealed record DisplayRange(int Bits, string Name);
+
+    public static IReadOnlyList<DisplayRange> DisplayRanges { get; } =
+    [
+        new(16, "16-bit"),
+        new(14, "14-bit"),
+        new(12, "12-bit"),
+        new(10, "10-bit"),
+        new(Imaging.MatImageConverter.Stretch, "Stretch"),
+    ];
+
+    public static readonly DependencyProperty DisplayBitsProperty = DependencyProperty.Register(
+        nameof(DisplayBits),
+        typeof(int),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(
+            Imaging.MatImageConverter.FullRange,
+            FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+            (d, _) => ((ImageViewer)d).SyncDisplayRange()));
+
+    public static readonly DependencyProperty IsSixteenBitProperty = DependencyProperty.Register(
+        nameof(IsSixteenBit),
+        typeof(bool),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(false, (d, _) => ((ImageViewer)d).SyncDisplayRange()));
+
+    /// <summary>How a 16-bit picture is shown: 16, 14, 12 or 10 bits, or 0 to stretch it.</summary>
+    public int DisplayBits
+    {
+        get => (int)GetValue(DisplayBitsProperty);
+        set => SetValue(DisplayBitsProperty, value);
+    }
+
+    /// <summary>Whether the picture on show is 16-bit, which is when the choice is offered.</summary>
+    public bool IsSixteenBit
+    {
+        get => (bool)GetValue(IsSixteenBitProperty);
+        set => SetValue(IsSixteenBitProperty, value);
+    }
+
+    private void SyncDisplayRange()
+    {
+        if (DisplayRangePicker is null)
+            return;
+
+        DisplayRangePicker.ItemsSource ??= DisplayRanges;
+        DisplayRangePicker.Visibility = IsSixteenBit ? Visibility.Visible : Visibility.Collapsed;
+        DisplayRangePicker.SelectedItem =
+            DisplayRanges.FirstOrDefault(range => range.Bits == DisplayBits) ?? DisplayRanges[0];
+    }
+
+    private void OnDisplayRangeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DisplayRangePicker.SelectedItem is DisplayRange range && range.Bits != DisplayBits)
+            DisplayBits = range.Bits;
     }
 
     /// <summary>Where the last picture was saved, offered again for the next - from any viewer.</summary>
@@ -3389,7 +3450,10 @@ public partial class ImageViewer : UserControl
         }
 
         PositionText.Text = $"X {x}  Y {y}";
-        PixelText.Text = SamplePixel(source, x, y) ?? string.Empty;
+
+        // The picture's own value where it has one deeper than the display:
+        // 4095 on a 12-bit frame, not the 255 it is shown at.
+        PixelText.Text = OriginalPicture?.Reading(x, y) ?? SamplePixel(source, x, y) ?? string.Empty;
     }
 
     /// <summary>Reads one pixel out of the displayed bitmap.</summary>
