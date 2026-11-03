@@ -1174,7 +1174,7 @@ Casts calipers across a rectangle and gives every edge they find, as points and 
 
 `fitting.pointsToPolygon`
 
-Joins points into one outline, in the order they arrive or sorted round their middle, open or closed - or one point per shape, at its centre. Reports its perimeter, its area when closed, and its centre.
+Joins points into one outline, in the order they arrive or sorted round their middle, open or closed - or one point per shape, at its centre. Reports its perimeter and centre, and when closed what Find Blobs measures of a blob: area, circularity, solidity, width, length, aspect.
 
 **Inputs**
 

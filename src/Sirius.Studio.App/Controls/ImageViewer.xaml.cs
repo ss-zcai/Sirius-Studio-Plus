@@ -1064,7 +1064,13 @@ public partial class ImageViewer : UserControl
     // ---- how a 16-bit picture is shown ------------------------------------
 
     /// <summary>The choices: the bits that carry the picture, or stretched.</summary>
-    public sealed record DisplayRange(int Bits, string Name);
+    public sealed record DisplayRange(int Bits, string Name)
+    {
+        // What the dropdown shows. Its closed box showed the record's own
+        // rendering - "DisplayRange { Bits = 16, ... }" - whatever
+        // DisplayMemberPath said.
+        public override string ToString() => Name;
+    }
 
     public static IReadOnlyList<DisplayRange> DisplayRanges { get; } =
     [

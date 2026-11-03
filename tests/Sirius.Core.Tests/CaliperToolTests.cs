@@ -504,6 +504,48 @@ public class CaliperToolTests
     }
 
     /// <summary>
+    /// A closed outline is measured as a blob is: circularity, solidity,
+    /// the minimum-area rectangle - so an outline from calipers can be
+    /// filtered, tabled and judged like one.
+    /// </summary>
+    [Fact]
+    public void A_closed_outline_is_measured_like_a_blob()
+    {
+        var round = Polygon(
+            new PointsToPolygonNode(),
+            Enumerable.Range(0, 72)
+                .Select(i => (Shape)new PointShape(new Point2(
+                    100 + (50 * Math.Cos(i * Math.PI / 36)),
+                    100 + (50 * Math.Sin(i * Math.PI / 36)))))
+                .ToArray());
+
+        Assert.InRange(round.Metric(ShapeMetric.Circularity)!.Value, 0.99, 1.0);
+        Assert.Equal(1, round.Metric(ShapeMetric.Solidity)!.Value, 3);
+        Assert.Equal(1, round.Metric(ShapeMetric.AspectRatio)!.Value, 2);
+
+        // An L: a 20 x 20 square with a 10 x 10 corner taken out.
+        var ell = Polygon(new PointsToPolygonNode(), Points((0, 0), (20, 0), (20, 10), (10, 10), (10, 20), (0, 20)));
+
+        Assert.Equal(300, ell.Metric(ShapeMetric.Area)!.Value, 6);
+        Assert.Equal(300 / 350.0, ell.Metric(ShapeMetric.Solidity)!.Value, 3);
+        Assert.Equal(4 * Math.PI * 300 / (80 * 80), ell.Metric(ShapeMetric.Circularity)!.Value, 6);
+        Assert.Equal(0.75, ell.Metric(ShapeMetric.Extent)!.Value, 6);
+        Assert.Equal(20, ell.Metric(ShapeMetric.Length)!.Value, 3);
+    }
+
+    /// <summary>An open path encloses nothing, so it has no area, circularity or solidity.</summary>
+    [Fact]
+    public void An_open_path_has_nothing_measured_of_an_area()
+    {
+        var path = Polygon(new PointsToPolygonNode { Closed = false }, Points((0, 0), (10, 0), (10, 10)));
+
+        Assert.Null(path.Metric(ShapeMetric.Area));
+        Assert.Null(path.Metric(ShapeMetric.Circularity));
+        Assert.Null(path.Metric(ShapeMetric.Solidity));
+        Assert.Equal(20, path.Metric(ShapeMetric.Perimeter)!.Value, 6);
+    }
+
+    /// <summary>
     /// The centre of a ring of holes: Find Blobs, then one point per blob
     /// joined round the middle, whose centre is the pattern's. Joined from
     /// outlines instead, the eight blobs made one tangle of every edge pixel.

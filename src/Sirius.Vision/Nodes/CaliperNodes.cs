@@ -1,3 +1,5 @@
+using Emgu.CV;
+using Emgu.CV.Util;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Shapes;
@@ -5,7 +7,8 @@ using Sirius.Core.Shapes;
 namespace Sirius.Vision.Nodes;
 
 /// <summary>
-/// An outline through points, with what can be measured of it.
+/// An outline through points, with what can be measured of it - for a
+/// closed one, everything Find Blobs measures of a blob.
 /// </summary>
 /// <remarks>
 /// Shared by the caliper tools and Points to Polygon, so a contour measures
@@ -35,22 +38,71 @@ internal static class Outline
         if (closed)
             perimeter += points[^1].DistanceTo(points[0]);
 
+        var (left, top) = (points.Min(point => point.X), points.Min(point => point.Y));
+        var (right, bottom) = (points.Max(point => point.X), points.Max(point => point.Y));
+
         var metrics = new Dictionary<string, double>
         {
             [ShapeMetric.CentroidX] = points.Average(point => point.X),
             [ShapeMetric.CentroidY] = points.Average(point => point.Y),
             [ShapeMetric.Perimeter] = perimeter,
+            [ShapeMetric.BoundsX] = left,
+            [ShapeMetric.BoundsY] = top,
+            [ShapeMetric.BoundsWidth] = right - left,
+            [ShapeMetric.BoundsHeight] = bottom - top,
         };
 
-        // An open path encloses nothing, so it has no area to report.
+        // An open path encloses nothing, so it has no area, nor anything
+        // measured from one.
         if (closed)
-            metrics[ShapeMetric.Area] = Math.Abs(SignedArea(points));
+            MeasureEnclosed(points, perimeter, right - left, bottom - top, metrics);
 
         return new PolygonShape(points.ToArray(), closed)
         {
             Colour = colour,
             Metrics = metrics,
         };
+    }
+
+    /// <summary>
+    /// What Find Blobs measures of a blob, measured the same way of a closed
+    /// outline: circularity, solidity, the minimum-area rectangle's width,
+    /// length, angle and aspect, and extent.
+    /// </summary>
+    /// <remarks>
+    /// Under the same names, so an outline from calipers or from blob
+    /// centres is filtered, tabled and judged exactly as a blob is - a
+    /// Filter Shapes on circularity does not care which made the shape.
+    /// </remarks>
+    private static void MeasureEnclosed(
+        IReadOnlyList<Point2> points, double perimeter, double boundsWidth, double boundsHeight,
+        Dictionary<string, double> metrics)
+    {
+        var area = Math.Abs(SignedArea(points));
+        metrics[ShapeMetric.Area] = area;
+
+        metrics[ShapeMetric.Circularity] = perimeter > 0 ? 4 * Math.PI * area / (perimeter * perimeter) : 0;
+
+        metrics[ShapeMetric.Extent] = boundsWidth * boundsHeight > 0 ? area / (boundsWidth * boundsHeight) : 0;
+
+        using var outline = new VectorOfPointF(
+            points.Select(point => new System.Drawing.PointF((float)point.X, (float)point.Y)).ToArray());
+
+        using (var hull = new VectorOfPointF())
+        {
+            CvInvoke.ConvexHull(outline, hull);
+            var hullArea = CvInvoke.ContourArea(hull);
+            metrics[ShapeMetric.Solidity] = hullArea > 0 ? area / hullArea : 0;
+        }
+
+        var rect = CvInvoke.MinAreaRect(outline);
+        var shortSide = Math.Min(rect.Size.Width, rect.Size.Height);
+        var longSide = Math.Max(rect.Size.Width, rect.Size.Height);
+
+        metrics[ShapeMetric.Width] = shortSide;
+        metrics[ShapeMetric.Length] = longSide;
+        metrics[ShapeMetric.Angle] = rect.Angle;
+        metrics[ShapeMetric.AspectRatio] = shortSide > 0 ? longSide / shortSide : 0;
     }
 
     /// <summary>The shoelace formula: half the sum of the cross products round the outline.</summary>
@@ -825,8 +877,9 @@ public enum PointOrder
     Category = NodeCategory.Fitting,
     Icon = "ph_points_polygon",
     Description = "Joins points into one outline, in the order they arrive or sorted round their middle, " +
-                  "open or closed - or one point per shape, at its centre. Reports its perimeter, its area " +
-                  "when closed, and its centre.")]
+                  "open or closed - or one point per shape, at its centre. Reports its perimeter and centre, and " +
+                  "when closed what Find Blobs measures of a blob: area, circularity, solidity, width, length, " +
+                  "aspect.")]
 public sealed class PointsToPolygonNode : VisionNode
 {
     private PointOrder _order = PointOrder.AsGiven;
