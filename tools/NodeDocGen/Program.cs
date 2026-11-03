@@ -84,7 +84,7 @@ foreach (var group in descriptors.GroupBy(d => d.Category))
         AppendPorts(builder, "Inputs", instance.Inputs.Select(p => (p.DisplayName, p.DataType, (bool?)p.IsRequired)));
         AppendPorts(builder, "Outputs", instance.Outputs.Select(p => (p.DisplayName, p.DataType, (bool?)null)));
 
-        if (descriptor.Parameters.Count > 0)
+        if (descriptor.Parameters.Any(p => !p.Attribute.Hidden))
         {
             builder.AppendLine("**Parameters**");
             builder.AppendLine();
