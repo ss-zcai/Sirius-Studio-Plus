@@ -217,6 +217,11 @@ done. What remains, in order:
   counterpart for an edge meant to be straight, against a voted line, a
   wired one or the edge's own smoothed form. Line Calipers reports
   **Straightness** and a profile along the edge.
+- **Regions that follow a found result are done** (1.0.8): a Reference
+  input on every tool with a region, position from any shape and angle
+  from a turned box or a line. Still missing: an angle from Match
+  Template, and two-point references (two holes) for the angle of a
+  part that has no straight edge.
 - **Circular and polygonal regions.** Rectangles are handled at any angle.
 
 ---

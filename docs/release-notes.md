@@ -5,6 +5,76 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.8 — 3 November 2026
+
+Regions that follow the part, saving pictures from any viewer, and a
+crash fixed, on top of everything in 1.0.7 below. Recipes saved in 1.0.7
+open unchanged. Still 70 nodes.
+
+### What to try first
+
+> Find Blobs → Shape Style (Minimum Rect) → **Reference** of Find Line, Region Stats, Read Code …
+
+Every tool with a region has a new **Reference** input. Draw the tool's
+region on a good part, then wire a found result into Reference: from then
+on the region keeps its place relative to the part as it moves and turns.
+A turned box or a line gives the angle; a circle, a point or a blob gives
+the position only. **Follow Reference Angle** turns the turning off.
+
+> Any viewer → the **save** button beside the zoom buttons
+
+**Save Image…** saves the picture itself; **Save Image with Overlays…**
+saves it with the results and measurements on show.
+
+> Find Blobs → **Fit Circle** (From: Centres, Group: All Together)
+
+The centre of a ring of holes. For a pattern that is not a circle - a
+grid, a cluster - use **Points to Polygon** (From: Centres, Order: Around
+Centre) and its new **Centre** output.
+
+### New and changed
+
+- **Regions follow a found result** (above). The image shows each region
+  where it was carried, and dragging it on any part keeps it relative to
+  the reference. Where the reference was when wired is saved in the
+  recipe; unwiring forgets it, and wiring again starts afresh. **A wired
+  reference that finds nothing fails the tool** rather than searching
+  where the region was drawn.
+- **Saving a viewer's picture**, from every viewer and preview, at full
+  resolution. PNG by default; JPEG, BMP and TIFF offered. A 12- or 16-bit
+  image is saved **16-bit** as a PNG or TIFF, and a float image keeps its
+  values as a TIFF - the picture's own values, not the 8-bit view of it.
+  With overlays, lines and labels are drawn to be readable at full size;
+  hide results or measurements on the toolbar to leave them out.
+- **A band or region placed by a wire is shown where it is searched.**
+  With a circle wired into Ring Calipers, Circle Defects or Polar to
+  Linear, the image shows the band round the circle, and drawing over it
+  sets **Offset** and **Band Width**. A note under the setting says what
+  placed it.
+- **Points to Polygon** joins one point per blob with **From: Centres**,
+  and gives the pattern's **Centre**. Before, given blobs, it joined every
+  pixel of every outline.
+- **Fit Circle, Fit Ellipse and Fit Line take each blob's centroid** with
+  From: Centres, not the middle of its box. **A recipe fitting through the
+  centres of irregular blobs may move slightly**; round dots do not.
+- **Fixed: Clear All could show an "Unexpected error"** after profile
+  chart windows had been closed by hand. Closing a chart window now
+  removes its profile line too.
+
+### Known issues, in addition to those below
+
+- **The application can stay running after its window closes**, with a
+  camera used during the session. End `SiriusStudioPlus.exe` in Task
+  Manager if it does; it is being looked into.
+- **A reference's angle is known to within half a turn.** A part turned
+  more than 90° from where it was taught is read the wrong way round.
+- **Crop's region follows where a reference goes, but cannot turn** - it
+  is upright by nature.
+- **A custom C# node's region follows a reference only if the node reads
+  it with `context.Resolve`**; otherwise the node warns.
+
+---
+
 ## 1.0.7 — 2 November 2026
 
 Custom nodes written in Python, Hikrobot cameras, two new measuring

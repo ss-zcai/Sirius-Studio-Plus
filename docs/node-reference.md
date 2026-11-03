@@ -322,6 +322,7 @@ Extracts a rectangular region of interest. Shapes wired into Overlay come out pl
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Overlay | `Shapes` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -335,6 +336,7 @@ Extracts a rectangular region of interest. Shapes wired into Overlay come out pl
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
 | Region | `Region` | Region | - |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Invert
 
@@ -368,6 +370,7 @@ Cuts out a region, rotating it upright when it sits at an angle.
 | Region | `Shapes` | circle | optional |
 | Overlay | `Shapes` | circle | optional |
 | Rect | `Rectangle` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -386,6 +389,7 @@ Cuts out a region, rotating it upright when it sits at an angle.
 | Scale | `Number` | Slider | 0.1 to 8 |
 | Interpolation | `Inter` | ComboBox | - |
 | Fill | `Integer` | Slider | 0 to 255 |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Resize
 
@@ -934,6 +938,7 @@ Casts radial calipers through a ring and fits a circle to the edges they find.
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Band | `Ring` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -959,6 +964,7 @@ Casts radial calipers through a ring and fits a circle to the edges they find.
 | Edge | `EdgeChoice` | ComboBox | - |
 | Direction | `RadialDirection` | ComboBox | - |
 | Reject Above | `Number` | Slider | 0 to 6 |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Find Curve
 
@@ -972,6 +978,7 @@ Casts calipers along a drawn path and fits a smooth curve through the edge they 
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Path | `PathBand` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -998,6 +1005,7 @@ Casts calipers along a drawn path and fits a smooth curve through the edge they 
 | Direction | `ScanDirection` | ComboBox | - |
 | Fit Window | `Integer` | Slider | 3 to 101, odd only |
 | Reject Above | `Number` | Slider | 0 to 6 |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Find Line
 
@@ -1011,6 +1019,7 @@ Casts calipers across a rectangle and fits a line to the edges they find.
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Region | `Rectangle` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1034,6 +1043,7 @@ Casts calipers across a rectangle and fits a line to the edges they find.
 | Edge | `EdgeChoice` | ComboBox | - |
 | Direction | `ScanDirection` | ComboBox | - |
 | Reject Above | `Number` | Slider | 0 to 6 |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Fit Circle
 
@@ -1131,6 +1141,7 @@ Casts calipers across a rectangle and gives every edge they find, as points and 
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Region | `Rectangle` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1157,12 +1168,13 @@ Casts calipers across a rectangle and gives every edge they find, as points and 
 | Edge | `EdgeChoice` | ComboBox | - |
 | Direction | `ScanDirection` | ComboBox | - |
 | Profile | `LineProfileValue` | ComboBox | - |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Points to Polygon
 
 `fitting.pointsToPolygon`
 
-Joins points into one outline, in the order they arrive or sorted round their middle, open or closed. Reports its perimeter, and its area when closed.
+Joins points into one outline, in the order they arrive or sorted round their middle, open or closed - or one point per shape, at its centre. Reports its perimeter, its area when closed, and its centre.
 
 **Inputs**
 
@@ -1176,11 +1188,13 @@ Joins points into one outline, in the order they arrive or sorted round their mi
 | --- | --- | --- | --- |
 | Polygon | `Shapes` | circle | - |
 | Count | `Integer` | circle | - |
+| Centre | `Point` | circle | - |
 
 **Parameters**
 
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
+| From | `FitSource` | ComboBox | - |
 | Order | `PointOrder` | ComboBox | - |
 | Closed | `Yes/No` | CheckBox | - |
 
@@ -1199,6 +1213,7 @@ Casts radial calipers through a ring and gives every edge they find, as points a
 | Band | `Ring` | circle | optional |
 | Band Width | `Number` | circle | optional |
 | Offset | `Number` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1230,6 +1245,7 @@ Casts radial calipers through a ring and gives every edge they find, as points a
 | Direction | `RadialDirection` | ComboBox | - |
 | Radius From | `RadiusFrom` | ComboBox | - |
 | Profile | `RingProfileValue` | ComboBox | - |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ## Transformation
 
@@ -1249,6 +1265,7 @@ Unwraps a ring of the image into a straight strip: angle left to right, radius t
 | Band | `Ring` | circle | optional |
 | Band Width | `Number` | circle | optional |
 | Offset | `Number` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1268,6 +1285,7 @@ Unwraps a ring of the image into a straight strip: angle left to right, radius t
 | Start Angle | `Number` | Slider | -360 to 360 |
 | Sweep | `Number` | Slider | 1 to 360 |
 | Interpolation | `Inter` | ComboBox | - |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ## Analysis
 
@@ -1340,6 +1358,7 @@ Finds where a template appears in the input, scored 0 to 1. Draw Teach Region ro
 | In | `Image` | square | yes |
 | Template | `Image` | square | optional |
 | Min Score | `Number` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1360,6 +1379,7 @@ Finds where a template appears in the input, scored 0 to 1. Draw Teach Region ro
 | Max Count | `Integer` | Slider | 1 to 500 |
 | Separation | `Number` | Slider | 0.05 to 1 |
 | Search Region | `Rectangle` | Rect | - |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Measure
 
@@ -1404,6 +1424,7 @@ Mean, standard deviation, darkest and brightest inside a drawn region, or inside
 | In | `Image` | square | yes |
 | Shapes | `Shapes` | circle | optional |
 | Region | `Rectangle` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1421,6 +1442,7 @@ Mean, standard deviation, darkest and brightest inside a drawn region, or inside
 | --- | --- | --- | --- |
 | Region | `Rectangle` | Rect | - |
 | Stroke Width | `Integer` | Slider | 1 to 51 |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Shape Table
 
@@ -1537,6 +1559,7 @@ Reads barcodes and 2D codes - QR, Data Matrix, Code 128, EAN and others - inside
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Region | `Rectangle` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1555,6 +1578,7 @@ Reads barcodes and 2D codes - QR, Data Matrix, Code 128, EAN and others - inside
 | Read All | `Yes/No` | CheckBox | - |
 | Try Harder | `Yes/No` | CheckBox | - |
 | Label | `Yes/No` | CheckBox | - |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Read Text
 
@@ -1568,6 +1592,7 @@ Reads printed text inside a region (OCR).
 | --- | --- | --- | --- |
 | In | `Image` | square | yes |
 | Region | `Rectangle` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1586,6 +1611,7 @@ Reads printed text inside a region (OCR).
 | Allowed | `Text` | TextBox | - |
 | Min Confidence | `Number` | Slider | 0 to 100 |
 | Label | `Yes/No` | CheckBox | - |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ## Judging
 
@@ -1633,6 +1659,7 @@ Finds missing and extra material round a circular edge against a tolerance, and 
 | Nominal Radius | `Number` | circle | optional |
 | Inner Tolerance | `Number` | circle | optional |
 | Outer Tolerance | `Number` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1672,6 +1699,7 @@ Finds missing and extra material round a circular edge against a tolerance, and 
 | Form Window | `Number` | Slider | 2 to 180 |
 | Merge Gap | `Integer` | Slider | 0 to 20 |
 | Decimals | `Integer` | Slider | 0 to 6 |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Compare
 
@@ -1815,6 +1843,7 @@ Finds missing and extra material along a straight edge against a tolerance, and 
 | Offset | `Number` | circle | optional |
 | Inner Tolerance | `Number` | circle | optional |
 | Outer Tolerance | `Number` | circle | optional |
+| Reference | `Shapes` | circle | optional |
 
 **Outputs**
 
@@ -1851,6 +1880,7 @@ Finds missing and extra material along a straight edge against a tolerance, and 
 | Form Window | `Number` | TextBox | - |
 | Merge Gap | `Integer` | Slider | 0 to 20 |
 | Decimals | `Integer` | Slider | 0 to 6 |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
 
 ### Result Log
 
