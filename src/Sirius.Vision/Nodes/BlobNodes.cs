@@ -335,6 +335,9 @@ public sealed class BlobFilterNode : VisionNode
         _measureAll || !_circularity.IsUnbounded ||
         _sortBy is ShapeMeasure.Circularity;
 
+    private bool NeedsRadial =>
+        _measureAll || _sortBy is ShapeMeasure.RadialCircularity or ShapeMeasure.Roundness;
+
     private bool NeedsSolidity =>
         _measureAll || !_solidity.IsUnbounded ||
         _sortBy is ShapeMeasure.Solidity;
@@ -567,6 +570,14 @@ public sealed class BlobFilterNode : VisionNode
             var outline = new Point2[contour.Size];
             for (var p = 0; p < contour.Size; p++)
                 outline[p] = new Point2(contour[p].X, contour[p].Y);
+
+            // HALCON's two, about the centroid just found.
+            if (NeedsRadial)
+            {
+                var (radial, roundness) = RadialMeasures.Of(outline, centroid, area);
+                metrics[ShapeMetric.RadialCircularity] = radial;
+                metrics[ShapeMetric.Roundness] = roundness;
+            }
 
             kept.Add(new Blob(
                 i,

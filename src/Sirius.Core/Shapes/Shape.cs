@@ -370,6 +370,29 @@ public static class ShapeMetric
     /// <summary>4 pi A / P squared. 1.0 is a perfect circle.</summary>
     public const string Circularity = "circularity";
 
+    /// <summary>
+    /// HALCON's circularity: the area over that of the circle reaching the
+    /// outline's furthest point from its centroid, A / (pi Rmax squared).
+    /// 1.0 is a perfect circle; any bulge lowers it.
+    /// </summary>
+    /// <remarks>
+    /// Beside <see cref="Circularity"/>, not instead of it. That one, 4 pi
+    /// A / P squared, is nearly blind to a smooth out-of-round - an oval two
+    /// per cent long still reads 0.9999 - and this one is not.
+    /// </remarks>
+    public const string RadialCircularity = "radialCircularity";
+
+    /// <summary>
+    /// HALCON's roundness: one less the spread of the outline's distances
+    /// from its centroid over their mean, 1 - sigma / mean. 1.0 is a perfect
+    /// circle.
+    /// </summary>
+    /// <remarks>
+    /// A ratio, unlike Ring Calipers' Roundness output, which is the spread
+    /// of its radii in pixels.
+    /// </remarks>
+    public const string Roundness = "roundness";
+
     /// <summary>Area divided by the area of the convex hull. 1.0 is fully convex.</summary>
     public const string Solidity = "solidity";
 

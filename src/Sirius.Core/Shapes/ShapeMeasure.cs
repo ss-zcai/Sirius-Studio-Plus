@@ -64,6 +64,12 @@ public enum ShapeMeasure
 
     /// <summary>How well a match scored, from Match Template.</summary>
     Score,
+
+    /// <summary>HALCON's circularity: area over that of the circle through the furthest point. See <see cref="ShapeMetric.RadialCircularity"/>.</summary>
+    RadialCircularity,
+
+    /// <summary>HALCON's roundness: 1 - spread / mean of the distances from the centroid. See <see cref="ShapeMetric.Roundness"/>.</summary>
+    Roundness,
 }
 
 public static class ShapeMeasures
@@ -93,6 +99,8 @@ public static class ShapeMeasures
         ShapeMeasure.Darkest => ShapeMetric.Minimum,
         ShapeMeasure.Brightest => ShapeMetric.Maximum,
         ShapeMeasure.Score => ShapeMetric.Score,
+        ShapeMeasure.RadialCircularity => ShapeMetric.RadialCircularity,
+        ShapeMeasure.Roundness => ShapeMetric.Roundness,
         _ => null,
     };
 }

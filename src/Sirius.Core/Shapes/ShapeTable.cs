@@ -50,6 +50,8 @@ public sealed class ShapeTable
         ShapeMetric.Maximum,
         ShapeMetric.AspectRatio,
         ShapeMetric.Circularity,
+        ShapeMetric.RadialCircularity,
+        ShapeMetric.Roundness,
         ShapeMetric.Solidity,
         ShapeMetric.Extent,
         ShapeMetric.HoleCount,
@@ -83,6 +85,8 @@ public sealed class ShapeTable
         [ShapeMetric.Maximum] = "Max",
         [ShapeMetric.AspectRatio] = "Aspect",
         [ShapeMetric.Circularity] = "Circularity",
+        [ShapeMetric.RadialCircularity] = "Radial Circ.",
+        [ShapeMetric.Roundness] = "Roundness",
         [ShapeMetric.Solidity] = "Solidity",
         [ShapeMetric.Extent] = "Extent",
         [ShapeMetric.HoleCount] = "Holes",
@@ -220,8 +224,24 @@ public sealed class ShapeTable
     {
         ({ } given, { } number) when key == ShapeMetric.Area => Fine(given.AreaToUnits(number)),
         ({ } given, { } number) when Lengths.Contains(key) => Fine(given.ToUnits(number)),
+        _ when Ratios.Contains(key) && value is { } ratio => ratio.ToString("0.000", CultureInfo.CurrentCulture),
         _ => Format(value),
     };
+
+    /// <summary>
+    /// Measures that run from 0 to 1, shown to three places: at two, a
+    /// circularity of 0.996 and a perfect circle both read "1", and the
+    /// difference is the reason for measuring.
+    /// </summary>
+    private static readonly HashSet<string> Ratios =
+    [
+        ShapeMetric.Circularity,
+        ShapeMetric.RadialCircularity,
+        ShapeMetric.Roundness,
+        ShapeMetric.Solidity,
+        ShapeMetric.Extent,
+        ShapeMetric.Score,
+    ];
 
     /// <summary>A calibrated value, to four places: a tenth of a pixel is often a few thousandths of a unit.</summary>
     private static string Fine(double number) => number.ToString("0.####", CultureInfo.CurrentCulture);

@@ -66,8 +66,8 @@ internal static class Outline
 
     /// <summary>
     /// What Find Blobs measures of a blob, measured the same way of a closed
-    /// outline: circularity, solidity, the minimum-area rectangle's width,
-    /// length, angle and aspect, and extent.
+    /// outline: circularity three ways, solidity, the minimum-area
+    /// rectangle's width, length, angle and aspect, and extent.
     /// </summary>
     /// <remarks>
     /// Under the same names, so an outline from calipers or from blob
@@ -81,7 +81,17 @@ internal static class Outline
         var area = Math.Abs(SignedArea(points));
         metrics[ShapeMetric.Area] = area;
 
+        // The centroid of what it encloses, as a blob's is - not the mean of
+        // its points, which leans to wherever they are closer together.
+        var centroid = RadialMeasures.AreaCentroid(points);
+        metrics[ShapeMetric.CentroidX] = centroid.X;
+        metrics[ShapeMetric.CentroidY] = centroid.Y;
+
         metrics[ShapeMetric.Circularity] = perimeter > 0 ? 4 * Math.PI * area / (perimeter * perimeter) : 0;
+
+        var (radial, roundness) = RadialMeasures.Of(points, centroid, area);
+        metrics[ShapeMetric.RadialCircularity] = radial;
+        metrics[ShapeMetric.Roundness] = roundness;
 
         metrics[ShapeMetric.Extent] = boundsWidth * boundsHeight > 0 ? area / (boundsWidth * boundsHeight) : 0;
 

@@ -461,7 +461,7 @@ public class JudgingTests
 
         Assert.Equal(["#", "Area (mm²)", "X", "Radius (mm)", "Circularity"], table.Columns);
         Assert.Equal(
-            ["1", 4.0.ToString("0.####"), "40", 2.5.ToString("0.####"), 0.9.ToString("0.##")],
+            ["1", 4.0.ToString("0.####"), "40", 2.5.ToString("0.####"), 0.9.ToString("0.000")],
             table.Rows[0]);
     }
 
