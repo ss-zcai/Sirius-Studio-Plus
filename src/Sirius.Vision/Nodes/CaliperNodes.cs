@@ -825,17 +825,20 @@ public enum PointOrder
     Category = NodeCategory.Fitting,
     Icon = "ph_points_polygon",
     Description = "Joins points into one outline, in the order they arrive or sorted round their middle, " +
-                  "open or closed. Reports its perimeter, and its area when closed.")]
+                  "open or closed - or one point per shape, at its centre. Reports its perimeter, its area " +
+                  "when closed, and its centre.")]
 public sealed class PointsToPolygonNode : VisionNode
 {
     private PointOrder _order = PointOrder.AsGiven;
     private bool _closed = true;
+    private FitSource _from = FitSource.Outline;
 
     public PointsToPolygonNode()
     {
         PointsIn = AddInput<ShapeSet>("Points");
         PolygonOut = AddOutput<ShapeSet>("Polygon");
         CountOut = AddOutput<int>("Count");
+        CentreOut = AddOutput<Point2>("Centre");
     }
 
     /// <summary>
@@ -848,6 +851,21 @@ public sealed class PointsToPolygonNode : VisionNode
 
     /// <summary>How many points the outline joins.</summary>
     public OutputPort CountOut { get; }
+
+    /// <summary>
+    /// The middle of the points - their average. With From set to Centres,
+    /// the centre of a pattern of blobs: a ring of holes, a grid of pads.
+    /// </summary>
+    public OutputPort CentreOut { get; }
+
+    [Param("From", Description = "Outline joins every point of each shape - a polygon's corners, a blob's " +
+                                 "outline. Centres takes one point per shape, at its centre: the blobs of a " +
+                                 "pattern, joined into the pattern.")]
+    public FitSource From
+    {
+        get => _from;
+        set => SetParam(ref _from, value);
+    }
 
     [Param("Order", Description = "As they arrive, or sorted by angle round their middle.")]
     public PointOrder Order
@@ -866,7 +884,12 @@ public sealed class PointsToPolygonNode : VisionNode
     protected override void OnEvaluate(EvalContext context)
     {
         var input = context.Get<ShapeSet>(PointsIn)!;
-        var points = input.Shapes.SelectMany(PointsOf).ToList();
+
+        // A blob's own centroid, where it published one, rather than the
+        // middle of its box: the two part on any blob that is not symmetric.
+        var points = _from == FitSource.Centres
+            ? input.Shapes.Select(ShapeRegions.CentreOf).ToList()
+            : input.Shapes.SelectMany(PointsOf).ToList();
 
         if (_order == PointOrder.AroundCentre && points.Count > 0)
             points = AroundCentre(points);
@@ -878,6 +901,11 @@ public sealed class PointsToPolygonNode : VisionNode
 
         context.Set(PolygonOut, new ShapeSet(polygon is null ? [] : [polygon], input.FrameWidth, input.FrameHeight));
         context.Set(CountOut, polygon is null ? 0 : points.Count);
+        context.Set(
+            CentreOut,
+            points.Count == 0
+                ? default
+                : new Point2(points.Average(point => point.X), points.Average(point => point.Y)));
     }
 
     internal static IEnumerable<Point2> PointsOf(Shape shape) => shape switch

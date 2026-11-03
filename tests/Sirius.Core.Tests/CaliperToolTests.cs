@@ -503,6 +503,75 @@ public class CaliperToolTests
         Assert.Equal(100, polygon.Metric(ShapeMetric.Area)!.Value, 6);
     }
 
+    /// <summary>
+    /// The centre of a ring of holes: Find Blobs, then one point per blob
+    /// joined round the middle, whose centre is the pattern's. Joined from
+    /// outlines instead, the eight blobs made one tangle of every edge pixel.
+    /// </summary>
+    [Fact]
+    public void Blob_centres_join_into_the_pattern_and_give_its_centre()
+    {
+        var blobs = new BlobFilterNode { MeasureAll = true };
+        var join = new PointsToPolygonNode { From = FitSource.Centres, Order = PointOrder.AroundCentre };
+
+        var graph = new VisionGraph();
+        var source = new PictureNode(RingOfDots);
+        graph.Add(source);
+        graph.Add(blobs);
+        graph.Add(join);
+        graph.TryConnect(source.Out, blobs.Inputs[0]);
+        graph.TryConnect(blobs.ShapesOut, join.PointsIn);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal(8, (int)scheduler.GetOutput(join.CountOut)!);
+
+        var centre = (Point2)scheduler.GetOutput(join.CentreOut)!;
+        Assert.Equal(200, centre.X, 0.5);
+        Assert.Equal(200, centre.Y, 0.5);
+
+        // Round the ring in order, so a regular octagon - not a star.
+        var octagon = Assert.IsType<PolygonShape>(Assert.Single(scheduler.GetOutput<ShapeSet>(join.PolygonOut)!.Shapes));
+        Assert.Equal(2 * Math.Sqrt(2) * 150 * 150, octagon.Metric(ShapeMetric.Area)!.Value, 0.02 * 63_640);
+    }
+
+    /// <summary>A blob's own centroid, not the middle of its box.</summary>
+    [Fact]
+    public void Centres_are_centroids_where_a_shape_has_one()
+    {
+        var lopsided = new PolygonShape([new(0, 0), new(30, 0), new(0, 10)])
+        {
+            Metrics = new Dictionary<string, double> { [ShapeMetric.CentroidX] = 10, [ShapeMetric.CentroidY] = 3 },
+        };
+
+        var join = new PointsToPolygonNode { From = FitSource.Centres, Closed = false };
+        var polygon = Polygon(join, [lopsided, new PointShape(new Point2(20, 3))]);
+
+        Assert.Equal(new Point2(10, 3), ((PolygonShape)polygon).Points[0]);
+    }
+
+    /// <summary>Eight white dots of radius 8, on a circle of radius 150 round (200, 200).</summary>
+    private static Mat RingOfDots()
+    {
+        var mat = Black();
+
+        for (var i = 0; i < 8; i++)
+        {
+            var angle = (i * Math.PI / 4) + 0.3;
+            CvInvoke.Circle(
+                mat,
+                new System.Drawing.Point(
+                    (int)Math.Round(200 + (150 * Math.Cos(angle))),
+                    (int)Math.Round(200 + (150 * Math.Sin(angle)))),
+                8,
+                new MCvScalar(255),
+                -1);
+        }
+
+        return mat;
+    }
+
     // ---- rejection on the fits ----------------------------------------------------
 
     [Fact]
