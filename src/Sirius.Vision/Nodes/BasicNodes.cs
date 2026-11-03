@@ -237,7 +237,10 @@ public sealed class CropNode : ImageFilterNode
     {
         var bounds = new Rectangle(0, 0, source.Width, source.Height);
 
-        if (_roi.Width <= 0 || _roi.Height <= 0)
+        // Through the context, so a wired reference carries it.
+        var roi = context.Param(nameof(Roi), _roi);
+
+        if (roi.Width <= 0 || roi.Height <= 0)
         {
             context.Warn("Region is empty; passing the image through unchanged.");
             source.Mat.CopyTo(destination);
@@ -245,7 +248,7 @@ public sealed class CropNode : ImageFilterNode
             return;
         }
 
-        var clamped = Rectangle.Intersect(_roi, bounds);
+        var clamped = Rectangle.Intersect(roi, bounds);
         if (clamped.IsEmpty)
         {
             context.Warn("Region lies outside the image; passing the image through unchanged.");
@@ -257,7 +260,7 @@ public sealed class CropNode : ImageFilterNode
         Overlays.Carry(
             context, OverlayIn, OverlayOut, ShapeMap.Translation(-clamped.X, -clamped.Y), source, clamped.Width, clamped.Height);
 
-        if (clamped != _roi)
+        if (clamped != roi)
             context.Warn("Region was clipped to the image bounds.");
 
         // A Mat built from a rectangle is a view onto the source buffer, so it

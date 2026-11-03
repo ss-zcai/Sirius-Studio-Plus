@@ -151,7 +151,8 @@ restarted.
   saved under the old name.
 - **C#: read a `Connectable` setting with `context.Resolve(...)`**, not the
   property. Otherwise a wire into it is ignored, and the node shows a
-  warning saying so.
+  warning saying so. Read a region (`OrientedRect`, `Ring`) the same way,
+  connectable or not, so it follows the node's Reference input.
 - **C#: input pictures are read-only, and stop working when `Run`
   returns.** Use `Picture.Allocate(input)` or `input.Copy()` for anything
   you write to or keep.

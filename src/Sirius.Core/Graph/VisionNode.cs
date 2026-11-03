@@ -254,6 +254,100 @@ public abstract class VisionNode : ObservableObject
             _inputs.Add(port);
             _parameterPorts[port] = parameter;
         }
+
+        // Last, below the parameter sockets: a tool whose regions can follow
+        // a found result. Unless it has a Reference of its own already -
+        // Calibrate's is a different thing and keeps its name.
+        if (Descriptor.HasRegions && !_inputs.Any(input => input.Name == ReferenceInputName))
+        {
+            RegionReference = new InputPort(ReferenceInputName, ReferenceInputName, typeof(Shapes.ShapeSet), isRequired: false)
+            {
+                Node = this,
+            };
+
+            _inputs.Add(RegionReference);
+
+            // Unwired, the taught place no longer means anything; wired
+            // again, the regions start from wherever they are then.
+            RegionReference.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(InputPort.IsConnected) && !RegionReference.IsConnected)
+                    ForgetReference();
+            };
+        }
+    }
+
+    // ---- following a reference -----------------------------------------
+
+    /// <summary>The name of the input a tool's regions follow.</summary>
+    public const string ReferenceInputName = "Reference";
+
+    private bool _followReferenceAngle = true;
+    private string _taughtReference = string.Empty;
+
+    /// <summary>
+    /// The input this node's regions follow - a found circle, box, line -
+    /// or null for a node with no regions.
+    /// </summary>
+    /// <remarks>See <see cref="Shapes.ReferencePose"/>.</remarks>
+    public InputPort? RegionReference
+    {
+        get
+        {
+            EnsureParameterPorts();
+            return _regionReference;
+        }
+
+        private set => _regionReference = value;
+    }
+
+    private InputPort? _regionReference;
+
+    /// <summary>
+    /// Whether the regions turn as the reference turns, where it has a
+    /// direction to turn by. Off, they only follow where it is.
+    /// </summary>
+    public bool FollowReferenceAngle
+    {
+        get => _followReferenceAngle;
+        set => SetParam(ref _followReferenceAngle, value);
+    }
+
+    /// <summary>
+    /// Where the reference was when it was wired, which the regions were
+    /// drawn relative to - "x, y" or "x, y, angle"; empty until a run has
+    /// seen it. Kept in the recipe.
+    /// </summary>
+    public string TaughtReference
+    {
+        get => _taughtReference;
+        set => SetParam(ref _taughtReference, value ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Takes the reference's place as the one the regions were drawn
+    /// relative to - from a run, as soon as it is wired.
+    /// </summary>
+    /// <remarks>
+    /// Set at once, so the rest of this run and the next see it, and
+    /// announced later on the UI thread by the scheduler (see
+    /// <see cref="AnnounceTaughtReference"/>). Without a "changing" before
+    /// it, so it is not an undo step: undoing the wire is the step, and an
+    /// undo that only forgot this would be re-taught by the next run, put
+    /// on the stack again, and make Undo look stuck.
+    /// </remarks>
+    internal void TeachReference(Shapes.ReferencePose pose) => _taughtReference = pose.ToString();
+
+    internal void AnnounceTaughtReference() => OnPropertyChanged(nameof(TaughtReference));
+
+    /// <summary>Forgets the taught place, quietly, as <see cref="TeachReference"/> sets it.</summary>
+    internal void ForgetReference()
+    {
+        if (_taughtReference.Length == 0)
+            return;
+
+        _taughtReference = string.Empty;
+        OnPropertyChanged(nameof(TaughtReference));
     }
 
     /// <summary>

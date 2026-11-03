@@ -176,6 +176,14 @@ public static class GraphClipboard
                 warnings.Add($"Pasted wire dropped: {connected.Message}");
         }
 
+        // A copy whose reference was not copied with it has nothing its
+        // taught place belongs to; wired again, it starts from there.
+        foreach (var node in pasted)
+        {
+            if (node.RegionReference is { IsConnected: false })
+                node.ForgetReference();
+        }
+
         // After the wires, which found a sub-graph's sockets by the ids of
         // the boundaries inside it. Renewing them renames those sockets in
         // place, so the wires stay; leaving them would give two sub-graphs

@@ -346,16 +346,22 @@ internal sealed class HostRunContext : IRunContext
     public T Resolve<T>(string settingName, T current)
     {
         var setting = _host.CustomType.Settings.FirstOrDefault(candidate => candidate.Name == settingName);
-        if (setting is null || !setting.Attribute.Connectable)
+
+        // A region too, connectable or not: read this way, it follows a
+        // wired Reference.
+        if (setting is null || !(setting.Attribute.Connectable || FollowsReference(setting)))
         {
             throw new ArgumentException(
-                $"'{settingName}' is not a connectable setting of {_host.Descriptor.DisplayName}.",
+                $"'{settingName}' is not a connectable setting or a region of {_host.Descriptor.DisplayName}.",
                 nameof(settingName));
         }
 
         _resolved.Add(settingName);
         return _context.Param(settingName, current);
     }
+
+    private static bool FollowsReference(DeclaredSetting setting) =>
+        ReferencePose.CanMove(setting.Property.PropertyType);
 
     public void Publish<T>(OutPort<T> port, T value)
     {
@@ -408,6 +414,21 @@ internal sealed class HostRunContext : IRunContext
                 !_resolved.Contains(setting.Name))
             {
                 _warnings.Add(Sirius.Plugins.Testing.TestRun.Unresolved(setting.Name));
+            }
+        }
+
+        // A region read straight from the property stays where it was drawn,
+        // whatever the reference does - which looks like following failing.
+        if (_host.RegionReference is { IsConnected: true })
+        {
+            foreach (var setting in _host.CustomType.Settings.Where(FollowsReference))
+            {
+                if (!_resolved.Contains(setting.Name))
+                {
+                    _warnings.Add(
+                        $"'{setting.Attribute.DisplayName ?? setting.Name}' does not follow Reference: the node reads " +
+                        "it without context.Resolve.");
+                }
             }
         }
 

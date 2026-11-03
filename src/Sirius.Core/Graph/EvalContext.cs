@@ -134,6 +134,76 @@ public sealed class EvalContext
     /// </remarks>
     public T Param<T>(string parameterName, T fallback)
     {
+        var value = Resolve(parameterName, fallback);
+
+        return value is not null && Shapes.ReferencePose.CanMove(typeof(T))
+            ? (T)Follow(parameterName, value)
+            : value;
+    }
+
+    /// <summary>Whether this run taught the node where its reference is.</summary>
+    internal bool TaughtReference { get; private set; }
+
+    /// <summary>
+    /// A region, moved and turned as the node's reference has moved and
+    /// turned since it was wired - or as it was drawn, with nothing wired.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The first run after the reference is wired takes where it is then as
+    /// the place the regions were drawn relative to, so wiring it moves
+    /// nothing; every run after carries them along.
+    /// </para>
+    /// <para>
+    /// Nothing arriving on a wired reference fails the node rather than
+    /// searching where the region was drawn. The part is not where the
+    /// region expects it, and an inspection that quietly looks at the empty
+    /// fixture instead would pass parts it never saw.
+    /// </para>
+    /// </remarks>
+    private object Follow(string parameterName, object region)
+    {
+        if (Node.RegionReference is not { IsConnected: true } port)
+            return region;
+
+        if (Get<Shapes.ShapeSet>(port) is not { Count: > 0 } shapes)
+            throw new InvalidOperationException(
+                "Nothing arrived on Reference, so there is nowhere to put the regions that follow it.");
+
+        if (shapes.Count > 1)
+            Warn($"{shapes.Count} shapes arrived on Reference; the regions follow the first.");
+
+        var now = Shapes.ReferencePose.Of(shapes.Shapes[0]);
+
+        if (!Shapes.ReferencePose.TryParse(Node.TaughtReference, out var taught))
+        {
+            Node.TeachReference(now);
+            TaughtReference = true;
+            taught = now;
+        }
+
+        var degrees = Node.FollowReferenceAngle ? Shapes.ReferencePose.Turn(taught, now) : 0;
+        var moved = Shapes.ReferencePose.Move(region, taught, now, degrees);
+
+        Place(parameterName, new Placement(
+            moved,
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"Follows the reference: moved {now.X - taught.X:0.#}, {now.Y - taught.Y:0.#} px") +
+            (degrees == 0 ? "" : string.Create(CultureInfo.InvariantCulture, $" and turned {degrees:0.#}°")) +
+            " from where it was when wired. Drawing it sets where it is relative to the reference.")
+        {
+            // Back into the place the region was drawn relative to.
+            Redraw = drawn => new Redrawn(
+                new Dictionary<string, object> { [parameterName] = Shapes.ReferencePose.Move(drawn, now, taught, -degrees) },
+                drawn),
+        });
+
+        return moved;
+    }
+
+    private T Resolve<T>(string parameterName, T fallback)
+    {
         var port = Node.FindInput(parameterName);
         if (port is null)
             return fallback;

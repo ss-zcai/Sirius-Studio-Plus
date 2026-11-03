@@ -137,7 +137,7 @@ public sealed class NodeDescriptor
         Icon = attribute?.Icon;
         Description = attribute?.Description;
         TypeKey = attribute?.TypeKey ?? nodeType.Name;
-        Parameters = parameters;
+        Parameters = WithReference(parameters);
         IsInstantiable = attribute is not null && !nodeType.IsAbstract;
         IsRetired = attribute?.Retired ?? false;
     }
@@ -159,7 +159,7 @@ public sealed class NodeDescriptor
         Icon = icon;
         Description = description;
         TypeKey = typeKey;
-        Parameters = parameters;
+        Parameters = WithReference(parameters);
         Origin = origin;
         IsInstantiable = true;
         _factory = factory;
@@ -177,6 +177,56 @@ public sealed class NodeDescriptor
     /// </remarks>
     /// <param name="nodeType">What the node really is, for messages and help.</param>
     /// <param name="origin">Where it came from, for the operator - a library name and version.</param>
+    /// <summary>
+    /// Whether any parameter is a region drawn on the image - a box, a band,
+    /// a path - which is what gives a node a Reference to follow.
+    /// </summary>
+    public bool HasRegions => Parameters.Any(parameter => IsRegion(parameter.Attribute.Editor));
+
+    private static bool IsRegion(ParamEditor editor) =>
+        editor is ParamEditor.Region or ParamEditor.Rect or ParamEditor.Ring or ParamEditor.Path;
+
+    /// <summary>
+    /// A node with regions gets the two settings following a reference
+    /// needs: whether to turn with it, and - out of sight, but saved - where
+    /// it was when it was wired.
+    /// </summary>
+    /// <remarks>
+    /// Added here rather than declared on each node, so every tool with a
+    /// region has them, a custom node's included, and none can be forgotten.
+    /// </remarks>
+    private static IReadOnlyList<ParamDescriptor> WithReference(IReadOnlyList<ParamDescriptor> parameters)
+    {
+        if (!parameters.Any(parameter => IsRegion(parameter.Attribute.Editor)) ||
+            parameters.Any(parameter => parameter.Name == nameof(VisionNode.TaughtReference)))
+        {
+            return parameters;
+        }
+
+        return
+        [
+            .. parameters,
+            ParamDescriptor.Create(
+                nameof(VisionNode.FollowReferenceAngle),
+                typeof(bool),
+                new ParamAttribute("Follow Reference Angle")
+                {
+                    Group = "Reference",
+                    ShownWith = VisionNode.ReferenceInputName,
+                    Description = "Turn the regions as the reference turns - a turned box or a line. " +
+                                  "Off, they only follow where it is.",
+                },
+                node => node.FollowReferenceAngle,
+                (node, value) => node.FollowReferenceAngle = (bool)value!),
+            ParamDescriptor.Create(
+                nameof(VisionNode.TaughtReference),
+                typeof(string),
+                new ParamAttribute("Taught Reference") { Hidden = true },
+                node => node.TaughtReference,
+                (node, value) => node.TaughtReference = (string?)value ?? string.Empty),
+        ];
+    }
+
     public static NodeDescriptor Create(
         Type nodeType,
         string displayName,

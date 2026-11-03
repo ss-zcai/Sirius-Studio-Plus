@@ -2183,3 +2183,48 @@ a plain save writes them through OpenCV: 16-bit in a PNG or TIFF, float in a
 TIFF (WPF's TIFF encoder turns float into 16-bit, which is why not WPF). The
 dialog offers TIFF for a float image. Saved as JPEG or BMP, or with overlays,
 it is the 8-bit picture shown, and the status line says so.
+
+## 59. Regions that follow a found result
+
+Every tool with a region - a box, a band, a path; twenty of them, custom
+nodes included - has a **Reference** input. Wire a found result into it and
+the tool's regions move with that result from part to part: Cognex's
+fixturing, without a coordinate-space system or a separate Fixture tool to
+wire through.
+
+- **What a reference says.** A turned box (a blob's minimum-area rectangle)
+  and a line give where they are and which way they face; a point, a
+  circle, an ellipse and a blob's outline give where they are only. A nearly
+  round fitted ellipse's angle swings from part to part, and a region
+  following it would swing with it.
+- **Taught by wiring.** The first run after the reference is wired takes
+  where it is as the place the regions were drawn relative to, so wiring it
+  moves nothing. That place is saved in the recipe (`TaughtReference`,
+  hidden), forgotten when the reference is unwired, and forgotten by a
+  pasted copy whose reference was not copied with it. It is not an undo
+  step: undoing the wire is, and an undo that only forgot the place would be
+  re-taught by the next run and make Undo look stuck.
+- **Turning.** On by default, with a **Follow Reference Angle** switch,
+  offered only while a reference is wired. A direction is known only to
+  within half a turn - a line's ends can come either way round - so the
+  turn is taken between -90 and 90 degrees. The way back, for drawing, is
+  the exact negative of the way out: worked out afresh it read a quarter
+  turn as 90 degrees both ways, and drawing on a part turned that far put
+  the region on the wrong side of it.
+- **Everything goes through `EvalContext.Param`.** That is where a region
+  is read, so that is where it is carried, and the placement (section 57)
+  shows it on the image and turns a drawing back into the place it was
+  drawn relative to. Crop, Match Template and Region Stats read their
+  regions straight from the field, and were changed to read them through
+  the context. A custom node reads its region with `Resolve`, which now
+  takes a region whether or not it is connectable, and warns when it does
+  not while a reference is wired.
+- **Nothing on a wired reference fails the tool**, rather than searching
+  where the region was drawn: the part is not where the region expects it,
+  and an inspection looking at the empty fixture would pass parts it never
+  saw.
+- **Results stay in the original image's coordinates**, unlike cutting the
+  part out with Region of Interest, so overlays and measurements line up
+  with the full picture. An upright region - Crop's - follows where the
+  reference goes but cannot turn.
+

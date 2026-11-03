@@ -438,7 +438,15 @@ public sealed class GraphScheduler : IDisposable
         SetEvaluationTime(node, stopwatch.Elapsed);
 
         var placements = context.Placements;
-        OnUiThread(() => node.Placements = placements);
+        var taught = context.TaughtReference;
+
+        OnUiThread(() =>
+        {
+            node.Placements = placements;
+
+            if (taught)
+                node.AnnounceTaughtReference();
+        });
 
         SetStatus(
             node,

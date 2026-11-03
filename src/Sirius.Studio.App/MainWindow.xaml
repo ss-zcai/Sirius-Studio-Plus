@@ -825,7 +825,8 @@
                                     <ItemsControl ItemsSource="{Binding Parameters}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="{x:Type vm:ParameterViewModel}">
-                                                <StackPanel Margin="0,0,0,10">
+                                                <StackPanel Margin="0,0,0,10"
+                                                            Visibility="{Binding IsShown, Converter={StaticResource BoolToVisibility}}">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding DisplayName}"
                                                                    Foreground="{StaticResource Text.Secondary}"

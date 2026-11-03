@@ -427,6 +427,54 @@ public class CustomNodeTests
         Assert.Contains("never read it with Resolve", node.StatusMessage);
     }
 
+    /// <summary>
+    /// A custom node's region follows a wired Reference as a built-in's
+    /// does - read with Resolve, which takes a region whether or not it is
+    /// connectable.
+    /// </summary>
+    [Fact]
+    public void A_custom_nodes_region_follows_a_reference_when_resolved()
+    {
+        var (graph, reference, node) = Referenced(typeof(FollowingNode));
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal(60.0, scheduler.GetOutput(node.FindOutput("X")!));
+
+        reference.At = new Point2(150, 40);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal(NodeStatus.Ready, node.Status);
+        Assert.Equal(110.0, scheduler.GetOutput(node.FindOutput("X")!));
+    }
+
+    /// <summary>One that reads the property stays where it was drawn, and says why.</summary>
+    [Fact]
+    public void A_custom_nodes_region_read_without_resolve_is_a_warning()
+    {
+        var (graph, _, node) = Referenced(typeof(StubbornNode));
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal(NodeStatus.Warning, node.Status);
+        Assert.Contains("does not follow Reference", node.StatusMessage);
+    }
+
+    private static (VisionGraph Graph, PointSourceNode Reference, VisionNode Node) Referenced(Type type)
+    {
+        var graph = new VisionGraph();
+        var reference = new PointSourceNode { At = new Point2(100, 40) };
+        var node = Describe(type).CreateInstance();
+
+        graph.Add(reference);
+        graph.Add(node);
+        Assert.True(graph.TryConnect(reference.Out, node.RegionReference!).Success);
+
+        return (graph, reference, node);
+    }
+
     [Fact]
     public void A_node_that_throws_fails_with_its_message_and_nothing_else_breaks()
     {
@@ -779,6 +827,29 @@ public class CustomNodeTests
         protected override void OnEvaluate(EvalContext context) => context.Set(Out, _frame());
     }
 
+    /// <summary>A point, as the reference a region follows.</summary>
+    private sealed class PointSourceNode : VisionNode
+    {
+        private Point2 _at;
+
+        public PointSourceNode() => Out = AddOutput<ShapeSet>("Out");
+
+        public OutputPort Out { get; }
+
+        public Point2 At
+        {
+            get => _at;
+            set
+            {
+                _at = value;
+                Invalidate();
+            }
+        }
+
+        protected override void OnEvaluate(EvalContext context) =>
+            context.Set(Out, new ShapeSet([new PointShape(_at)], 400, 400));
+    }
+
     private sealed class NumberSourceNode : VisionNode
     {
         private readonly double _value;
@@ -910,6 +981,33 @@ public class CustomNodeTests
 
         // Reads the property, never Resolve - the mistake the warning is for.
         public void Run(IRunContext context) => context.Publish(_out, Level);
+    }
+
+    [CustomNode("Following", TypeKey = "tests.following")]
+    public sealed class FollowingNode : ICustomNode
+    {
+        private OutPort<double> _x = null!;
+
+        [Setting]
+        public OrientedRect Region { get; set; } = new(60, 40, 20, 10, 0);
+
+        public void Declare(INodeShape shape) => _x = shape.Output<double>("X");
+
+        public void Run(IRunContext context) => context.Publish(_x, context.Resolve(nameof(Region), Region).CentreX);
+    }
+
+    [CustomNode("Stubborn", TypeKey = "tests.stubborn")]
+    public sealed class StubbornNode : ICustomNode
+    {
+        private OutPort<double> _x = null!;
+
+        [Setting]
+        public OrientedRect Region { get; set; } = new(60, 40, 20, 10, 0);
+
+        public void Declare(INodeShape shape) => _x = shape.Output<double>("X");
+
+        // The property, not Resolve: stays where it was drawn.
+        public void Run(IRunContext context) => context.Publish(_x, Region.CentreX);
     }
 
     [CustomNode("Keeper", TypeKey = "tests.keeper")]

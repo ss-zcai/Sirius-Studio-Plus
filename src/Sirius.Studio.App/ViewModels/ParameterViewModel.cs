@@ -68,6 +68,18 @@ public sealed class ParameterViewModel : ObservableObject
             };
         }
 
+        // A setting that means nothing until an input is wired - following
+        // a reference - is offered only while it is.
+        if (descriptor.Attribute.ShownWith is { } shownWith && node.FindInput(shownWith) is { } condition)
+        {
+            _shownWith = condition;
+            condition.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(InputPort.IsConnected))
+                    OnPropertyChanged(nameof(IsShown));
+            };
+        }
+
         // Node setters may coerce (odd-only sizes, clamping), so the displayed
         // value has to follow what the node actually accepted rather than what
         // was typed.
@@ -192,6 +204,14 @@ public sealed class ParameterViewModel : ObservableObject
     /// value is in use and whatever is typed here is ignored.
     /// </summary>
     public bool IsDriven => _port?.IsConnected ?? false;
+
+    private readonly InputPort? _shownWith;
+
+    /// <summary>
+    /// Whether the panel offers this parameter at all - false while the
+    /// input it depends on is unwired. See <see cref="ParamAttribute.ShownWith"/>.
+    /// </summary>
+    public bool IsShown => _shownWith?.IsConnected ?? true;
 
     /// <summary>False while a connection is overriding this parameter.</summary>
     public bool IsEditable => !IsDriven;

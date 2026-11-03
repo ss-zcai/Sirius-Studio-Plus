@@ -207,7 +207,7 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
     {
         var image = context.Get<ImageData>(ImageIn)!;
 
-        KeepTeachRegion(image);
+        KeepTeachRegion(image, context.Param(nameof(TeachRect), _teachRect));
 
         using var source = TemplateFor(context, out var angle);
 
@@ -224,13 +224,15 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
         var template = new Size(source.Width, source.Height);
 
         var whole = new Rectangle(0, 0, image.Width, image.Height);
-        // A turned rectangle is never smaller than a pixel, so "no region"
-        // is one of that size - the default.
-        var limited = _searchRect.Width > 1 && _searchRect.Height > 1;
+        // Through the context, so a wired reference carries it. A turned
+        // rectangle is never smaller than a pixel, so "no region" is one of
+        // that size - the default.
+        var searchRect = context.Param(nameof(SearchRect), _searchRect);
+        var limited = searchRect.Width > 1 && searchRect.Height > 1;
 
         var searchShape = limited
             ? new OrientedRectShape(
-                new Point2(_searchRect.CentreX, _searchRect.CentreY), _searchRect.Width, _searchRect.Height, _searchRect.Angle)
+                new Point2(searchRect.CentreX, searchRect.CentreY), searchRect.Width, searchRect.Height, searchRect.Angle)
             : null;
 
         // What is cut out and searched: the box round the search region, and
@@ -406,9 +408,8 @@ public sealed class MatchTemplateNode : VisionNode, INodeActions
     /// A copy of what Teach Region holds on this image, straightened, for
     /// Teach to keep - small, so it costs little to take on every run.
     /// </summary>
-    private void KeepTeachRegion(ImageData image)
+    private void KeepTeachRegion(ImageData image, OrientedRect rect)
     {
-        var rect = _teachRect;
         var width = (int)Math.Round(rect.Width);
         var height = (int)Math.Round(rect.Height);
 

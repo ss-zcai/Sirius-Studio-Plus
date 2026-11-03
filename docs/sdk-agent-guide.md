@@ -68,6 +68,8 @@ Both must pass before you report a task done. `nuget.config` points NuGet at
   If the original relies on it, keep it and say so in a comment.
 - **Read every `Connectable` setting through
   `context.Resolve(nameof(X), X)`**, never through the property directly.
+  The same for every region setting (`OrientedRect`, `Ring`, `PathBand`),
+  connectable or not: that is how it follows a wired Reference.
 - **Call `context.ThrowIfCancelled()` once per row**, in any loop over
   rows.
 - **Throw for real failures** such as invalid settings or an impossible

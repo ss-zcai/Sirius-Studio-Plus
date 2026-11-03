@@ -259,6 +259,16 @@ never resolves it, the node shows a warning saying the wire was ignored -
 because otherwise that mistake is invisible. An `enum` cannot be
 connectable, since no node produces one.
 
+**Read a region with `Resolve` too** - an `OrientedRect`, `Ring` or
+`PathBand` setting, connectable or not. A node with a region gets a
+**Reference** input, as every built-in tool with one does: wire a found
+result into it - a circle, a turned box, a line - and the region follows the
+part from frame to frame, moving with it and turning with it where it has a
+direction. `Resolve` hands back the region where it has been carried; the
+property still holds it where it was drawn. Read straight from the property
+while a reference is wired, the region stays put and the node warns that it
+does not follow.
+
 ### 3.5 Coming from Python and NumPy
 
 Most algorithms being migrated were written against NumPy and

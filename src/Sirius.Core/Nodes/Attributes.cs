@@ -171,6 +171,13 @@ public sealed class ParamAttribute : Attribute
 
     public string? Description { get; set; }
 
+    /// <summary>
+    /// The input that has to be wired for this parameter to be offered -
+    /// a setting that means nothing until it is, like how a region follows
+    /// a reference. Null shows it always.
+    /// </summary>
+    public string? ShownWith { get; set; }
+
     /// <summary>Optional group header in the inspector.</summary>
     public string? Group { get; set; }
 

@@ -121,6 +121,9 @@ public class ParameterRowTests
 
             // Nor this: the note under a band or region a wire placed.
             .Append("IsPlaced")
+
+            // Nor this: the whole row, offered only while an input is wired.
+            .Append("IsShown")
             .ToHashSet(StringComparer.Ordinal);
 
         var unknown = BoundFlags.Where(flag => !known.Contains(flag)).ToArray();

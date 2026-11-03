@@ -87,17 +87,17 @@ public sealed class RegionStatsNode : VisionNode
         set => SetParam(ref _strokeWidth, Math.Clamp(value, 1, 51));
     }
 
+    /// <summary>The drawn region as a shape - read through the context, so a wired reference carries it.</summary>
+    private static OrientedRectShape Drawn(OrientedRect region) =>
+        new(new Point2(region.CentreX, region.CentreY), region.Width, region.Height, region.Angle);
+
     protected override void OnEvaluate(EvalContext context)
     {
         var image = context.Get<ImageData>(ImageIn)!;
 
         var shapes = context.Get<ShapeSet>(ShapesIn) is { } wired
             ? wired
-            : new ShapeSet(
-                [new OrientedRectShape(
-                    new Point2(_region.CentreX, _region.CentreY), _region.Width, _region.Height, _region.Angle)],
-                image.Width,
-                image.Height);
+            : new ShapeSet([Drawn(context.Param(nameof(Region), _region))], image.Width, image.Height);
 
         if (ShapesIn.IsConnected && !shapes.MatchesFrame(image.Width, image.Height) && shapes.Count > 0)
         {
