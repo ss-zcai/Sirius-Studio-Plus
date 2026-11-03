@@ -551,6 +551,43 @@ public class CaliperToolTests
         Assert.Equal(new Point2(10, 3), ((PolygonShape)polygon).Points[0]);
     }
 
+    /// <summary>
+    /// The fits take a blob's centroid too. Four lopsided blobs whose
+    /// centroids sit on a circle of radius 50 and whose boxes do not: fitted
+    /// through the middles of the boxes, the circle came out off-centre.
+    /// </summary>
+    [Fact]
+    public void Fitting_through_centres_uses_each_blobs_centroid()
+    {
+        var blobs = new[] { (250.0, 200.0), (200.0, 250.0), (150.0, 200.0), (200.0, 150.0) }
+            .Select(c => (Shape)new PolygonShape(
+                [new(c.Item1 - 5, c.Item2 - 5), new(c.Item1 + 25, c.Item2 - 5), new(c.Item1 - 5, c.Item2 + 5)])
+            {
+                Metrics = new Dictionary<string, double>
+                {
+                    [ShapeMetric.CentroidX] = c.Item1,
+                    [ShapeMetric.CentroidY] = c.Item2,
+                },
+            })
+            .ToArray();
+
+        var fit = new FitCircleNode { From = FitSource.Centres, Grouping = FitGrouping.AllTogether, MinimumPoints = 3 };
+
+        var graph = new VisionGraph();
+        var source = new ShapesNode(blobs);
+        graph.Add(source);
+        graph.Add(fit);
+        graph.TryConnect(source.Out, fit.ShapesIn);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        var circle = Assert.IsType<CircleShape>(Assert.Single(scheduler.GetOutput<ShapeSet>(fit.ShapesOut)!.Shapes));
+        Assert.Equal(200, circle.Centre.X, 6);
+        Assert.Equal(200, circle.Centre.Y, 6);
+        Assert.Equal(50, circle.Radius, 6);
+    }
+
     /// <summary>Eight white dots of radius 8, on a circle of radius 150 round (200, 200).</summary>
     private static Mat RingOfDots()
     {

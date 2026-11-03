@@ -173,19 +173,24 @@ public abstract class ShapeFitNode : VisionNode
     /// The points a shape contributes.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Centres give one point each, which only means anything pooled - a
     /// line through a row of pads, a circle through a ring of holes. On
     /// their own they cannot describe a figure, which the minimum-points
     /// check then catches.
+    /// </para>
+    /// <para>
+    /// A blob's centre is its centroid, which Find Blobs publishes, not the
+    /// middle of its box: the two part on any blob that is not symmetric -
+    /// a hole with a burr, a pad with a lead - and the centroid is where the
+    /// feature is. The same centre Points to Polygon and a Reference take.
+    /// </para>
     /// </remarks>
     private IEnumerable<Point2> PointsOf(Shape shape)
     {
         if (_from == FitSource.Centres)
         {
-            var bounds = shape.Bounds;
-            yield return new Point2(
-                bounds.X + (bounds.Width / 2), bounds.Y + (bounds.Height / 2));
-
+            yield return ShapeRegions.CentreOf(shape);
             yield break;
         }
 
