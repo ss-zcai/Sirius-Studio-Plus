@@ -128,6 +128,7 @@ $required = @(
     'THIRD-PARTY-NOTICES.txt'
     'LICENSE-phosphor.txt'
     'LICENSE-apache-2.0.txt'
+    'LICENSE-avalondock-mspl.txt'
     'docs/node-reference.md'
     'docs/release-notes.md'
     'cvextern.dll'

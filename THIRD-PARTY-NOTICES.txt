@@ -20,8 +20,12 @@ opencv_videoio_ffmpeg*.dll, FFmpeg (LGPL 2.1 or later).
 
 Nodify  (7.3.0)  -  MIT  -  https://github.com/miroiu/nodify
 
-AvalonDock / Dirkster.AvalonDock  (4.74.1)  -  MIT
+AvalonDock / Dirkster.AvalonDock and .Themes.VS2013  (4.74.1)  -  Ms-PL
   https://github.com/Dirkster99/AvalonDock
+  The docking panels. Microsoft Public License, not MIT: the full text
+  ships beside this file as LICENSE-avalondock-mspl.txt. Distributing it
+  requires keeping its copyright and attribution notices; its source, if
+  ever distributed, only under the Ms-PL itself.
 
 CommunityToolkit.Mvvm  (8.4.2)  -  MIT
   https://github.com/CommunityToolkit/dotnet
@@ -61,7 +65,6 @@ The MIT-licensed components above carry the same terms, reproduced here once
 with their respective copyright holders:
 
   Copyright (c) Nodify contributors
-  Copyright (c) Dirkster99 and AvalonDock contributors
   Copyright (c) .NET Foundation and Contributors
   Copyright (c) 2020-2024 Phosphor Icons
 

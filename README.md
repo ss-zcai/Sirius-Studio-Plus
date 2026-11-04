@@ -105,6 +105,8 @@ those failing stops the package being written.
 | `docs/node-reference.md` | Help ▸ Node Reference looks here first. Without it a packaged build tells the tester to run a `dotnet` command. |
 | `THIRD-PARTY-NOTICES.txt` | Components and their terms, including the unresolved Emgu.CV position. |
 | `LICENSE-phosphor.txt` | The icon set is derived from Phosphor; MIT requires the licence to travel with every copy. |
+| `LICENSE-avalondock-mspl.txt` | The docking panels are AvalonDock, under the Ms-PL rather than MIT; its terms travel with the build. |
+| `LICENSE-apache-2.0.txt` | ZXing.Net, OpenCV and the Tesseract data. |
 
 **Before this goes outside the company**, read the Emgu.CV entry in the
 notices. It is dual licensed GPLv3 or commercial, and the GPLv3 option would

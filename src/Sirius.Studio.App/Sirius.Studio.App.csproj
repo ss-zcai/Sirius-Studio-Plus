@@ -45,9 +45,10 @@
     to run a dotnet command, which is no use to them.
 
     The notices are not optional. The icon set is derived from Phosphor,
-    whose MIT terms require the licence to accompany every copy, and the
-    Emgu.CV position needs to be visible to whoever is holding a build rather
-    than recorded only in the repository.
+    whose MIT terms require the licence to accompany every copy; AvalonDock
+    is Ms-PL, whose notices must be kept; and the Emgu.CV position needs to
+    be visible to whoever is holding a build rather than recorded only in
+    the repository.
   -->
   <ItemGroup>
     <Content Include="..\..\docs\node-reference.md"
@@ -59,6 +60,8 @@
     <Content Include="..\..\THIRD-PARTY-NOTICES.txt"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\LICENSE-apache-2.0.txt"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\LICENSE-avalondock-mspl.txt"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\res\ui icons\LICENSE-phosphor.txt"
              Link="LICENSE-phosphor.txt"
