@@ -1,17 +1,24 @@
-"""Convert the Sirius SVG icon sets into a WPF ResourceDictionary.
+"""Convert the Sirius SVG icon sets, and the logo, into WPF ResourceDictionaries.
 
-Each SVG becomes a DrawingImage keyed `Icon.<file stem>`, preserving the
-artwork's own fills and strokes. The toolbar set is multi-coloured, so flattening
-everything into a single tintable Geometry - which is what an earlier version of
-this script did - would have discarded the design.
+Each SVG becomes a DrawingImage keyed `Icon.<file stem>` (spaces and other
+non-word characters dropped), preserving the artwork's own fills and strokes.
+The toolbar set is multi-coloured, so flattening everything into a single
+tintable Geometry - which is what an earlier version of this script did -
+would have discarded the design.
 
 Usage:
-    python tools/svg2xaml.py <output.xaml> <svg-dir> [<svg-dir> ...]
+    python tools/svg2xaml.py <output.xaml> <svg-dir-or-file> [...]
 
-Supports the subset the icon sets actually use: path, rect, circle, ellipse,
+    python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
+    python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Logo.xaml "res/Sirius Stu.svg"
+
+Supports the subset the artwork actually uses: path, rect, circle, ellipse,
 line, polygon, polyline, nested <g>, CSS classes declared in <style>, inline
-style attributes, presentation attributes, and translate/rotate/scale/matrix
-transforms. Anything outside that raises rather than silently dropping shapes.
+style attributes, presentation attributes, translate/rotate/scale/matrix
+transforms, and linear and radial gradient fills (the logo's). A blend mode
+of multiply is drawn as normal blending - exact for the black shadow the
+logo uses it on. Anything outside that raises rather than silently dropping
+shapes.
 """
 import glob
 import math
@@ -105,6 +112,66 @@ def parse_css(root):
                 declarations[prop.strip()] = value.strip()
             rules[selector] = declarations
     return rules
+
+
+def parse_gradients(root, css):
+    """Collect linear and radial gradients by id."""
+    gradients = {}
+    for kind in ('linearGradient', 'radialGradient'):
+        for element in root.iter(SVG_NS + kind):
+            stops = []
+            for stop in element.iter(SVG_NS + 'stop'):
+                style = resolve_style(stop, css, {})
+                for prop in ('stop-color', 'stop-opacity'):
+                    if stop.get(prop) is not None:
+                        style[prop] = stop.get(prop)
+                offset = stop.get('offset', '0').strip()
+                offset = float(offset[:-1]) / 100 if offset.endswith('%') else float(offset)
+                colour = to_brush(style.get('stop-color', '#000000'), style.get('stop-opacity'))
+                if colour is None:
+                    raise ValueError(f'gradient {element.get("id")}: unreadable stop colour')
+                stops.append((offset, colour))
+            gradients[element.get('id')] = (kind, element, stops)
+    return gradients
+
+
+def gradient_brush(reference, opacity, gradients, pad):
+    """A url(#id) fill as WPF brush markup, or raise: a fill we cannot draw is not dropped."""
+    match = re.fullmatch(r'url\(\s*#([^)\s]+)\s*\)', reference.strip())
+    if not match or match.group(1) not in gradients:
+        raise ValueError(f'unsupported paint {reference!r}')
+
+    kind, element, stops = gradients[match.group(1)]
+    absolute = element.get('gradientUnits') == 'userSpaceOnUse'
+    mapping = ' MappingMode="Absolute"' if absolute else ''
+    alpha = f' Opacity="{fmt(float(opacity))}"' if opacity not in (None, '1') else ''
+    get = lambda name, default: parse_length(element.get(name), default)
+
+    if kind == 'radialGradient':
+        default = 0.0 if absolute else 0.5
+        cx, cy, r = get('cx', default), get('cy', default), get('r', default)
+        fx, fy = get('fx', cx), get('fy', cy)
+        head = (f'<RadialGradientBrush{mapping}{alpha} Center="{fmt(cx)},{fmt(cy)}" '
+                f'GradientOrigin="{fmt(fx)},{fmt(fy)}" RadiusX="{fmt(r)}" RadiusY="{fmt(r)}">')
+        tag = 'RadialGradientBrush'
+    else:
+        x1, y1 = get('x1', 0.0), get('y1', 0.0)
+        x2, y2 = get('x2', 0.0 if absolute else 1.0), get('y2', 0.0)
+        head = (f'<LinearGradientBrush{mapping}{alpha} StartPoint="{fmt(x1)},{fmt(y1)}" '
+                f'EndPoint="{fmt(x2)},{fmt(y2)}">')
+        tag = 'LinearGradientBrush'
+
+    lines = [pad + head]
+    matrix = parse_transform(element.get('gradientTransform'))
+    if matrix != IDENTITY:
+        a, b, c, d, e, f = matrix
+        lines.append(f'{pad}  <{tag}.Transform>')
+        lines.append(f'{pad}    <MatrixTransform Matrix="{fmt(a)},{fmt(b)},{fmt(c)},{fmt(d)},{fmt(e)},{fmt(f)}" />')
+        lines.append(f'{pad}  </{tag}.Transform>')
+    for offset, colour in stops:
+        lines.append(f'{pad}  <GradientStop Offset="{fmt(offset)}" Color="{colour}" />')
+    lines.append(f'{pad}</{tag}>')
+    return lines
 
 
 def resolve_style(element, css, inherited):
@@ -206,9 +273,13 @@ def shape_to_path(element):
     return None
 
 
-def emit_drawing(element, css, inherited_style, indent, out):
+def emit_drawing(element, css, gradients, inherited_style, indent, out):
     """Walk the SVG tree, writing GeometryDrawing elements."""
     style = resolve_style(element, css, inherited_style)
+
+    blend = style.get('mix-blend-mode', 'normal')
+    if blend not in ('normal', 'multiply'):
+        raise ValueError(f'unsupported mix-blend-mode {blend!r}')
     matrix = parse_transform(element.get('transform'))
     pad = ' ' * indent
 
@@ -227,7 +298,12 @@ def emit_drawing(element, css, inherited_style, indent, out):
     if tag in SHAPES:
         data = shape_to_path(element)
         if data:
-            fill = to_brush(style.get('fill', '#000000'), style.get('fill-opacity', style.get('opacity')))
+            paint = style.get('fill', '#000000')
+            opacity = style.get('fill-opacity', style.get('opacity'))
+            gradient = gradient_brush(paint, opacity, gradients, pad + '    ') if paint.startswith('url(') else None
+            fill = None if gradient else to_brush(paint, opacity)
+            if not gradient and fill is None and paint not in ('none', 'transparent'):
+                raise ValueError(f'unsupported fill {paint!r}')
             stroke = to_brush(style.get('stroke'), style.get('opacity'))
             width = fmt(parse_length(style.get('stroke-width'), 1.0))
             rule = 'EvenOdd' if style.get('fill-rule') == 'evenodd' else 'Nonzero'
@@ -242,13 +318,19 @@ def emit_drawing(element, css, inherited_style, indent, out):
                            f'StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />')
                 out.append(f'{pad}  </GeometryDrawing.Pen>')
                 out.append(f'{pad}</GeometryDrawing>')
+            elif gradient:
+                out.append(f'{pad}<GeometryDrawing Geometry="{geometry}">')
+                out.append(f'{pad}  <GeometryDrawing.Brush>')
+                out.extend(gradient)
+                out.append(f'{pad}  </GeometryDrawing.Brush>')
+                out.append(f'{pad}</GeometryDrawing>')
             elif fill:
                 out.append(f'{pad}<GeometryDrawing Brush="{fill}" Geometry="{geometry}" />')
 
     for child in element:
         if child.tag.replace(SVG_NS, '') in ('defs', 'style', 'title', 'desc'):
             continue
-        emit_drawing(child, css, style, indent, out)
+        emit_drawing(child, css, gradients, style, indent, out)
 
     if wrapped:
         indent -= 2
@@ -263,6 +345,7 @@ def escape(text):
 def convert(path):
     root = ET.parse(path).getroot()
     css = parse_css(root)
+    gradients = parse_gradients(root, css)
 
     view_box = root.get('viewBox') or '0 0 32 32'
     vx, vy, vw, vh = (float(n) for n in view_box.split())
@@ -277,7 +360,7 @@ def convert(path):
     for child in root:
         if child.tag.replace(SVG_NS, '') in ('defs', 'style', 'title', 'desc'):
             continue
-        emit_drawing(child, css, {}, 8, body)
+        emit_drawing(child, css, gradients, {}, 8, body)
 
     return body
 
@@ -286,21 +369,26 @@ def main():
     if len(sys.argv) < 3:
         raise SystemExit(__doc__)
 
-    output, folders = sys.argv[1], sys.argv[2:]
+    output, sources = sys.argv[1], sys.argv[2:]
 
     files = []
-    for folder in folders:
-        files.extend(sorted(glob.glob(os.path.join(folder, '*.svg'))))
+    for source in sources:
+        if os.path.isfile(source):
+            files.append(source)
+        else:
+            files.extend(sorted(glob.glob(os.path.join(source, '*.svg'))))
     if not files:
         raise SystemExit('no SVGs found')
 
+    shown = lambda text: f'"{text}"' if ' ' in text else text
+    command = ' '.join(shown(part.replace(os.sep, '/')) for part in [output] + sources)
+
     lines = [
         '<!--',
-        '    Generated from the SVG icon sets in res/ - do not edit by hand.',
+        '    Generated from SVG artwork in res/ - do not edit by hand.',
         '',
         '    Regenerate with:',
-        '      python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml \\',
-        '        "res/toolbox icons" "res/toolbar icons"',
+        f'      python tools/svg2xaml.py {command}',
         '',
         '    Each icon is a DrawingImage keyed Icon.<file stem>, keeping the',
         '    artwork\'s own colours; the toolbar set is multi-coloured, so a',
@@ -312,7 +400,7 @@ def main():
     ]
 
     for path in files:
-        key = os.path.splitext(os.path.basename(path))[0]
+        key = re.sub(r'\W', '', os.path.splitext(os.path.basename(path))[0])
         body = convert(path)
         lines.append(f'  <DrawingImage x:Key="Icon.{key}">')
         lines.append('    <DrawingImage.Drawing>')

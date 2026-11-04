@@ -64,8 +64,10 @@ dropped onto a white report or a bright image later.
 `tools/svg2xaml.py` converts SVG to WPF `DrawingImage`. It supports `path`,
 `rect`, `circle`, `ellipse`, `line`, `polygon`, `polyline`, nested `g`, CSS
 classes in `<style>`, inline styles, presentation attributes, and
-translate/rotate/scale/matrix transforms. Anything else **raises** rather than
-silently dropping shapes.
+translate/rotate/scale/matrix transforms, and linear and radial gradient
+fills. Anything else **raises** rather than silently dropping shapes. Before
+2026-11-04 a gradient fill was silently dropped. Node icons stay flat
+colour anyway; gradients are there for the logo.
 
 So, when exporting:
 

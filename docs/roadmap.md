@@ -29,11 +29,11 @@ Small, known, and not yet done.
 - **A `.gitattributes`.** The repository was created without one, so line
   endings are normalised per machine rather than per repository. Harmless
   today, confusing the first time two people work on it.
-- **A vector logo**, if the product icon is ever wanted larger than the 256
-  pixel frame in `res/Sirius Stu.ico` - a splash, a README header,
-  packaging. The useful shape is an SVG master that the `.ico` is generated
-  from, so there is still one source; `tools/svg2xaml.py` already preserves
-  an artwork's own colours, so a colour logo converts cleanly.
+- **Four node icons have no SVG source.** `ph_find_curve`,
+  `ph_lens_calibration`, `ph_line_defects` and `ph_undistort` exist only in
+  the generated `Themes/Icons.xaml`. Regenerating it from `res/ui icons`
+  deletes them, so until their SVGs are added to `res/ui icons`, don't
+  regenerate it, or put them back by hand afterwards.
 
 ---
 
@@ -53,6 +53,14 @@ per-recipe layouts, unsaved-change prompts, Save/Save As, a Run that
 re-evaluates everything and reports the timing, a graph that frames itself
 when a recipe opens, a help popup per node built from its descriptor, and
 one dark title bar on every window including About.
+
+**The logo.** `res/Sirius Stu.svg` is the master. `tools/svg2xaml.py`
+draws it as `Themes/Logo.xaml` (it now takes gradient fills and single
+files), and the About box shows that vector drawing. `res/Sirius Stu.ico`
+stays hand-made: its small frames, 16 px especially, were drawn by hand,
+and they read better than any frame rendered from the SVG. Use the SVG or
+`Icon.SiriusStu` for anything larger: a splash, a README header,
+packaging.
 
 **Undo and redo**, over a command stack that keeps the instances it removed
 - so undoing a delete restores the same node and every panel holding it

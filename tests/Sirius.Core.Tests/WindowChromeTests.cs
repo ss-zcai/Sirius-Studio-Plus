@@ -61,50 +61,37 @@ public class WindowChromeTests
     /// application is.
     /// </para>
     /// <para>
-    /// The size is the part worth asserting. An .ico holds several frames,
-    /// and a decoder left to choose can hand back the 16-pixel one, which
-    /// builds cleanly, raises nothing, and looks like a thumbnail that
-    /// failed to load once it is scaled up to 40.
+    /// It is the vector logo, drawn from the SVG master, so it is sharp at
+    /// any size. It was the .ico, where a decoder left to choose a frame
+    /// can hand back the 16-pixel one, scaled up to 40.
     /// </para>
     /// </remarks>
     [Fact]
-    public void About_shows_the_application_icon() =>
+    public void About_shows_the_application_logo() =>
         WpfTestHost.OnStaThread(() =>
         {
             WpfTestHost.EnsureApplicationResources();
 
-            var source = new System.Windows.Media.Imaging.BitmapImage();
-            source.BeginInit();
-            source.UriSource = new Uri(
-                "pack://application:,,,/SiriusStudioPlus;component/Assets/AppIcon.ico",
-                UriKind.Absolute);
-            source.DecodePixelWidth = 256;
-            source.EndInit();
-
-            Assert.True(
-                source.PixelWidth >= 64,
-                $"the About icon decoded at {source.PixelWidth}px, which will look soft at 40");
+            Assert.IsType<System.Windows.Media.DrawingImage>(System.Windows.Application.Current!.FindResource("Icon.SiriusStu"));
 
             var xaml = File.ReadAllText(Path.Combine(Source, "AboutWindow.xaml"));
 
-            Assert.Contains("Assets/AppIcon.ico", xaml, StringComparison.Ordinal);
+            Assert.Contains("Icon.SiriusStu", xaml, StringComparison.Ordinal);
             Assert.DoesNotContain("Icon.ph_run", xaml, StringComparison.Ordinal);
         });
 
     /// <summary>
-    /// One icon on disk, used for both the executable and the About box, so
-    /// there is no second copy to forget to update.
+    /// The logo is generated from the SVG master the .ico shows, not drawn
+    /// a second time by hand.
     /// </summary>
     [Fact]
-    public void The_window_icon_and_the_about_icon_are_the_same_file()
+    public void The_logo_is_generated_from_the_svg_master()
     {
         var project = File.ReadAllText(Path.Combine(Source, "Sirius.Studio.App.csproj"));
+        var logo = File.ReadAllText(Path.Combine(Source, "Themes", "Logo.xaml"));
 
-        Assert.Contains("<ApplicationIcon>", project, StringComparison.Ordinal);
-
-        var icons = project.Split("Sirius Stu.ico").Length - 1;
-
-        Assert.True(icons >= 2, "the About box should reuse the ApplicationIcon file, not a copy");
+        Assert.Contains(@"<ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>", project, StringComparison.Ordinal);
+        Assert.Contains(@"tools/svg2xaml.py src/Sirius.Studio.App/Themes/Logo.xaml ""res/Sirius Stu.svg""", logo, StringComparison.Ordinal);
     }
 
     /// <summary>

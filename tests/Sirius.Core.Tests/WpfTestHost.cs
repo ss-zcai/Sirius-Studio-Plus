@@ -157,7 +157,7 @@ public sealed class WpfTestHost : IDisposable
         if (resources.MergedDictionaries.Count > 0)
             return;
 
-        foreach (var name in new[] { "Icons.xaml", "Dark.xaml" })
+        foreach (var name in new[] { "Icons.xaml", "Logo.xaml", "Dark.xaml" })
         {
             resources.MergedDictionaries.Add(new ResourceDictionary
             {

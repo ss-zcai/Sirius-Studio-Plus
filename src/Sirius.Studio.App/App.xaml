@@ -9,6 +9,7 @@
                 <ResourceDictionary Source="pack://application:,,,/Nodify;component/Themes/Styles/Controls.xaml" />
                 <!-- Generated from res/ by tools/svg2xaml.py -->
                 <ResourceDictionary Source="Themes/Icons.xaml" />
+                <ResourceDictionary Source="Themes/Logo.xaml" />
                 <ResourceDictionary Source="Themes/Dark.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
