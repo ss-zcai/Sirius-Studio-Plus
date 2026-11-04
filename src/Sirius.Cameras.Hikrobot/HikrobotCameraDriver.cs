@@ -123,6 +123,7 @@ internal sealed class HikrobotCamera : ICamera
     private bool _triggerApplied;
     private bool _grabbing;
     private bool _latestOnly = true;
+    private bool _disposed;
 
     /// <summary>The time between frames the camera says it can manage, in milliseconds.</summary>
     private double _framePeriod = 250;
@@ -178,6 +179,8 @@ internal sealed class HikrobotCamera : ICamera
         {
             lock (_gate)
             {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+
                 if (value == _exposure)
                     return;
 
@@ -194,6 +197,8 @@ internal sealed class HikrobotCamera : ICamera
         {
             lock (_gate)
             {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+
                 if (value == _gain)
                     return;
 
@@ -223,6 +228,10 @@ internal sealed class HikrobotCamera : ICamera
     {
         lock (_gate)
         {
+            // Closed while this waited its turn - at exit, say. The SDK's
+            // handle is gone, and a call on it is a crash, not an error.
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             if (!_triggerApplied)
                 ApplyTrigger();
 
@@ -452,10 +461,16 @@ internal sealed class HikrobotCamera : ICamera
     private bool TrySetEnum(string name, string value) =>
         _device.Parameters.SetEnumValueByString(name, value) == MvError.MV_OK;
 
+    /// <summary>Closes the camera; once - a second close is a call on a handle already gone.</summary>
     public void Dispose()
     {
         lock (_gate)
         {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
             try
             {
                 if (_grabbing)

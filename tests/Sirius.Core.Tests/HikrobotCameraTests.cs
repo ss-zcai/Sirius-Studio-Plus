@@ -123,6 +123,25 @@ public class HikrobotCameraTests
         }
     }
 
+    /// <summary>
+    /// Closed, a camera closes no further and grabs no more: at exit a
+    /// grab can still be waiting its turn as the camera closes, and a call
+    /// on MVS's handle once it is gone is a crash, not an error.
+    /// </summary>
+    [Fact]
+    public void A_closed_camera_closes_once_and_grabs_no_more()
+    {
+        if (Hikrobot() is not { } driver || Any(driver) is not { } info)
+            return;
+
+        var camera = CameraDrivers.Acquire(info.Label)!;
+        CameraDrivers.Release(camera);
+
+        camera.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => camera.Grab(TimeSpan.FromMilliseconds(300), CancellationToken.None));
+        Assert.Throws<ObjectDisposedException>(() => camera.Exposure = 1234);
+    }
+
     [Fact]
     public void The_camera_node_takes_frames_from_a_hikrobot_camera()
     {

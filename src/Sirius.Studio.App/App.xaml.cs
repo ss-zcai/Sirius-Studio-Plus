@@ -56,10 +56,14 @@ public partial class App : Application
             DropMenusFromTheLeft();
     }
 
-    /// <summary>Lets every open camera go, so the next program to use one finds it free.</summary>
+    /// <summary>
+    /// Lets every open camera go, so the next program to use one finds it
+    /// free - and opens none after, though an inspection may still be
+    /// finishing.
+    /// </summary>
     protected override void OnExit(ExitEventArgs e)
     {
-        Sirius.Vision.Cameras.CameraDrivers.CloseAll();
+        Sirius.Vision.Cameras.CameraDrivers.ShutDown();
         base.OnExit(e);
     }
 

@@ -635,6 +635,22 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>A folder run or a continuous run, either of which does its own running.</summary>
     private bool IsBatching => _folderRun is not null || _liveRun is not null;
 
+    /// <summary>
+    /// Stops whatever is running - a continuous run, a folder run, a re-run -
+    /// as the window closes.
+    /// </summary>
+    /// <remarks>
+    /// The cameras are closed next. A grab still waiting for a frame or a
+    /// trigger gives up within a tenth of a second of this, rather than
+    /// holding the camera until its timeout while the close waits for it.
+    /// </remarks>
+    public void StopRunning()
+    {
+        _liveRun?.Cancel();
+        _folderRun?.Cancel();
+        _runCancellation?.Cancel();
+    }
+
     public IRelayCommand DeleteSelectionCommand { get; }
 
     public HistogramData? Histogram

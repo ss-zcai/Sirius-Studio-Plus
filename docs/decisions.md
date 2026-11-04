@@ -2228,3 +2228,44 @@ wire through.
   with the full picture. An upright region - Crop's - follows where the
   reference goes but cannot turn.
 
+
+## 60. One thread at a time in the camera SDKs
+
+The application sometimes stayed in Task Manager after its window closed,
+once a camera had been used. It was a crash, not a hang: Windows Error
+Reporting keeps a crashed process alive, windowless, while it writes the
+dump. The crash was inside a camera SDK, in the code of a transport DLL
+that had already been unloaded (`PylonUsb_v12_TL.dll`, and in a probe
+`MVGigEVisionSDK.dll`).
+
+- **Cause.** Two threads listing cameras at once. Opening a recipe with a
+  Camera lists them from three places together: the start-up search (off
+  the UI thread), the Camera node's Device list, and the first inspection,
+  which lists every driver to find its camera. Each search loads and
+  releases the SDK's transport layers, and one search unloaded a DLL the
+  other was still running. A probe with four threads listing cameras
+  crashed three runs out of three; with one thread, never.
+- **One gate for every driver** (`CameraDrivers.SdkGate`), held to list,
+  open or close a camera. Not one per driver: pylon also searches through
+  MVS's GenTL producers when both are installed, so a Basler search runs in
+  Hikrobot's DLLs. Hikrobot's own lock around its search was not enough for
+  that reason. Grabbing is left out - a grab waiting for a hardware trigger
+  would hold up every search - and keeps each camera's own lock.
+- **Lock order:** the gate is taken holding nothing, or before
+  `CameraDrivers.Gate`, never while holding it.
+- **Closing for good** (`ShutDown`, on exit). An inspection still finishing
+  as the application closes used to open the camera again after it was
+  closed, leaving it open while the SDK shut down. After `ShutDown` no
+  camera opens. `CloseAll` stays reopenable for the Runner, whose run is
+  over by then, and which the tests run in-process.
+- **A camera closes once**, and a grab or setting on a closed camera throws
+  `ObjectDisposedException` instead of calling the SDK on a handle that is
+  gone. A grab that was waiting its turn as the camera closed is exactly
+  that case.
+- **Closing the window stops the run first** (`MainViewModel.StopRunning`),
+  so a grab waiting for a frame or a trigger gives up within 0.1 s rather
+  than holding the camera until its timeout.
+
+Checked in the application by UI Automation, with no screen capture:
+opening a camera recipe, running continuously, and closing exits in
+1.5-2.5 s, including while waiting on a 10 s hardware trigger.

@@ -67,6 +67,7 @@ internal sealed class BaslerCamera : Sirius.Vision.Cameras.ICamera
     private bool _triggerApplied;
     private double _exposure = double.NaN;
     private double _gain = double.NaN;
+    private bool _disposed;
 
     public BaslerCamera(CameraInfo info, ICameraInfo pylonInfo)
     {
@@ -103,6 +104,8 @@ internal sealed class BaslerCamera : Sirius.Vision.Cameras.ICamera
         {
             lock (_gate)
             {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+
                 if (value == _exposure)
                     return;
 
@@ -121,6 +124,8 @@ internal sealed class BaslerCamera : Sirius.Vision.Cameras.ICamera
         {
             lock (_gate)
             {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+
                 if (value == _gain)
                     return;
 
@@ -154,6 +159,9 @@ internal sealed class BaslerCamera : Sirius.Vision.Cameras.ICamera
     {
         lock (_gate)
         {
+            // Closed while this waited its turn - at exit, say.
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             if (!_triggerApplied)
                 ApplyTrigger();
 
@@ -291,10 +299,16 @@ internal sealed class BaslerCamera : Sirius.Vision.Cameras.ICamera
         return parameter.IsWritable && parameter.TrySetValue(value);
     }
 
+    /// <summary>Closes the camera; once.</summary>
     public void Dispose()
     {
         lock (_gate)
         {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
             try
             {
                 if (Grabber.IsGrabbing)

@@ -631,6 +631,8 @@ public partial class MainWindow : Window
 
         SaveLayout();
         WindowPlacement.Of(this).Write(_placementPath);
+
+        (DataContext as MainViewModel)?.StopRunning();
     }
 
     private void RestoreLayout() => RestoreLayout(_layoutPath);

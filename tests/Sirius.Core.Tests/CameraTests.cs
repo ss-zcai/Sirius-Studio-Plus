@@ -129,3 +129,76 @@ public class CameraTests
         Assert.Equal(Simulated, node.Device);
     }
 }
+
+/// <summary>
+/// One thread at a time in the cameras' SDKs. Two searches at once crash
+/// pylon and MVS alike, and the application lists cameras from three
+/// places at once as a recipe with a Camera opens.
+/// </summary>
+public class CameraSdkGateTests
+{
+    [Fact]
+    public async Task No_two_threads_list_cameras_at_once()
+    {
+        CameraDrivers.Register(CountingDriver.Instance);
+        CountingDriver.Instance.Reset();
+
+        var threads = Enumerable.Range(0, 4)
+            .Select(_ => Task.Run(() =>
+            {
+                for (var i = 0; i < 25; i++)
+                {
+                    CameraDrivers.Enumerate();
+                    CameraDrivers.Acquire($"Gate test camera [{CountingDriver.Missing}]");
+                }
+            }))
+            .ToArray();
+
+        await Task.WhenAll(threads);
+
+        Assert.True(CountingDriver.Instance.Calls >= 200);
+        Assert.Equal(1, CountingDriver.Instance.MostAtOnce);
+    }
+
+    /// <summary>Lists no cameras, slowly, and counts how many threads are inside at once.</summary>
+    private sealed class CountingDriver : ICameraDriver
+    {
+        public const string Missing = "GATE-NONE";
+
+        public static CountingDriver Instance { get; } = new();
+
+        private int _inside;
+        private int _mostAtOnce;
+        private int _calls;
+
+        public string Name => "Gate test";
+
+        public int MostAtOnce => Volatile.Read(ref _mostAtOnce);
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public void Reset()
+        {
+            _mostAtOnce = 0;
+            _calls = 0;
+        }
+
+        public IReadOnlyList<CameraInfo> Enumerate()
+        {
+            var inside = Interlocked.Increment(ref _inside);
+            Interlocked.Increment(ref _calls);
+
+            int most;
+            while (inside > (most = Volatile.Read(ref _mostAtOnce)) &&
+                   Interlocked.CompareExchange(ref _mostAtOnce, inside, most) != most)
+            {
+            }
+
+            Thread.Sleep(1);
+            Interlocked.Decrement(ref _inside);
+            return [];
+        }
+
+        public ICamera Open(CameraInfo camera) => throw new InvalidOperationException("Lists no cameras.");
+    }
+}

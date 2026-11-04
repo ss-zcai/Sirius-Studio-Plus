@@ -86,16 +86,35 @@ public interface ICameraDriver
 /// Open cameras are kept here rather than by the nodes using them. A camera
 /// can be opened once, two Camera nodes may want the same one, and a node
 /// that is deleted is kept by undo and may come back. They are closed when
-/// the application closes (<see cref="CloseAll"/>).
+/// the application closes (<see cref="ShutDown"/>).
+/// </para>
+/// <para>
+/// Only one thread at a time goes into the cameras' SDKs to list, open or
+/// close (<see cref="SdkGate"/>). Two searches at once crash either SDK,
+/// in the code of a transport DLL the other search has just unloaded -
+/// and cameras are listed from three places at once as a recipe opens:
+/// the start-up search, the Camera node's Device list and the first
+/// inspection. pylon also searches through MVS's GenTL producers when
+/// both are installed, so one SDK's search runs into the other's: the
+/// gate is shared by every driver, not kept by each.
 /// </para>
 /// </remarks>
 public static class CameraDrivers
 {
+    /// <summary>The lists below. Never held while taking <see cref="SdkGate"/>.</summary>
     private static readonly object Gate = new();
+
+    /// <summary>
+    /// Held while any driver lists, opens or closes a camera. Grabbing is
+    /// left out: a grab waiting for a trigger would hold up every search.
+    /// </summary>
+    private static readonly object SdkGate = new();
+
     private static readonly List<ICameraDriver> Drivers = [new SimulatedCameraDriver()];
     private static readonly Dictionary<string, ICamera> Open = new(StringComparer.OrdinalIgnoreCase);
     private static readonly List<string> Problems = [];
     private static bool _loaded;
+    private static bool _closed;
 
     /// <summary>Why a driver beside the application was left out - its maker's runtime missing, usually.</summary>
     public static IReadOnlyList<string> LoadProblems
@@ -145,8 +164,14 @@ public static class CameraDrivers
 
                 foreach (var type in types)
                 {
-                    var driver = (ICameraDriver)Activator.CreateInstance(type)!;
-                    driver.Enumerate();
+                    ICameraDriver driver;
+
+                    lock (SdkGate)
+                    {
+                        driver = (ICameraDriver)Activator.CreateInstance(type)!;
+                        driver.Enumerate();
+                    }
+
                     Register(driver);
                 }
             }
@@ -190,7 +215,8 @@ public static class CameraDrivers
         {
             try
             {
-                return driver.Enumerate();
+                lock (SdkGate)
+                    return driver.Enumerate();
             }
             catch (Exception)
             {
@@ -202,6 +228,11 @@ public static class CameraDrivers
     /// The camera a recipe names, opened - or already open - or null when
     /// no driver can see one with that serial number.
     /// </summary>
+    /// <remarks>
+    /// After <see cref="ShutDown"/> none opens again: an inspection still
+    /// finishing would otherwise open one that nothing closes, and its SDK
+    /// would shut down around it.
+    /// </remarks>
     public static ICamera? Acquire(string label)
     {
         if (CameraInfo.SerialIn(label) is not { } serial)
@@ -209,43 +240,55 @@ public static class CameraDrivers
 
         lock (Gate)
         {
+            if (_closed)
+                throw Closed();
+
             if (Open.TryGetValue(serial, out var open))
                 return open;
         }
 
         foreach (var driver in All)
         {
-            IReadOnlyList<CameraInfo> found;
+            ICamera camera;
 
-            try
+            lock (SdkGate)
             {
-                found = driver.Enumerate();
+                IReadOnlyList<CameraInfo> found;
+
+                try
+                {
+                    found = driver.Enumerate();
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                var info = found.FirstOrDefault(camera =>
+                    string.Equals(camera.Serial, serial, StringComparison.OrdinalIgnoreCase));
+
+                if (info is null)
+                    continue;
+
+                camera = driver.Open(info);
             }
-            catch (Exception)
-            {
-                continue;
-            }
 
-            var info = found.FirstOrDefault(camera =>
-                string.Equals(camera.Serial, serial, StringComparison.OrdinalIgnoreCase));
-
-            if (info is null)
-                continue;
-
-            var camera = driver.Open(info);
+            ICamera? kept = null;
 
             lock (Gate)
             {
-                // Opened by another node meanwhile: keep the first.
-                if (Open.TryGetValue(serial, out var raced))
+                // Opened by another node meanwhile: keep the first. Closed
+                // down meanwhile: keep none.
+                if (!_closed && !Open.TryGetValue(serial, out kept))
                 {
-                    camera.Dispose();
-                    return raced;
+                    Open[serial] = camera;
+                    return camera;
                 }
-
-                Open[serial] = camera;
-                return camera;
             }
+
+            Close(camera);
+
+            return kept ?? throw Closed();
         }
 
         return null;
@@ -260,10 +303,22 @@ public static class CameraDrivers
                 Open.Remove(camera.Info.Serial);
         }
 
-        camera.Dispose();
+        Close(camera);
     }
 
-    /// <summary>Closes every open camera.</summary>
+    /// <summary>
+    /// Closes every open camera for good, as the application closes: none
+    /// opens after this.
+    /// </summary>
+    public static void ShutDown()
+    {
+        lock (Gate)
+            _closed = true;
+
+        CloseAll();
+    }
+
+    /// <summary>Closes every open camera. The next grab opens its camera again.</summary>
     public static void CloseAll()
     {
         ICamera[] cameras;
@@ -278,7 +333,7 @@ public static class CameraDrivers
         {
             try
             {
-                camera.Dispose();
+                Close(camera);
             }
             catch (Exception)
             {
@@ -287,4 +342,14 @@ public static class CameraDrivers
             }
         }
     }
+
+    /// <summary>Closes one camera, with no other call into the SDKs meanwhile.</summary>
+    private static void Close(ICamera camera)
+    {
+        lock (SdkGate)
+            camera.Dispose();
+    }
+
+    private static InvalidOperationException Closed() =>
+        new("The cameras are closed: the application is closing.");
 }
