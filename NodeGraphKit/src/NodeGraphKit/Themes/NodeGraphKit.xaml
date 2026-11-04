@@ -1,0 +1,22 @@
+<!--
+    Everything the kit needs, in one dictionary. In App.xaml:
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/NodeGraphKit;component/Themes/NodeGraphKit.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    Icons first: the theme does not use them, but the views do, and a
+    host's own icon dictionary merged after this one can add to them or
+    replace any of them by key.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/NodeGraphKit;component/Themes/Icons.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/NodeGraphKit;component/Themes/Dark.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+</ResourceDictionary>

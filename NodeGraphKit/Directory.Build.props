@@ -1,0 +1,19 @@
+<Project>
+
+  <!--
+    The kit's own build settings. MSBuild reads the nearest
+    Directory.Build.props only, so this also keeps the kit independent of
+    whatever folder it is unpacked into.
+  -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+
+    <Product>Node Graph UI Kit</Product>
+    <Company>Sigma Squares (Beijing) Tech Co Ltd</Company>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+</Project>

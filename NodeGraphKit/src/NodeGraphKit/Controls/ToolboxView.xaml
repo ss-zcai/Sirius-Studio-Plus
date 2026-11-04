@@ -1,0 +1,91 @@
+<UserControl x:Class="NodeGraphKit.Controls.ToolboxView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:NodeGraphKit.ViewModels">
+
+    <!--
+        The toolbox. DataContext: a PaletteViewModel.
+
+        A search box that stays put above groups that scroll. Each entry is
+        a drag source - drop it on a canvas to create that node where it
+        lands - and a double click asks the host to add it (AddRequested).
+    -->
+    <DockPanel>
+        <Grid DockPanel.Dock="Top" Margin="6,6,6,4">
+            <TextBox x:Name="SearchBox"
+                     Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
+                     Padding="22,3,24,3"
+                     VerticalContentAlignment="Center"
+                     PreviewKeyDown="OnSearchKeyDown"
+                     ToolTip="Search the tools by name, group or what they do. Enter adds the first match; Esc clears." />
+
+            <Image Source="{StaticResource Icon.ph_search}"
+                   Width="13"
+                   Height="13"
+                   Margin="6,0,0,0"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Center"
+                   IsHitTestVisible="False" />
+
+            <TextBlock Text="Search tools"
+                       Margin="24,0,0,0"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource Text.Secondary}"
+                       FontStyle="Italic"
+                       IsHitTestVisible="False"
+                       Visibility="{Binding IsSearching, Converter={StaticResource InverseBoolToVisibility}}" />
+
+            <Button Style="{StaticResource ToolbarButton}"
+                    Width="18"
+                    Height="18"
+                    Padding="0"
+                    Margin="0,0,3,0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    ToolTip="Clear the search (Esc)"
+                    Click="OnClearClick"
+                    Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibility}}">
+                <Image Source="{StaticResource Icon.ph_clear}" Width="10" Height="10" />
+            </Button>
+        </Grid>
+
+        <TextBlock DockPanel.Dock="Top"
+                   Text="No tools match."
+                   Margin="12,6"
+                   Foreground="{StaticResource Text.Secondary}"
+                   FontStyle="Italic"
+                   Visibility="{Binding HasNoMatches, Converter={StaticResource BoolToVisibility}}" />
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Groups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:PaletteGroupViewModel}">
+                        <Expander Header="{Binding DisplayName}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                            <ItemsControl ItemsSource="{Binding Items}" Margin="0,2,0,6">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:PaletteItemViewModel}">
+                                        <Border Background="Transparent"
+                                                Padding="10,4,8,4"
+                                                Cursor="Hand"
+                                                ToolTip="{Binding ToolTipText}"
+                                                PreviewMouseLeftButtonDown="OnItemMouseDown"
+                                                PreviewMouseMove="OnItemMouseMove">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Image Source="{Binding IconKey, Converter={StaticResource IconKeyToImage}}"
+                                                       Width="16"
+                                                       Height="16"
+                                                       Margin="0,0,8,0"
+                                                       VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Expander>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

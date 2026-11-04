@@ -34,6 +34,7 @@ stay beside its folder: the native OpenCV binaries live in
 | `src/Sirius.NodeEditor` | Scaffolded, currently empty. |
 | `tests/Sirius.Core.Tests` | All tests. |
 | `tools/NodeDocGen` | Generates `docs/node-reference.md` from the node library. |
+| `NodeGraphKit/` | The node graph editor and dark theme on their own, with no vision code, for other teams. Standalone: own solution, own README, packed by `NodeGraphKit/pack.ps1`. |
 
 `Sirius.Core` has no dependency on OpenCV or WPF, which is what makes the
 engine testable without either — and would make a change of CV backend a

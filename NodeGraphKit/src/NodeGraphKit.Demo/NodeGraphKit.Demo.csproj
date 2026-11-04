@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A shell around the kit, laid out as Sirius Studio Plus is: menu,
+    toolbar, toolbox on the left, the canvas in the middle, properties on
+    the right, a status line. Copy it as the starting point for an
+    application, or read it to see how the pieces are wired together.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>NodeGraphKit.Demo</RootNamespace>
+    <AssemblyName>NodeGraphDemo</AssemblyName>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dirkster.AvalonDock" />
+    <PackageReference Include="Dirkster.AvalonDock.Themes.VS2013" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NodeGraphKit\NodeGraphKit.csproj" />
+  </ItemGroup>
+
+</Project>
