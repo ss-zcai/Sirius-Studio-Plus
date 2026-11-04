@@ -49,7 +49,18 @@ public partial class GraphEditorView : UserControl
         Editor.AddHandler(MouseRightButtonUpEvent, new MouseButtonEventHandler(OnRightButtonUp), handledEventsToo: true);
 
         PreviewKeyDown += OnPreviewKeyDown;
+        DataContextChanged += OnDataContextChanged;
+        Editor.SizeChanged += (_, _) => FitIfPending();
     }
+
+    /// <summary>
+    /// Fit the graph to the window whenever one is opened - when the view
+    /// first shows, and after <see cref="GraphEditorViewModel.Load"/> or
+    /// <see cref="GraphEditorViewModel.New"/>. On by default.
+    /// </summary>
+    public bool FitOnOpen { get; set; } = true;
+
+    private bool _fitPending;
 
     /// <summary>The Nodify editor inside, for anything the view does not expose.</summary>
     public NodifyEditor Canvas => Editor;
@@ -88,7 +99,67 @@ public partial class GraphEditorView : UserControl
         return new Point(origin.X + (size.Width / 2) - 90, origin.Y + (size.Height / 2) - 30);
     }
 
-    public void FitToScreen() => Editor.FitToScreen();
+    /// <summary>
+    /// Frames every node, with a margin, and never closer than 1:1 - so a big
+    /// graph shrinks to fit and a small one sits in the middle at full size.
+    /// </summary>
+    public void FitToScreen()
+    {
+        var (location, zoom) = ViewportFrame.Frame(
+            Editor.ItemsExtent,
+            new Size(Editor.ActualWidth, Editor.ActualHeight),
+            Editor.MinViewportZoom,
+            Math.Min(ViewportFrame.MaxZoom, Editor.MaxViewportZoom));
+
+        Editor.ViewportZoom = zoom;
+        Editor.ViewportLocation = location;
+    }
+
+    /// <summary>
+    /// Fits once the canvas can say where its nodes are.
+    /// </summary>
+    /// <remarks>
+    /// The canvas knows its nodes' extent only after it has laid them out,
+    /// and its own size only once it is on screen - which, inside a docking
+    /// panel, is later than the window's Loaded event. Fitting before either
+    /// frames nothing in the wrong-sized box and leaves the graph shrunk in a
+    /// corner. So this waits for a size, then for the layout pass after it:
+    /// Loaded priority runs after layout.
+    /// </remarks>
+    public void FitWhenReady()
+    {
+        _fitPending = true;
+        FitIfPending();
+    }
+
+    private void FitIfPending()
+    {
+        if (!_fitPending || Editor.ActualWidth <= 0 || Editor.ActualHeight <= 0)
+            return;
+
+        _fitPending = false;
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, FitToScreen);
+    }
+
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.OldValue is GraphEditorViewModel old)
+            old.GraphReplaced -= OnGraphReplaced;
+
+        if (e.NewValue is GraphEditorViewModel model)
+        {
+            model.GraphReplaced += OnGraphReplaced;
+
+            if (FitOnOpen)
+                FitWhenReady();
+        }
+    }
+
+    private void OnGraphReplaced(object? sender, EventArgs e)
+    {
+        if (FitOnOpen)
+            FitWhenReady();
+    }
 
     public void ZoomIn() => Editor.ZoomIn();
 

@@ -439,6 +439,22 @@
                     <MenuItem Header="_Toolbox" Tag="toolbox" Click="OnShowPanelClick" />
                     <MenuItem Header="_Properties" Tag="properties" Click="OnShowPanelClick" />
                     <Separator />
+                    <MenuItem Header="Zoom _In" Click="OnZoomGraphInClick">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource Icon.ph_zoom_in}" Width="14" Height="14" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Zoom _Out" Click="OnZoomGraphOutClick">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource Icon.ph_zoom_out}" Width="14" Height="14" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="_Fit Graph to Window" Click="OnFitGraphClick">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource Icon.ph_zoom_fit}" Width="14" Height="14" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator />
                     <MenuItem Header="_Reset Layout" Click="OnResetLayoutClick" />
                 </MenuItem>
 
@@ -576,6 +592,25 @@
                         Command="{Binding StopFolderCommand}"
                         Visibility="{Binding IsFolderRunning, Converter={StaticResource BoolToVisibility}}">
                     <Image Source="{StaticResource Icon.ph_stop}" Width="18" Height="18" />
+                </Button>
+
+                <Separator />
+
+                <!-- The graph's view: the tab being worked in. -->
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Zoom in on the graph"
+                        Click="OnZoomGraphInClick">
+                    <Image Source="{StaticResource Icon.ph_zoom_in}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Zoom out of the graph"
+                        Click="OnZoomGraphOutClick">
+                    <Image Source="{StaticResource Icon.ph_zoom_out}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}"
+                        ToolTip="Fit the graph to the window"
+                        Click="OnFitGraphClick">
+                    <Image Source="{StaticResource Icon.ph_zoom_fit}" Width="18" Height="18" />
                 </Button>
 
                 <TextBlock Text="running…"

@@ -139,6 +139,12 @@ public sealed class GraphEditorViewModel : ObservableObject
     /// </summary>
     public event EventHandler? GraphChanged;
 
+    /// <summary>
+    /// Raised after <see cref="New"/> and <see cref="Load"/>: a different
+    /// graph, which the canvas frames so it is not hunted for by scrolling.
+    /// </summary>
+    public event EventHandler? GraphReplaced;
+
     // ---- whole graph -------------------------------------------------------
 
     /// <summary>Empties the canvas and the history.</summary>
@@ -147,6 +153,7 @@ public sealed class GraphEditorViewModel : ObservableObject
         Graph.Clear();
         RebuildCore();
         History.Reset(GraphSerializer.Save(Graph));
+        GraphReplaced?.Invoke(this, EventArgs.Empty);
         GraphChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -164,6 +171,7 @@ public sealed class GraphEditorViewModel : ObservableObject
 
         RebuildCore();
         History.Reset(GraphSerializer.Save(Graph));
+        GraphReplaced?.Invoke(this, EventArgs.Empty);
         GraphChanged?.Invoke(this, EventArgs.Empty);
         return result.Warnings;
     }

@@ -201,6 +201,34 @@ public class GraphTests
     }
 }
 
+public class ViewportFrameTests
+{
+    [Fact]
+    public void A_big_graph_shrinks_to_fit_with_a_margin()
+    {
+        var (location, zoom) = Controls.ViewportFrame.Frame(new Rect(0, 0, 2000, 1000), new Size(1000, 800));
+
+        Assert.True(zoom < 0.5 && zoom > 0.4, $"zoom {zoom}");
+        Assert.True(location.X < 0, "the margin shows left of the first node");
+    }
+
+    [Fact]
+    public void A_small_graph_stays_at_full_size_in_the_middle()
+    {
+        var (location, zoom) = Controls.ViewportFrame.Frame(new Rect(100, 100, 200, 100), new Size(1000, 800));
+
+        Assert.Equal(1.0, zoom);
+        Assert.Equal(new Point(200 - 500, 150 - 400), location);
+    }
+
+    [Fact]
+    public void Nothing_laid_out_yet_opens_at_the_origin()
+    {
+        Assert.Equal((new Point(0, 0), 1.0), Controls.ViewportFrame.Frame(Rect.Empty, new Size(1000, 800)));
+        Assert.Equal((new Point(0, 0), 1.0), Controls.ViewportFrame.Frame(new Rect(0, 0, 100, 100), new Size(0, 0)));
+    }
+}
+
 public class EditorTests
 {
     private static GraphEditorViewModel Editor() => new(TestNodes.Catalog());

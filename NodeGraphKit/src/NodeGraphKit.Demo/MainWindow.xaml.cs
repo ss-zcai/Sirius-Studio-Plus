@@ -47,7 +47,8 @@ public partial class MainWindow : Window
             e.Menu.Items.Add(bypass);
         };
 
-        Loaded += (_, _) => Graph.FitToScreen();
+        // The canvas fits the starter graph to the window by itself, and any
+        // graph opened later (GraphEditorView.FitOnOpen).
     }
 
     private void OnClosing(object? sender, CancelEventArgs e) =>

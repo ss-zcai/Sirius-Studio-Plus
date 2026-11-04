@@ -226,6 +226,22 @@ public partial class MainWindow : Window
             editor.ViewportLocation = location;
         });
 
+    // ---- the graph's view: always the tab being worked in --------------------
+
+    private void OnZoomGraphInClick(object sender, RoutedEventArgs e) => ActiveEditor?.ZoomIn();
+
+    private void OnZoomGraphOutClick(object sender, RoutedEventArgs e) => ActiveEditor?.ZoomOut();
+
+    /// <summary>
+    /// The same framing a project gets when it opens: every node, with a
+    /// margin, and never closer than 1:1.
+    /// </summary>
+    private void OnFitGraphClick(object sender, RoutedEventArgs e)
+    {
+        if ((DataContext as MainViewModel)?.ActiveDocument is { } document)
+            FrameGraph(document);
+    }
+
     /// <summary>The editor showing <paramref name="document"/>, once its tab has been shown.</summary>
     private NodifyEditor? EditorFor(GraphDocumentViewModel? document) =>
         document is null
