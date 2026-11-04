@@ -7,7 +7,7 @@ Companion to `decisions.md`, which records what was settled and why, and
 `node-reference.md`, which documents the built-in nodes.
 
 > **Interface version 1.0.** Built and tested. The SDK is
-> `dist/Sirius.Plugins-SDK-1.0.1.zip`, made by `tools/pack-sdk.ps1`: the
+> `dist/Sirius.Plugins-SDK-1.0.2.zip`, made by `tools/pack-sdk.ps1`: the
 > `Sirius.Plugins` package, this guide, a sample library that builds from
 > the package alone, and the Python SDK with its sample
 > ([python-nodes.md](python-nodes.md)).
@@ -342,7 +342,7 @@ A library's project file:
     <Version>1.0.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Sirius.Plugins" Version="1.0.1" ExcludeAssets="runtime" />
+    <PackageReference Include="Sirius.Plugins" Version="1.0.2" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>
 ```

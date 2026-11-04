@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands at **1.0.6**, and what is left.
+Where the product stands at **1.0.9**, and what is left.
 
 Companion to `decisions.md`, which records why things are the way they are,
 and `interactive-tools-plan.md`, which is the plan for the next large piece
@@ -51,7 +51,8 @@ conversion, and circle, ellipse and line fits that report their residual.
 **The shell.** Node canvas, toolbox, inspector, dockable panels, saved
 per-recipe layouts, unsaved-change prompts, Save/Save As, a Run that
 re-evaluates everything and reports the timing, a graph that frames itself
-when a recipe opens, a help popup per node built from its descriptor, and
+when a recipe opens and on demand (Fit Graph to Window, with Zoom In and
+Zoom Out, on the toolbar), a help popup per node built from its descriptor, and
 one dark title bar on every window including About.
 
 **The logo.** `res/Sirius Stu.svg` is the master. `tools/svg2xaml.py`
@@ -230,6 +231,10 @@ done. What remains, in order:
   from a turned box or a line. Still missing: an angle from Match
   Template, and two-point references (two holes) for the angle of a
   part that has no straight edge.
+- **Roundness, three ways (1.0.9).** Blobs and closed outlines carry
+  Circularity (4 pi A / P squared) and HALCON's Radial Circularity and
+  Roundness, which see a smooth oval the first misses. A closed outline is
+  measured like a blob throughout.
 - **Circular and polygonal regions.** Rectangles are handled at any angle.
 
 ---
@@ -256,7 +261,9 @@ done. What remains, in order:
   camera, Basler (GigE and USB3) through pylon and Hikrobot (GigE and
   USB3) through MVS, behind `ICameraDriver`. Left, on hold: plain USB
   webcams. Basler is tested only against pylon's emulator and Hikrobot
-  only against MVS's virtual cameras so far.
+  only against MVS's virtual cameras so far. Every SDK call that lists,
+opens or closes a camera takes its turn through one gate (1.0.9): two at
+once crashed inside the SDKs and kept the application alive after exit.
 - **Circle Defects for parts that are not round is done**: Local Form
   and Fitted Ellipse references, and a Form output.
 - **Mean intensity over a region is done** - Region Stats.
@@ -346,7 +353,9 @@ done. What remains, in order:
   something reads one, the node is a value with nowhere to go.
 - **`Sirius.NodeEditor` is an empty scaffold** - one `Class1.cs`. The canvas
   lives in the app project. Extract it when a second host needs it, or
-  delete the project.
+  delete the project. `NodeGraphKit/` is not that extraction: it is a
+  standalone copy of the editor and theme for other teams, with its own
+  solution, and does not follow changes here by itself.
 - **Find Blobs does not measure** fitted ellipse, inner/outer radius or
   moment invariants. Add them when something consumes them.
 - **One icon is weak**: `ph_find_blobs` collides visually with the

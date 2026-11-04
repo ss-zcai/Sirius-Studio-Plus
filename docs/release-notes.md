@@ -5,6 +5,76 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.9 — 4 November 2026
+
+12-bit pictures shown as they should be, two better measures of
+roundness, zoom buttons for the graph, and the exit hang fixed, on top of
+everything in 1.0.8 below. Recipes saved in 1.0.8 open unchanged. Still
+70 nodes.
+
+### What to try first
+
+> A 12-bit image (Image File with **Read Mode: Unchanged**, or a 12-bit camera) → any viewer → **Display: 12-bit**
+
+A 12-bit frame used to look nearly black, shown across the full 16 bits.
+The readout now gives the pixel's own value (up to 4095), whatever it is
+shown at.
+
+> Find Blobs → Shape Table, or Filter Shapes with **Measure: Radial Circularity** or **Roundness**
+
+Two measures that see an oval the old Circularity misses: an oval 2%
+long reads 0.9999 on Circularity.
+
+> The main toolbar → **Zoom In**, **Zoom Out**, **Fit Graph to Window**
+
+Also on the View menu. Fit frames every node with a margin, as when a
+recipe opens.
+
+### New and changed
+
+- **Display for 16-bit pictures**: 16, 14, 12 or 10 bits, or stretched,
+  in every viewer and preview showing one. A Viewer node keeps its
+  choice in the recipe; previews start from the last one used. **Read
+  Mode** on Image File and Image Sequence now says that Any Color loads
+  8 bits, squeezing a 12-bit file, and that Unchanged keeps its depth.
+- **Radial Circularity and Roundness**, HALCON's two measures, beside
+  the existing Circularity, for blobs and closed outlines: in the Measure
+  list of Filter Shapes, Select Shape and Shape Style, and in the Shape
+  Table. Ratios there show three decimals, so 0.999 no longer reads 1.
+- **Closed outlines are measured like blobs.** An outline from Points
+  to Polygon, or Ring Calipers' contour, carries circularity, solidity,
+  the minimum rectangle's size and angle, extent and bounds, so it shows
+  in the Shape Table and filters in Filter Shapes like a blob. **Its
+  centre is now the centre of its area**, not the average of its points:
+  a recipe using an uneven outline's centre may move slightly.
+- **Ring Calipers' "Roundness" output is now "Out of Round"**, which is
+  what it measures: the spread of radii in pixels. Wires to the old name
+  still load.
+- **Zoom In, Zoom Out and Fit Graph to Window** for the graph (above).
+- **Fixed: the application could stay running after its window closed**
+  once a camera had been used. It was a crash inside a camera maker's
+  SDK when cameras were listed from two places at once. Camera access
+  now takes turns, and closing the window stops a continuous or folder
+  run first.
+- The viewer's Display box shows "16-bit", not "DisplayRange { ... }".
+- The About box shows the logo drawn as vectors, sharp at any size.
+- **Notices corrected**: the docking panels (AvalonDock) are under the
+  Microsoft Public License, not MIT. Its text ships beside the
+  executable as `LICENSE-avalondock-mspl.txt`.
+- **Custom node SDK 1.0.2**: the guides now say to read a region with
+  `context.Resolve`, so it follows the node's Reference. Nothing else
+  changed; libraries built against 1.0.0 or 1.0.1 load unchanged.
+
+### Known issues, in addition to those below
+
+- **The tools still assume 8 bits.** Threshold, Find Blobs and the
+  others take 0-255 settings, so a 12-bit image needs values sixteen
+  times larger. Image File still loads 8 bits by default: choose
+  **Read Mode: Unchanged** for a 12-bit file.
+- 1.0.8's "application can stay running" issue is fixed (above).
+
+---
+
 ## 1.0.8 — 3 November 2026
 
 Regions that follow the part, saving pictures from any viewer, and a
