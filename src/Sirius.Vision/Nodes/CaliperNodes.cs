@@ -227,7 +227,7 @@ public sealed class RingCalipersNode : VisionNode
         PointsOut = AddOutput<ShapeSet>("Points");
         ContourOut = AddOutput<ShapeSet>("Contour");
         ProfileOut = AddOutput<ProfileData>("Profile");
-        RoundnessOut = AddOutput<double>("Roundness");
+        OutOfRoundOut = AddOutput<double>("Out of Round");
         CountOut = AddOutput<int>("Count");
         MissedOut = AddOutput<int>("Missed");
     }
@@ -260,10 +260,11 @@ public sealed class RingCalipersNode : VisionNode
 
     /// <summary>
     /// The largest radius found less the smallest, from the reference
-    /// centre. With Radius From set to Fitted, this is roundness against
-    /// the least-squares circle.
+    /// centre, in pixels. With Radius From set to Fitted, this is the
+    /// out-of-roundness against the least-squares circle. Not the same as
+    /// the Roundness ratio on shapes. Called "Roundness" before 1.0.9.
     /// </summary>
-    public OutputPort RoundnessOut { get; }
+    public OutputPort OutOfRoundOut { get; }
 
     /// <summary>How many calipers found an edge.</summary>
     public OutputPort CountOut { get; }
@@ -439,7 +440,7 @@ public sealed class RingCalipersNode : VisionNode
         context.Set(PointsOut, new ShapeSet(points.Select(point => (Shape)point).ToArray(), image.Width, image.Height));
         context.Set(ContourOut, new ShapeSet(contour is null ? [] : [contour], image.Width, image.Height));
         context.Set(ProfileOut, ProfileOf(edges, points, centre));
-        context.Set(RoundnessOut, points.Length == 0 ? 0d : Spread(points, ShapeMetric.Radius));
+        context.Set(OutOfRoundOut, points.Length == 0 ? 0d : Spread(points, ShapeMetric.Radius));
         context.Set(CountOut, edges.Count);
         context.Set(MissedOut, _caliperCount - edges.Count);
     }

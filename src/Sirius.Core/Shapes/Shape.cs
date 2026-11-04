@@ -388,7 +388,7 @@ public static class ShapeMetric
     /// circle.
     /// </summary>
     /// <remarks>
-    /// A ratio, unlike Ring Calipers' Roundness output, which is the spread
+    /// A ratio, unlike Ring Calipers' Out of Round output, which is the spread
     /// of its radii in pixels.
     /// </remarks>
     public const string Roundness = "roundness";

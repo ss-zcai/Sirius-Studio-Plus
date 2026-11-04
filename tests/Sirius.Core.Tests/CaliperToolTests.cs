@@ -184,11 +184,11 @@ public class CaliperToolTests
             Band = new Ring(205, 200, 50, 110), CaliperCount = 72, RadiusFrom = RadiusFrom.Fitted,
         };
 
-        var fromBand = Run(Disc, band, band.PointsOut, band.RoundnessOut);
-        var fromFit = Run(Disc, fitted, fitted.PointsOut, fitted.RoundnessOut);
+        var fromBand = Run(Disc, band, band.PointsOut, band.OutOfRoundOut);
+        var fromFit = Run(Disc, fitted, fitted.PointsOut, fitted.OutOfRoundOut);
 
-        Assert.InRange(fromBand.Get<double>(band.RoundnessOut), 9, 11);
-        Assert.InRange(fromFit.Get<double>(fitted.RoundnessOut), 0, 1.5);
+        Assert.InRange(fromBand.Get<double>(band.OutOfRoundOut), 9, 11);
+        Assert.InRange(fromFit.Get<double>(fitted.OutOfRoundOut), 0, 1.5);
 
         Assert.All(
             fromFit.Shapes(fitted.PointsOut).Shapes,
@@ -435,6 +435,30 @@ public class CaliperToolTests
 
         var old = GraphSerializer.Deserialize(json).Graph;
         Assert.True(old.Nodes.OfType<LineChartNode>().Single().ProfileIn.IsConnected);
+    }
+
+    /// <summary>
+    /// Ring Calipers' "Roundness" output became "Out of Round"; a recipe
+    /// saved with the old name keeps its wire.
+    /// </summary>
+    [Fact]
+    public void A_wire_from_the_old_roundness_output_still_loads()
+    {
+        var ring = new RingCalipersNode();
+        var check = new LimitCheckNode();
+        var graph = new VisionGraph();
+        graph.Add(ring);
+        graph.Add(check);
+        Assert.True(graph.TryConnect(ring.OutOfRoundOut, check.FindInput("Value")!).Success);
+
+        var json = GraphSerializer.Serialize(graph)
+            .Replace("\"fromPort\": \"Out of Round\"", "\"fromPort\": \"Roundness\"");
+        Assert.Contains("\"fromPort\": \"Roundness\"", json);
+
+        var loaded = GraphSerializer.Deserialize(json);
+
+        Assert.Empty(loaded.Warnings);
+        Assert.Equal("Out of Round", loaded.Graph.Connections.Single().Source.Name);
     }
 
     // ---- Line Calipers ------------------------------------------------------------

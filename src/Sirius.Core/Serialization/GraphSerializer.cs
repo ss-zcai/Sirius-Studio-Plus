@@ -299,9 +299,15 @@ public static class GraphSerializer
     /// "Out" or "In" accordingly. Only consulted when the recorded name does
     /// not match a real port, so a node that legitimately has a port called
     /// "Image" is unaffected.
+    /// Ring Calipers' "Roundness" output became "Out of Round" when shapes
+    /// gained a Roundness ratio that means something else.
     /// </remarks>
-    private static string MapLegacyPortName(string name, bool isInput) =>
-        name == "Image" ? (isInput ? "In" : "Out") : name;
+    private static string MapLegacyPortName(string name, bool isInput) => name switch
+    {
+        "Image" => isInput ? "In" : "Out",
+        "Roundness" when !isInput => "Out of Round",
+        _ => name,
+    };
 
     /// <summary>
     /// Folds a recipe's separate "Lower"/"Upper" parameters into the single

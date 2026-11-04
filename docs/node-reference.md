@@ -1222,7 +1222,7 @@ Casts radial calipers through a ring and gives every edge they find, as points a
 | Points | `Shapes` | circle | - |
 | Contour | `Shapes` | circle | - |
 | Profile | `Profile` | circle | - |
-| Roundness | `Number` | circle | - |
+| Out of Round | `Number` | circle | - |
 | Count | `Integer` | circle | - |
 | Missed | `Integer` | circle | - |
 
