@@ -75,5 +75,17 @@ public class ThemeTests
                 "no_such_icon", typeof(ImageSource), null!, System.Globalization.CultureInfo.InvariantCulture);
 
             Assert.Same(Application.Current.FindResource("Icon.ph_custom_node"), fallback);
+
+            // Menus drop to the right, whatever the PC's handedness setting.
+            MenuAlignment.UseLeftAligned();
+            Assert.False(SystemParameters.MenuDropAlignment);
         });
+
+    /// <summary>
+    /// The alignment fix writes to a private WPF field; this fails if a
+    /// .NET update renames it, rather than menus quietly flipping back.
+    /// </summary>
+    [Fact]
+    public void The_menu_alignment_fix_still_finds_its_field() =>
+        Assert.True(MenuAlignment.IsSupported);
 }

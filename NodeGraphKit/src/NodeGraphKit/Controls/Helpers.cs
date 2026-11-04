@@ -87,6 +87,60 @@ public static class DarkTitleBar
     private static extern int DwmSetWindowAttribute(IntPtr handle, int attribute, ref int value, int size);
 }
 
+/// <summary>
+/// Makes menus drop down to the right, from their left edge, whatever the
+/// PC's handedness setting says. Call once at start-up.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Windows has a "handedness" setting (Tablet PC Settings > Other), and on
+/// many touch-screen PCs it is right-handed out of the box. WPF follows it:
+/// every menu, context menu and drop-down opens to the left, its right edge
+/// lined up with the item that opened it, so a hand on a pen does not cover
+/// it. With a mouse it just looks misaligned.
+/// </para>
+/// <para>
+/// WPF has no switch for it, so this overwrites the value WPF caches,
+/// through reflection on a private field. If a later .NET renames the
+/// field, this does nothing - menus open the system's way - rather than
+/// failing. WPF reads the setting again when Windows settings change, so
+/// the override is put back each time.
+/// </para>
+/// </remarks>
+public static class MenuAlignment
+{
+    private static readonly System.Reflection.FieldInfo? Cached = typeof(SystemParameters).GetField(
+        "_menuDropAlignment", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+    private static bool _hooked;
+
+    /// <summary>Whether this .NET has the field the override writes to.</summary>
+    internal static bool IsSupported => Cached is not null;
+
+    public static void UseLeftAligned()
+    {
+        Apply();
+
+        if (_hooked)
+            return;
+
+        _hooked = true;
+        SystemParameters.StaticPropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SystemParameters.MenuDropAlignment))
+                Apply();
+        };
+    }
+
+    private static void Apply()
+    {
+        // Read first: that fills WPF's cache, so the value written below is
+        // the one it keeps rather than one it overwrites on the next read.
+        if (SystemParameters.MenuDropAlignment)
+            Cached?.SetValue(null, false);
+    }
+}
+
 internal static class VisualTreeSearch
 {
     /// <summary>The nearest element at or above <paramref name="source"/> whose DataContext is a <typeparamref name="T"/>.</summary>

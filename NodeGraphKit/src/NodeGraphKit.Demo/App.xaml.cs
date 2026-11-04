@@ -20,6 +20,9 @@ public partial class App : Application
             Trace.AutoFlush = true;
         }
 
+        // Menus drop to the right even on a PC set up right-handed for a pen.
+        Controls.MenuAlignment.UseLeftAligned();
+
         base.OnStartup(e);
     }
 }
