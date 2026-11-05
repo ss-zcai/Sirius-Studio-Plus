@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Studio.App.ViewModels;
@@ -73,15 +73,12 @@ public class RoiEditingTests
     [Fact]
     public void A_plain_rectangle_parameter_reports_no_angle()
     {
-        var crop = new CropNode();
-        var region = crop.Descriptor.Parameters.FirstOrDefault(p => p.Editor == ParamEditor.Region);
+        var upright = new UprightRegionNode();
+        var region = upright.Descriptor.Parameters.Single(p => p.Editor == ParamEditor.Region);
 
-        Assert.True(region is not null, "Crop no longer has a region parameter; pick another node");
-
-        var imageIn = crop.Inputs.First(p => p.DataType == typeof(ImageData));
-        var panel = new PreviewPanelViewModel(crop, imageIn, null, new ShapeSelectionService())
+        var panel = new PreviewPanelViewModel(upright, upright.ImageIn, null, new ShapeSelectionService())
         {
-            RegionParameter = new ParameterViewModel(crop, region!),
+            RegionParameter = new ParameterViewModel(upright, region),
         };
 
         // The parameter really did land, so the zero below is the plain

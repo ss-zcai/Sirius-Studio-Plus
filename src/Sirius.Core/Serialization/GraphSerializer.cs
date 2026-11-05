@@ -187,6 +187,10 @@ public static class GraphSerializer
             ApplyAccent(node, record, warnings);
 
             ApplyParameters(node, descriptor, record, warnings);
+
+            if (record.Type == CropTypeKey)
+                FinishCrop(node, descriptor, record, warnings);
+
             ApplyMeasurements(node, record, warnings);
 
             // Before the wires below: a sub-graph's sockets are its
@@ -286,8 +290,61 @@ public static class GraphSerializer
     {
         "source.number" => "source.float",
         "output.profileViewer" => "output.lineChart",
+        CropTypeKey => "basic.roi",
         _ => typeKey,
     };
+
+    /// <summary>Crop, retired in 1.0.10 for Region of Interest, which does the same and more.</summary>
+    private const string CropTypeKey = "basic.crop";
+
+    /// <summary>
+    /// Sets up a Region of Interest that was a Crop to cut what the Crop cut.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Its region arrives through <see cref="UpgradedRectangles"/>, as an
+    /// upright rectangle by its centre, and it cuts the Bounding Box, so
+    /// nothing is resampled - Crop copied pixels.
+    /// </para>
+    /// <para>
+    /// Follow Reference Angle is left as saved. With a reference that turns,
+    /// a Crop carried its centre round the reference and kept its sides
+    /// upright; following the angle puts the centre in the same place and
+    /// turns the region too, so the cut is the box round it. Not following
+    /// it would slide the region without carrying it round, leaving the
+    /// part it was drawn on.
+    /// </para>
+    /// <para>
+    /// A Crop with no region passed the image through. A Region of Interest
+    /// cannot, so it keeps its default region and the load says so, rather
+    /// than opening a recipe that fails on its first run for no visible
+    /// reason.
+    /// </para>
+    /// </remarks>
+    private static void FinishCrop(VisionNode node, NodeDescriptor descriptor, NodeRecord record, List<string> warnings)
+    {
+        if (descriptor.Parameters.FirstOrDefault(p => p.Name == "Alignment") is { } alignment)
+            alignment.SetValue(node, Enum.Parse(alignment.ValueType, "BoundingBox"));
+
+        var region = record.Parameters.TryGetValue("Roi", out var element) && element.ValueKind == JsonValueKind.Object
+            ? element
+            : default;
+
+        double Part(string key) =>
+            region.ValueKind == JsonValueKind.Object && region.TryGetProperty(key, out var part) && part.TryGetDouble(out var value)
+                ? value
+                : 0;
+
+        if (Part("w") <= 0 || Part("h") <= 0)
+        {
+            if (descriptor.Parameters.FirstOrDefault(p => p.Name == "Rect") is { } rect)
+                rect.SetValue(node, rect.GetValue(descriptor.CreateInstance()));
+
+            warnings.Add(
+                $"'{node.Name}' was a Crop with no region drawn, which passed the image through. " +
+                "It is now a Region of Interest with a default region: draw the region you want.");
+        }
+    }
 
     /// <summary>
     /// Translates port names from format version 1, where both the image input
@@ -563,6 +620,9 @@ public static class GraphSerializer
     {
         [("analysis.matchTemplate", "TeachRegion")] = "TeachRect",
         [("analysis.matchTemplate", "SearchRegion")] = "SearchRect",
+
+        // Crop's region, now that a Crop opens as a Region of Interest.
+        [("basic.roi", "Roi")] = "Rect",
     };
 
     /// <summary>

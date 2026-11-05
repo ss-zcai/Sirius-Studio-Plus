@@ -43,7 +43,7 @@ Small, known, and not yet done.
 order, a dirty-tracked cancellable scheduler with explicit buffer ownership,
 `.sgraph` serialisation with legacy migrations.
 
-**66 nodes** (65 in the toolbox) across Source, Basic, Combine, Filtering, Morphology, Blob,
+**69 nodes** (Crop became Region of Interest in 1.0.10) across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis and Output - including masking from an
 image or a shape, image logic and eleven blend modes, colour-space
 conversion, and circle, ellipse and line fits that report their residual.
@@ -179,7 +179,7 @@ done. What remains, in order:
   measurement, with the rejected ones given too. Combining is done as
   well: the Image Viewer grows a socket per shape set, so several
   producers draw on one image without a node between them.
-- **Remapping shapes is done**: Crop, Resize, Region of Interest and Polar
+- **Remapping shapes is done**: Resize, Region of Interest and Polar
   to Linear carry an Overlay of shapes through the same mapping as their
   pixels (`ShapeMap`).
 - **Measurement in the graph is done.** The Measure node takes two shape

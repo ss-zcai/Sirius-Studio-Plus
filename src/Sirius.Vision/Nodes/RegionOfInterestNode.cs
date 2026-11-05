@@ -42,8 +42,15 @@ public enum RoiAlignment
 /// calls fixturing, without needing a coordinate-space system to express it.
 /// </para>
 /// <para>
-/// The region is reported on the Shapes output, so a viewer can show where
-/// the cut was taken from on the original image.
+/// It is also the crop. Crop, an upright rectangle cut without resampling,
+/// was this node at no angle with <see cref="RoiAlignment.BoundingBox"/>,
+/// and recipes that used it open as one set up that way.
+/// </para>
+/// <para>
+/// Where the cut was taken is the region itself, drawn on the input -
+/// placed where a wired shape put it. There is no shape output repeating
+/// it: a node's input preview draws its first shape output, which drew a
+/// second box exactly over the region being edited.
 /// </para>
 /// </remarks>
 [VisionNode(
@@ -51,7 +58,7 @@ public enum RoiAlignment
     TypeKey = "basic.roi",
     Category = NodeCategory.Basic,
     Icon = "ph_roi",
-    Description = "Cuts out a region, rotating it upright when it sits at an angle.")]
+    Description = "Crops a region out of the image, rotating it upright when it sits at an angle.")]
 public sealed class RegionOfInterestNode : VisionNode
 {
     private OrientedRect _rect = new(100, 100, 200, 100, 0);
@@ -66,7 +73,6 @@ public sealed class RegionOfInterestNode : VisionNode
         RegionIn = AddInput<ShapeSet>("Region", isRequired: false);
         OverlayIn = AddInput<ShapeSet>("Overlay", isRequired: false);
         ImageOut = AddOutput<ImageData>("Out");
-        ShapesOut = AddOutput<ShapeSet>("Shapes");
         OverlayOut = AddOutput<ShapeSet>("Overlay");
     }
 
@@ -88,9 +94,6 @@ public sealed class RegionOfInterestNode : VisionNode
     public InputPort RegionIn { get; }
 
     public OutputPort ImageOut { get; }
-
-    /// <summary>Where the region was taken from, for drawing on the source image.</summary>
-    public OutputPort ShapesOut { get; }
 
     [Param(
         "Rect",
@@ -153,10 +156,6 @@ public sealed class RegionOfInterestNode : VisionNode
         var source = context.Get<ImageData>(ImageIn)!;
         var region = ResolveRegion(context, source);
 
-        context.Set(
-            ShapesOut,
-            new ShapeSet([region], source.Width, source.Height));
-
         ShapeMap map;
         var cut = _alignment == RoiAlignment.Straighten
             ? Straighten(source, region, context, out map)
@@ -186,16 +185,22 @@ public sealed class RegionOfInterestNode : VisionNode
                     + "but this one is a different size, so it will not sit where it was found.");
             }
 
-            if (shape is OrientedRectShape oriented)
-                return oriented;
-
             var bounds = shape.Bounds;
 
-            return new OrientedRectShape(
-                bounds.Centre,
-                Math.Max(1, bounds.Width),
-                Math.Max(1, bounds.Height),
-                0);
+            var placed = shape as OrientedRectShape
+                         ?? new OrientedRectShape(
+                             bounds.Centre,
+                             Math.Max(1, bounds.Width),
+                             Math.Max(1, bounds.Height),
+                             0);
+
+            // So the region on the input shows where the cut was taken,
+            // rather than where it was last drawn.
+            context.Place(nameof(Rect), new Placement(
+                new OrientedRect(placed.Centre.X, placed.Centre.Y, placed.Width, placed.Height, placed.AngleDegrees),
+                "Placed by the shape wired into Region. Drawing it sets the region used once that wire is removed."));
+
+            return placed;
         }
 
         var rect = context.Param(nameof(Rect), _rect);

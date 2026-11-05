@@ -87,7 +87,7 @@ public readonly record struct ReferencePose(double X, double Y, double? Angle)
     /// turning <paramref name="degrees"/> about it.
     /// </summary>
     /// <remarks>
-    /// An upright rectangle - Crop's - can follow where the reference went
+    /// An upright rectangle (a plain Rectangle region) can follow where the reference went
     /// but not how it turned, having no angle to turn: its centre is carried
     /// round, and its sides stay upright.
     /// </remarks>

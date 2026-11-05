@@ -27,7 +27,7 @@ namespace Sirius.Vision.Nodes;
 /// <para>
 /// The template is taught: draw Teach Region round the feature on a good
 /// part and press Teach, and the feature is kept in the recipe. Or wire
-/// one into Template - an Image File through Crop - which is used instead
+/// one into Template - an Image File through Region of Interest - which is used instead
 /// while it is wired.
 /// </para>
 /// <para>

@@ -12,16 +12,20 @@ namespace Sirius.Core.Tests;
 
 /// <summary>
 /// Shapes carried through a node that makes a new image from an old one:
-/// Crop, Resize, Region of Interest, Polar to Linear.
+/// Resize, Region of Interest, Polar to Linear.
 /// </summary>
 public class OverlayTests
 {
     public OverlayTests() => TestCatalog.Ensure();
 
     [Fact]
-    public void A_crop_moves_shapes_by_its_corner()
+    public void An_upright_cut_moves_shapes_by_its_corner()
     {
-        var crop = new CropNode { Roi = new System.Drawing.Rectangle(100, 100, 200, 200) };
+        var crop = new RegionOfInterestNode
+        {
+            Rect = new OrientedRect(200, 200, 200, 200, 0),
+            Alignment = RoiAlignment.BoundingBox,
+        };
         var circle = new CircleShape(new Point2(150, 120), 30)
         {
             Metrics = new Dictionary<string, double> { [ShapeMetric.Radius] = 30, [ShapeMetric.CentroidX] = 150 },
@@ -157,7 +161,11 @@ public class OverlayTests
     [Fact]
     public void Shapes_from_another_image_size_are_carried_with_a_warning()
     {
-        var crop = new CropNode { Roi = new System.Drawing.Rectangle(0, 0, 100, 100) };
+        var crop = new RegionOfInterestNode
+        {
+            Rect = new OrientedRect(50, 50, 100, 100, 0),
+            Alignment = RoiAlignment.BoundingBox,
+        };
         var graph = new VisionGraph();
         var picture = new PictureNode(Blank);
         var shapes = new ShapesNode(new ShapeSet([new PointShape(new Point2(10, 10))], 640, 480));

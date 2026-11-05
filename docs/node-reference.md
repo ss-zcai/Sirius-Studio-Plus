@@ -11,10 +11,10 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**70 nodes** across 14 categories.
+**69 nodes** across 14 categories.
 
 - **Source** — Blank Image, Camera, Image File, Image Sequence, Matrix, Number, Text
-- **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Crop, Invert, Region of Interest, Resize, RGB Channel, Threshold
+- **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Invert, Region of Interest, Resize, RGB Channel, Threshold
 - **Combine** — Blend, Logic, Mask
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
 - **Morphology** — Advanced Morphology, Dilate, Erode
@@ -310,34 +310,6 @@ Masks pixels whose colour falls within a range.
 | Green | `Range` | Range | up to Channel2Max |
 | Red | `Range` | Range | up to Channel3Max |
 
-### Crop
-
-`basic.crop`
-
-Extracts a rectangular region of interest. Shapes wired into Overlay come out placed on the crop.
-
-**Inputs**
-
-| Port | Type | Shape | Required |
-| --- | --- | --- | --- |
-| In | `Image` | square | yes |
-| Overlay | `Shapes` | circle | optional |
-| Reference | `Shapes` | circle | optional |
-
-**Outputs**
-
-| Port | Type | Shape | Required |
-| --- | --- | --- | --- |
-| Out | `Image` | square | - |
-| Overlay | `Shapes` | circle | - |
-
-**Parameters**
-
-| Name | Type | Editor | Range |
-| --- | --- | --- | --- |
-| Region | `Region` | Region | - |
-| Follow Reference Angle | `Yes/No` | CheckBox | - |
-
 ### Invert
 
 `basic.invert`
@@ -360,7 +332,7 @@ Inverts the image: light becomes dark and dark becomes light.
 
 `basic.roi`
 
-Cuts out a region, rotating it upright when it sits at an angle.
+Crops a region out of the image, rotating it upright when it sits at an angle.
 
 **Inputs**
 
@@ -377,7 +349,6 @@ Cuts out a region, rotating it upright when it sits at an angle.
 | Port | Type | Shape | Required |
 | --- | --- | --- | --- |
 | Out | `Image` | square | - |
-| Shapes | `Shapes` | circle | - |
 | Overlay | `Shapes` | circle | - |
 
 **Parameters**

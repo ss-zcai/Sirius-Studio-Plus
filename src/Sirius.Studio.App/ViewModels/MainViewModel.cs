@@ -680,7 +680,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>
     /// The selected node's region parameter, if it has one. The image viewer
     /// binds its ROI to this, which is what lets a rectangle dragged on the
-    /// image drive a node like Crop directly.
+    /// image drive a node like Region of Interest directly.
     /// </summary>
     public ParameterViewModel? ActiveRegionParameter
     {

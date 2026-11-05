@@ -9,7 +9,7 @@ namespace Sirius.Vision.Nodes;
 /// one out.
 /// </summary>
 /// <remarks>
-/// Shared by Crop, Resize, Region of Interest and Polar to Linear, which
+/// Shared by Resize, Region of Interest and Polar to Linear, which
 /// differ only in where each point goes (<see cref="ShapeMap"/>).
 /// </remarks>
 internal static class Overlays

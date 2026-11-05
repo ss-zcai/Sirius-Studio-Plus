@@ -149,68 +149,6 @@ public class VisionNodeTests
     }
 
     [Fact]
-    public async Task Crop_produces_an_image_of_the_region_size()
-    {
-        var graph = new VisionGraph();
-        var source = new ConstantImageNode { Width = 200, Height = 100 };
-        var crop = new CropNode { Roi = new Rectangle(10, 20, 50, 30) };
-        graph.Add(source);
-        graph.Add(crop);
-        graph.TryConnect(source.ImageOut, crop.ImageIn);
-
-        using var scheduler = CreateScheduler(graph);
-        await scheduler.RunAsync();
-
-        var image = scheduler.GetOutput<ImageData>(crop.ImageOut)!;
-        Assert.Equal(50, image.Width);
-        Assert.Equal(30, image.Height);
-        Assert.Equal(NodeStatus.Ready, crop.Status);
-    }
-
-    /// <summary>
-    /// The old CropTool only checked for a zero-area ROI; a region partly past
-    /// the edge reached OpenCV and threw.
-    /// </summary>
-    [Fact]
-    public async Task Crop_clips_a_region_that_overhangs_the_image()
-    {
-        var graph = new VisionGraph();
-        var source = new ConstantImageNode { Width = 100, Height = 100 };
-        var crop = new CropNode { Roi = new Rectangle(80, 80, 50, 50) };
-        graph.Add(source);
-        graph.Add(crop);
-        graph.TryConnect(source.ImageOut, crop.ImageIn);
-
-        using var scheduler = CreateScheduler(graph);
-        var result = await scheduler.RunAsync();
-
-        Assert.Equal(0, result.Failed);
-        Assert.Equal(NodeStatus.Warning, crop.Status);
-
-        var image = scheduler.GetOutput<ImageData>(crop.ImageOut)!;
-        Assert.Equal(20, image.Width);
-        Assert.Equal(20, image.Height);
-    }
-
-    [Fact]
-    public async Task Crop_with_an_empty_region_warns_and_passes_through()
-    {
-        var graph = new VisionGraph();
-        var source = new ConstantImageNode { Width = 64, Height = 64 };
-        var crop = new CropNode { Roi = Rectangle.Empty };
-        graph.Add(source);
-        graph.Add(crop);
-        graph.TryConnect(source.ImageOut, crop.ImageIn);
-
-        using var scheduler = CreateScheduler(graph);
-        await scheduler.RunAsync();
-
-        Assert.Equal(NodeStatus.Warning, crop.Status);
-        var image = scheduler.GetOutput<ImageData>(crop.ImageOut)!;
-        Assert.Equal(64, image.Width);
-    }
-
-    [Fact]
     public async Task Colour_convert_reduces_a_colour_image_to_one_channel()
     {
         var graph = new VisionGraph();

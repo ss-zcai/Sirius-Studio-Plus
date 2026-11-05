@@ -84,7 +84,7 @@ public class RegionOfInterestTests
             CvInvoke.FillPoly(mat, all, new MCvScalar(255));
         };
 
-    private static async Task<(ImageData Image, ShapeSet Shapes)> RunAsync(
+    private static async Task<(ImageData Image, RegionOfInterestNode Node)> RunAsync(
         Action<Mat> draw,
         Action<RegionOfInterestNode> configure,
         int width = 400,
@@ -103,14 +103,13 @@ public class RegionOfInterestTests
         await scheduler.RunAsync();
 
         var image = scheduler.GetOutput<ImageData>(roi.ImageOut)!;
-        var shapes = scheduler.GetOutput<ShapeSet>(roi.ShapesOut)!;
 
         // The caller reads pixels, so the scheduler must outlive this method;
         // copying the result frees it from the cache's lifetime.
         var copy = ImageData.CopyOf(image.Mat);
         scheduler.Dispose();
 
-        return (copy, shapes);
+        return (copy, roi);
     }
 
     /// <summary>Proportion of the image that is bright.</summary>
@@ -256,26 +255,24 @@ public class RegionOfInterestTests
         Assert.Equal(120, image.Height);
     }
 
-    // ---- the region output and the wire ----------------------------------
+    // ---- the outputs and the wire -----------------------------------------
 
+    /// <summary>
+    /// The cut and the shapes carried onto it, and nothing else. A shape
+    /// output repeating the region was drawn by the input preview exactly
+    /// over the region being edited.
+    /// </summary>
     [Fact]
-    public async Task The_region_is_reported_for_drawing_on_the_source()
+    public async Task Gives_the_cut_and_the_carried_overlay_only()
     {
         var cut = await RunAsync(
             TiltedBar(30),
-            node =>
-            {
-                node.Rect = new OrientedRect(180, 220, 120, 40, 30);
-            });
+            node => node.Rect = new OrientedRect(180, 220, 120, 40, 30));
 
-        var shapes = cut.Shapes;
+        using var image = cut.Image;
 
-        var rect = Assert.IsType<OrientedRectShape>(Assert.Single(shapes.Shapes));
-
-        Assert.Equal(180, rect.Centre.X, 3);
-        Assert.Equal(220, rect.Centre.Y, 3);
-        Assert.Equal(30, rect.AngleDegrees, 3);
-        Assert.True(shapes.MatchesFrame(400, 400));
+        Assert.Equal(["Out", "Overlay"], cut.Node.Outputs.Select(port => port.Name));
+        Assert.Empty(cut.Node.Placements);
     }
 
     /// <summary>
@@ -320,5 +317,11 @@ public class RegionOfInterestTests
         Assert.True(
             WhiteFraction(cut) > 0.9,
             $"the fixtured cut was only {WhiteFraction(cut):P0} bar");
+
+        // And the region on the input is shown where the cut was taken,
+        // not where it was last drawn.
+        var placed = Assert.IsType<OrientedRect>(roi.Placements[nameof(RegionOfInterestNode.Rect)].Value);
+        Assert.Equal(cut.Width, placed.Width, 1.0);
+        Assert.Equal(cut.Height, placed.Height, 1.0);
     }
 }

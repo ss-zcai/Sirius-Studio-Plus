@@ -107,7 +107,7 @@ public class SelectionTests
         var (editor, first, _) = Build();
         first.IsSelected = true;
 
-        var descriptor = NodeCatalog.FindByTypeKey("basic.crop")!;
+        var descriptor = NodeCatalog.FindByTypeKey("basic.roi")!;
         var added = editor.AddNode(descriptor, new Point(10, 10));
 
         Assert.Same(added, editor.SelectedNode);
@@ -247,7 +247,7 @@ public class SelectionTests
     public void A_region_parameter_is_exposed_with_the_region_editor()
     {
         var graph = new VisionGraph();
-        graph.Add(new CropNode());
+        graph.Add(new UprightRegionNode());
         var editor = new GraphEditorViewModel(graph, new UndoStack(graph));
 
         editor.Nodes[0].IsSelected = true;

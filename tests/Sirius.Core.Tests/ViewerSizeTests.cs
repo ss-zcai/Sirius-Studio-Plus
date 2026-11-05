@@ -51,7 +51,11 @@ public class ViewerSizeTests
     {
         var graph = new VisionGraph();
         var source = new ConstantImageNode { Width = 640, Height = 480, Value = 200 };
-        var crop = new CropNode { Roi = new System.Drawing.Rectangle(10, 10, 100, 50) };
+        var crop = new RegionOfInterestNode
+        {
+            Rect = new Sirius.Core.Nodes.OrientedRect(60, 35, 100, 50, 0),
+            Alignment = RoiAlignment.BoundingBox,
+        };
 
         var whole = new ViewerNode();
         var cropped = new ViewerNode();

@@ -2269,3 +2269,36 @@ that had already been unloaded (`PylonUsb_v12_TL.dll`, and in a probe
 Checked in the application by UI Automation, with no screen capture:
 opening a camera recipe, running continuously, and closing exits in
 1.5-2.5 s, including while waiting on a 10 s hardware trigger.
+
+## 61. Crop folded into Region of Interest; no region on ROI's shape output
+
+Crop cut an upright rectangle without resampling. Region of Interest at no
+angle with **Alignment: Bounding Box** is the same cut, and also turns,
+straightens, scales and takes its region from a wire. Two tools for one job
+was a question for every new user, so Crop goes.
+
+- **Old recipes still open.** `basic.crop` loads as `basic.roi`
+  (`MapLegacyTypeKey`); its `Roi` becomes `Rect` by its centre
+  (`UpgradedRectangles`); and it is set to Bounding Box, so the pixels are
+  the same - a test compares them. Ports keep their names (In, Out,
+  Overlay, Reference), so wires survive. The node keeps the name it had,
+  "Crop 1" included.
+- **A Crop with no region** passed the image through. A Region of Interest
+  cannot, so it gets the default region and the load warns.
+- **With a Reference that turns**, Crop carried its centre round the
+  reference and kept its sides upright. Follow Reference Angle is left as
+  saved (on by default): the centre lands in the same place, and the
+  region turns too, so the Bounding Box cut is the box round it. Turning
+  it off would slide the region without carrying it round, off the part.
+- **The upright `Rectangle` region** (`ParamEditor.Region`) has no
+  built-in user now. The editor, `ShapeRegions` and `ReferencePose` still
+  handle it, and a test node (`UprightRegionNode`) keeps that covered;
+  remove it if nothing takes it up.
+
+**ROI's Shapes output is gone.** It repeated the region as a shape. A
+node's input preview draws its first shape output, so it drew a second box
+exactly on top of the region being edited. Where the cut was taken is the
+region itself: when a shape wired into **Region** places it, the run
+records it as placed (`EvalContext.Place`), as other tools have done since
+1.0.8, so the region on the input shows where the cut was taken. A recipe
+wired to the old output loses that wire, with a warning on opening.

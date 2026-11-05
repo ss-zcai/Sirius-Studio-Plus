@@ -296,17 +296,43 @@ public class ReferenceTests
 
     /// <summary>An upright region has no angle to turn, so it follows only where.</summary>
     [Fact]
-    public void Crops_upright_region_follows_where_and_stays_upright()
+    public void An_upright_region_follows_where_and_stays_upright()
     {
-        var crop = new CropNode { Roi = new System.Drawing.Rectangle(160, 90, 40, 20) };
-        using var rig = new Rig(Taught, tool: crop);
+        var upright = new UprightRegionNode { Region = new System.Drawing.Rectangle(160, 90, 40, 20) };
+        using var rig = new Rig(Taught, tool: upright);
 
         rig.MoveTo(new ReferencePose(200, 250, 90));
 
         // The centre is carried round the reference; the sides stay upright.
         Assert.Equal(
             new System.Drawing.Rectangle(180, 320, 40, 20),
-            crop.Placements[nameof(CropNode.Roi)].Value);
+            upright.Placements[nameof(UprightRegionNode.Region)].Value);
+    }
+
+    /// <summary>
+    /// Where a Crop's region went, a Region of Interest that was one goes
+    /// too: the centre carried round the reference. It turns as well, which
+    /// Crop could not.
+    /// </summary>
+    [Fact]
+    public void A_region_of_interest_puts_its_centre_where_an_upright_region_would()
+    {
+        var roi = new RegionOfInterestNode
+        {
+            Rect = new OrientedRect(180, 100, 40, 20, 0),
+            Alignment = RoiAlignment.BoundingBox,
+        };
+        using var rig = new Rig(Taught, tool: roi);
+
+        rig.MoveTo(new ReferencePose(200, 250, 90));
+
+        var placed = (OrientedRect)roi.Placements[nameof(RegionOfInterestNode.Rect)].Value;
+
+        // The upright region in the test above lands at 180, 320 by its
+        // corner: 200, 330 by its centre.
+        Assert.Equal(200, placed.CentreX, 6);
+        Assert.Equal(330, placed.CentreY, 6);
+        Assert.Equal(90, placed.Angle, 6);
     }
 
     // ---- the rig --------------------------------------------------------------------

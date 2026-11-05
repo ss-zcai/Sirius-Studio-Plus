@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.IO;
+using System.Text.Json;
 using Emgu.CV.CvEnum;
 using Sirius.Core.Graph;
 using Sirius.Core.Serialization;
@@ -68,11 +69,12 @@ public class SerializationTests
     public void Rectangle_parameters_round_trip()
     {
         var graph = new VisionGraph();
-        graph.Add(new CropNode { Roi = new Rectangle(12, 34, 56, 78) });
+        graph.Add(new UprightRegionNode { Region = new Rectangle(12, 34, 56, 78) });
 
-        var loaded = GraphSerializer.Deserialize(GraphSerializer.Serialize(graph));
+        var document = GraphSerializer.ToDocument(graph);
+        var record = Assert.Single(document.Nodes);
 
-        Assert.Equal(new Rectangle(12, 34, 56, 78), loaded.Graph.Nodes.OfType<CropNode>().Single().Roi);
+        Assert.Equal(new Rectangle(12, 34, 56, 78), record.Parameters["Region"].Deserialize<Rectangle>(GraphSerializer.Options));
     }
 
     [Fact]
