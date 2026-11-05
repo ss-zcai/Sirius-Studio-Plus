@@ -115,8 +115,19 @@ public static class CameraDrivers
     private static readonly List<string> Problems = [];
     private static bool _loaded;
     private static bool _closed;
+    private static volatile bool _searching;
 
-    /// <summary>Why a driver beside the application was left out - its maker's runtime missing, usually.</summary>
+    /// <summary>
+    /// Whether the drivers beside the application are still being looked
+    /// for - the first search, which waits for GigE cameras to answer.
+    /// </summary>
+    public static bool IsSearching => _searching;
+
+    /// <summary>
+    /// Why a driver beside the application was left out - its maker's
+    /// runtime missing or too old, usually - one line each, starting with
+    /// the make: "Basler: ...".
+    /// </summary>
     public static IReadOnlyList<string> LoadProblems
     {
         get
@@ -146,10 +157,21 @@ public static class CameraDrivers
                 return;
 
             _loaded = true;
+            _searching = true;
         }
 
-        folder ??= AppContext.BaseDirectory;
+        try
+        {
+            Load(folder ?? AppContext.BaseDirectory);
+        }
+        finally
+        {
+            _searching = false;
+        }
+    }
 
+    private static void Load(string folder)
+    {
         if (!Directory.Exists(folder))
             return;
 
@@ -177,12 +199,20 @@ public static class CameraDrivers
             }
             catch (Exception ex)
             {
-                var cause = ex is ReflectionTypeLoadException { LoaderExceptions: { Length: > 0 } loader } && loader[0] is { } first
-                    ? first
-                    : ex;
+                // Past the wrappers reflection puts round the real reason.
+                var cause = ex switch
+                {
+                    ReflectionTypeLoadException { LoaderExceptions: { Length: > 0 } loader } when loader[0] is { } first => first,
+                    TargetInvocationException { InnerException: { } inner } => inner,
+                    _ => ex,
+                };
+
+                // "Basler", not "Sirius.Cameras.Basler": this is read by
+                // whoever is looking for their camera.
+                var make = Path.GetFileNameWithoutExtension(path)["Sirius.Cameras.".Length..];
 
                 lock (Gate)
-                    Problems.Add($"{Path.GetFileNameWithoutExtension(path)}: {ExceptionText.Describe(cause)}");
+                    Problems.Add($"{make}: {ExceptionText.Describe(cause)}");
             }
         }
     }

@@ -1067,6 +1067,20 @@
                                                                   StaysOpenOnEdit="True"
                                                                   Visibility="{Binding IsComboBox, Converter={StaticResource BoolToVisibility}}" />
 
+                                                        <!--
+                                                            Why something is missing from that
+                                                            list - a camera make whose software
+                                                            is missing or too old - in the
+                                                            placed-region note's colour.
+                                                        -->
+                                                        <TextBlock Text="{Binding ChoicesNote, Mode=OneWay}"
+                                                                   Margin="0,3,0,0"
+                                                                   FontSize="11"
+                                                                   FontStyle="Italic"
+                                                                   TextWrapping="Wrap"
+                                                                   Foreground="#FBBF24"
+                                                                   Visibility="{Binding HasChoicesNote, Converter={StaticResource BoolToVisibility}}" />
+
                                                         <!-- Region: four boxes; drawable on the viewer in a later phase -->
                                                         <UniformGrid Columns="4"
                                                                      Visibility="{Binding IsRegion, Converter={StaticResource BoolToVisibility}}">

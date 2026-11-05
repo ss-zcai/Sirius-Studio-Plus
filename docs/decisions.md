@@ -2348,3 +2348,40 @@ size, scaled by 1.1 it grows a tenth of its radius.
   part of the custom node SDK - `NodeGroup.Blob` in C#, `group="Blob"` in
   Python - so a rename waits for a reason to change that contract.
 - **Icons are borrowed** (Dilate's and Resize's) until their own are drawn.
+
+## 63. Saying why a camera make is missing
+
+Testers with pylon 7.3 installed saw no Basler cameras, while pylon
+Viewer found them. The application ships pylon 26.10's .NET API,
+`Basler.Pylon.dll` 1.3 - all managed code, whose every call goes to
+`Basler.Pylon.ExternC.dll`, a native helper the pylon runtime installs on
+the PATH, linked to that release's `PylonBase_v12.dll`. pylon 7.3 has no
+such helper, or not that one, so the first call failed with "Unable to
+load DLL". The driver loader caught it and kept the reason in
+`CameraDrivers.LoadProblems` - which nothing showed. An empty list looked
+exactly like an unplugged camera.
+
+- **The reason is shown** under the Camera node's Device list, one line
+  per missing make ("Basler: ..."), through a `NoteFor` on
+  `IParameterChoices` (default null, so other nodes are unchanged). A
+  camera a recipe names that is not found says the same. While the
+  start-up search is still running the note says so, rather than nothing.
+- **pylon is checked before it is called** (`PylonRuntime`), touching no
+  pylon type: the helper is looked for where .NET would look (beside the
+  application, then the PATH), its file version compared with the shipped
+  API's, and loaded once to prove its own dependencies are there. Each
+  case says what to do: not installed; installed but not on the PATH;
+  older, naming its `PylonBase_v*.dll`; present but will not load. A newer
+  pylon is accepted. Anything the check cannot see and pylon then throws
+  - a missing DLL or entry point - is turned into the same advice.
+- **"26.10"** comes from `PylonRelease` in the driver's project file, for
+  the message only, and wants changing with pylon. The check itself uses
+  the API's version.
+- The loader now looks past reflection's `TargetInvocationException`, and
+  names the make rather than the assembly.
+
+Checked by loading the drivers in a separate process with pylon's runtime
+taken off its PATH: the Basler driver is left out and the note reads
+"Not listed: Basler: pylon is installed in ..., but its Runtime\x64 folder
+is not on the PATH." The pylon 7.3 case is covered by unit tests over
+folders laid out like one; no pylon 7.3 was installed to try it.

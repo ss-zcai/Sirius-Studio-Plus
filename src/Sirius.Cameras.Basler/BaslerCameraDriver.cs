@@ -21,10 +21,52 @@ public sealed class BaslerCameraDriver : ICameraDriver
 {
     public string Name => "Basler";
 
-    public IReadOnlyList<CameraInfo> Enumerate() =>
-        CameraFinder.Enumerate().Select(Describe).ToArray();
+    /// <remarks>
+    /// pylon is checked first (<see cref="PylonRuntime"/>), so a PC with
+    /// the wrong pylon is told which, rather than "Unable to load DLL".
+    /// </remarks>
+    public IReadOnlyList<CameraInfo> Enumerate()
+    {
+        PylonRuntime.ThrowIfUnusable();
+        return Explained(Find);
+    }
 
     public Sirius.Vision.Cameras.ICamera Open(CameraInfo camera)
+    {
+        PylonRuntime.ThrowIfUnusable();
+        return Explained(() => OpenFound(camera));
+    }
+
+    // Separate, and not inlined, so nothing of pylon's is reached until
+    // the check above has passed.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static IReadOnlyList<CameraInfo> Find() =>
+        CameraFinder.Enumerate().Select(Describe).ToArray();
+
+    /// <summary>
+    /// A failure to reach pylon at all, said as what to do about it; any
+    /// other failure as it is.
+    /// </summary>
+    /// <remarks>
+    /// The check catches what it can see. A pylon whose files are there but
+    /// do not fit together still fails here, as a missing DLL or entry point.
+    /// </remarks>
+    private static T Explained<T>(Func<T> call)
+    {
+        try
+        {
+            return call();
+        }
+        catch (Exception ex) when (ex is TypeInitializationException or DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
+        {
+            throw new InvalidOperationException(
+                "pylon could not be used. " + PylonRuntime.Advice,
+                ex);
+        }
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static Sirius.Vision.Cameras.ICamera OpenFound(CameraInfo camera)
     {
         var info = CameraFinder.Enumerate().FirstOrDefault(found =>
                        string.Equals(Get(found, CameraInfoKey.SerialNumber), camera.Serial, StringComparison.OrdinalIgnoreCase))

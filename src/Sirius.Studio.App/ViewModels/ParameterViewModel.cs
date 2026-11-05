@@ -465,6 +465,15 @@ public sealed class ParameterViewModel : ObservableObject
 
     private IReadOnlyList<object>? _options;
 
+    /// <summary>
+    /// A line under a list the node works out itself - why a camera make is
+    /// missing from the Device list, say - or null.
+    /// </summary>
+    public string? ChoicesNote =>
+        _node is IParameterChoices source && !_descriptor.ValueType.IsEnum ? source.NoteFor(_descriptor.Name) : null;
+
+    public bool HasChoicesNote => !string.IsNullOrEmpty(ChoicesNote);
+
     private object? Raw
     {
         get => _descriptor.GetValue(_node);

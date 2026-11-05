@@ -16,6 +16,13 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Sirius.Cameras.Basler</RootNamespace>
     <PylonApi>$(PYLON_DEV_DIR)Assemblies\Basler.Pylon\net8.0\x64\Basler.Pylon.dll</PylonApi>
+
+    <!--
+      The pylon release PYLON_DEV_DIR is from, as Basler names it. Only for
+      what a PC with too old a pylon is told to install - the check itself
+      compares the .NET API's own version. Change it with pylon.
+    -->
+    <PylonRelease>26.10</PylonRelease>
     <HasPylon Condition="'$(PYLON_DEV_DIR)' != '' And Exists('$(PylonApi)')">true</HasPylon>
   </PropertyGroup>
 
@@ -35,6 +42,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>PylonRelease</_Parameter1>
+      <_Parameter2>$(PylonRelease)</_Parameter2>
+    </AssemblyAttribute>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>Sirius.Core.Tests</_Parameter1>
     </AssemblyAttribute>

@@ -114,6 +114,31 @@ public sealed class CameraNode : VisionNode, IInspectionNode, IParameterChoices
             ? CameraDrivers.Enumerate().Select(camera => camera.Label).ToArray()
             : [];
 
+    /// <summary>
+    /// Under Device: why a make's cameras are not in the list, when its
+    /// driver was left out - pylon missing or too old, say.
+    /// </summary>
+    /// <remarks>
+    /// Without it a missing runtime looked exactly like a camera that was
+    /// not plugged in: an empty list, and the maker's own viewer finding
+    /// the camera fine.
+    /// </remarks>
+    public string? NoteFor(string parameter) =>
+        parameter == nameof(Device) ? Unavailable() : null;
+
+    internal static string? Unavailable()
+    {
+        if (CameraDrivers.IsSearching)
+            return "Still looking for cameras - select this node again in a moment.";
+
+        var problems = CameraDrivers.LoadProblems;
+
+        return problems.Count == 0 ? null : "Not listed: " + string.Join(" ", problems.Select(EndSentence));
+    }
+
+    private static string EndSentence(string text) =>
+        text.EndsWith('.') ? text : text + ".";
+
     protected override void OnEvaluate(EvalContext context)
     {
         lock (_gate)
@@ -134,8 +159,10 @@ public sealed class CameraNode : VisionNode, IInspectionNode, IParameterChoices
 
         var camera = CameraDrivers.Acquire(_device)
             ?? throw new InvalidOperationException(
-                $"{_device} was not found. Check it is powered and connected, and that its maker's software " +
-                "(pylon for Basler, MVS for Hikrobot) is installed.");
+                $"{_device} was not found. " +
+                (CameraDrivers.LoadProblems.Count > 0
+                    ? Unavailable()
+                    : "Check it is powered and connected, and that its maker's software (pylon for Basler, MVS for Hikrobot) is installed."));
 
         ImageData frame;
 

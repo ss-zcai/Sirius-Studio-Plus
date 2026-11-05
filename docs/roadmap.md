@@ -267,7 +267,10 @@ done. What remains, in order:
   in the recipe. Left: rotation.
 - **Camera acquisition.** The Camera node, Run Continuously, a simulated
   camera, Basler (GigE and USB3) through pylon and Hikrobot (GigE and
-  USB3) through MVS, behind `ICameraDriver`. Left, on hold: plain USB
+  USB3) through MVS, behind `ICameraDriver`. Basler needs pylon 26.10 or
+  later (the .NET API it ships calls into that runtime); a make whose
+  software is missing or too old is named under the Device list with the
+  reason (1.0.10). Left, on hold: plain USB
   webcams. Basler is tested only against pylon's emulator and Hikrobot
   only against MVS's virtual cameras so far. Every SDK call that lists,
 opens or closes a camera takes its turn through one gate (1.0.9): two at

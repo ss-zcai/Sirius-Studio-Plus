@@ -146,6 +146,12 @@ public interface IParameterChoices
 {
     /// <summary>What <paramref name="parameter"/> can be set to, or empty for no list.</summary>
     IReadOnlyList<string> ChoicesFor(string parameter);
+
+    /// <summary>
+    /// A line for under the list - why something expected is not in it, say -
+    /// or null for none. Asked when the list is.
+    /// </summary>
+    string? NoteFor(string parameter) => null;
 }
 
 /// <summary>

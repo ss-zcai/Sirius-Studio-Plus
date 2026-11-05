@@ -310,8 +310,13 @@ Camera node's Device list.
 
 ### Setting up a Basler camera
 
-1. Install the **pylon Runtime** on the PC (the full pylon Software Suite
-   also works). Without it, Basler cameras are simply not listed.
+1. Install the **pylon Runtime 26.10 or later** on the PC (the full pylon
+   Software Suite also works). **An older pylon - 7.x, say - does not
+   work**, even though its own pylon Viewer finds the camera: this build
+   uses pylon 26.10's .NET API, which needs that runtime. Restart Sirius
+   Studio Plus after installing. Builds from 1.0.10 say under the Camera
+   node's Device list why Basler cameras are missing; earlier ones simply
+   do not list them.
 2. For GigE: give the camera an IP address on the same subnet as the
    network card (pylon IP Configurator), turn on **jumbo frames** on that
    card, and install pylon's **GigE performance driver**.
