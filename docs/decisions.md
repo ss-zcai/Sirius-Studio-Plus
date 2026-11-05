@@ -2302,3 +2302,49 @@ region itself: when a shape wired into **Region** places it, the run
 records it as placed (`EvalContext.Place`), as other tools have done since
 1.0.8, so the region on the input shows where the cut was taken. A recipe
 wired to the old output loses that wire, with a warning on opening.
+
+## 62. Offset Shapes and Transform Shapes
+
+Shapes needed the operations images already had: grow or shrink a found
+circle a few pixels to keep a measurement off its edge, move a region a
+set distance from a found edge, turn a set about a found centre. Two
+nodes, not one, because adding a distance and multiplying by a factor are
+different things - a circle offset by 2 grows two pixels whatever its
+size, scaled by 1.1 it grows a tenth of its radius.
+
+- **Offset Shapes is closed form wherever there is one.** A circle's
+  radius, an ellipse's axes (twice the offset each), a rectangle's sides.
+  The curve truly the offset's distance from an ellipse is not an ellipse,
+  but it differs from one by a fraction of a pixel until the offset is a
+  good part of the minor axis, and every tool downstream reads an ellipse
+  best.
+- **Outlines go through Clipper2** (1.5.4, Boost licence, pure managed).
+  The alternative - draw the outline into a mask, dilate, trace it again -
+  snaps it to whole pixels and loses what sub-pixel fitting found.
+  Clipper keeps every point the offset's distance from the outline, splits
+  a concave outline as it shrinks (each piece kept), and with Round
+  corners is exactly a dilation by a disc. A hole formed as an outline
+  grows round on itself is left out, with a warning: a single outline
+  cannot carry one. 1.5.4 rather than 2.0, a new major version whose API
+  had not been tried.
+- **Sharp corners by default**, so a rectangle stays a rectangle. Round
+  makes it an outline.
+- **A line shifts sideways**, positive to its right going from start to
+  end on the image, or **extends** at both ends. **A point grows into a
+  circle**, which is how blob centres become round regions.
+- **Not one-for-one**, so Offset Shapes does not claim `IKeepsShapeOrder`:
+  shapes can vanish or split. Transform Shapes is one-for-one and does.
+- **Measurements:** size-dependent ones (area, perimeter, radius, axes,
+  circularity, what was measured inside) are measured again where that is
+  exact, and otherwise dropped, as `ShapeMap` does. How a shape was found -
+  score, contrast, fit error - is kept.
+- **Transform Shapes goes through `ShapeMap`**, which already carried
+  shapes through Resize and Region of Interest: scale, then turn, about
+  the pivot, then move. Positive turns are clockwise on the image like
+  every other angle here. The pivot is connectable, so a found shape's
+  centre can be it.
+- **In the Blob group**, beside Filter Shapes, Select Shape and Shape
+  Style. Renaming the group Shapes would read better, but the group is
+  part of the custom node SDK - `NodeGroup.Blob` in C#, `group="Blob"` in
+  Python - so a rename waits for a reason to change that contract.
+- **Icons are borrowed** (Dilate's and Resize's) until their own are drawn.

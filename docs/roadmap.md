@@ -43,7 +43,7 @@ Small, known, and not yet done.
 order, a dirty-tracked cancellable scheduler with explicit buffer ownership,
 `.sgraph` serialisation with legacy migrations.
 
-**69 nodes** (Crop became Region of Interest in 1.0.10) across Source, Basic, Combine, Filtering, Morphology, Blob,
+**71 nodes** (Crop became Region of Interest in 1.0.10) across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis and Output - including masking from an
 image or a shape, image logic and eleven blend modes, colour-space
 conversion, and circle, ellipse and line fits that report their residual.
@@ -235,6 +235,14 @@ done. What remains, in order:
   Circularity (4 pi A / P squared) and HALCON's Radial Circularity and
   Roundness, which see a smooth oval the first misses. A closed outline is
   measured like a blob throughout.
+- **Offsetting and transforming shapes is done** (1.0.10). Offset Shapes
+  grows or shrinks any shape by a distance - a circle's radius, a
+  rectangle's sides, an outline all round through Clipper2, with sharp or
+  round corners, splitting as it shrinks; a line shifts or extends; a
+  point grows into a circle. Transform Shapes moves, turns and scales,
+  each about its own centre or all about one point. Left: offsetting in
+  calibrated units, and a true offset curve for an ellipse rather than
+  an ellipse with both axes changed.
 - **Circular and polygonal regions.** Rectangles are handled at any angle.
 
 ---

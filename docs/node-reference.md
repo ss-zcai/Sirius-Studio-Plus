@@ -11,14 +11,14 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**69 nodes** across 14 categories.
+**71 nodes** across 14 categories.
 
 - **Source** — Blank Image, Camera, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Invert, Region of Interest, Resize, RGB Channel, Threshold
 - **Combine** — Blend, Logic, Mask
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
 - **Morphology** — Advanced Morphology, Dilate, Erode
-- **Blob** — Filter Shapes, Find Blobs, Select Shape, Shape Style
+- **Blob** — Filter Shapes, Find Blobs, Offset Shapes, Select Shape, Shape Style, Transform Shapes
 - **Fitting** — Find Circle, Find Curve, Find Line, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
 - **Transformation** — Polar to Linear
 - **Analysis** — Histogram, Line Profile, Match Template, Measure, Region Stats, Shape Table
@@ -839,6 +839,33 @@ Finds regions, measures them, and keeps those that pass the filters.
 | Fill | `Yes/No` | CheckBox | - |
 | Outline Thickness | `Integer` | Slider | 1 to 20 |
 
+### Offset Shapes
+
+`shape.offset`
+
+Grows or shrinks shapes by a distance in pixels - a circle's radius, a rectangle's sides, an outline all round.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Shapes` | circle | yes |
+| Offset | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Out | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Offset | `Number` | Slider | -500 to 500 |
+| Corners | `OffsetCorners` | ComboBox | - |
+| Lines | `OffsetLines` | ComboBox | - |
+
 ### Select Shape
 
 `shape.select`
@@ -894,6 +921,40 @@ Sets the colour, weight, form and labels of a set of shapes.
 | Stroke Width | `Number` | Slider | 0.2 to 12 |
 | Labels | `ShapeLabelling` | ComboBox | - |
 | Label Measure | `ShapeMeasure` | ComboBox | - |
+
+### Transform Shapes
+
+`shape.transform`
+
+Moves, turns and scales shapes, each about its own centre or all about one point.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Shapes` | circle | yes |
+| Move X | `Number` | circle | optional |
+| Move Y | `Number` | circle | optional |
+| Rotate | `Number` | circle | optional |
+| Scale | `Number` | circle | optional |
+| Pivot | `Point` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Out | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Move X | `Number` | Slider | -10000 to 10000 |
+| Move Y | `Number` | Slider | -10000 to 10000 |
+| Rotate | `Number` | Slider | -360 to 360 |
+| Scale | `Number` | Slider | 0.01 to 100 |
+| About | `TransformPivot` | ComboBox | - |
+| Pivot | `Point` | TextBox | - |
 
 ## Fitting
 

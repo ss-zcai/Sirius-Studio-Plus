@@ -13,6 +13,7 @@
     <!-- Flows transitively to the app and test projects so natives get copied. -->
     <PackageReference Include="Emgu.CV.runtime.windows" />
     <PackageReference Include="ZXing.Net" />
+    <PackageReference Include="Clipper2" />
   </ItemGroup>
 
   <ItemGroup>

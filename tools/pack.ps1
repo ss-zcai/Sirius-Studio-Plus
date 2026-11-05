@@ -132,6 +132,7 @@ $required = @(
     'docs/node-reference.md'
     'docs/release-notes.md'
     'cvextern.dll'
+    'Clipper2Lib.dll'
     'tessdata/eng.traineddata'
     'Sirius.Plugins.dll'
     'samples/SampleNodes/Sirius.SampleNodes.dll'

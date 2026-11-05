@@ -33,6 +33,16 @@
     -->
     <PackageVersion Include="ZXing.Net" Version="0.16.11" />
 
+    <!--
+      Polygon offsetting for Offset Shapes (Boost Software License 1.0),
+      pure managed. Growing or shrinking an outline by a distance - with
+      corners kept sharp or rounded, and a concave shape splitting as it
+      shrinks - is the one thing OpenCV has no answer to short of drawing
+      the outline into a mask, which snaps it to whole pixels. 1.5.4 rather
+      than 2.0, whose API is a new major version.
+    -->
+    <PackageVersion Include="Clipper2" Version="1.5.4" />
+
     <!-- Test stack -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
