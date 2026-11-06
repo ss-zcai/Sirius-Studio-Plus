@@ -38,8 +38,12 @@ public enum ShapeSelection
     Category = NodeCategory.Blob,
     Icon = "ph_select_shape",
     Description = "Picks one shape from a set, by position or by a measurement.")]
-public sealed class SelectShapeNode : VisionNode
+public sealed class SelectShapeNode : VisionNode, IPassesSomeShapes
 {
+    // Which input shape was chosen, last run: replaced whole, so the
+    // interface thread reading it never sees half of one.
+    private volatile int[]? _chosenFrom;
+
     private ShapeSelection _mode = ShapeSelection.Largest;
     private ShapeMeasure _measure = ShapeMeasure.Area;
     private int _index = 1;
@@ -90,6 +94,7 @@ public sealed class SelectShapeNode : VisionNode
         if (set.Count == 0)
         {
             context.Warn("Nothing to select from; the set is empty.");
+            _chosenFrom = [];
             context.Set(ShapesOut, new ShapeSet([], set.FrameWidth, set.FrameHeight));
             context.Set(ValueOut, 0.0);
             return;
@@ -98,9 +103,18 @@ public sealed class SelectShapeNode : VisionNode
         var metric = ShapeMeasures.MetricFor(_measure);
         var chosen = Choose(set, metric, context);
 
+        var from = 0;
+        while (from < set.Count && !ReferenceEquals(set.Shapes[from], chosen))
+            from++;
+
+        _chosenFrom = [from];
         context.Set(ShapesOut, new ShapeSet([chosen], set.FrameWidth, set.FrameHeight));
         context.Set(ValueOut, metric is null ? 0.0 : chosen.Metric(metric) ?? 0.0);
     }
+
+    /// <summary>Which input shape the one out was, so a selection follows through.</summary>
+    public IReadOnlyList<int>? SourceIndices(OutputPort output) =>
+        ReferenceEquals(output, ShapesOut) ? _chosenFrom : null;
 
     private Shape Choose(ShapeSet set, string? metric, EvalContext context)
     {
@@ -157,8 +171,12 @@ public sealed class SelectShapeNode : VisionNode
     Icon = "ph_filter_shapes",
     Description = "Keeps the shapes whose measurement lies in a range - from any producer - and gives what " +
                   "was rejected as well.")]
-public sealed class FilterShapesNode : VisionNode
+public sealed class FilterShapesNode : VisionNode, IPassesSomeShapes
 {
+    // Which input shape each kept and rejected one was, last run.
+    private volatile int[]? _keptFrom;
+    private volatile int[]? _rejectedFrom;
+
     private ShapeMeasure _measure = ShapeMeasure.Area;
     private ValueRange _range = ValueRange.Unbounded;
 
@@ -180,6 +198,12 @@ public sealed class FilterShapesNode : VisionNode
 
     /// <summary>How many were kept.</summary>
     public OutputPort CountOut { get; }
+
+    /// <summary>Which input shape each kept or rejected one was, so a selection follows through.</summary>
+    public IReadOnlyList<int>? SourceIndices(OutputPort output) =>
+        ReferenceEquals(output, KeptOut) ? _keptFrom
+        : ReferenceEquals(output, RejectedOut) ? _rejectedFrom
+        : null;
 
     [Param("Measure", Description = "Which measurement to filter on.")]
     public ShapeMeasure Measure
@@ -216,14 +240,27 @@ public sealed class FilterShapesNode : VisionNode
 
         var kept = new List<Shape>();
         var rejected = new List<Shape>();
+        var keptFrom = new List<int>();
+        var rejectedFrom = new List<int>();
 
-        foreach (var shape in set.Shapes)
+        for (var i = 0; i < set.Count; i++)
         {
+            var shape = set.Shapes[i];
+
             if (shape.Metric(metric) is { } value && range.Contains(value))
+            {
                 kept.Add(shape);
+                keptFrom.Add(i);
+            }
             else
+            {
                 rejected.Add(shape);
+                rejectedFrom.Add(i);
+            }
         }
+
+        _keptFrom = keptFrom.ToArray();
+        _rejectedFrom = rejectedFrom.ToArray();
 
         context.Set(KeptOut, new ShapeSet(kept, set.FrameWidth, set.FrameHeight));
         context.Set(RejectedOut, new ShapeSet(rejected, set.FrameWidth, set.FrameHeight));

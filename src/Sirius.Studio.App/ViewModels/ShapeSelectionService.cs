@@ -19,9 +19,13 @@ namespace Sirius.Studio.App.ViewModels;
 /// into values the graph owns.
 /// </para>
 /// <para>
-/// The key is the <b>producing port</b>, which is what a viewer and a table
-/// reading the same wire have in common. Two viewers on the same blob finder
-/// therefore share a selection, while a second finder keeps its own.
+/// The key is the port the shapes were first produced on - their
+/// <see cref="Origin"/> - traced back through nodes that hand them on one
+/// for one (Shape Style) and nodes that hand on some of them (Filter
+/// Shapes, Select Shape). So a table on a blob finder and a viewer drawing
+/// what a filter kept are one selection, each in its own numbering: row 7
+/// of the table is the 3rd kept blob on the image, and a blob the filter
+/// rejected is simply not selected on the Kept wire.
 /// </para>
 /// <para>
 /// Selection is <b>positional</b>: it remembers an index, not a blob. Nothing
@@ -32,63 +36,132 @@ namespace Sirius.Studio.App.ViewModels;
 /// </remarks>
 public sealed class ShapeSelectionService
 {
+    /// <summary>The selected index, in the origin's numbering, by origin.</summary>
     private readonly Dictionary<OutputPort, int> _selected = new();
+
+    /// <summary>The port each selection was made on, by origin.</summary>
+    private readonly Dictionary<OutputPort, OutputPort> _pickedOn = new();
 
     /// <summary>Raised with the port whose selection changed, as <see cref="Origin"/> gives it.</summary>
     public event EventHandler<OutputPort>? Changed;
 
     /// <summary>
     /// The port these shapes were first produced on: back through any node
-    /// that hands its shapes on one for one, such as Shape Style.
+    /// that hands its shapes on one for one, such as Shape Style, or some
+    /// of them, such as Filter Shapes.
     /// </summary>
-    /// <remarks>
-    /// The key, rather than the port itself, so a viewer on the styled wire
-    /// and a table on the finder's wire are one selection - the same shapes
-    /// at the same indices.
-    /// </remarks>
-    public static OutputPort? Origin(OutputPort? port)
-    {
-        // A wire loop is refused by the graph; the count only stops a
-        // mistake there from hanging the interface.
-        for (var step = 0; step < 64 && port?.Node is IKeepsShapeOrder keeper; step++)
-        {
-            if (!ReferenceEquals(port, keeper.ShapesOut) || keeper.ShapesIn.Connection?.Source is not { } upstream)
-                break;
+    public static OutputPort? Origin(OutputPort? port) => Trace(port).Origin;
 
-            port = upstream;
-        }
-
-        return port;
-    }
-
-    /// <summary>Whether two ports carry the same shapes at the same indices.</summary>
+    /// <summary>Whether two ports carry shapes from the same origin, so share a selection.</summary>
     public static bool Same(OutputPort? a, OutputPort? b) =>
         a is not null && ReferenceEquals(Origin(a), Origin(b));
 
-    /// <summary>The selected index for a producer, counting from zero.</summary>
-    public int? For(OutputPort? source) =>
-        Origin(source) is { } origin && _selected.TryGetValue(origin, out var index) ? index : null;
+    /// <summary>
+    /// The selected index on <paramref name="source"/>, counting from zero,
+    /// or null when nothing is selected - or what is selected is not among
+    /// the shapes on that port.
+    /// </summary>
+    public int? For(OutputPort? source)
+    {
+        var (origin, map) = Trace(source);
+
+        if (origin is null || !_selected.TryGetValue(origin, out var index))
+            return null;
+
+        if (map is null)
+            return index;
+
+        for (var i = 0; i < map.Count; i++)
+        {
+            if (map[i] == index)
+                return i;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The port the current selection among <paramref name="source"/>'s
+    /// shapes was made on - a table's, or a viewer's - so a number shown
+    /// beside it can be the one that table shows.
+    /// </summary>
+    public OutputPort? PickedOn(OutputPort? source) =>
+        Origin(source) is { } origin && _pickedOn.TryGetValue(origin, out var picked) ? picked : null;
 
     public void Select(OutputPort? source, int? index)
     {
-        source = Origin(source);
+        var (origin, map) = Trace(source);
 
-        if (source is null)
+        if (origin is null)
             return;
 
-        if (index is { } wanted && wanted >= 0)
-        {
-            if (_selected.TryGetValue(source, out var current) && current == wanted)
-                return;
+        // Into the origin's numbering; a shape the map does not know - a
+        // run since that changed the set - selects nothing.
+        int? wanted = index is { } local && local >= 0
+            ? map is null ? local : local < map.Count && map[local] >= 0 ? map[local] : null
+            : null;
 
-            _selected[source] = wanted;
+        if (wanted is { } chosen)
+        {
+            // The same shape picked again elsewhere still changes which
+            // numbering is shown beside it.
+            if (_selected.TryGetValue(origin, out var current) && current == chosen &&
+                _pickedOn.TryGetValue(origin, out var before) && ReferenceEquals(before, source))
+            {
+                return;
+            }
+
+            _selected[origin] = chosen;
+            _pickedOn[origin] = source!;
         }
         else
         {
-            if (!_selected.Remove(source))
+            _pickedOn.Remove(origin);
+
+            if (!_selected.Remove(origin))
                 return;
         }
 
-        Changed?.Invoke(this, source);
+        Changed?.Invoke(this, origin);
+    }
+
+    /// <summary>
+    /// The origin of <paramref name="port"/>'s shapes, and for each shape on
+    /// it, its index there - or null for a map when they are the origin's,
+    /// one for one.
+    /// </summary>
+    private static (OutputPort? Origin, IReadOnlyList<int>? Map) Trace(OutputPort? port)
+    {
+        IReadOnlyList<int>? map = null;
+
+        // A wire loop is refused by the graph; the count only stops a
+        // mistake there from hanging the interface.
+        for (var step = 0; step < 64 && port is not null; step++)
+        {
+            if (port.Node is IKeepsShapeOrder keeper &&
+                ReferenceEquals(port, keeper.ShapesOut) &&
+                keeper.ShapesIn.Connection?.Source is { } same)
+            {
+                port = same;
+                continue;
+            }
+
+            if (port.Node is IPassesSomeShapes filter &&
+                filter.SourceIndices(port) is { } some &&
+                filter.ShapesIn.Connection?.Source is { } upstream)
+            {
+                // Each shape here, in the numbering of the port upstream.
+                map = map is null
+                    ? some
+                    : map.Select(i => i >= 0 && i < some.Count ? some[i] : -1).ToArray();
+
+                port = upstream;
+                continue;
+            }
+
+            break;
+        }
+
+        return (port, map);
     }
 }

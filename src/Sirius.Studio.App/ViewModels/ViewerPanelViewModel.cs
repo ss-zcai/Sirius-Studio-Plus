@@ -225,7 +225,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
         get
         {
             // The set picked from last, then any other with a pick in it.
-            var (index, _) = Selected();
+            var (index, _, _) = Selected();
             return index;
         }
         set
@@ -257,19 +257,37 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
     /// the blobs, the second blob is the third shape here but row 2 in the
     /// blobs' table, and the number on the image is there to find the row.
     /// </remarks>
-    public int SelectedShapeNumber => Selected().Local + 1;
+    /// <remarks>
+    /// Picked in a table on another wire of the same shapes - the finder's,
+    /// with this viewer drawing what a filter kept - it is that table's row:
+    /// the 3rd kept blob is labelled 7 when row 7 was clicked.
+    /// </remarks>
+    public int SelectedShapeNumber
+    {
+        get
+        {
+            var (_, local, source) = Selected();
 
-    /// <summary>The selected shape's place here and in its own set, or -1 for both.</summary>
-    private (int Index, int Local) Selected()
+            if (source is null)
+                return 0;
+
+            return _selection.PickedOn(source) is { } picked && _selection.For(picked) is { } row
+                ? row + 1
+                : local + 1;
+        }
+    }
+
+    /// <summary>The selected shape's place here and in its own set, and its set's wire; -1, -1 and null for none.</summary>
+    private (int Index, int Local, OutputPort? Source) Selected()
     {
         // The set picked from last, then any other with a pick in it.
         foreach (var span in _spans.OrderByDescending(span => ShapeSelectionService.Same(span.Source, _shownSource)))
         {
             if (_selection.For(span.Source) is { } local && local < span.Count)
-                return (span.Start + local, local);
+                return (span.Start + local, local, span.Source);
         }
 
-        return (-1, -1);
+        return (-1, -1, null);
     }
 
     private void RaiseSelectedShape()
