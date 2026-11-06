@@ -142,7 +142,8 @@ Two rules the engine depends on:
 
 - [`docs/decisions.md`](docs/decisions.md) — why the architecture is the way it
   is, including what went wrong getting there.
-- [`docs/roadmap.md`](docs/roadmap.md) — what is done, what is next, known gaps.
+- [`docs/roadmap.md`](docs/roadmap.md) — where the product stands: what is done, known limits.
+- [`docs/backlog.md`](docs/backlog.md) — what is left to do, in a proposed order, for review.
 - [`docs/node-reference.md`](docs/node-reference.md) — every node, port and
   parameter. Generated; do not edit.
 

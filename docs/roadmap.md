@@ -1,10 +1,12 @@
 # Roadmap
 
-Where the product stands at **1.0.9**, and what is left.
+Where the product stands. **1.0.9** is the latest package (4 November
+2026); **1.0.10** is in progress. What could come next, in a proposed
+order, is in **`backlog.md`** - this page is what is done, and the one
+thing that blocks shipping.
 
-Companion to `decisions.md`, which records why things are the way they are,
-and `interactive-tools-plan.md`, which is the plan for the next large piece
-of work.
+Companion to `decisions.md`, which records why things are the way they
+are, and `release-notes.md`, which is what testers read.
 
 ---
 
@@ -12,398 +14,170 @@ of work.
 
 **Emgu.CV is dual licensed: GPLv3, or a commercial licence.** Distributing
 under the GPLv3 option would require releasing this product's source under
-GPLv3. That is now written at the top of `THIRD-PARTY-NOTICES.txt`, which
+GPLv3. That is written at the top of `THIRD-PARTY-NOTICES.txt`, which
 ships inside the package, so whoever holds a build can see it.
 
 Internal testing is fine. A build going to a customer is not, until a
-commercial licence is in place - and that is a procurement lead time, so it
-wants starting well before it is needed. Nothing else on this page blocks a
-release; this does.
+commercial licence is in place - a procurement lead time, so it wants
+starting well before it is needed. The pylon and MVS terms and, if a
+shipped Python library uses it, YOLO's AGPL want settling at the same
+time: backlog items L1-L4.
 
 ---
 
-## Immediately outstanding
+## In 1.0.10 so far
 
-Small, known, and not yet done.
-
-- **A `.gitattributes`.** The repository was created without one, so line
-  endings are normalised per machine rather than per repository. Harmless
-  today, confusing the first time two people work on it.
-- **Four node icons have no SVG source.** `ph_find_curve`,
-  `ph_lens_calibration`, `ph_line_defects` and `ph_undistort` exist only in
-  the generated `Themes/Icons.xaml`. Regenerating it from `res/ui icons`
-  deletes them, so until their SVGs are added to `res/ui icons`, don't
-  regenerate it, or put them back by hand afterwards.
+- **Crop folded into Region of Interest.** Recipes with a Crop open with
+  an ROI cutting the same pixels. ROI has no shape output repeating its
+  region any more; a region placed by a wired shape shows where it was
+  placed. Decision 61.
+- **Offset Shapes and Transform Shapes** (below, under Shapes).
+  Decision 62.
+- **The Camera node says why a camera make is missing** - pylon older
+  than 26.10, not installed, not on the PATH - under its Device list.
+  Decision 63.
 
 ---
 
 ## Done
 
+### The engine and the shell
+
 **The engine.** Ports, typed connections, cycle detection, topological
-order, a dirty-tracked cancellable scheduler with explicit buffer ownership,
-`.sgraph` serialisation with legacy migrations.
+order, a dirty-tracked cancellable scheduler with explicit buffer
+ownership, `.sgraph` serialisation with legacy migrations, and partial
+evaluation: a recipe slower than 60 ms runs the edited node and its
+ancestors at once and the rest when the edits pause.
 
-**71 nodes** (Crop became Region of Interest in 1.0.10) across Source, Basic, Combine, Filtering, Morphology, Blob,
-Fitting, Transformation, Analysis and Output - including masking from an
-image or a shape, image logic and eleven blend modes, colour-space
-conversion, and circle, ellipse and line fits that report their residual.
+**71 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
+Fitting, Transformation, Analysis, Calibration, Text and Code Reading,
+Judging, Output and Sub Graph. `node-reference.md` lists every one.
 
-**The shell.** Node canvas, toolbox, inspector, dockable panels, saved
-per-recipe layouts, unsaved-change prompts, Save/Save As, a Run that
-re-evaluates everything and reports the timing, a graph that frames itself
-when a recipe opens and on demand (Fit Graph to Window, with Zoom In and
-Zoom Out, on the toolbar), a help popup per node built from its descriptor, and
-one dark title bar on every window including About.
+**The shell.** Node canvas, toolbox with search, inspector, dockable
+panels, saved per-recipe layouts, unsaved-change prompts, Save/Save As, a
+Run that re-evaluates everything and reports the timing, a graph that
+frames itself when a recipe opens and on demand (Fit Graph to Window,
+Zoom In, Zoom Out on the toolbar), a help popup per node built from its
+descriptor, and one dark title bar on every window including About.
 
-**The logo.** `res/Sirius Stu.svg` is the master. `tools/svg2xaml.py`
-draws it as `Themes/Logo.xaml` (it now takes gradient fills and single
-files), and the About box shows that vector drawing. `res/Sirius Stu.ico`
-stays hand-made: its small frames, 16 px especially, were drawn by hand,
-and they read better than any frame rendered from the SVG. Use the SVG or
-`Icon.SiriusStu` for anything larger: a splash, a README header,
-packaging.
-
-**Undo and redo**, over a command stack that keeps the instances it removed
-- so undoing a delete restores the same node and every panel holding it
-reattaches. Property edits are recorded by watching the nodes rather than
-by a command class each, so a parameter added tomorrow is undoable the day
-it ships; a test holds that list against what the serialiser writes.
-Gestures coalesce, and a paste, a multi-node delete or colouring a
-selection is one step back.
+**Undo and redo** over a command stack that keeps the instances it
+removed, so undoing a delete restores the same node and every panel
+holding it. Property edits are recorded by watching the nodes, so a new
+parameter is undoable the day it ships. Gestures coalesce.
 
 **Cut, copy, paste, duplicate and select all**, carrying `.sgraph`
 documents, so parameters, colours, measurements and the wires between
-copied nodes survive a paste with nothing written about any of them. Routed
-through `ApplicationCommands`, so Ctrl+C in a rename box still copies text.
+copied nodes survive a paste.
 
-**Dialogs in the shell's own colours**, with the keyboard behaviour the
-stock `MessageBox` gave for free written out explicitly - one default
-button, Escape taking the way out that changes nothing, access keys, and a
-bare Y/N/C as the dialog they replaced accepted.
+**Dialogs in the shell's own colours**, keeping the stock dialog's
+keyboard behaviour. **Node colours**: seven presets, checked for contrast
+by test.
 
-**The viewer.** Pan and zoom with a pixel readout, nine measurement tools as
-selectable annotations with their own colours and on-image labels,
-interactive multi-channel line profiling with a value cursor, overlay
-toggles, shape selection shared with the tables, a region that can be drawn,
-moved, resized and turned, and a toolbar that stays on one line by moving
-what does not fit into a menu.
+**The logo.** `res/Sirius Stu.svg` is the master, drawn as vectors in the
+About box. `res/Sirius Stu.ico` stays hand-made: its small frames, 16 px
+especially, were drawn by hand - never regenerate it from the SVG.
 
-**As many overlays as are wired in.** The Image Viewer grows a shape socket
-whenever the last one is filled, so several producers draw on one image
-without a node between them - each styled separately, because colour and
-stroke live on the shape rather than on the set.
+**Packaging.** `tools/pack.ps1` produces a self-contained zip, runs the
+tests, regenerates the node reference, checks the licence notices,
+camera APIs and other required files are in it, and refuses to write one
+whose stamped version disagrees with its name. `tools/pack-sdk.ps1` packs
+the custom node SDK (1.0.2) and proves its sample builds from the package
+alone.
 
-**Each viewer states its own frame size**, beside the cursor position and
-pixel value. It used to be one number in the main status bar, read from
-whichever viewer happened to be first, which said nothing about which - and
-after a Crop or an ROI belonged to a different picture than the one being
-looked at.
+### The viewer
 
-**Measurements are part of the recipe.** Drawn lines, angles and circles are
-saved with the `.sgraph`, keyed by the node *and the view* they were drawn
-on - a preview of an input and one of an output are different pictures - and
-they count as an unsaved change, so New and Open ask before discarding
-them.
+Pan and zoom with a pixel readout, nine measurement tools as selectable
+annotations with on-image labels, multi-channel line profiling, overlay
+toggles, shape selection shared with the tables, and regions drawn, moved,
+resized and turned on the image. Each viewer states its own frame size.
+Measurements are saved with the recipe, keyed by node and view. The Image
+Viewer grows a shape socket whenever the last is filled. Any port opens in
+a preview window of its own. Pictures save at full resolution, with or
+without overlays, 16-bit kept as 16-bit. A 16-bit picture offers
+**Display** - 16, 14, 12 or 10 bits, or stretched - and the readout gives
+its own value.
 
-**Node colours.** Seven presets plus the default, for marking up a large
-recipe, set from the toolbar dropdown for the whole selection at once or
-from the canvas menu for one node. Each fixes background, stroke and text
-together, and the set is checked for contrast by test rather than by eye -
-every title clears 7:1 on its own node, and no two strokes are close enough
-to be confused.
+### Interactive tools
 
-**Previews.** Any node's port can be opened in a window of its own -
-double-click the port, the buttons in the properties panel, or the canvas
-menu. A shape port shows the annotated image and the measurements together.
+The plan in `interactive-tools-plan.md` is complete: regions are drawn
+only on the preview of their own node's input; Find Line, Find Circle and
+Find Curve fit edges to a fraction of a pixel; every region can take a
+shape on a wire instead of a drawn value (`ShapeRegions`); and partial
+evaluation keeps dragging a caliper responsive. A node with several
+regions shows the one whose pick button was pressed, in its own colour.
 
-**Parameters.** Range sliders with two handles, logarithmic where the
-quantity spans decades, optional ends where "no limit" has to be
-expressible, a colour picker, connectable parameters, and Enter to commit.
+### Shapes
 
-**Packaging.** `tools/pack.ps1` produces a self-contained zip, checks the
-licence notices and the node reference are in it, and refuses to write one
-whose stamped version disagrees with its name.
+- **Filtering, selecting, styling**: Filter Shapes on any measurement,
+  Select Shape, Shape Style.
+- **Carried through image changes**: Resize, Region of Interest and Polar
+  to Linear map shapes with their pixels (`ShapeMap`).
+- **Measure** reads a distance or angle between two shapes, or one
+  shape's size; **Calibrate** turns pixels into units; **Lens
+  Calibration** and **Undistort** take out lens distortion.
+- **Judging**: Limit Check, Compare, Check Logic, Grade, Worst Grade,
+  Counter and Result Log; a Run is an inspection.
+- **Defects**: Circle Defects (round, local form or fitted ellipse) and
+  Line Defects; Line Calipers reports straightness.
+- **Regions follow a found result** (1.0.8): a Reference input on every
+  tool with a region.
+- **Roundness three ways** (1.0.9): Circularity and HALCON's Radial
+  Circularity and Roundness; a closed outline is measured like a blob.
+- **Offset Shapes** (1.0.10): grows or shrinks any shape by a distance -
+  a circle's radius, a rectangle's sides, an outline all round through
+  Clipper2 with sharp or round corners, splitting as it shrinks; a line
+  shifts or extends; a point grows into a circle. **Transform Shapes**
+  moves, turns and scales, each about its own centre or all about one
+  point.
 
----
+### Node library
 
-## Next: interactive tools
+- **Reading**: Read Code through ZXing (1D codes, Data Matrix, QR,
+  PDF-417, Aztec), Read Text through Tesseract with the fast English
+  model; both straighten a turned region first.
+- **Match Template** with Teach, position only by decision.
+- **Region Stats** for mean intensity over a region.
+- **Values**: Number, Matrix and Text sources, and Label to write values
+  on the image.
 
-The plan is `interactive-tools-plan.md`. Step 1 - port-bound previews - is
-done. What remains, in order:
+### Cameras
 
-1. **Arming the Draw button - done for a ring.**
-   `MainViewModel.DrawRegionCommand` opens the preview of the input the
-   geometry is measured in, and arms the ring tool when the parameter is
-   one. A rectangle still is not armed, because it is dragged straight
-   onto the image rather than placed with a tool - which is defensible
-   until a second kind of region needs a gesture of its own.
-2. **Find Line is done.** Calipers across an `OrientedRect` - the same
-   type the ROI node uses, so the region can be drawn and turned with the
-   machinery that already exists - fitted by total least squares with
-   outlier rejection. Measured error against a known edge is zero across
-   smoothing widths 1 to 21.
-3. **Geometry parameters - done, as shapes on a wire.** Every region a
-   node can wire - a rectangle, a turned rectangle, a band, a point, a
-   path - takes a shape set as readily as its own type (`ShapeRegions`):
-   Find Blobs' box is where Find Line looks, Find Circle's circle is the
-   band Ring Calipers searches, a good part's contour is the path Find
-   Curve follows. What the shape does not say - a line's width, a band's
-   - comes from the drawn value, and a shape that can be written several
-   ways round is taken the way the drawn region faces, so which side the
-   calipers start from does not depend on how the shape was reported.
-   The drawn values stay their own types rather than becoming `Shape`
-   parameters: each is what its tool reads, and a wire is where the
-   shape vocabulary was wanted. The wrong-coordinate-space fault this
-   item was also meant to retire went with port-bound previews: a region
-   is drawn only on the preview of its own node's input.
-4. **Find Curve - done.** A path drawn corner by corner - a third
-   gesture beside the rectangle and the band - with a band either side,
-   calipers square across it, and a curve fitted locally through the
-   edge with outliers set aside. A closed path gives a closed curve.
-   Followed to a tenth of a pixel on a test wave with slopes past 40
-   degrees. **Find Circle is done** - a
-   centre and a band, radial calipers through it, a circle fitted to the
-   edges with outlier rejection, accurate to better than a fifth of a pixel
-   against a known edge. Its ring is drawn on the viewer, and can be
-   moved and resized there.
-5. **Partial evaluation - done.** A recipe slower than 60 ms runs the
-   edited node and its ancestors at once and the rest when the edits
-   pause, so dragging a caliper does not re-run the whole recipe on
-   every movement.
+The Camera node and Run Continuously, with a simulated camera, **Basler**
+(GigE and USB3) through pylon and **Hikrobot** (GigE and USB3) through
+MVS, behind `ICameraDriver`. Basler needs **pylon 26.10 or later**: the
+.NET API it ships calls into that runtime. A make whose software is
+missing or too old is named under the Device list with the reason
+(1.0.10). Every SDK call that lists, opens or closes a camera takes its
+turn through one gate (1.0.9): two at once crashed inside the SDKs.
+Tested so far only on pylon's emulator and MVS's virtual cameras -
+backlog N2.
 
----
+### Platform
 
-## Shapes
-
-- **Filter Shapes is done**: any producer's shapes filtered on any
-  measurement, with the rejected ones given too. Combining is done as
-  well: the Image Viewer grows a socket per shape set, so several
-  producers draw on one image without a node between them.
-- **Remapping shapes is done**: Resize, Region of Interest and Polar
-  to Linear carry an Overlay of shapes through the same mapping as their
-  pixels (`ShapeMap`).
-- **Measurement in the graph is done.** The Measure node takes two shape
-  sets and reads a distance or an angle between them - or one shape's
-  radius, diameter, axes, orientation, area, perimeter or length -
-  publishing the number and an annotation drawn the way a hand-drawn
-  measurement looks.
-  The reference mechanism this was waiting for turned out not to be
-  needed: wiring two producers into two inputs says "the line from Find
-  Line 1, the circle from Find Circle 2" in the vocabulary the graph
-  already had.
-- **Limit checks are done.** Limit Check compares a number against a
-  band, a floor, a ceiling or a nominal with a tolerance, and publishes
-  a verdict three ways: a boolean for the graph, the incoming annotation
-  recoloured green or red, and the number passed through so a check can
-  sit mid-chain. The verdict leaves the recipe through `IJudgingNode`,
-  which the shell aggregates into the status line.
-
-  **Judging is done for 1.0.4**: Compare, Check Logic, Grade (bands of
-  A, B, C, Reject), Worst Grade, Counter and Result Log, which writes a
-  CSV row per inspection. A Run is an inspection (`InspectAsync`); the
-  re-runs after an edit are not. Still missing: a **signal out** - a
-  PLC over Modbus TCP, digital I/O - and counts that survive a restart.
-- **Calibration is done** for the fixtured case: a Calibrate node says
-  what a pixel is worth, wired into Measure, which then reports in that
-  unit and labels it so. From a known length measured on the image, or
-  from a scale typed straight in.
-
-  On a wire rather than as a setting on the recipe, because a scale is
-  not a property of a recipe - two cameras have two, and a Resize
-  changes one.
-
-  Areas are calibrated too: Shape Table and Measure report them in
-  square units.
-
-  **Lens calibration is done**: Lens Calibration fits a lens's
-  distortion to views of a chessboard or dot grid - Add View a few
-  times, the target in different places and tilts - and Undistort takes
-  it out of every picture after. The views are kept in the recipe, so
-  the target can be put away. It also gives a scale in the target's
-  plane. Tested only against synthetic views through a known lens so
-  far; a real wide lens is the test still to do.
-- **Straight-edge defects are done**: Line Defects, Circle Defects'
-  counterpart for an edge meant to be straight, against a voted line, a
-  wired one or the edge's own smoothed form. Line Calipers reports
-  **Straightness** and a profile along the edge.
-- **Regions that follow a found result are done** (1.0.8): a Reference
-  input on every tool with a region, position from any shape and angle
-  from a turned box or a line. Still missing: an angle from Match
-  Template, and two-point references (two holes) for the angle of a
-  part that has no straight edge.
-- **Roundness, three ways (1.0.9).** Blobs and closed outlines carry
-  Circularity (4 pi A / P squared) and HALCON's Radial Circularity and
-  Roundness, which see a smooth oval the first misses. A closed outline is
-  measured like a blob throughout.
-- **Offsetting and transforming shapes is done** (1.0.10). Offset Shapes
-  grows or shrinks any shape by a distance - a circle's radius, a
-  rectangle's sides, an outline all round through Clipper2, with sharp or
-  round corners, splitting as it shrinks; a line shifts or extends; a
-  point grows into a circle. Transform Shapes moves, turns and scales,
-  each about its own centre or all about one point. Left: offsetting in
-  calibrated units, and a true offset curve for an ellipse rather than
-  an ellipse with both axes changed.
-- **Circular and polygonal regions.** Rectangles are handled at any angle.
+- **Sub-graphs**, first version: a node holding a graph of its own,
+  opened in a tab, with Graph Input and Graph Output as its sockets.
+- **Custom nodes in C#** (interface 1.0, SDK 1.0.2) and **in Python**,
+  each Python library in its own process and environment. See
+  `custom-nodes.md` and `python-nodes.md`.
+- **Batch and headless running**: Run Folder in the application, and
+  `sirius-run.exe` for scripts.
+- **NodeGraphKit/**: the editor and dark theme on their own, for other
+  teams - a standalone copy with its own solution, not shared code.
+- Diagnostics are opt-in through `SIRIUS_PANEL_LOG=1`, writing to
+  `%AppData%\SiriusStudioPlus\panels.log`.
 
 ---
 
-## Node library
+## Known limits
 
-- **Text and code reading is done**, with real decoders behind it -
-  which is what it was waiting for, both earlier builds having shipped
-  stubs. Read Code uses ZXing (Code 39/93/128, ITF, Codabar, MSI, Data
-  Matrix, PDF-417, Aztec, QR, EAN/UPC) rather than OpenCV's barcode
-  module, which reads only EAN and UPC. Read Text uses Tesseract, which
-  was already compiled into the Emgu build; the fast English model ships
-  with the package.
+The ones a tester will meet; the fixes are in the backlog.
 
-  Both take an `OrientedRect` and straighten the crop before reading, so
-  a code or a label on a turned part reads as if it were square on.
-
-  Still open in that direction: more languages than English, and a
-  grading output for 2D codes - print quality against ISO 15415 is what
-  a customer with a Data Matrix spec will eventually ask for.
-- **Template matching.** Match Template, with Teach keeping the template
-  in the recipe. Left: rotation.
-- **Camera acquisition.** The Camera node, Run Continuously, a simulated
-  camera, Basler (GigE and USB3) through pylon and Hikrobot (GigE and
-  USB3) through MVS, behind `ICameraDriver`. Basler needs pylon 26.10 or
-  later (the .NET API it ships calls into that runtime); a make whose
-  software is missing or too old is named under the Device list with the
-  reason (1.0.10). Left, on hold: plain USB
-  webcams. Basler is tested only against pylon's emulator and Hikrobot
-  only against MVS's virtual cameras so far. Every SDK call that lists,
-opens or closes a camera takes its turn through one gate (1.0.9): two at
-once crashed inside the SDKs and kept the application alive after exit.
-- **Circle Defects for parts that are not round is done**: Local Form
-  and Fitted Ellipse references, and a Form output.
-- **Mean intensity over a region is done** - Region Stats.
-- **Circular edge defects are done** - Circle Defects.
-- **Soft Light** blend mode, left out because several incompatible
-  definitions are in common use. Add it when somebody says which one.
-
----
-
-## Platform
-
-- **Growing inputs on Blend and Logic**, so they could take more than two
-  images. The mechanism exists now - `IGrowingPorts`, built for the Image
-  Viewer's shape sockets - and these two are the obvious next customers;
-  chaining serves until somebody asks.
-- **Sub-graphs - done, first version.** A **Sub Graph** node holds a
-  graph of its own, opened by double-clicking it into a tab beside the
-  recipe's. **Graph Input** and **Graph Output** nodes inside are its
-  sockets: added, removed and renamed with them, typed "any" until the
-  first wire on either side gives them a type. The inside has its own
-  scheduler and cache, so a change inside re-runs only what it affects;
-  each tab has its own undo history; viewers, previews, readouts and
-  limit checks inside work as they do outside. Saved nested in the
-  recipe, so a recipe without sub-graphs is byte-identical to before.
-
-  Left, in rough order of value:
-
-  - **Promoted parameters.** A threshold inside can only be changed by
-    opening the sub-graph, so two copies of one cannot be told to differ
-    from outside. The way to want this is to have used sub-graphs.
-  - **Reusable sub-graphs** - saved as a file and placed in several
-    recipes or several times in one, edited once. Today each copy is its
-    own.
-  - **Group selection into a sub-graph**, turning nodes already on the
-    canvas into one, with boundaries where their wires crossed.
-  - **Panel titles inside sub-graphs** carry only the node's name, so two
-    copies of a sub-graph with a viewer each open two panels with the
-    same title.
-  - Sub-graph tabs are not reopened when the application restarts, and a
-    socket whose boundary was deleted and restored by undo comes back at
-    the end of the node rather than where it was.
-- **Custom nodes - done, interface 1.0.** See `custom-nodes.md`. Left for
-  later: reloading a library without a restart, icons a library supplies,
-  IntelliSense for the `Sirius.Core` types in the package.
-- **Python custom nodes - done.** See `python-nodes.md`: a `.py` library
-  runs in its own Python process with its own environment, models load
-  once, images cross as numpy arrays, results come back as our shapes,
-  numbers, text and images. Left for later: shared memory for images,
-  a Python log view, warming workers in parallel at startup.
-- **Batch/headless runner - done.** Run Folder in the application, and
-  `sirius-run.exe` for scripts, sharing `FolderRun`.
-
----
-
-## Smaller known gaps
-
-- **10-bit and 12-bit images: shown and read properly - partly done.**
-  A camera delivers 10 or 12 bits inside a 16-bit container, so the values
-  stop at 1023 or 4095, and nothing in the file says which.
-
-  Done: every viewer and preview showing a 16-bit picture offers
-  **Display** - 16, 14, 12 or 10 bits, or stretched - kept with a Viewer
-  node's recipe; the readout gives the picture's own value, 0 to 4095,
-  however it is shown; and Save Image keeps the 16 bits.
-
-  Still to do:
-
-  1. **Image File and Image Sequence default to `AnyColor`**, which is
-     8-bit: a 12-bit file is divided by 256 on loading, so it arrives nearly
-     black with its fine steps gone, before any viewer sees it. The Read
-     Mode description now says to choose Unchanged. Changing the default
-     waits on point 2.
-  2. **Most tools' settings assume 8 bits** - Threshold's 0-255, Find
-     Blobs', Min Contrast. A 12-bit image through them needs thresholds
-     sixteen times larger. The real fix is for `ImageData` to carry its
-     significant bits, set by the source that knows them (a Mono12 camera
-     does), and for ranges and the histogram to follow.
-
-- **Histogram handles 8-bit only.** Other depths warn and pass through.
-- **One ROI at a time - done differently.** A node with more than one
-  region parameter shows its first when selected; each region's pick button
-  makes that one the one dragged, drawn in its own colour and named.
-- **`NumberVector` has no consumer.** The Vector node produces one and
-  nothing takes one as input. It takes any number of components now, which
-  makes it useful to more things than the old fixed pair would have been -
-  a kernel size, an RGB offset, a per-channel threshold - but until
-  something reads one, the node is a value with nowhere to go.
-- **`Sirius.NodeEditor` is an empty scaffold** - one `Class1.cs`. The canvas
-  lives in the app project. Extract it when a second host needs it, or
-  delete the project. `NodeGraphKit/` is not that extraction: it is a
-  standalone copy of the editor and theme for other teams, with its own
-  solution, and does not follow changes here by itself.
-- **Find Blobs does not measure** fitted ellipse, inner/outer radius or
-  moment invariants. Add them when something consumes them.
-- **One icon is weak**: `ph_find_blobs` collides visually with the
-  hand-drawn three-point circle.
-- Diagnostics are opt-in via `SIRIUS_PANEL_LOG=1`, writing to
-  `%AppData%\SiriusStudioPlus\panels.log`. An unreachable panel is always
-  logged.
-
----
-
-## Value nodes, and labels - done
-
-Asked for together, because they are one idea: values that are not images
-flowing through a recipe and ending up readable on a picture. All four
-shipped; what is left of the idea is below.
-
-- **Number** replaces Integer and Float. The dropdown chooses how the
-  value is entered, not what crosses the wire - see `decisions.md` entry
-  52 for why a port-type switch would have been machinery with no
-  observable effect.
-- **Matrix** replaces Vector, with a vector as the 1xN or Nx1 case. The
-  2D Filter's kernel can arrive on a wire, which is the first real
-  consumer either type ever had.
-- **Text** publishes a string.
-- **Label** draws a number or a line of text on the image - one per shape
-  wired into it, or at a given point.
-
-Still open in that direction:
-
-- **A matrix editor.** A Matrix is typed as text today, which is fine for
-  a 3x3 kernel and tiresome for anything larger. A grid editor is the
-  obvious next step, and `ParamEditor` already has the shape of a place
-  to put one.
-- **Text parameters driven by a wire.** A Text node can drive the Label's
-  caption, because that parameter is `Connectable`. Nothing else takes
-  text that way yet - a file path or an output name would be the first
-  real uses.
-- **Matrix arithmetic**, if anything ever needs it. There is no Add or
-  Multiply for matrices, and inventing them before something consumes one
-  would be guessing at what shape they should take.
+- **8-bit settings on deeper images.** A 12-bit image is shown and read
+  properly, but Threshold, Find Blobs and the rest take 0-255 settings,
+  and Image File loads 8 bits unless Read Mode is Unchanged. The
+  histogram handles 8-bit only. Backlog F1.
+- **No signal out.** A verdict reaches the status line and a CSV, not a
+  PLC. Backlog F2-F3.
+- **Four icons have no SVG source** (`ph_find_curve`,
+  `ph_lens_calibration`, `ph_line_defects`, `ph_undistort`): regenerating
+  `Themes/Icons.xaml` from `res/ui icons` deletes them. Backlog N3.
