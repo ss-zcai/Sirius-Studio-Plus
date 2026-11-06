@@ -5,6 +5,89 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.10 — 6 November 2026
+
+Shapes you can grow, shrink, move and turn; Crop folded into Region of
+Interest; picking that follows through a filter; and the Camera node
+saying why a camera is missing, on top of everything in 1.0.9 below.
+Recipes saved in 1.0.9 open, with the changes noted under Crop and
+Region of Interest. 71 nodes.
+
+### Before you start: Basler cameras need pylon 26.10 or later
+
+**An older pylon - 7.x, say - does not work**, even though its own pylon
+Viewer finds the camera: this build uses pylon 26.10's .NET API, which
+needs that runtime. Install the **pylon Runtime 26.10 or later** and
+restart Sirius Studio Plus. If Basler cameras are still missing, the
+Camera node now says why under its **Device** list.
+
+### What to try first
+
+> Find Circle or Fit Circle → **Offset Shapes** (Offset: -5) → Mask or Region Stats
+
+The circle shrunk by 5 pixels: measure the face of a part while keeping
+off its edge. A positive offset grows it. Works on ellipses, rectangles,
+blob outlines, lines and points too.
+
+> Find Blobs → Shape Table, and Find Blobs → **Filter Shapes** → Kept and Rejected → a viewer
+
+Click a row in the table: the blob is picked out on the image, whether
+it was kept or rejected - and clicking it on the image selects its row.
+
+> Any found circle → click its **+**
+
+Circles and ellipses now have a + at their centre, and clicking it picks
+the circle. The number beside a picked circle is in a round badge, a
+blob's in a square one.
+
+### New and changed
+
+- **Offset Shapes**: grows or shrinks shapes by a distance in pixels, the
+  shape version of Dilate and Erode. A circle's radius changes by
+  exactly the offset; an ellipse's axes by twice it; a rectangle's sides
+  move out by it (**Corners: Sharp** keeps it a rectangle, **Round**
+  rounds them off as it grows). A blob outline is offset all round, and
+  splits into pieces if it shrinks through a narrow neck. A line moves
+  sideways (**Lines: Shift**) or lengthens (**Extend**); a point grows
+  into a circle. Shapes that shrink to nothing are dropped, with a
+  warning. **Offset** can be wired, so a measured number can drive it.
+- **Transform Shapes**: moves, turns (clockwise on the image) and scales
+  shapes, each about its own centre or all about a **Pivot** - which a
+  found shape can be wired into, to turn a set about its centre.
+- **Crop is gone: Region of Interest does it.** A recipe with a Crop
+  opens with a Region of Interest in its place, cutting exactly the same
+  pixels (Alignment: Bounding Box), keeping its name and wires. Two
+  differences: a Crop with no region drawn gets a default one and the
+  recipe warns as it opens; and with a **Reference** wired and a part
+  that turns, the region now turns with it.
+- **Region of Interest has no Shapes output.** It repeated the region and
+  was drawn as a second, purple box exactly over the one being edited.
+  A wire from it is dropped, with a warning, when a recipe opens. A
+  region placed by a shape wired into **Region** is now shown where it
+  was placed.
+- **Selection follows through Filter Shapes and Select Shape.** A table
+  and a viewer on either side of one share their selection, each in its
+  own numbering; the number beside the picked shape is the row on the
+  wire it was picked from.
+- **A + at the centre of circles and ellipses**, on screen and in saved
+  pictures; clicking it picks the shape.
+- **The Camera node says why a camera make is missing**, under its
+  Device list: pylon not installed, too old, or not on the PATH; MVS
+  failing to start. It used to be an empty list with no reason given.
+
+### Known issues, in addition to those below
+
+- **Offset Shapes and Transform Shapes borrow Dilate's and Resize's
+  icons** for now.
+- **Offsetting an ellipse keeps it an ellipse**, both axes changed. The
+  curve truly the offset away is not quite an ellipse; the difference is
+  a fraction of a pixel unless the offset is a good part of its width.
+- **Real cameras are still untested**: Basler only on pylon's emulator,
+  Hikrobot only on MVS's virtual cameras. Reports from a real camera are
+  very welcome.
+
+---
+
 ## 1.0.9 — 4 November 2026
 
 12-bit pictures shown as they should be, two better measures of

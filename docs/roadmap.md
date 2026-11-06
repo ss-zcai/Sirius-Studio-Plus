@@ -1,7 +1,7 @@
 # Roadmap
 
-Where the product stands. **1.0.9** is the latest package (4 November
-2026); **1.0.10** is in progress. What could come next, in a proposed
+Where the product stands. **1.0.10** is the latest package (6 November
+2026). What could come next, in a proposed
 order, is in **`backlog.md`** - this page is what is done, and the one
 thing that blocks shipping.
 
@@ -25,7 +25,7 @@ time: backlog items L1-L4.
 
 ---
 
-## In 1.0.10 so far
+## New in 1.0.10
 
 - **Crop folded into Region of Interest.** Recipes with a Crop open with
   an ROI cutting the same pixels. ROI has no shape output repeating its
@@ -36,6 +36,10 @@ time: backlog items L1-L4.
 - **The Camera node says why a camera make is missing** - pylon older
   than 26.10, not installed, not on the PATH - under its Device list.
   Decision 63.
+- **Selection follows through Filter Shapes and Select Shape**, so a
+  table on a finder and a viewer drawing what a filter kept share it.
+- **A + at the centre of circles and ellipses**, clickable to pick them,
+  and a round number badge for them beside a blob's square one.
 
 ---
 

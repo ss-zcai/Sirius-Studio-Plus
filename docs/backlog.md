@@ -2,7 +2,7 @@
 
 What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
-6 November 2026, with 1.0.9 released and 1.0.10 in progress.
+6 November 2026, with 1.0.10 released.
 
 Each item has an ID to refer to it by, a rough size, and where it came
 from when that matters. The order is a proposal: change it, strike things
@@ -45,10 +45,7 @@ Settled, for the record: AvalonDock (Ms-PL, notices fixed), Clipper2
 
 ## 2. Now: small, and worth doing next
 
-- **N1. Pack 1.0.10** (S). Ready to go out: Crop folded into Region of
-  Interest, ROI without its duplicate box, Offset Shapes and Transform
-  Shapes, and the Camera node saying why a camera make is missing. The
-  notes must lead with **pylon 26.10 or later** for Basler cameras.
+- ~~**N1. Pack 1.0.10**~~ - done, 6 November 2026.
 - **N2. Test with real cameras** (M, needs hardware and a colleague).
   Basler is tested only on pylon's emulator, Hikrobot only on MVS's
   virtual cameras. Wanted: GigE timing and dropped frames, the hardware
