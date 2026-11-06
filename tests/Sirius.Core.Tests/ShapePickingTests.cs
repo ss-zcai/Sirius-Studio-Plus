@@ -26,15 +26,31 @@ public class ShapePickingTests
     // ---- the case that prompted it -------------------------------------------
 
     /// <summary>
-    /// The middle of a large circle is far from it. This is the bug: it
-    /// used to be a hit, because the centre is inside the bounding box.
+    /// The inside of a large circle is far from it. This is the bug: it
+    /// used to be a hit, because the inside is inside the bounding box.
     /// </summary>
     [Fact]
-    public void The_middle_of_a_circle_is_not_on_it()
+    public void The_inside_of_a_circle_is_not_on_it()
     {
         var circle = new CircleShape(new Point2(1000, 1000), 900);
 
-        Assert.Equal(900, ShapeHitTest.DistanceToOutline(circle, new Point2(1000, 1000)), 6);
+        // 400 from the centre, 500 from the edge.
+        Assert.Equal(400, ShapeHitTest.DistanceToOutline(circle, new Point2(1400, 1000)), 6);
+    }
+
+    /// <summary>
+    /// But its centre is: a + is drawn there, and it is where a fitted
+    /// circle's result is.
+    /// </summary>
+    [Fact]
+    public void The_centre_mark_of_a_circle_or_an_ellipse_is_on_it()
+    {
+        var circle = new CircleShape(new Point2(1000, 1000), 900);
+        var ellipse = new EllipseShape(new Point2(0, 0), 200, 100, 30);
+
+        Assert.Equal(0, ShapeHitTest.DistanceToOutline(circle, new Point2(1000, 1000)), 6);
+        Assert.Equal(3, ShapeHitTest.DistanceToOutline(circle, new Point2(1003, 1000)), 6);
+        Assert.Equal(0, ShapeHitTest.DistanceToOutline(ellipse, new Point2(0, 0)), 6);
     }
 
     [Fact]
@@ -119,8 +135,9 @@ public class ShapePickingTests
         Assert.True(ShapeHitTest.DistanceToOutline(ellipse, new Point2(100, 0)) < 0.1);
         Assert.True(ShapeHitTest.DistanceToOutline(ellipse, new Point2(0, 50)) < 0.1);
 
-        // The centre is 50 from the nearest point of it.
-        Assert.True(Math.Abs(ShapeHitTest.DistanceToOutline(ellipse, new Point2(0, 0)) - 50) < 0.1);
+        // Inside, on the short axis: 20 from the outline above it, 30 from
+        // the centre.
+        Assert.True(Math.Abs(ShapeHitTest.DistanceToOutline(ellipse, new Point2(0, 30)) - 20) < 0.1);
     }
 
     [Fact]
@@ -177,18 +194,18 @@ public class ShapePickingTests
     }
 
     /// <summary>
-    /// And a click in the middle of both is near neither, so nothing is
-    /// picked and whatever is underneath stays reachable - which is the
-    /// whole point.
+    /// And a click inside both, away from the edges and the centre, is near
+    /// neither, so nothing is picked and whatever is underneath stays
+    /// reachable - which is the whole point.
     /// </summary>
     [Fact]
-    public void A_click_in_the_middle_reaches_neither()
+    public void A_click_inside_reaches_neither()
     {
         var inner = new CircleShape(new Point2(0, 0), 100);
         var outer = new CircleShape(new Point2(0, 0), 400);
 
         const double tolerance = 6;
-        var at = new Point2(0, 0);
+        var at = new Point2(50, 0);
 
         Assert.True(ShapeHitTest.DistanceToOutline(inner, at) > tolerance);
         Assert.True(ShapeHitTest.DistanceToOutline(outer, at) > tolerance);

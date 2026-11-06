@@ -1042,7 +1042,8 @@ public partial class ImageViewer : UserControl
 
         PlaceLabel(
             ShapeLayer, text, new Point(centre.X, centre.Y), brush,
-            emphasised: false, scale, shape.LabelFont);
+            emphasised: false, scale, shape.LabelFont,
+            round: shape is CircleShape or EllipseShape);
     }
 
     private void ReportShapeFrame(ShapeSet set, bool matches)
@@ -3007,6 +3008,9 @@ public partial class ImageViewer : UserControl
     /// </remarks>
     private const double LabelFontSize = 11;
 
+    /// <summary>The height of a round label, and so the width of one round a single digit.</summary>
+    private const double RoundLabelSize = 17;
+
     /// <summary>
     /// Adds one reading to a layer, boxed and counter-scaled.
     /// </summary>
@@ -3015,17 +3019,23 @@ public partial class ImageViewer : UserControl
     /// result carries, so the two cannot drift apart: a reading looks the
     /// same whether a person placed it or the graph produced it.
     /// </remarks>
+    /// <param name="round">
+    /// A round box - a circle round a single number - for a circle's or an
+    /// ellipse's label, so it is not taken for a blob's square one.
+    /// </param>
     private void PlaceLabel(
         Canvas layer, string text, Point anchor, Brush brush, bool emphasised,
-        double pixel, string? font)
+        double pixel, string? font, bool round = false)
     {
         var label = new Border
         {
             Background = new SolidColorBrush(Color.FromArgb(0xD8, 0x17, 0x18, 0x1A)),
             BorderBrush = brush,
             BorderThickness = new Thickness(emphasised ? 1.4 : 0.8),
-            CornerRadius = new CornerRadius(2),
-            Padding = new Thickness(4, 1, 4, 1),
+            CornerRadius = new CornerRadius(round ? RoundLabelSize / 2 : 2),
+            MinWidth = round ? RoundLabelSize : 0,
+            MinHeight = round ? RoundLabelSize : 0,
+            Padding = round ? new Thickness(4, 0, 4, 0) : new Thickness(4, 1, 4, 1),
             IsHitTestVisible = false,
             RenderTransform = new ScaleTransform(pixel, pixel),
             RenderTransformOrigin = new Point(0, 0),
@@ -3036,6 +3046,8 @@ public partial class ImageViewer : UserControl
                 FontFamily = new FontFamily(
                     string.IsNullOrWhiteSpace(font) ? "Consolas" : font),
                 FontSize = LabelFontSize,
+                TextAlignment = TextAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
             },
         };
 

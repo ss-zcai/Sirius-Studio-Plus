@@ -292,8 +292,9 @@ public class ImageSaveTests : IDisposable
 
             // Drawn as on a picture a thousand pixels across, so two image
             // pixels to a screen one: the box starts 16 right of the centre
-            // and 40 above it.
-            Assert.NotEqual((0, 0, 0), PixelAt(saved, 1020, 464));
+            // and 40 above it - round, for a circle, so looked for inside
+            // its rounded corner.
+            Assert.NotEqual((0, 0, 0), PixelAt(saved, 1030, 476));
         });
 
     /// <summary>The show buttons are the options: a hidden layer is not saved.</summary>

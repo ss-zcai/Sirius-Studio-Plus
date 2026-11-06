@@ -16,6 +16,12 @@ namespace Sirius.Core.Shapes;
 /// pick the nearest of several overlapping shapes rather than the first it
 /// happens to test.
 /// </para>
+/// <para>
+/// A circle and an ellipse have a + drawn at their centre too, and that
+/// counts as being on them: their centre is where a fitted circle's result
+/// is, and the obvious place to click it. The rest of the inside is still
+/// not on them, so what lies there stays reachable.
+/// </para>
 /// </remarks>
 public static class ShapeHitTest
 {
@@ -29,7 +35,8 @@ public static class ShapeHitTest
     private const int EllipseSamples = 180;
 
     /// <summary>
-    /// Distance from <paramref name="point"/> to the shape's drawn outline.
+    /// Distance from <paramref name="point"/> to what is drawn of the shape:
+    /// its outline, and a circle's or an ellipse's centre mark.
     /// </summary>
     public static double DistanceToOutline(Shape shape, Point2 point)
     {
@@ -39,10 +46,10 @@ public static class ShapeHitTest
         {
             PointShape p => Distance(point, p.At),
             LineShape l => ToSegment(point, l.Start, l.End),
-            CircleShape c => Math.Abs(Distance(point, c.Centre) - c.Radius),
+            CircleShape c => Math.Min(Math.Abs(Distance(point, c.Centre) - c.Radius), Distance(point, c.Centre)),
             RectShape r => ToRectangle(point, r.Rect),
             OrientedRectShape o => ToOrientedRect(point, o),
-            EllipseShape e => ToEllipse(point, e),
+            EllipseShape e => Math.Min(ToEllipse(point, e), Distance(point, e.Centre)),
             PolygonShape g => ToPolygon(point, g),
             _ => ToBounds(point, shape.Bounds),
         };
