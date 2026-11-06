@@ -807,7 +807,7 @@ public partial class ImageViewer : UserControl
             using (var context = geometry.Open())
             {
                 foreach (var shape in group)
-                    AddShape(context, shape);
+                    AddShape(context, shape, ScreenPixel);
             }
 
             geometry.Freeze();
@@ -859,7 +859,9 @@ public partial class ImageViewer : UserControl
         ReportShapeFrame(set, matches);
     }
 
-    private static void AddShape(StreamGeometryContext context, GraphShape shape)
+    /// <summary>A shape's outline, and for a circle or an ellipse a + at its centre.</summary>
+    /// <param name="pixel">Image units per screen pixel, so the centre mark keeps one size on screen.</param>
+    private static void AddShape(StreamGeometryContext context, GraphShape shape, double pixel)
     {
         switch (shape)
         {
@@ -907,6 +909,7 @@ public partial class ImageViewer : UserControl
                 context.BeginFigure(left, false, true);
                 context.ArcTo(right, size, 0, false, SweepDirection.Clockwise, true, false);
                 context.ArcTo(left, size, 0, false, SweepDirection.Clockwise, true, false);
+                AddCentreMark(context, circle.Centre, circle.Radius, pixel);
                 break;
             }
 
@@ -929,6 +932,7 @@ public partial class ImageViewer : UserControl
                 context.BeginFigure(left, false, true);
                 context.ArcTo(right, size, ellipse.Angle, false, SweepDirection.Clockwise, true, false);
                 context.ArcTo(left, size, ellipse.Angle, false, SweepDirection.Clockwise, true, false);
+                AddCentreMark(context, ellipse.Centre, b, pixel);
                 break;
             }
 
@@ -943,6 +947,28 @@ public partial class ImageViewer : UserControl
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// A + at the centre of a circle or an ellipse, so where it is can be
+    /// seen, not just guessed from the outline.
+    /// </summary>
+    /// <remarks>
+    /// Six screen pixels each way, the same at any zoom - and so in a saved
+    /// picture, drawn at its own pixel scale - but never more than half the
+    /// smallest radius, so a small circle is not crossed out.
+    /// </remarks>
+    private static void AddCentreMark(StreamGeometryContext context, Point2 centre, double smallestRadius, double pixel)
+    {
+        var arm = Math.Min(6 * pixel, smallestRadius / 2);
+
+        if (arm <= 0)
+            return;
+
+        context.BeginFigure(new Point(centre.X - arm, centre.Y), false, false);
+        context.LineTo(new Point(centre.X + arm, centre.Y), true, false);
+        context.BeginFigure(new Point(centre.X, centre.Y - arm), false, false);
+        context.LineTo(new Point(centre.X, centre.Y + arm), true, false);
     }
 
     /// <summary>
@@ -983,7 +1009,7 @@ public partial class ImageViewer : UserControl
         var geometry = new StreamGeometry();
 
         using (var context = geometry.Open())
-            AddShape(context, shape);
+            AddShape(context, shape, ScreenPixel);
 
         geometry.Freeze();
 

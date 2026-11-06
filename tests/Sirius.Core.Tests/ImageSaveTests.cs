@@ -244,9 +244,38 @@ public class ImageSaveTests : IDisposable
             Assert.Equal((2000, 1000), (saved.PixelWidth, saved.PixelHeight));
 
             // On the circle's edge, the default green; at its centre, the
-            // black picture under it.
+            // + that marks it; between the two, the black picture under it.
             Assert.True(IsGreen(PixelAt(saved, 1300, 500)), "No green on the circle's edge");
-            Assert.Equal((0, 0, 0), PixelAt(saved, 1000, 500));
+            Assert.True(IsGreen(PixelAt(saved, 1000, 500)), "No centre mark");
+            Assert.Equal((0, 0, 0), PixelAt(saved, 1100, 500));
+            Assert.Equal((0, 0, 0), PixelAt(saved, 1030, 530));
+        });
+
+    /// <summary>
+    /// The centre mark is six screen pixels each way - twelve image pixels
+    /// in a picture saved as if two thousand were shown in a thousand - and
+    /// never more than half the radius, so a small circle is not crossed out.
+    /// </summary>
+    [Fact]
+    public void A_circle_and_an_ellipse_are_marked_at_their_centres() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var viewer = Viewer(
+                new CircleShape(new Point2(500, 500), 300),
+                new EllipseShape(new Point2(1400, 500), 400, 200, 30),
+                new CircleShape(new Point2(1000, 900), 20));
+
+            var saved = RenderWithOverlays(viewer);
+
+            // The big circle's arm reaches 12 out, and stops before 20.
+            Assert.True(IsGreen(PixelAt(saved, 510, 500)), "The circle's mark is short");
+            Assert.Equal((0, 0, 0), PixelAt(saved, 520, 500));
+            Assert.True(IsGreen(PixelAt(saved, 1400, 510)), "No mark at the ellipse's centre");
+
+            // A radius of 20 allows an arm of 10, not 12, leaving a gap
+            // before the outline.
+            Assert.True(IsGreen(PixelAt(saved, 1008, 900)), "No mark on the small circle");
+            Assert.Equal((0, 0, 0), PixelAt(saved, 1014, 900));
         });
 
     /// <summary>
