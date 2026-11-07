@@ -138,7 +138,8 @@ public sealed class NormaliseNode : ImageFilterNode
         set => SetParam(ref _kernelSize, AdaptiveThresholdNode.MakeOdd(value, _kernelSize, minimum: 3));
     }
 
-    [Param("Scale", Min = 1, Max = 255, Step = 1, Editor = ParamEditor.Slider)]
+    [Param("Scale", Min = 1, Max = 255, Step = 1, Intensity = true, Editor = ParamEditor.Slider,
+        Description = "The level a pixel at its local average comes out at: 128 is mid-grey at 8 bits, 2048 at 12.")]
     public double Scale
     {
         get => _scale;

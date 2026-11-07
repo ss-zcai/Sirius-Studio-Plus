@@ -215,6 +215,30 @@ public class BitDepthTests
         Assert.Equal(2000, threshold.Threshold);
     }
 
+    /// <summary>
+    /// Every setting that is a level in the image's values stretches to the
+    /// image's top - found missing on Normalise's Scale, so held for all.
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(NormaliseNode), nameof(NormaliseNode.Scale))]
+    [InlineData(typeof(HighPassFilterNode), nameof(HighPassFilterNode.Offset))]
+    [InlineData(typeof(ThresholdNode), nameof(ThresholdNode.MaxValue))]
+    [InlineData(typeof(BrightnessContrastNode), nameof(BrightnessContrastNode.Brightness))]
+    [InlineData(typeof(CannyNode), nameof(CannyNode.Threshold2))]
+    public void Each_level_setting_runs_to_a_twelve_bit_top(Type type, string name)
+    {
+        var node = (ImageFilterNode)Activator.CreateInstance(type)!;
+        var descriptor = node.Descriptor.Parameters.Single(p => p.Name == name);
+        var parameter = new ParameterViewModel(node, descriptor);
+
+        Assert.True(descriptor.Attribute.Intensity, $"{type.Name}.{name} is not marked as a level");
+
+        RunOne(Twelve(1000), node, node.ImageOut);
+
+        // Its 8-bit range, stretched by 4095 / 255: 255 becomes 4095.
+        Assert.Equal(descriptor.Attribute.Max * 4095 / 255, parameter.Maximum, 6);
+    }
+
     [Fact]
     public void A_setting_not_in_image_values_keeps_its_range()
     {

@@ -21,7 +21,7 @@ public sealed class CannyNode : ImageFilterNode
 
     [Param("Threshold 1",
         Description = "Lower hysteresis threshold; edges below this are discarded.",
-        Min = 0, Max = 500, Editor = ParamEditor.Slider, Connectable = true)]
+        Min = 0, Max = 500, Intensity = true, Editor = ParamEditor.Slider, Connectable = true)]
     public double Threshold1
     {
         get => _threshold1;
@@ -30,7 +30,7 @@ public sealed class CannyNode : ImageFilterNode
 
     [Param("Threshold 2",
         Description = "Upper hysteresis threshold; edges above this are kept.",
-        Min = 0, Max = 500, Editor = ParamEditor.Slider, Connectable = true)]
+        Min = 0, Max = 500, Intensity = true, Editor = ParamEditor.Slider, Connectable = true)]
     public double Threshold2
     {
         get => _threshold2;
@@ -55,7 +55,18 @@ public sealed class CannyNode : ImageFilterNode
         if (lower > upper)
             (lower, upper) = (upper, lower);
 
-        CvInvoke.Canny(source.Mat, destination, lower, upper, _apertureSize);
+        if (source.Depth == DepthType.Cv8U)
+        {
+            CvInvoke.Canny(source.Mat, destination, lower, upper, _apertureSize);
+            return;
+        }
+
+        // OpenCV finds edges on 8 bits only. A deeper image is scaled down by
+        // its own depth, and the thresholds - in its own values - with it.
+        var scale = 255.0 / source.MaxValue;
+        using var narrowed = source.ToEightBit();
+
+        CvInvoke.Canny(narrowed, destination, lower * scale, upper * scale, _apertureSize);
     }
 }
 
