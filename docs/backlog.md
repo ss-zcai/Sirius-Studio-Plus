@@ -89,11 +89,25 @@ from you before they start.
   - how the Server stores results and images;
   - typical line speed and image size;
   - what happens today when the Server cannot be reached.
+
+  Also in scope: **Sirius ICB** as the runtime's image browser - the
+  station's saved images and their annotations (F20), grouped by matching
+  file names and viewed in step.
 - **F3. Signal out** (M, after F2). The first PLC step: Modbus TCP, then
   digital I/O. Today a verdict reaches the status line and a CSV, and
   nothing outside the PC.
 - **F4. Counts that survive a restart** (S-M). Counter starts from zero
   each session. Wanted by the runtime anyway.
+- **F20. Annotations saved beside the images in a batch run** (M, an
+  option). Run Folder and `sirius-run.exe` write each result's shapes,
+  labels and measurements as vectors, in layers - one per viewer socket
+  or producing node - in a file beside each image, rather than burnt
+  into a copy. Read by **Sirius ICB** (Image Cloud Browser), your viewer
+  for a folder of images, which matches files by name and shows a group
+  of them in step; it comes in with the runtime (F2), for browsing what a
+  station saw. Needs from you: the annotation format ICB reads (or
+  whether we define it), how its layers are named and switched, and its
+  file-name matching rule, so this writes what ICB already opens.
 
 ### Sub-graphs
 
@@ -133,6 +147,19 @@ from you before they start.
 - **F16. C# custom nodes** (S-M each): reloading a library without a
   restart, icons a library supplies, IntelliSense for the `Sirius.Core`
   types in the SDK package.
+- **F21. C++ custom nodes** (M-L). Proposed: a plain C interface - a
+  small `sirius_node.h` - so a C++ library is a native DLL with no C#
+  in it. It describes its nodes the way a Python library does (ports,
+  settings, the same description the application already reads) and is
+  handed each image as a pointer, width, height, stride and type, with
+  no copy; its own OpenCV wraps that in a `cv::Mat`. Runs in the
+  application's process, so it is as fast as a built-in tool - and a
+  crash in it is a crash of the application, unlike Python's separate
+  process. Not a C++/CLI wrapper: the loader reads a C# library into
+  memory so its file is not locked while it is rebuilt, which a mixed
+  C++/.NET assembly cannot be loaded from. Needs from you: what the C++
+  code is (OpenCV, HALCON, GPU?) and whether a crash must not take the
+  application down - which would mean a separate process, as Python has.
 
 ### Editing
 
