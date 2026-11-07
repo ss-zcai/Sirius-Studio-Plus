@@ -66,8 +66,10 @@ internal static class PictureBridge
     /// A new image holding a copy of rows of samples, top to bottom with no
     /// padding - what a Python node sends back.
     /// </summary>
+    /// <param name="bits">How many bits of the values carry the picture, or null for all of them.</param>
     public static unsafe ImageData ToImage(
-        ReadOnlySpan<byte> source, int width, int height, int channels, PixelType pixels, ColourLayout layout)
+        ReadOnlySpan<byte> source, int width, int height, int channels, PixelType pixels, ColourLayout layout,
+        int? bits = null)
     {
         if (width < 1 || height < 1 || channels is < 1 or > 4)
             throw new ArgumentException($"A {width}x{height} image with {channels} channels cannot be made.");
@@ -99,7 +101,7 @@ internal static class PictureBridge
                 }
             }
 
-            return ImageData.Adopt(mat, SpaceOf(layout));
+            return ImageData.Adopt(mat, SpaceOf(layout), bits);
         }
         catch
         {

@@ -73,8 +73,9 @@ from you before they start.
 - ~~**F1. Real bit depth through the tools**~~ - done, 7 November 2026
   (decision 64), with the histogram (F1a) and Read Mode: Unchanged for
   new nodes.
-- **F1b. Bits for Python nodes** (S). They receive a 12-bit image's
-  values but not that it is 12-bit; pass `bits` with the array.
+- ~~**F1b. Bits for Python nodes**~~ - done, 7 November 2026: `image.bits`,
+  `image.max_value`, `with_bits()`; SDK file 1.1, so the SDK zip wants
+  repacking with the next release.
 
 ### The runtime, HMI and PLC
 

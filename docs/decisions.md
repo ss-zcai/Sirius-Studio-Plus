@@ -2427,6 +2427,14 @@ code reached Read Code at most 16 out of 255 and was not found.
 - Options can be shown by a `[Description]` ("12-bit") through
   `TypeNames.OptionName`.
 
-Left: Python nodes receive the array but not its bits; Colour Range's
-default band is 0-255, which on a deep colour image passes only the
-darkest values (no camera here delivers deep colour).
+Left: Colour Range's default band is 0-255, which on a deep colour image
+passes only the darkest values (no camera here delivers deep colour).
+
+**Python nodes** (F1b, later the same day): an input image says its bits -
+a numpy array subclass with `bits` and `max_value`, otherwise an ordinary
+array (reductions return plain numbers), or `Image.bits` without numpy.
+The wire carries `bits` both ways; a returned image that does not say
+keeps the first input image's bits when its type is the same, as the
+built-in tools do, so an OpenCV call on a 12-bit image - which returns a
+plain array - stays 12-bit. `with_bits(result, n)` says otherwise.
+`sirius_nodes` is 1.1.

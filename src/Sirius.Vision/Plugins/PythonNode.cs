@@ -305,7 +305,7 @@ public sealed class PythonNode : VisionNode, IParameterChoices, INodeActions
         try
         {
             var blobs = new List<OutgoingBlob>();
-            var (inputs, frame) = ReadInputs(context, views, temporaries, blobs);
+            var (inputs, frame, first) = ReadInputs(context, views, temporaries, blobs);
 
             var request = new JsonObject
             {
@@ -322,7 +322,7 @@ public sealed class PythonNode : VisionNode, IParameterChoices, INodeActions
             if (header["ok"]?.GetValue<bool>() != true)
                 throw new PythonException(Failure(header));
 
-            Publish(context, header["outputs"] as JsonObject, reply.Blobs, frame);
+            Publish(context, header["outputs"] as JsonObject, reply.Blobs, frame, first);
 
             var warnings = (header["warnings"]?.AsArray() ?? []).Select(warning => warning?.GetValue<string>())
                 .OfType<string>().ToArray();
@@ -373,11 +373,12 @@ public sealed class PythonNode : VisionNode, IParameterChoices, INodeActions
         return settings;
     }
 
-    private (JsonObject Inputs, (int Width, int Height) Frame) ReadInputs(
+    private (JsonObject Inputs, (int Width, int Height) Frame, (Emgu.CV.CvEnum.DepthType Depth, int Bits)? First) ReadInputs(
         EvalContext context, List<Picture> views, List<IDisposable> temporaries, List<OutgoingBlob> blobs)
     {
         var inputs = new JsonObject();
         (int Width, int Height) frame = default;
+        (Emgu.CV.CvEnum.DepthType Depth, int Bits)? first = null;
 
         foreach (var port in Type.Inputs)
         {
@@ -391,7 +392,7 @@ public sealed class PythonNode : VisionNode, IParameterChoices, INodeActions
                     var view = PictureBridge.View(image, temporaries);
                     views.Add(view);
 
-                    inputs[port.Name] = new JsonObject
+                    var picture = new JsonObject
                     {
                         ["width"] = view.Width,
                         ["height"] = view.Height,
@@ -400,6 +401,15 @@ public sealed class PythonNode : VisionNode, IParameterChoices, INodeActions
                         ["layout"] = view.Layout.ToString().ToLowerInvariant(),
                         ["blob"] = blobs.Count,
                     };
+
+                    // How many bits carry it - 12 for a 12-bit camera's
+                    // frame - when it went as it is; a type converted to
+                    // float on the way has no such limit.
+                    if (PictureBridge.PixelsOf(image.Depth) == view.Pixels && image.Bits != 0)
+                        picture["bits"] = image.Bits;
+
+                    inputs[port.Name] = picture;
+                    first ??= (image.Depth, image.Bits);
 
                     blobs.Add(new OutgoingBlob((long)view.Stride * view.Height, stream => stream.Write(view.Bytes)));
 
@@ -427,10 +437,12 @@ public sealed class PythonNode : VisionNode, IParameterChoices, INodeActions
             }
         }
 
-        return (inputs, frame);
+        return (inputs, frame, first);
     }
 
-    private void Publish(EvalContext context, JsonObject? outputs, IReadOnlyList<byte[]> blobs, (int Width, int Height) frame)
+    private void Publish(
+        EvalContext context, JsonObject? outputs, IReadOnlyList<byte[]> blobs, (int Width, int Height) frame,
+        (Emgu.CV.CvEnum.DepthType Depth, int Bits)? first)
     {
         if (outputs is null)
             return;
@@ -456,7 +468,7 @@ public sealed class PythonNode : VisionNode, IParameterChoices, INodeActions
             switch (port.Kind)
             {
                 case "image":
-                    context.Set(output, Image((JsonObject)value, blobs));
+                    context.Set(output, Image((JsonObject)value, blobs, first));
                     break;
 
                 case "shapes":
@@ -482,7 +494,13 @@ public sealed class PythonNode : VisionNode, IParameterChoices, INodeActions
         }
     }
 
-    private static ImageData Image(JsonObject image, IReadOnlyList<byte[]> blobs)
+    /// <param name="first">
+    /// The first image in, whose bits a result of the same type keeps unless
+    /// the node said otherwise - as the built-in tools keep theirs. A
+    /// Python node that blurs a 12-bit image with OpenCV gets back a plain
+    /// array, which says nothing.
+    /// </param>
+    private static ImageData Image(JsonObject image, IReadOnlyList<byte[]> blobs, (Emgu.CV.CvEnum.DepthType Depth, int Bits)? first)
     {
         var width = image["width"]!.GetValue<int>();
         var height = image["height"]!.GetValue<int>();
@@ -500,7 +518,12 @@ public sealed class PythonNode : VisionNode, IParameterChoices, INodeActions
             ? parsed
             : ColourLayout.Unknown;
 
-        return PictureBridge.ToImage(blobs[image["blob"]!.GetValue<int>()], width, height, channels, pixels, layout);
+        int? bits = image["bits"] is { } said
+            ? said.GetValue<int>()
+            : first is { } inherited && inherited.Depth == PictureBridge.DepthOf(pixels) ? inherited.Bits : null;
+
+        return PictureBridge.ToImage(
+            blobs[image["blob"]!.GetValue<int>()], width, height, channels, pixels, layout, bits is 0 ? null : bits);
     }
 
     private static string DType(PixelType pixels) => pixels switch

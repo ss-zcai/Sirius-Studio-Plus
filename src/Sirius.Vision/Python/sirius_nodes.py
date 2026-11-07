@@ -32,12 +32,17 @@ when load() and run() are called.
 Images arrive as numpy arrays when numpy is installed - height x width, or
 height x width x channels, in BGR order like OpenCV - and as Image objects
 otherwise. Either can be returned.
+
+An image says how many bits of its values carry the picture: image.bits is
+12 for a 12-bit camera's frame, whose values stop at 4095 inside uint16,
+and image.max_value is 4095. A returned image of the same type as the first
+image in keeps its bits; say otherwise with with_bits(result, 16).
 """
 
 import math
 import re
 
-__version__ = "1.0"
+__version__ = "1.1"
 
 try:
     import numpy as _np
@@ -67,13 +72,75 @@ def _default_layout(channels):
     return {1: "gray", 3: "bgr", 4: "bgra"}.get(channels, "unknown")
 
 
+def _container_bits(dtype):
+    """The bits a sample type holds: 8, 16, or None for floating point."""
+    return {"uint8": 8, "uint16": 16}.get(str(dtype))
+
+
+def bits_of(image):
+    """
+    How many bits of an image's values carry the picture: 12 for a 12-bit
+    camera's frame in uint16, otherwise all its type holds. None for float.
+    """
+    container = _container_bits(image.dtype)
+    bits = getattr(image, "bits", None)
+    return container if bits is None or container is None else min(bits, container)
+
+
+def max_value(image):
+    """The largest value a pixel can hold: 255, 4095 for 12-bit, 1.0 for float."""
+    bits = bits_of(image)
+    return 1.0 if bits is None else (1 << bits) - 1
+
+
+def with_bits(image, bits):
+    """
+    The same image, saying that `bits` of its values carry the picture -
+    for a result whose bits differ from the image it was made from.
+    """
+    if bits is not None and not 1 <= int(bits) <= 16:
+        raise ValueError("bits must be 1 to 16, not %r" % (bits,))
+    if isinstance(image, Image):
+        image.bits = None if bits is None else int(bits)
+        return image
+    if _np is not None and isinstance(image, _np.ndarray):
+        tagged = image.view(_Picture)
+        tagged.bits = None if bits is None else int(bits)
+        return tagged
+    raise TypeError("with_bits takes a numpy array or an Image, not %s" % type(image).__name__)
+
+
+if _np is not None:
+    class _Picture(_np.ndarray):
+        """
+        A numpy array that knows how many bits of its values carry the
+        picture - image.bits, image.max_value. Otherwise a numpy array.
+        """
+
+        def __array_finalize__(self, obj):
+            # Slices and arithmetic keep it; a different dtype makes it
+            # meaningless, which bits_of() allows for.
+            self.bits = getattr(obj, "bits", None)
+
+        def __array_wrap__(self, array, *args, **kwargs):
+            result = super().__array_wrap__(array, *args, **kwargs)
+            # A reduction - image.mean() - is a plain number, not a 0-d picture.
+            if isinstance(result, _np.ndarray) and result.ndim == 0:
+                return result[()]
+            return result
+
+        @property
+        def max_value(self):
+            return max_value(self)
+
+
 class Image:
     """
     A picture, for when numpy is not installed: rows of samples, top to
     bottom, channels interleaved (BGR for colour).
     """
 
-    def __init__(self, width, height, channels=1, dtype="uint8", data=None, layout=None):
+    def __init__(self, width, height, channels=1, dtype="uint8", data=None, layout=None, bits=None):
         if dtype not in _SAMPLE_SIZES:
             raise ValueError("dtype must be uint8, uint16 or float32, not %r" % (dtype,))
         if width < 1 or height < 1 or not 1 <= channels <= 4:
@@ -92,6 +159,12 @@ class Image:
         self.dtype = dtype
         self.data = data
         self.layout = layout or _default_layout(channels)
+        self.bits = bits
+
+    @property
+    def max_value(self):
+        """The largest value a pixel can hold: 255, 4095 for 12-bit, 1.0 for float."""
+        return max_value(self)
 
     @property
     def shape(self):
@@ -104,7 +177,9 @@ class Image:
         return _np.frombuffer(self.data, dtype=self.dtype).reshape(self.shape)
 
     def __repr__(self):
-        return "Image(%dx%dx%d %s, %s)" % (self.width, self.height, self.channels, self.dtype, self.layout)
+        bits = bits_of(self)
+        depth = "" if bits in (None, _container_bits(self.dtype)) else ", %d-bit" % bits
+        return "Image(%dx%dx%d %s%s, %s)" % (self.width, self.height, self.channels, self.dtype, depth, self.layout)
 
 
 def _as_image(value):
@@ -124,20 +199,22 @@ def _as_image(value):
         elif array.dtype.name not in _SAMPLE_SIZES:
             array = array.astype(_np.float32)
 
-        array = _np.ascontiguousarray(array)
+        bits = getattr(value, "bits", None)
+        array = _np.ascontiguousarray(_np.asarray(array))
         channels = 1 if array.ndim == 2 else array.shape[2]
         return Image(array.shape[1], array.shape[0], channels, array.dtype.name,
-                     memoryview(array).cast("B"))
+                     memoryview(array).cast("B"), bits=bits)
 
     raise TypeError("an image output must be a numpy array or an Image, not %s" % type(value).__name__)
 
 
-def _image_input(width, height, channels, dtype, data, layout):
-    """An input image as the node will see it."""
+def _image_input(width, height, channels, dtype, data, layout, bits=None):
+    """An input image as the node will see it, saying its bits."""
     if _np is not None:
         array = _np.frombuffer(data, dtype=dtype)
-        return array.reshape((height, width) if channels == 1 else (height, width, channels))
-    return Image(width, height, channels, dtype, data, layout)
+        array = array.reshape((height, width) if channels == 1 else (height, width, channels))
+        return with_bits(array, bits)
+    return Image(width, height, channels, dtype, data, layout, bits)
 
 
 # ---- shapes -------------------------------------------------------------------

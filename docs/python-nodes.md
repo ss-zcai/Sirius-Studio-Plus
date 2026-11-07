@@ -85,6 +85,31 @@ as one.
 
 An input declared `required=False` arrives as `None` when nothing is wired.
 
+### 10-, 12- and 14-bit images
+
+A 12-bit camera's frame arrives as `uint16` whose values stop at 4095, and
+says so:
+
+```python
+from sirius_nodes import bits_of, max_value, with_bits
+
+def run(self, image):
+    image.bits        # 12 - None for float32
+    image.max_value   # 4095: white, for scaling or a threshold
+    bits_of(image)    # 12, and 8 or 16 for any array of those types
+```
+
+The array is a numpy array in every other way; `image.mean()` and the
+like are plain numbers. What comes back keeps the bits of the first image
+in when it is of the same type, so a 12-bit image blurred with OpenCV is
+still 12-bit. To say otherwise - a result stretched to the full 16 bits -
+return `with_bits(result, 16)`. Without numpy, `sirius_nodes.Image` has
+the same `bits` and `max_value`.
+
+Settings are in the image's own values, as the built-in tools' are: a
+threshold for a 12-bit image runs to 4095, so give such a setting a
+`max` to match - `Setting.integer("Level", 2000, min=0, max=4095)`.
+
 ### Shapes
 
 Detections, OCR words and found features are shapes, so every shape node

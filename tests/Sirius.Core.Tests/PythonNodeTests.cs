@@ -463,6 +463,73 @@ public class PythonNodeTests
         return library.Problems.Any(problem => problem.Contains("No module named", StringComparison.Ordinal)) ? null : library;
     }, LazyThreadSafetyMode.ExecutionAndPublication);
 
+    // ---- bit depth ----------------------------------------------------------------
+
+    private const string BitsLibrary = """
+        from sirius_nodes import node, Input, Output, Image, bits_of, with_bits
+
+        @node("Py Bits", key="pybits.bits", group="Analysis")
+        class PyBits:
+            image = Input.image("Image")
+            same = Output.image("Same")
+            blank = Output.image("Blank")
+            told = Output.image("Told")
+            bits = Output.integer("Bits")
+            top = Output.number("Top")
+            mean = Output.number("Mean")
+
+            def run(self, image):
+                height, width = image.shape[0], image.shape[1]
+                if hasattr(image, "to_numpy"):
+                    blank = Image(width, height, 1, "uint16")
+                    told = with_bits(Image(width, height, 1, "uint16"), 10)
+                    mean = 0
+                else:
+                    import numpy
+                    blank = numpy.zeros((height, width), numpy.uint16)
+                    told = with_bits(numpy.zeros((height, width), numpy.uint16), 10)
+                    mean = image.mean()
+                return {"same": image, "blank": blank, "told": told,
+                        "bits": bits_of(image), "top": image.max_value, "mean": mean}
+        """;
+
+    /// <summary>
+    /// A 12-bit frame says so in Python - bits_of(image), image.max_value -
+    /// and the bits come back: as they went, kept by a new picture of the
+    /// same type that says nothing, or as the node says.
+    /// </summary>
+    [Theory]
+    [InlineData(DepthType.Cv16U, 12, 4095.0, 12)]
+    [InlineData(DepthType.Cv8U, 8, 255.0, 16)]
+    public void A_python_node_sees_and_returns_an_images_bits(DepthType depth, int bits, double top, int blankBits)
+    {
+        var script = Write(CustomNodeTests.Scratch(), "pybits_nodes.py", BitsLibrary);
+
+        if (PythonInterpreter.Find(script, out _) is null)
+            return;
+
+        var library = PythonLibraries.Load(script);
+        var descriptor = Assert.Single(library.Nodes);
+
+        var (graph, node) = Wired(descriptor, () =>
+        {
+            var mat = new Mat(8, 8, depth, 1);
+            mat.SetTo(new MCvScalar(depth == DepthType.Cv8U ? 100 : 1000));
+            return ImageData.Adopt(mat, ColourSpace.Gray, bits: depth == DepthType.Cv8U ? null : 12);
+        });
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal(NodeStatus.Ready, node.Status);
+        Assert.Equal(bits, scheduler.GetOutput(node.FindOutput("bits")!));
+        Assert.Equal(top, scheduler.GetOutput(node.FindOutput("top")!));
+
+        Assert.Equal(bits, ((ImageData)scheduler.GetOutput(node.FindOutput("same")!)!).Bits);
+        Assert.Equal(blankBits, ((ImageData)scheduler.GetOutput(node.FindOutput("blank")!)!).Bits);
+        Assert.Equal(10, ((ImageData)scheduler.GetOutput(node.FindOutput("told")!)!).Bits);
+    }
+
     // ---- helpers ------------------------------------------------------------------
 
     /// <summary>The test library's nodes, or null when this machine has no Python.</summary>

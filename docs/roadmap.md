@@ -187,8 +187,7 @@ backlog N2.
 
 The ones a tester will meet; the fixes are in the backlog.
 
-- **Python nodes do not know an image's bits.** They receive its values,
-  0 to 4095 for 12-bit, but not that it is 12-bit.
+
 - **No signal out.** A verdict reaches the status line and a CSV, not a
   PLC. Backlog F2-F3.
 - **Four icons have no SVG source** (`ph_find_curve`,

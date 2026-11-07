@@ -128,7 +128,7 @@ def _inputs(sirius_nodes, spec, values, blobs):
         if port.kind == "image":
             value = sirius_nodes._image_input(
                 value["width"], value["height"], value["channels"], value["dtype"],
-                blobs[value["blob"]], value.get("layout"))
+                blobs[value["blob"]], value.get("layout"), value.get("bits"))
         elif port.kind == "shapes":
             value = sirius_nodes.Shapes(
                 [sirius_nodes._shape_from_dict(shape) for shape in value.get("shapes", [])],
@@ -148,6 +148,10 @@ def _outputs(sirius_nodes, spec, values):
                 "width": value.width, "height": value.height, "channels": value.channels,
                 "dtype": value.dtype, "layout": value.layout, "blob": len(blobs),
             }
+            # Only when the node said: otherwise the application keeps the
+            # first input image's bits for a result of the same type.
+            if getattr(value, "bits", None) is not None:
+                header[name]["bits"] = value.bits
             blobs.append(value.data)
         elif kinds[name] == "shapes":
             header[name] = [shape._to_dict() for shape in value]
