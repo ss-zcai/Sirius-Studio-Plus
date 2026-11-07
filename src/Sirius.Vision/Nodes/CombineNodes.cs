@@ -65,7 +65,14 @@ public abstract class TwoImageNode : VisionNode
             throw new InvalidOperationException($"{Descriptor.DisplayName} produced an empty image.");
         }
 
-        context.Set(ImageOut, ImageData.Adopt(destination));
+        // The wider of the two, so a blend of 10- and 12-bit pictures can
+        // still hold the brighter one's values.
+        context.Set(
+            ImageOut,
+            ImageData.Adopt(
+                destination,
+                destination.NumberOfChannels == first.Channels ? first.Space : null,
+                destination.Depth == first.Depth ? Math.Max(first.Bits, second.Bits) : null));
     }
 
     /// <summary>
@@ -104,19 +111,16 @@ public abstract class TwoImageNode : VisionNode
     }
 
     /// <summary>
-    /// The value a fully bright pixel holds at this depth.
+    /// The value a fully bright pixel holds in these images.
     /// </summary>
     /// <remarks>
     /// Multiply, screen and overlay are defined on values from zero to one,
-    /// so an 8-bit product has to be divided by 255 and a float one by 1. Get
-    /// this wrong and every such blend saturates to white.
+    /// so an 8-bit product has to be divided by 255, a 12-bit one by 4095 and
+    /// a float one by 1. Get this wrong and every such blend saturates to
+    /// white - or, dividing a 12-bit image by 65535, goes nearly black.
     /// </remarks>
-    protected static double FullScale(DepthType depth) => depth switch
-    {
-        DepthType.Cv8U or DepthType.Cv8S => 255.0,
-        DepthType.Cv16U or DepthType.Cv16S => 65535.0,
-        _ => 1.0,
-    };
+    protected static double FullScale(ImageData first, ImageData second) =>
+        Math.Max(first.MaxValue, second.MaxValue);
 }
 
 /// <summary>Logical operations on two masks.</summary>
@@ -347,7 +351,7 @@ public sealed class ImageBlendNode : TwoImageNode
     protected override void Combine(
         ImageData first, ImageData second, Mat destination, EvalContext context)
     {
-        var scale = FullScale(first.Depth);
+        var scale = FullScale(first, second);
 
         using var blended = new Mat();
         Mix(first.Mat, second.Mat, blended, scale);

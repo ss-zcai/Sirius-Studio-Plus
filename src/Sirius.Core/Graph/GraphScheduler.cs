@@ -440,9 +440,20 @@ public sealed class GraphScheduler : IDisposable
         var placements = context.Placements;
         var taught = context.TaughtReference;
 
+        // The depth of the image it ran on - its main input first - for the
+        // ranges of settings in the image's own values.
+        var pixels = (node.PrimaryInput is { } primary && inputs.TryGetValue(primary, out var main) ? main : null) as IPixelValues
+                     ?? node.Inputs.Select(input => inputs.TryGetValue(input, out var value) ? value : null)
+                         .OfType<IPixelValues>()
+                         .FirstOrDefault();
+        var top = pixels?.MaxValue;
+
         OnUiThread(() =>
         {
             node.Placements = placements;
+
+            if (top is { } level)
+                node.ImageMaxValue = level;
 
             if (taught)
                 node.AnnounceTaughtReference();

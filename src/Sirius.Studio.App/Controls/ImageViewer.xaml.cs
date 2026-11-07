@@ -1104,6 +1104,7 @@ public partial class ImageViewer : UserControl
 
     public static IReadOnlyList<DisplayRange> DisplayRanges { get; } =
     [
+        new(Imaging.MatImageConverter.Auto, "Auto"),
         new(16, "16-bit"),
         new(14, "14-bit"),
         new(12, "12-bit"),
@@ -1116,7 +1117,7 @@ public partial class ImageViewer : UserControl
         typeof(int),
         typeof(ImageViewer),
         new FrameworkPropertyMetadata(
-            Imaging.MatImageConverter.FullRange,
+            Imaging.MatImageConverter.Auto,
             FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
             (d, _) => ((ImageViewer)d).SyncDisplayRange()));
 

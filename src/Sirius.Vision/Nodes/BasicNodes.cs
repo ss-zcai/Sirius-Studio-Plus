@@ -23,14 +23,14 @@ public sealed class ThresholdNode : ImageFilterNode
     // is how the old property grid decided to show a 0-255 trackbar.
     // Connectable: a wire overrides this value, so the level can come from a
     // measurement instead of being fixed.
-    [Param("Threshold", Min = 0, Max = 255, Step = 1, Editor = ParamEditor.Slider, Connectable = true)]
+    [Param("Threshold", Min = 0, Max = 255, Step = 1, Intensity = true, Editor = ParamEditor.Slider, Connectable = true)]
     public double Threshold
     {
         get => _threshold;
         set => SetParam(ref _threshold, value);
     }
 
-    [Param("Max Value", Min = 0, Max = 255, Step = 1, Editor = ParamEditor.Slider)]
+    [Param("Max Value", Min = 0, Max = 255, Step = 1, Intensity = true, Editor = ParamEditor.Slider)]
     public double MaxValue
     {
         get => _maxValue;
@@ -65,7 +65,7 @@ public sealed class AdaptiveThresholdNode : ImageFilterNode
     private int _blockSize = 19;
     private double _constant = 11;
 
-    [Param("Max Value", Min = 0, Max = 255, Step = 1, Editor = ParamEditor.Slider)]
+    [Param("Max Value", Min = 0, Max = 255, Step = 1, Intensity = true, Editor = ParamEditor.Slider)]
     public double MaxValue
     {
         get => _maxValue;
@@ -98,7 +98,7 @@ public sealed class AdaptiveThresholdNode : ImageFilterNode
         set => SetParam(ref _blockSize, MakeOdd(value, _blockSize, minimum: 3));
     }
 
-    [Param("Constant", Description = "Subtracted from the local mean.", Min = -50, Max = 50, Editor = ParamEditor.Slider)]
+    [Param("Constant", Description = "Subtracted from the local mean.", Min = -50, Max = 50, Intensity = true, Editor = ParamEditor.Slider)]
     public double Constant
     {
         get => _constant;
@@ -114,14 +114,27 @@ public sealed class AdaptiveThresholdNode : ImageFilterNode
                 "Insert a Colour Convert node set to BGR to Gray.");
         }
 
+        if (source.Depth == DepthType.Cv8U)
+        {
+            CvInvoke.AdaptiveThreshold(
+                source.Mat, destination, _maxValue, _adaptiveType, _thresholdType, _blockSize, _constant);
+            return;
+        }
+
+        // OpenCV thresholds adaptively on 8 bits only. A deeper image is
+        // scaled down by its own depth, and the settings - in its own
+        // values - with it; the result is an 8-bit mask, as Find Blobs reads.
+        var scale = 255.0 / source.MaxValue;
+        using var narrowed = source.ToEightBit();
+
         CvInvoke.AdaptiveThreshold(
-            source.Mat,
+            narrowed,
             destination,
-            _maxValue,
+            Math.Clamp(_maxValue * scale, 0, 255),
             _adaptiveType,
             _thresholdType,
             _blockSize,
-            _constant);
+            _constant * scale);
     }
 
     /// <summary>
@@ -178,7 +191,7 @@ public sealed class BrightnessContrastNode : ImageFilterNode
     private int _brightness;
     private int _contrast;
 
-    [Param("Brightness", Min = -100, Max = 100, Editor = ParamEditor.Slider, Connectable = true)]
+    [Param("Brightness", Min = -100, Max = 100, Intensity = true, Editor = ParamEditor.Slider, Connectable = true)]
     public int Brightness
     {
         get => _brightness;

@@ -2,7 +2,7 @@
 
 What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
-6 November 2026, with 1.0.10 released.
+7 November 2026, with 1.0.10 released.
 
 Each item has an ID to refer to it by, a rough size, and where it came
 from when that matters. The order is a proposal: change it, strike things
@@ -46,17 +46,13 @@ Settled, for the record: AvalonDock (Ms-PL, notices fixed), Clipper2
 ## 2. Now: small, and worth doing next
 
 - ~~**N1. Pack 1.0.10**~~ - done, 6 November 2026.
-- **N2. Test with real cameras** (M, needs hardware and a colleague).
-  Basler is tested only on pylon's emulator, Hikrobot only on MVS's
-  virtual cameras. Wanted: GigE timing and dropped frames, the hardware
-  trigger (Basler Line 1, Hikrobot Line 0), colour cameras, and a camera
-  unplugged mid-run. Also confirm the new "older pylon" note on a PC with
-  pylon 7.3.
-- **N3. Icons** (S each, drawn by you). Four node icons exist only in
-  the generated `Themes/Icons.xaml`, with no SVG in `res/ui icons`:
-  `ph_find_curve`, `ph_lens_calibration`, `ph_line_defects`,
-  `ph_undistort` - so regenerating the dictionary deletes them. And
-  Offset Shapes and Transform Shapes borrow Dilate's and Resize's icons.
+- ~~**N2. Test with real cameras**~~ - done, 7 November 2026.
+- **N3. Icons** - mostly settled, 7 November 2026: you are happy with
+  most, and will draw a few better ones later. Still true meanwhile:
+  `ph_find_curve`, `ph_lens_calibration`, `ph_line_defects` and
+  `ph_undistort` have no SVG in `res/ui icons`, so regenerating
+  `Themes/Icons.xaml` deletes them; Offset Shapes and Transform Shapes
+  borrow Dilate's and Resize's.
 - **N4. A `.gitattributes`** (S). Line endings are normalised per machine
   today; settle them before a second person works in the repository.
 - **N5. Tidy-ups** (S each):
@@ -74,14 +70,11 @@ from you before they start.
 
 ### Bit depth
 
-- **F1. Real bit depth through the tools** (L, your call on timing). A
-  12-bit image needs thresholds sixteen times larger in Threshold, Find
-  Blobs, Min Contrast and the rest. The fix: `ImageData` carries its
-  significant bits, set by the source that knows them (a Mono12 camera,
-  an Image File setting), and tool ranges and the histogram follow it.
-  Then Image File's Read Mode default can change from Any Color (8-bit).
-  Includes **F1a. Histogram beyond 8-bit**, which today warns and passes
-  through.
+- ~~**F1. Real bit depth through the tools**~~ - done, 7 November 2026
+  (decision 64), with the histogram (F1a) and Read Mode: Unchanged for
+  new nodes.
+- **F1b. Bits for Python nodes** (S). They receive a 12-bit image's
+  values but not that it is 12-bit; pass `bits` with the array.
 
 ### The runtime, HMI and PLC
 
@@ -176,6 +169,6 @@ Recorded so they are not picked up by accident.
 - **H2. Match Template turning to find a rotated feature** - kept
   position-only; angles come from other tools. So no angle from Match
   Template for a Reference either.
-- **H3. Image File's Read Mode default** - stays Any Color until F1.
+- ~~**H3. Image File's Read Mode default**~~ - now Unchanged for new nodes, with F1.
 - **H4. Soft Light blend mode** - left out until someone says which of
   the incompatible definitions they mean.

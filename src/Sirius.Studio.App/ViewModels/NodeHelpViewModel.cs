@@ -91,7 +91,7 @@ public sealed class NodeHelpViewModel : ObservableObject
 
         if (!attribute.HasMin && !attribute.HasMax)
             return parameter.ValueType.IsEnum
-                ? string.Join(", ", Enum.GetNames(parameter.ValueType).Select(Humanise))
+                ? string.Join(", ", Enum.GetValues(parameter.ValueType).Cast<object>().Distinct().Select(TypeNames.OptionName))
                 : string.Empty;
 
         return string.Format(

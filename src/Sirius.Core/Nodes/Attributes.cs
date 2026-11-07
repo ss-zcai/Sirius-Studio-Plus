@@ -260,6 +260,19 @@ public sealed class ParamAttribute : Attribute
     public bool Logarithmic { get; set; }
 
     /// <summary>
+    /// Whether this is a level in the image's own values - a threshold, an
+    /// edge's contrast, a fill - whose range follows the image's depth.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Min"/> and <see cref="Max"/> are then given for an 8-bit
+    /// image and stretched to the depth of the image the node last ran on:
+    /// 0-255 becomes 0-4095 for a 12-bit camera. The value itself is never
+    /// scaled - a threshold of 2000 is pixel value 2000, as the viewer reads
+    /// it - so only the slider's travel changes.
+    /// </remarks>
+    public bool Intensity { get; set; }
+
+    /// <summary>
     /// A property on the node supplying this parameter's label, for one
     /// whose meaning depends on the data.
     /// </summary>

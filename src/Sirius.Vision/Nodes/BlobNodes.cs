@@ -148,11 +148,12 @@ public sealed class BlobFilterNode : VisionNode
         Group = "Detection",
         Min = 0,
         Max = 255,
+        Intensity = true,
         Description = "Grey level separating foreground from background, when the mode is Fixed.")]
     public int Threshold
     {
         get => _threshold;
-        set => SetParam(ref _threshold, Math.Clamp(value, 0, 255));
+        set => SetParam(ref _threshold, Math.Clamp(value, 0, 65535));
     }
 
     // ---- filters ---------------------------------------------------------
@@ -411,19 +412,26 @@ public sealed class BlobFilterNode : VisionNode
 
         if (_segmentation == BlobSegmentation.Fixed)
         {
-            CvInvoke.Threshold(source.Mat, destination, _threshold, 255, direction);
+            // In the image's own values - 2000 on a 12-bit image is 2000 -
+            // and to an 8-bit mask, which is all tracing outlines reads.
+            if (source.Depth == DepthType.Cv8U)
+            {
+                CvInvoke.Threshold(source.Mat, destination, _threshold, 255, direction);
+            }
+            else
+            {
+                using var deep = new Mat();
+                CvInvoke.Threshold(source.Mat, deep, _threshold, 255, direction);
+                deep.ConvertTo(destination, DepthType.Cv8U);
+            }
+
             return;
         }
 
-        if (source.Depth != DepthType.Cv8U)
-        {
-            throw new InvalidOperationException(
-                "An automatic threshold needs an 8-bit image. Use a fixed threshold, or "
-                + "Normalise the image first.");
-        }
-
-        // Otsu ignores the level it is given and picks its own.
-        CvInvoke.Threshold(source.Mat, destination, 0, 255, direction | ThresholdType.Otsu);
+        // Otsu ignores the level it is given and picks its own - on 8 bits,
+        // so a deeper image is scaled down by its own depth first.
+        using var narrowed = source.ToEightBit();
+        CvInvoke.Threshold(narrowed, destination, 0, 255, direction | ThresholdType.Otsu);
     }
 
     /// <summary>

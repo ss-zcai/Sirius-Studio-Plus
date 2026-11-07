@@ -5,6 +5,35 @@ using Sirius.Core.Nodes;
 
 namespace Sirius.Vision.Nodes;
 
+/// <summary>How many bits of a loaded image's values carry the picture.</summary>
+/// <remarks>
+/// A 12-bit camera's picture saved as a 16-bit file stops at 4095, and
+/// nothing in the file says so. Auto takes the file's own depth - never a
+/// guess from the pixels, which would take a dark 16-bit picture for a
+/// 12-bit one. Settings are in the image's own values, so Auto on a 12-bit
+/// file is never wrong, only longer sliders than needed.
+/// </remarks>
+public enum ImageBits
+{
+    [System.ComponentModel.Description("Auto")]
+    Auto = 0,
+
+    [System.ComponentModel.Description("8-bit")]
+    Bits8 = 8,
+
+    [System.ComponentModel.Description("10-bit")]
+    Bits10 = 10,
+
+    [System.ComponentModel.Description("12-bit")]
+    Bits12 = 12,
+
+    [System.ComponentModel.Description("14-bit")]
+    Bits14 = 14,
+
+    [System.ComponentModel.Description("16-bit")]
+    Bits16 = 16,
+}
+
 /// <summary>Loads an image from disk. The usual entry point of a graph.</summary>
 [VisionNode(
     "Image File",
@@ -15,7 +44,8 @@ namespace Sirius.Vision.Nodes;
 public sealed class ImageFileSourceNode : VisionNode
 {
     private string _filePath = string.Empty;
-    private ImreadModes _mode = ImreadModes.AnyColor;
+    private ImreadModes _mode = ImreadModes.Unchanged;
+    private ImageBits _bits = ImageBits.Auto;
 
     public ImageFileSourceNode()
     {
@@ -34,11 +64,22 @@ public sealed class ImageFileSourceNode : VisionNode
         set => SetParam(ref _filePath, value);
     }
 
-    [Param("Read Mode", Description = "How the file is decoded. Any Color and Grayscale give 8 bits: a 12- or 16-bit file is squeezed into them and loses its fine steps. Unchanged keeps its own depth - 0 to 4095 for a 12-bit camera.")]
+    /// <remarks>
+    /// Unchanged for a new node, so a 12- or 16-bit file keeps its levels;
+    /// a recipe saved with Any Color keeps it.
+    /// </remarks>
+    [Param("Read Mode", Description = "How the file is decoded. Unchanged keeps its own depth - 0 to 4095 for a 12-bit camera. Any Color and Grayscale give 8 bits: a 12- or 16-bit file is squeezed into them and loses its fine steps.")]
     public ImreadModes Mode
     {
         get => _mode;
         set => SetParam(ref _mode, value);
+    }
+
+    [Param("Bits", Description = "How many bits carry the picture. Auto takes the file's own: 16 for a 16-bit file. A 12-bit camera's saved frames stop at 4095 - choose 12-bit, and tools' settings range to 4095.")]
+    public ImageBits Bits
+    {
+        get => _bits;
+        set => SetParam(ref _bits, value);
     }
 
     protected override void OnEvaluate(EvalContext context)
@@ -59,7 +100,7 @@ public sealed class ImageFileSourceNode : VisionNode
                 $"'{Path.GetFileName(_filePath)}' could not be decoded as an image.");
         }
 
-        context.Set(ImageOut, ImageData.Adopt(mat));
+        context.Set(ImageOut, ImageData.Adopt(mat, bits: _bits == ImageBits.Auto ? null : (int)_bits));
     }
 }
 

@@ -98,8 +98,19 @@ Measurements are saved with the recipe, keyed by node and view. The Image
 Viewer grows a shape socket whenever the last is filled. Any port opens in
 a preview window of its own. Pictures save at full resolution, with or
 without overlays, 16-bit kept as 16-bit. A 16-bit picture offers
-**Display** - 16, 14, 12 or 10 bits, or stretched - and the readout gives
-its own value.
+**Display** - Auto (its own bits), 16, 14, 12 or 10 bits, or stretched -
+and the readout gives its own value.
+
+### Bit depth
+
+Images carry how many bits they use - 12 for a 12-bit camera's frame -
+set by the camera, or by Image File's **Bits** setting, and kept through
+the tools. Settings are in the image's own values (a threshold of 2000 is
+pixel value 2000), and their sliders run to the image's top: 4095 for
+12-bit. Read Code, Read Text, Find Blobs' automatic threshold, Adaptive
+Threshold, the Histogram and Blend all work on deep images by their own
+depth. New Image File nodes keep a file's depth (Read Mode: Unchanged).
+Decision 64.
 
 ### Interactive tools
 
@@ -176,10 +187,8 @@ backlog N2.
 
 The ones a tester will meet; the fixes are in the backlog.
 
-- **8-bit settings on deeper images.** A 12-bit image is shown and read
-  properly, but Threshold, Find Blobs and the rest take 0-255 settings,
-  and Image File loads 8 bits unless Read Mode is Unchanged. The
-  histogram handles 8-bit only. Backlog F1.
+- **Python nodes do not know an image's bits.** They receive its values,
+  0 to 4095 for 12-bit, but not that it is 12-bit.
 - **No signal out.** A verdict reaches the status line and a CSV, not a
   PLC. Backlog F2-F3.
 - **Four icons have no SVG source** (`ph_find_curve`,

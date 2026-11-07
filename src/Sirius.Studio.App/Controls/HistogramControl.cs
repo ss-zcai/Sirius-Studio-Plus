@@ -139,7 +139,11 @@ public sealed class HistogramControl : FrameworkElement
 
         context.DrawLine(CursorPen, new Point(x, 0), new Point(x, height));
 
-        var lines = new List<(string Text, Brush Brush)> { ($"level {bin}", ReadoutTextBrush) };
+        // One level a bin at 8 bits; several on a deeper image.
+        var (first, last) = data.LevelsOf(bin);
+        var level = first == last ? $"level {first}" : $"levels {first}-{last}";
+
+        var lines = new List<(string Text, Brush Brush)> { (level, ReadoutTextBrush) };
 
         for (var channel = 0; channel < data.ChannelCount; channel++)
         {

@@ -2385,3 +2385,48 @@ taken off its PATH: the Basler driver is left out and the note reads
 "Not listed: Basler: pylon is installed in ..., but its Runtime\x64 folder
 is not on the PATH." The pylon 7.3 case is covered by unit tests over
 folders laid out like one; no pylon 7.3 was installed to try it.
+
+## 64. Images carry their bits; settings are in the image's own values
+
+A 12-bit camera's frame is a 16-bit image whose values stop at 4095, and
+nothing in it says so. Settings assumed 8 bits - Threshold 0-255, Min
+Contrast, fills - and conversions to 8 bits divided by 257, so a 12-bit
+code reached Read Code at most 16 out of 255 and was not found.
+
+- **`ImageData.Bits`**: how many bits carry the picture, 8 to 16, 0 for
+  floating point; `MaxValue` is 255, 4095, 65535. Set by the source that
+  knows - Basler from the pixel type's bit depth, Hikrobot from the
+  format's name (Mono12), Image File and Image Sequence by a **Bits**
+  setting whose Auto is the file's own depth, never a guess from the
+  pixels (a dark 16-bit picture would read as 12-bit). Kept by any tool
+  whose result has the same pixel type (`ImageData.From`,
+  `ImageFilterNode.BitsOf`), reset when the type changes.
+- **Settings are in the image's own values** (the user's choice, as
+  HALCON does): a threshold of 2000 is pixel value 2000, as the readout
+  shows. Nothing is rescaled, so 8-bit recipes are unchanged. A setting
+  marked `Param.Intensity` - thresholds, Min Contrast on every caliper
+  tool, fills, offsets, Brightness, Adaptive Threshold's Constant - has
+  its 8-bit range stretched to the depth of the image the node last ran
+  on (`VisionNode.ImageMaxValue`, written by the scheduler from the first
+  input that is `IPixelValues`). Setters that clamped to 255 clamp to
+  65535.
+- **Conversions to 8 bits go by the image's own top** (`ToEightBit`):
+  Read Code, Read Text, Find Blobs' automatic threshold, Adaptive
+  Threshold (8-bit only in OpenCV; its settings scaled to match). Find
+  Blobs' fixed threshold works in the image's values and makes an 8-bit
+  mask, which tracing needs.
+- **Histogram** spans the image's own levels (4096 for 12-bit), and its
+  readout names the levels a bin covers. **Blend**'s multiply, screen and
+  overlay take the image's own top as white, not 65535.
+- **Viewer Display: Auto**, the default for new viewers and previews,
+  shows an image by the bits it says it uses. Saved viewers keep their
+  choice.
+- **Read Mode: Unchanged** for new Image File and Image Sequence nodes
+  (the user's choice); saved recipes keep the mode they were saved with,
+  since every setting is written to the file.
+- Options can be shown by a `[Description]` ("12-bit") through
+  `TypeNames.OptionName`.
+
+Left: Python nodes receive the array but not its bits; Colour Range's
+default band is 0-255, which on a deep colour image passes only the
+darkest values (no camera here delivers deep colour).

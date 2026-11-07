@@ -55,6 +55,10 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
     /// </remarks>
     private Emgu.CV.Mat? _deep;
 
+    // The bits the deep frame says it uses, for showing it by them.
+    private int _deepBits = MatImageConverter.FullRange;
+    private int _pendingDeepBits = MatImageConverter.FullRange;
+
     private Emgu.CV.Mat? _pendingDeep;
 
     private bool _pendingIsDeep;
@@ -329,6 +333,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
             {
                 _pendingDeep ??= new Emgu.CV.Mat();
                 image!.Mat.CopyTo(_pendingDeep);
+                _pendingDeepBits = image.Bits;
             }
         }
 
@@ -360,7 +365,10 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
         {
             // The spare buffer is kept for the next deep frame.
             if (_pendingIsDeep)
+            {
                 (_deep, _pendingDeep) = (_pendingDeep, _deep);
+                _deepBits = _pendingDeepBits;
+            }
             else if (_deep is not null)
             {
                 if (_pendingDeep is null)
@@ -485,7 +493,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
     /// What the last preview was set to, for the next one opened: a
     /// recipe's 12-bit images are 12-bit wherever they are looked at.
     /// </summary>
-    private static int _lastDisplayBits = MatImageConverter.FullRange;
+    private static int _lastDisplayBits = MatImageConverter.Auto;
 
     private int _displayBits = _lastDisplayBits;
 
@@ -512,7 +520,7 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
             lock (_deepLock)
             {
                 if (_deep is { Depth: Emgu.CV.CvEnum.DepthType.Cv16U })
-                    Image = MatImageConverter.ToBitmapSource(_deep, value);
+                    Image = MatImageConverter.ToBitmapSource(_deep, value, _deepBits);
             }
         }
     }

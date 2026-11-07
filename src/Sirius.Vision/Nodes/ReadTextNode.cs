@@ -243,7 +243,7 @@ public sealed class ReadTextNode : VisionNode
         var region = context.Param(nameof(Region), _region);
 
         using var straightened = Straighten(source, region);
-        using var prepared = Prepare(straightened, out var scale);
+        using var prepared = Prepare(straightened, source.MaxValue, out var scale);
 
         Tesseract.Word[] words;
 
@@ -315,7 +315,7 @@ public sealed class ReadTextNode : VisionNode
     /// Grey, magnified if the text is small, which is what the engine
     /// wants to see.
     /// </summary>
-    private static Mat Prepare(Mat straightened, out int scale)
+    private static Mat Prepare(Mat straightened, double top, out int scale)
     {
         var grey = new Mat();
 
@@ -328,8 +328,9 @@ public sealed class ReadTextNode : VisionNode
 
             if (grey.Depth != DepthType.Cv8U)
             {
+                // By the picture's own depth: a 12-bit frame's 4095 is white.
                 using var narrowed = new Mat();
-                grey.ConvertTo(narrowed, DepthType.Cv8U, 1.0 / 257.0);
+                grey.ConvertTo(narrowed, DepthType.Cv8U, 255.0 / top);
                 narrowed.CopyTo(grey);
             }
 

@@ -56,7 +56,7 @@ public sealed class Filter2DNode : ImageFilterNode
         set => SetParam(ref _scale, value);
     }
 
-    [Param("Offset", Description = "Added after convolution.", Min = -255, Max = 255, Step = 1, Editor = ParamEditor.Slider)]
+    [Param("Offset", Description = "Added after convolution.", Min = -255, Max = 255, Step = 1, Intensity = true, Editor = ParamEditor.Slider)]
     public double Offset
     {
         get => _offset;

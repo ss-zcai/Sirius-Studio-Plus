@@ -181,7 +181,7 @@ public sealed class HighPassFilterNode : ImageFilterNode
         set => SetParam(ref _kernelSize, AdaptiveThresholdNode.MakeOdd(value, _kernelSize, minimum: 3));
     }
 
-    [Param("Offset", Description = "Mid-grey level added back so negatives stay visible.", Min = 0, Max = 255, Step = 1, Editor = ParamEditor.Slider)]
+    [Param("Offset", Description = "Mid-grey level added back so negatives stay visible.", Min = 0, Max = 255, Step = 1, Intensity = true, Editor = ParamEditor.Slider)]
     public double Offset
     {
         get => _offset;

@@ -147,12 +147,13 @@ public sealed class ViewerNode : VisionNode, IGrowingPorts
 
     public InputPort ImageIn { get; }
 
-    private int _displayBits = 16;
+    private int _displayBits = -1;
 
     /// <summary>
-    /// How a 16-bit picture is shown: the bits that carry it - 16, 14, 12,
-    /// 10 - or 0 to stretch it from its darkest pixel to its brightest.
-    /// Chosen on the viewer's toolbar, and kept with the recipe.
+    /// How a 16-bit picture is shown: -1 for the bits the image says it uses
+    /// (Auto, a new viewer's), the bits that carry it - 16, 14, 12, 10 - or
+    /// 0 to stretch it from its darkest pixel to its brightest. Chosen on
+    /// the viewer's toolbar, and kept with the recipe.
     /// </summary>
     /// <remarks>
     /// How the picture looks, not what the recipe computes, so changing it
@@ -162,7 +163,7 @@ public sealed class ViewerNode : VisionNode, IGrowingPorts
     public int DisplayBits
     {
         get => _displayBits;
-        set => SetProperty(ref _displayBits, value is 0 or 10 or 12 or 14 or 16 ? value : 16);
+        set => SetProperty(ref _displayBits, value is -1 or 0 or 10 or 12 or 14 or 16 ? value : -1);
     }
 
     /// <summary>

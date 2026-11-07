@@ -309,7 +309,10 @@ internal sealed class BaslerCamera : Sirius.Vision.Cameras.ICamera
         try
         {
             _converter.Convert(mat.DataPointer, (long)mat.Step * mat.Rows, result);
-            return ImageData.Adopt(mat);
+
+            // A Mono12 frame in 16 bits still stops at 4095: say so, so the
+            // tools' ranges and the viewer follow the sensor, not the type.
+            return ImageData.Adopt(mat, bits: depth == DepthType.Cv16U ? (int)type.BitDepth() : null);
         }
         catch
         {

@@ -97,6 +97,7 @@ Reads an image from disk and feeds it into the graph.
 | --- | --- | --- | --- |
 | File Path | `Text` | FilePath | - |
 | Read Mode | `ImreadModes` | ComboBox | - |
+| Bits | `ImageBits` | ComboBox | - |
 
 ### Image Sequence
 
@@ -117,6 +118,7 @@ Steps through the images in a folder, one per evaluation.
 | Folder or First Image | `Text` | FilePath | - |
 | Frame | `Integer` | Sequence | - |
 | Read Mode | `ImreadModes` | ComboBox | - |
+| Bits | `ImageBits` | ComboBox | - |
 
 ### Matrix
 
@@ -1325,7 +1327,7 @@ Unwraps a ring of the image into a straight strip: angle left to right, radius t
 
 `analysis.histogram`
 
-Per-channel intensity histogram for the histogram panel.
+Per-channel intensity histogram for the histogram panel, over the image's own levels - 0 to 4095 for 12-bit.
 
 **Inputs**
 

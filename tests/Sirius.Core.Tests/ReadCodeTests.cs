@@ -126,6 +126,27 @@ public class ReadCodeTests
             (ShapeSet)scheduler.GetOutput(reader.CodesOut)!);
     }
 
+    // ---- deeper images -----------------------------------------------------
+
+    /// <summary>
+    /// A 12-bit camera's frame: values to 4095 in 16 bits. Narrowed by the
+    /// type's 65535 it reached at most 16 of 255 - nearly black, and no
+    /// code was found. By its own 12 bits, white is white.
+    /// </summary>
+    [Fact]
+    public void It_reads_a_code_in_a_twelve_bit_frame()
+    {
+        using var eight = Frame("SIRIUS-12BIT", BarcodeFormat.QR_CODE);
+        var deep = new Mat();
+        eight.Mat.ConvertTo(deep, DepthType.Cv16U, 4095.0 / 255.0);
+        using var image = ImageData.Adopt(deep, ColourSpace.Gray, bits: 12);
+
+        var (text, count, _) = Run(image);
+
+        Assert.Equal(1, count);
+        Assert.Equal("SIRIUS-12BIT", text);
+    }
+
     // ---- the symbologies -------------------------------------------------
 
     [Theory]

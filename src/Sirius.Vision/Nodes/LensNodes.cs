@@ -617,7 +617,7 @@ public sealed class UndistortNode : VisionNode
             CvInvoke.Remap(image.Mat, corrected, mapX, mapY, Inter.Linear, BorderType.Constant, new MCvScalar(0));
         }
 
-        context.Set(ImageOut, ImageData.Adopt(corrected, image.Space));
+        context.Set(ImageOut, ImageData.From(image, corrected));
     }
 
     /// <summary>Where each corrected pixel comes from, for one lens at one size - kept until either changes.</summary>

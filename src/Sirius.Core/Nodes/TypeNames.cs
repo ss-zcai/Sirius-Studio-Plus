@@ -29,6 +29,23 @@ public static class TypeNames
     /// For enum values in a dropdown and group names in the toolbox, which
     /// are identifiers in the code and labels on the screen.
     /// </remarks>
+    /// <summary>
+    /// How an option of an enum is shown: its <c>[Description]</c> when it
+    /// has one - "12-bit" for Bits12 - otherwise its name in words.
+    /// </summary>
+    public static string OptionName(object value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        var name = value.ToString() ?? string.Empty;
+        var field = value.GetType().IsEnum ? value.GetType().GetField(name) : null;
+
+        return field?.GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+                   .OfType<System.ComponentModel.DescriptionAttribute>()
+                   .FirstOrDefault()?.Description
+               ?? Words(name);
+    }
+
     public static string Words(string identifier)
     {
         ArgumentNullException.ThrowIfNull(identifier);

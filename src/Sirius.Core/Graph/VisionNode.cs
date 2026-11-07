@@ -185,6 +185,32 @@ public abstract class VisionNode : ObservableObject
         internal set => SetProperty(ref _placements, value);
     }
 
+    private double? _imageMaxValue;
+
+    /// <summary>
+    /// The top level of the image this node last ran on - 255 for 8 bits,
+    /// 4095 for 12 - or null before it has run on one.
+    /// </summary>
+    /// <remarks>
+    /// What the ranges of its <see cref="Nodes.ParamAttribute.Intensity"/>
+    /// settings stretch to. Written by the engine after each run, like
+    /// <see cref="Placements"/>, so neither saved nor undone.
+    /// </remarks>
+    public double? ImageMaxValue
+    {
+        get => _imageMaxValue;
+        internal set
+        {
+            if (SetProperty(ref _imageMaxValue, value))
+                OnImageMaxValueChanged();
+        }
+    }
+
+    /// <summary>For a node whose own derived bounds follow the image's depth.</summary>
+    protected virtual void OnImageMaxValueChanged()
+    {
+    }
+
     /// <summary>Wall-clock duration of the most recent evaluation.</summary>
     public TimeSpan LastEvaluationTime
     {

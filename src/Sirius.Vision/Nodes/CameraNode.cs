@@ -148,7 +148,7 @@ public sealed class CameraNode : VisionNode, IInspectionNode, IParameterChoices
 
             // A copy each time: what goes out is the scheduler's to free,
             // and the frame is kept for the next re-run.
-            context.Set(ImageOut, ImageData.Adopt(_last!.Mat.Clone(), _last.Space));
+            context.Set(ImageOut, ImageData.Adopt(_last!.Mat.Clone(), _last.Space, _last.Bits));
         }
     }
 

@@ -189,7 +189,7 @@ public sealed class PolarToLinearNode : VisionNode
             // Off the image is black rather than a smear of the edge pixel,
             // so a band hanging over the border reads as missing.
             CvInvoke.Remap(image.Mat, strip, mapX, mapY, _interpolation, BorderType.Constant, new MCvScalar(0));
-            context.Set(ImageOut, ImageData.Adopt(strip, image.Space));
+            context.Set(ImageOut, ImageData.From(image, strip));
         }
         catch
         {

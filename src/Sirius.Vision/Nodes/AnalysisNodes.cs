@@ -20,7 +20,7 @@ namespace Sirius.Vision.Nodes;
     TypeKey = "analysis.histogram",
     Category = NodeCategory.Analysis,
     Icon = "ph_histogram",
-    Description = "Per-channel intensity histogram for the histogram panel.")]
+    Description = "Per-channel intensity histogram for the histogram panel, over the image's own levels - 0 to 4095 for 12-bit.")]
 public sealed class HistogramNode : VisionNode
 {
     private const int MaxChannels = 3;
@@ -48,15 +48,16 @@ public sealed class HistogramNode : VisionNode
     {
         var source = context.Get<ImageData>(ImageIn)!;
 
-        if (source.Depth != DepthType.Cv8U)
+        if (source.Depth is not (DepthType.Cv8U or DepthType.Cv16U))
         {
-            // CalcHist needs an explicit range per depth; only 8-bit is wired up
-            // so far, which covers everything the old histogram panel handled.
-            context.Warn($"Histogram currently supports 8-bit images only (input is {source.Depth}).");
+            context.Warn($"Histogram counts 8- and 16-bit images (8, 10, 12, 14 or 16 bits used); this one is {source.Depth}.");
             return;
         }
 
-        var ranges = new[] { 0f, 256f };
+        // Over the levels the picture uses - 0 to 4095 for a 12-bit camera -
+        // not the type's 65535, where it would fill the first sixteenth.
+        var levels = (int)source.MaxValue + 1;
+        var ranges = new[] { 0f, levels };
         var channels = new List<float[]>(Math.Min(source.Channels, MaxChannels));
 
         using var planes = new VectorOfMat();
@@ -92,6 +93,6 @@ public sealed class HistogramNode : VisionNode
                 plane.Dispose();
         }
 
-        context.Set(HistogramOut, new HistogramData(channels, _binCount));
+        context.Set(HistogramOut, new HistogramData(channels, _binCount, levels));
     }
 }

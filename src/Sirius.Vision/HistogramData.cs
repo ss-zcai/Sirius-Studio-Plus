@@ -6,11 +6,27 @@ namespace Sirius.Vision;
 /// </summary>
 public sealed class HistogramData
 {
-    public HistogramData(IReadOnlyList<float[]> channels, int binCount)
+    /// <param name="levels">
+    /// How many levels the bins span: 256 for 8-bit, 4096 for 12-bit. A
+    /// bin covers <c>levels / binCount</c> of them.
+    /// </param>
+    public HistogramData(IReadOnlyList<float[]> channels, int binCount, int levels = 256)
     {
         Channels = channels;
         BinCount = binCount;
+        Levels = Math.Max(binCount, levels);
         Max = channels.Count == 0 ? 0 : channels.Max(c => c.Length == 0 ? 0 : c.Max());
+    }
+
+    /// <summary>How many levels the bins span: 256 for 8-bit, 4096 for 12-bit.</summary>
+    public int Levels { get; }
+
+    /// <summary>The levels one bin counts, first and last.</summary>
+    public (int First, int Last) LevelsOf(int bin)
+    {
+        var first = (int)Math.Floor((double)bin * Levels / BinCount);
+        var next = (int)Math.Floor((double)(bin + 1) * Levels / BinCount);
+        return (first, Math.Max(first, next - 1));
     }
 
     /// <summary>One array of <see cref="BinCount"/> counts per channel.</summary>

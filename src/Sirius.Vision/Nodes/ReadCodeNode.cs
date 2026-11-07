@@ -165,7 +165,7 @@ public sealed class ReadCodeNode : VisionNode
         var region = context.Param(nameof(Region), _region);
 
         using var straightened = Straighten(source, region);
-        using var grey = AsGrey(straightened);
+        using var grey = AsGrey(straightened, source.MaxValue);
 
         var results = Decode(grey);
 
@@ -264,7 +264,8 @@ public sealed class ReadCodeNode : VisionNode
     }
 
     /// <summary>Eight-bit single channel, which is what the decoder reads.</summary>
-    private static Mat AsGrey(Mat source)
+    /// <param name="top">The image's top level - 4095 for 12-bit - which becomes 255.</param>
+    private static Mat AsGrey(Mat source, double top)
     {
         var grey = new Mat();
 
@@ -279,9 +280,11 @@ public sealed class ReadCodeNode : VisionNode
                 return grey;
 
             // A 16-bit frame carries the same code; the decoder wants it at
-            // eight bits, and the scale is the one the viewer uses.
+            // eight bits, scaled by the picture's own depth. By the type's -
+            // 65535 - a 12-bit frame reached at most 16 of 255, and no code
+            // was found in it.
             var narrowed = new Mat();
-            grey.ConvertTo(narrowed, DepthType.Cv8U, 1.0 / 257.0);
+            grey.ConvertTo(narrowed, DepthType.Cv8U, 255.0 / top);
             grey.Dispose();
 
             return narrowed;

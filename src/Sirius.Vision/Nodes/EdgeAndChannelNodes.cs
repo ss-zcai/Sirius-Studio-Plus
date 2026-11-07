@@ -172,11 +172,23 @@ public sealed class ColourRangeNode : ImageFilterNode
 
     public string Channel3Name => NameOf(2);
 
-    public double Channel1Max => ColourSpaces.MaximumOf(_space, 0, DepthType.Cv8U);
+    public double Channel1Max => MaximumOf(0);
 
-    public double Channel2Max => ColourSpaces.MaximumOf(_space, 1, DepthType.Cv8U);
+    public double Channel2Max => MaximumOf(1);
 
-    public double Channel3Max => ColourSpaces.MaximumOf(_space, 2, DepthType.Cv8U);
+    public double Channel3Max => MaximumOf(2);
+
+    private double _top = 255;
+
+    /// <summary>
+    /// How far a channel runs: hue's 179 at 8 bits, otherwise the frame's
+    /// own top level - 255, or more for a deeper colour image.
+    /// </summary>
+    private double MaximumOf(int channel)
+    {
+        var limit = ColourSpaces.MaximumOf(_space, channel, DepthType.Cv8U);
+        return limit < 255 ? limit : Math.Max(limit, _top);
+    }
 
     private string NameOf(int channel)
     {
@@ -187,12 +199,13 @@ public sealed class ColourRangeNode : ImageFilterNode
     /// <summary>
     /// Notices the frame's colour space, so the inspector can relabel.
     /// </summary>
-    private void NoteSpace(ColourSpace space)
+    private void NoteSpace(ColourSpace space, double top)
     {
-        if (_space == space)
+        if (_space == space && _top == top)
             return;
 
         _space = space;
+        _top = top;
 
         foreach (var name in new[]
                  {
@@ -254,14 +267,14 @@ public sealed class ColourRangeNode : ImageFilterNode
                 "Colour Range needs a three-channel image. Remove any Colour Convert to Gray ahead of it.");
         }
 
-        NoteSpace(source.Space);
+        NoteSpace(source.Space, source.Bits == 0 ? 255 : source.MaxValue);
 
         // A channel range is always bounded - the setter clamps both ends -
         // but the fallbacks say what an absent one would mean here.
         using var lower = new ScalarArray(
             new MCvScalar(_blue.LowOr(0), _green.LowOr(0), _red.LowOr(0)));
         using var upper = new ScalarArray(
-            new MCvScalar(_blue.HighOr(255), _green.HighOr(255), _red.HighOr(255)));
+            new MCvScalar(_blue.HighOr(_top), _green.HighOr(_top), _red.HighOr(_top)));
 
         CvInvoke.InRange(source.Mat, lower, upper, destination);
     }

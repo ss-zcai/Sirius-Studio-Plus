@@ -136,7 +136,7 @@ public sealed class FindCurveNode : VisionNode
         set => SetParam(ref _smoothing, Math.Clamp(value | 1, 1, 51));
     }
 
-    [Param("Min Contrast", Group = "Edge", Min = 0, Max = 255, Step = 0.5,
+    [Param("Min Contrast", Group = "Edge", Min = 0, Max = 255, Step = 0.5, Intensity = true,
         Description = "Smallest intensity step counted as an edge.")]
     public double MinimumContrast
     {

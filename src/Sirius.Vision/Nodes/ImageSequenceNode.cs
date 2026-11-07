@@ -33,7 +33,8 @@ public sealed class ImageSequenceNode : VisionNode, ISequenceNode
         [".tif", ".tiff", ".png", ".jpg", ".jpeg", ".bmp"];
 
     private string _sourcePath = string.Empty;
-    private ImreadModes _mode = ImreadModes.AnyColor;
+    private ImreadModes _mode = ImreadModes.Unchanged;
+    private ImageBits _bits = ImageBits.Auto;
     private int _index = 1;
     private string[] _files = [];
 
@@ -75,11 +76,19 @@ public sealed class ImageSequenceNode : VisionNode, ISequenceNode
         set => SetParam(ref _index, Clamp(value));
     }
 
-    [Param("Read Mode", Description = "How each file is decoded. Any Color and Grayscale give 8 bits: a 12- or 16-bit file is squeezed into them and loses its fine steps. Unchanged keeps its own depth - 0 to 4095 for a 12-bit camera.")]
+    /// <remarks>Unchanged for a new node, as on Image File.</remarks>
+    [Param("Read Mode", Description = "How each file is decoded. Unchanged keeps its own depth - 0 to 4095 for a 12-bit camera. Any Color and Grayscale give 8 bits: a 12- or 16-bit file is squeezed into them and loses its fine steps.")]
     public ImreadModes Mode
     {
         get => _mode;
         set => SetParam(ref _mode, value);
+    }
+
+    [Param("Bits", Description = "How many bits carry the picture. Auto takes each file's own: 16 for a 16-bit file. A 12-bit camera's saved frames stop at 4095 - choose 12-bit, and tools' settings range to 4095.")]
+    public ImageBits Bits
+    {
+        get => _bits;
+        set => SetParam(ref _bits, value);
     }
 
     /// <summary>How many images the folder holds.</summary>
@@ -169,7 +178,7 @@ public sealed class ImageSequenceNode : VisionNode, ISequenceNode
                 $"'{IoPath.GetFileName(file)}' could not be decoded as an image.");
         }
 
-        context.Set(ImageOut, ImageData.Adopt(mat));
+        context.Set(ImageOut, ImageData.Adopt(mat, bits: _bits == ImageBits.Auto ? null : (int)_bits));
     }
 }
 

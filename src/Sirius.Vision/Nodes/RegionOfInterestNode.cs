@@ -144,11 +144,12 @@ public sealed class RegionOfInterestNode : VisionNode
         Group = "Output",
         Min = 0,
         Max = 255,
+        Intensity = true,
         Description = "Grey level for parts of the region that fall outside the image.")]
     public int Fill
     {
         get => _fill;
-        set => SetParam(ref _fill, Math.Clamp(value, 0, 255));
+        set => SetParam(ref _fill, Math.Clamp(value, 0, 65535));
     }
 
     protected override void OnEvaluate(EvalContext context)
@@ -161,7 +162,7 @@ public sealed class RegionOfInterestNode : VisionNode
             ? Straighten(source, region, context, out map)
             : CutBoundingBox(source, region, context, out map);
 
-        context.Set(ImageOut, ImageData.Adopt(cut));
+        context.Set(ImageOut, ImageData.From(source, cut));
         Overlays.Carry(context, OverlayIn, OverlayOut, map, source, cut.Width, cut.Height);
     }
 

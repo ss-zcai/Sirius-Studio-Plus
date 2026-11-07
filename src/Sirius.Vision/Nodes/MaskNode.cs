@@ -70,12 +70,13 @@ public sealed class MaskNode : VisionNode
         "Fill",
         Min = 0,
         Max = 255,
+        Intensity = true,
         Editor = ParamEditor.Slider,
         Description = "What the masked-out pixels become.")]
     public int Fill
     {
         get => _fill;
-        set => SetParam(ref _fill, Math.Clamp(value, 0, 255));
+        set => SetParam(ref _fill, Math.Clamp(value, 0, 65535));
     }
 
     [Param("Invert", Description = "Keep what the mask does not mark instead.")]
@@ -131,7 +132,7 @@ public sealed class MaskNode : VisionNode
             throw;
         }
 
-        context.Set(ImageOut, ImageData.Adopt(destination, source.Space));
+        context.Set(ImageOut, ImageData.From(source, destination));
         context.Set(MaskOut, ImageData.CopyOf(mask, ColourSpace.Gray));
     }
 

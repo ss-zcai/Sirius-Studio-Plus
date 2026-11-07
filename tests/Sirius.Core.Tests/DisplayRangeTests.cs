@@ -130,9 +130,13 @@ public class DisplayRangeTests
         Assert.Equal(12, loaded.Nodes.OfType<ViewerNode>().Single().DisplayBits);
     }
 
+    /// <summary>Anything else is Auto - the image's own bits - which a new viewer starts at.</summary>
     [Fact]
-    public void Only_the_offered_choices_are_taken() =>
-        Assert.Equal(16, new ViewerNode { DisplayBits = 11 }.DisplayBits);
+    public void Only_the_offered_choices_are_taken()
+    {
+        Assert.Equal(-1, new ViewerNode { DisplayBits = 11 }.DisplayBits);
+        Assert.Equal(-1, new ViewerNode().DisplayBits);
+    }
 
     // ---- helpers ----------------------------------------------------------------
 

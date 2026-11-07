@@ -24,8 +24,14 @@ public static class MatImageConverter
     /// reference <paramref name="image"/>, so it stays valid after the graph
     /// disposes the underlying buffer.
     /// </summary>
-    public static BitmapSource? ToBitmapSource(ImageData? image, int displayBits = FullRange) =>
-        image is null || image.IsDisposed ? null : ToBitmapSource(image.Mat, displayBits);
+    public static BitmapSource? ToBitmapSource(ImageData? image, int displayBits = Auto) =>
+        image is null || image.IsDisposed ? null : ToBitmapSource(image.Mat, displayBits, image.Bits);
+
+    /// <summary>
+    /// A 16-bit image shown by the bits it says it uses - a 12-bit camera's
+    /// frame as 12-bit - which is what is wanted unless someone says otherwise.
+    /// </summary>
+    public const int Auto = -1;
 
     /// <summary>A 16-bit image shown across its whole range, 0 to 65535.</summary>
     public const int FullRange = 16;
@@ -38,12 +44,17 @@ public static class MatImageConverter
     /// For a 16-bit image, how many of its bits carry the picture: 12 for a
     /// 12-bit camera's frame, whose values stop at 4095, so 4095 is shown
     /// white. <see cref="Stretch"/> shows it from its darkest pixel to its
-    /// brightest. Other depths ignore it.
+    /// brightest. <see cref="Auto"/> takes <paramref name="imageBits"/>.
+    /// Other depths ignore it.
     /// </param>
-    public static BitmapSource? ToBitmapSource(Mat? mat, int displayBits = FullRange)
+    /// <param name="imageBits">The bits the image says it uses, for <see cref="Auto"/>.</param>
+    public static BitmapSource? ToBitmapSource(Mat? mat, int displayBits = Auto, int imageBits = FullRange)
     {
         if (mat is null || mat.IsEmpty)
             return null;
+
+        if (displayBits == Auto)
+            displayBits = imageBits is >= 8 and <= 16 ? imageBits : FullRange;
 
         // Displayable formats are 8-bit; anything else is scaled down first.
         var source = ToDisplayDepth(mat, displayBits, out var owned);

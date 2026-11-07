@@ -384,7 +384,7 @@ internal sealed class HikrobotCamera : ICamera
         var packed = name.Contains("Packed", StringComparison.Ordinal);
 
         if (mono && !packed && (format == MvGvspPixelType.PixelType_Gvsp_Mono8 || Bits(format) == 16))
-            return Copy(image, width, height, Bits(format) == 16 ? DepthType.Cv16U : DepthType.Cv8U);
+            return Copy(image, width, height, Bits(format) == 16 ? DepthType.Cv16U : DepthType.Cv8U, SensorBits(name));
 
         var (target, depth, channels) = mono
             ? (MvGvspPixelType.PixelType_Gvsp_Mono8, DepthType.Cv8U, 1)
@@ -420,7 +420,7 @@ internal sealed class HikrobotCamera : ICamera
     /// Mono already a byte or two a pixel, copied into an image of its own -
     /// the SDK's buffer goes back to it as soon as this returns.
     /// </summary>
-    private static ImageData Copy(IImage image, int width, int height, DepthType depth)
+    private static ImageData Copy(IImage image, int width, int height, DepthType depth, int? bits)
     {
         var rowBytes = width * (depth == DepthType.Cv16U ? 2 : 1);
 
@@ -433,13 +433,23 @@ internal sealed class HikrobotCamera : ICamera
         try
         {
             view.CopyTo(mat);
-            return ImageData.Adopt(mat);
+            return ImageData.Adopt(mat, bits: bits);
         }
         catch
         {
             mat.Dispose();
             throw;
         }
+    }
+
+    /// <summary>
+    /// The bits that carry the picture, from the format's name - 12 for
+    /// Mono12, which occupies 16 - or null when the name does not say.
+    /// </summary>
+    internal static int? SensorBits(string name)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(name, @"Mono(\d+)");
+        return match.Success && int.TryParse(match.Groups[1].Value, out var bits) ? bits : null;
     }
 
     /// <summary>Bits a pixel occupies - the format's second byte, by the GigE Vision numbering.</summary>

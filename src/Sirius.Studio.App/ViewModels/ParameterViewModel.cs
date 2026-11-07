@@ -100,6 +100,14 @@ public sealed class ParameterViewModel : ObservableObject
                 return;
             }
 
+            // Run on an image of another depth: a level's range follows it.
+            if (e.PropertyName == nameof(VisionNode.ImageMaxValue) && descriptor.Attribute.Intensity)
+            {
+                OnPropertyChanged(nameof(Minimum));
+                OnPropertyChanged(nameof(Maximum));
+                return;
+            }
+
             // A bound living on another parameter has moved, so the slider's
             // range changed even though this value did not.
             if (e.PropertyName == descriptor.Attribute.NameSource)
@@ -341,10 +349,20 @@ public sealed class ParameterViewModel : ObservableObject
     /// otherwise the fixed value from the attribute.
     /// </summary>
     public double Minimum => ReadBound(_descriptor.Attribute.MinSource)
-                             ?? (_descriptor.Attribute.HasMin ? _descriptor.Attribute.Min : 0);
+                             ?? (_descriptor.Attribute.HasMin ? _descriptor.Attribute.Min * DepthScale : 0);
 
     public double Maximum => ReadBound(_descriptor.Attribute.MaxSource)
-                             ?? (_descriptor.Attribute.HasMax ? _descriptor.Attribute.Max : 100);
+                             ?? (_descriptor.Attribute.HasMax ? _descriptor.Attribute.Max * DepthScale : 100);
+
+    /// <summary>
+    /// For a level in the image's own values, how much longer its range is
+    /// than at 8 bits: 4095 / 255 on a 12-bit image. 1 for anything else,
+    /// and before the node has run on an image.
+    /// </summary>
+    private double DepthScale =>
+        _descriptor.Attribute.Intensity && _node.ImageMaxValue is { } top && top > 1
+            ? top / 255.0
+            : 1;
 
     /// <summary>
     /// Reads a bound from the node, by parameter name or plain property.
@@ -441,7 +459,7 @@ public sealed class ParameterViewModel : ObservableObject
         ? _options ??= Enum.GetValues(_descriptor.ValueType)
             .Cast<object>()
             .Distinct()
-            .Select(value => (object)new EnumOption(value, TypeNames.Words(value.ToString()!)))
+            .Select(value => (object)new EnumOption(value, TypeNames.OptionName(value)))
             .ToArray()
         : Choices();
 

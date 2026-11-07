@@ -55,8 +55,14 @@ public abstract class ImageFilterNode : VisionNode
             throw new InvalidOperationException($"{Descriptor.DisplayName} produced an empty image.");
         }
 
-        context.Set(ImageOut, ImageData.Adopt(destination, SpaceOf(source, destination)));
+        context.Set(ImageOut, ImageData.Adopt(destination, SpaceOf(source, destination), BitsOf(source, destination)));
     }
+
+    /// <summary>
+    /// How many bits of the result carry the picture: the input's, when the
+    /// pixel type is unchanged - a blur of a 12-bit image is 12-bit.
+    /// </summary>
+    protected virtual int? BitsOf(ImageData source, Mat destination) => source.BitsFor(destination.Depth);
 
     /// <summary>
     /// What the result's channels mean.
