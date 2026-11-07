@@ -57,6 +57,48 @@ public class LabelNodeTests
         return (ShapeSet)scheduler.GetOutput(label.ShapesOut)!;
     }
 
+    // ---- where and how it is written --------------------------------------------
+
+    /// <summary>
+    /// Its points are only where the words go, so no mark is drawn there, and
+    /// each carries the chosen anchor - at Position and at wired shapes alike.
+    /// </summary>
+    [Fact]
+    public void Its_points_are_label_only_and_carry_the_anchor()
+    {
+        var alone = Run(label => label.Anchor = LabelAnchor.TopLeft).Shapes.Single();
+        var onShapes = Run(
+            label => label.Anchor = LabelAnchor.Centre,
+            new CircleShape(new Point2(10, 10), 5), new CircleShape(new Point2(40, 10), 5)).Shapes;
+
+        Assert.True(alone.LabelOnly);
+        Assert.Equal(LabelAnchor.TopLeft, alone.LabelAnchor);
+        Assert.All(onShapes, shape => Assert.True(shape.LabelOnly));
+        Assert.All(onShapes, shape => Assert.Equal(LabelAnchor.Centre, shape.LabelAnchor));
+    }
+
+    /// <summary>A recipe from before there was a choice reads as it did.</summary>
+    [Fact]
+    public void The_anchor_starts_above_right_as_labels_always_were()
+    {
+        Assert.Equal(LabelAnchor.AboveRight, new LabelNode().Anchor);
+    }
+
+    /// <summary>A colour picked and then cleared from the box is the default, with no warning.</summary>
+    [Fact]
+    public void A_cleared_colour_is_the_default_without_a_warning()
+    {
+        var graph = new VisionGraph();
+        var label = new LabelNode { Colour = string.Empty, Text = "PASS" };
+        graph.Add(label);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal(NodeStatus.Ready, label.Status);
+        Assert.Equal(0xFFE6E6E6u, ((ShapeSet)scheduler.GetOutput(label.ShapesOut)!).Shapes.Single().Colour);
+    }
+
     // ---- a verdict through Result ------------------------------------------------
 
     /// <summary>Two checks into Check Logic, and the overall answer written on the picture.</summary>

@@ -97,7 +97,7 @@ public sealed class ShapeStyleNode : VisionNode, IKeepsShapeOrder
 
     [Param("Colour",
         Editor = ParamEditor.Colour,
-        Description = "Pick a standard colour, or type one as #RRGGBB or #AARRGGBB.")]
+        Description = "Pick a standard colour, or type one as #RRGGBB or #AARRGGBB. Clear it for the default.")]
     public string Colour
     {
         get => _colour;
@@ -245,6 +245,11 @@ public sealed class ShapeStyleNode : VisionNode, IKeepsShapeOrder
         string text, EvalContext context, uint fallback = 0xFFA78BFAu)
     {
         var trimmed = (text ?? string.Empty).Trim().TrimStart('#');
+
+        // Blank is "back to the default" - a picked colour cleared from the
+        // box - so there is nothing to warn about.
+        if (trimmed.Length == 0)
+            return fallback;
 
         if (trimmed.Length == 6 &&
             uint.TryParse(trimmed, System.Globalization.NumberStyles.HexNumber, null, out var rgb))

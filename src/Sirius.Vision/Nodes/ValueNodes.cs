@@ -270,6 +270,7 @@ public sealed class LabelNode : VisionNode
     private string _colour = "#E6E6E6";
     private LabelTypeface _typeface = LabelTypeface.Monospace;
     private double _size = 24;
+    private LabelAnchor _anchor = LabelAnchor.AboveRight;
 
     public LabelNode()
     {
@@ -341,7 +342,20 @@ public sealed class LabelNode : VisionNode
         set => SetParam(ref _position, value);
     }
 
-    [Param("Colour", Editor = ParamEditor.Colour, Description = "Pick one, or type #RRGGBB.")]
+    /// <remarks>
+    /// Above Right by default, which is where every label was written
+    /// before there was a choice, so a recipe saved then reads the same.
+    /// </remarks>
+    [Param("Anchor",
+        Description = "Which part of the label sits on Position, or on each shape's centre: Top Left puts its " +
+                      "top-left corner there, Centre its middle. Above Right writes it just above and to the right.")]
+    public LabelAnchor Anchor
+    {
+        get => _anchor;
+        set => SetParam(ref _anchor, value);
+    }
+
+    [Param("Colour", Editor = ParamEditor.Colour, Description = "Pick one, or type #RRGGBB. Blank is light grey.")]
     public string Colour
     {
         get => _colour;
@@ -395,6 +409,8 @@ public sealed class LabelNode : VisionNode
                     Colour = colour,
                     LabelSize = _size,
                     LabelFont = FamilyOf(_typeface),
+                    LabelAnchor = _anchor,
+                    LabelOnly = true,
                 })
                 .ToArray();
 
@@ -417,6 +433,8 @@ public sealed class LabelNode : VisionNode
                         Colour = colour,
                         LabelSize = _size,
                         LabelFont = FamilyOf(_typeface),
+                        LabelAnchor = _anchor,
+                        LabelOnly = true,
                     },
                 ],
                 0,

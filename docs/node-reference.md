@@ -2004,6 +2004,7 @@ Draws a number, a line of text or a verdict on the image. Wire a pass/fail or a 
 | Number | `Number` | TextBox | - |
 | Decimals | `Integer` | Slider | 0 to 6 |
 | Position | `Point` | TextBox | - |
+| Anchor | `LabelAnchor` | ComboBox | - |
 | Colour | `Text` | Colour | - |
 | Typeface | `LabelTypeface` | ComboBox | - |
 | Size | `Number` | Slider | 4 to 400 |

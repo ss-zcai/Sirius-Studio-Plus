@@ -116,6 +116,18 @@ public abstract record Shape
     public string? LabelFont { get; init; }
 
     /// <summary>
+    /// Which part of the label sits on the shape's centre. The default
+    /// writes it just above and to the right, clear of the shape.
+    /// </summary>
+    public LabelAnchor LabelAnchor { get; init; } = LabelAnchor.AboveRight;
+
+    /// <summary>
+    /// Only the label is drawn: the shape is just where it is anchored, as
+    /// the Label node's point is. Not drawn, so not picked either.
+    /// </summary>
+    public bool LabelOnly { get; init; }
+
+    /// <summary>
     /// Stroke width in image pixels, or null to let the viewer choose.
     /// </summary>
     /// <remarks>
@@ -141,6 +153,23 @@ public abstract record Shape
     /// <summary>Reads a measurement, or null when the producer did not take it.</summary>
     public double? Metric(string name) =>
         Metrics.TryGetValue(name, out var value) ? value : null;
+}
+
+/// <summary>Which part of a label sits on the point it is written at.</summary>
+public enum LabelAnchor
+{
+    /// <summary>Just above and to the right of it, clear of whatever is there.</summary>
+    AboveRight,
+
+    TopLeft,
+    TopCentre,
+    TopRight,
+    CentreLeft,
+    Centre,
+    CentreRight,
+    BottomLeft,
+    BottomCentre,
+    BottomRight,
 }
 
 /// <summary>A single position - a centre, a corner, a hit.</summary>

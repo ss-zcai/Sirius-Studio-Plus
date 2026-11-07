@@ -806,7 +806,9 @@ public partial class ImageViewer : UserControl
 
             using (var context = geometry.Open())
             {
-                foreach (var shape in group)
+                // A label-only shape is where its label is written, and
+                // nothing to draw - the Label node's point.
+                foreach (var shape in group.Where(shape => !shape.LabelOnly))
                     AddShape(context, shape, ScreenPixel);
             }
 
@@ -831,7 +833,7 @@ public partial class ImageViewer : UserControl
 
         // The selected one is drawn again on top, heavier, so it stands out
         // from a field of identical blobs.
-        if (selected >= 0 && selected < set.Count)
+        if (selected >= 0 && selected < set.Count && !set.Shapes[selected].LabelOnly)
             DrawSelectedShape(set.Shapes[selected], width);
 
         // Labels are data on the shape, put there by a Shape Style node. The
@@ -1043,7 +1045,8 @@ public partial class ImageViewer : UserControl
         PlaceLabel(
             ShapeLayer, text, new Point(centre.X, centre.Y), brush,
             emphasised: false, scale, shape.LabelFont,
-            round: shape is CircleShape or EllipseShape);
+            round: shape is CircleShape or EllipseShape,
+            shape.LabelAnchor);
     }
 
     private void ReportShapeFrame(ShapeSet set, bool matches)
@@ -2285,6 +2288,11 @@ public partial class ImageViewer : UserControl
         for (var i = 0; i < set.Count; i++)
         {
             var shape = set.Shapes[i];
+
+            // Nothing is drawn of it to click.
+            if (shape.LabelOnly)
+                continue;
+
             var bounds = shape.Bounds;
 
             // Cheap reject first: a point outside the box cannot be near
@@ -3023,9 +3031,13 @@ public partial class ImageViewer : UserControl
     /// A round box - a circle round a single number - for a circle's or an
     /// ellipse's label, so it is not taken for a blob's square one.
     /// </param>
+    /// <param name="at">
+    /// Which part of the box sits on <paramref name="anchor"/>. Above Right,
+    /// the default, keeps it clear of what it labels, as a measurement's is.
+    /// </param>
     private void PlaceLabel(
         Canvas layer, string text, Point anchor, Brush brush, bool emphasised,
-        double pixel, string? font, bool round = false)
+        double pixel, string? font, bool round = false, LabelAnchor at = LabelAnchor.AboveRight)
     {
         var label = new Border
         {
@@ -3051,12 +3063,42 @@ public partial class ImageViewer : UserControl
             },
         };
 
-        // Offset in screen pixels, converted to image units: the label sits
-        // clear of the line without drifting as the zoom changes.
-        Canvas.SetLeft(label, anchor.X + (8 * pixel));
-        Canvas.SetTop(label, anchor.Y - (20 * pixel));
+        if (at == LabelAnchor.AboveRight)
+        {
+            // Offset in screen pixels, converted to image units: the label
+            // sits clear of the line without drifting as the zoom changes.
+            Canvas.SetLeft(label, anchor.X + (8 * pixel));
+            Canvas.SetTop(label, anchor.Y - (20 * pixel));
+        }
+        else
+        {
+            // The box's own size, scaled as it will be drawn, so the chosen
+            // corner or middle lands exactly on the point.
+            label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var (width, height) = (label.DesiredSize.Width * pixel, label.DesiredSize.Height * pixel);
+            var (across, down) = Fractions(at);
+
+            Canvas.SetLeft(label, anchor.X - (across * width));
+            Canvas.SetTop(label, anchor.Y - (down * height));
+        }
+
         layer.Children.Add(label);
     }
+
+    /// <summary>How far across and down the box its anchor is, 0 to 1.</summary>
+    internal static (double Across, double Down) Fractions(LabelAnchor at) => at switch
+    {
+        LabelAnchor.TopLeft => (0, 0),
+        LabelAnchor.TopCentre => (0.5, 0),
+        LabelAnchor.TopRight => (1, 0),
+        LabelAnchor.CentreLeft => (0, 0.5),
+        LabelAnchor.Centre => (0.5, 0.5),
+        LabelAnchor.CentreRight => (1, 0.5),
+        LabelAnchor.BottomLeft => (0, 1),
+        LabelAnchor.BottomCentre => (0.5, 1),
+        LabelAnchor.BottomRight => (1, 1),
+        _ => (0, 0),
+    };
 
     private static Line NewLine(Point a, Point b, Brush brush, double width) => new()
     {

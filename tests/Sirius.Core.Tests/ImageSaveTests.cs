@@ -279,6 +279,53 @@ public class ImageSaveTests : IDisposable
         });
 
     /// <summary>
+    /// The Label node's point is only where its words go: no cross is drawn
+    /// there, as one is for a found point.
+    /// </summary>
+    [Fact]
+    public void A_label_only_point_draws_its_words_and_no_mark() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var viewer = Viewer(
+                new PointShape(new Point2(500, 500)) { Label = "PASS", LabelSize = 40, LabelOnly = true },
+                new PointShape(new Point2(1500, 500)));
+
+            var saved = RenderWithOverlays(viewer);
+
+            Assert.Equal((0, 0, 0), PixelAt(saved, 500, 500));
+            Assert.True(IsGreen(PixelAt(saved, 1500, 500)), "A found point lost its cross");
+        });
+
+    /// <summary>
+    /// Anchored at a corner, that corner of the box is on the point; in the
+    /// middle, the point is inside it.
+    /// </summary>
+    [Fact]
+    public void A_label_sits_on_its_point_by_the_chosen_anchor() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var viewer = Viewer(
+                new PointShape(new Point2(500, 500))
+                {
+                    Label = "PASS", LabelSize = 40, LabelOnly = true, LabelAnchor = LabelAnchor.TopLeft,
+                },
+                new PointShape(new Point2(1500, 500))
+                {
+                    Label = "PASS", LabelSize = 40, LabelOnly = true, LabelAnchor = LabelAnchor.BottomRight,
+                });
+
+            var saved = RenderWithOverlays(viewer);
+
+            // Top left: the box runs right and down from the point.
+            Assert.NotEqual((0, 0, 0), PixelAt(saved, 506, 506));
+            Assert.Equal((0, 0, 0), PixelAt(saved, 494, 494));
+
+            // Bottom right: left and up.
+            Assert.NotEqual((0, 0, 0), PixelAt(saved, 1494, 494));
+            Assert.Equal((0, 0, 0), PixelAt(saved, 1506, 506));
+        });
+
+    /// <summary>
     /// Labels come too, in their box. They have no size until laid out, so
     /// a render that skipped layout would save the lines and lose the words.
     /// </summary>
