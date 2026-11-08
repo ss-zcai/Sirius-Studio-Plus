@@ -79,7 +79,9 @@ from you before they start.
 
 ### The runtime, HMI and PLC
 
-- **F2. Write the runtime design document** (M, design only). The
+- **F2. Write the runtime design document** (M, design only) - **draft
+  written 8 November 2026: `runtime-design.md`**, for review, with
+  proposals, phases and open questions (its section 12). The
   fourteen ideas agreed on 1 November - recipe vs project, published
   results and tunables, stations, the HMI designer, the runtime exe, PLC
   handshake and drivers, licensing per machine, edge vs cloud - into
