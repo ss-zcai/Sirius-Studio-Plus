@@ -2438,3 +2438,37 @@ keeps the first input image's bits when its type is the same, as the
 built-in tools do, so an OpenCV call on a 12-bit image - which returns a
 plain array - stays 12-bit. `with_bits(result, n)` says otherwise.
 `sirius_nodes` is 1.1.
+
+## 65. Published names: what a screen finds a recipe's values by
+
+The runtime MVP (runtime-design.md, section 0) binds screens to a recipe's
+outputs, settings and viewers. A binding to a node id breaks silently the
+day the node is replaced, and a screen cannot say what it meant to show.
+So a screen binds to a **name** the recipe publishes.
+
+- **A label, not a wire.** The name is kept on the node
+  (`VisionNode.Published`), as its colour and measurements are: no Publish
+  node, nothing wired, nothing in the graph changes. Saving, undo and
+  deleting a node needed nothing of their own. An output node like a
+  sub-graph's Graph Output was the alternative - everything published in
+  one place - but cost a wire per value, and a setting is not something
+  that is wired.
+- **Unique in the recipe**, across results, settings and views, ignoring
+  case, so "station › name" means one thing. Trimmed, at most 64
+  characters, no '›'.
+- **Kept when its member goes.** A name on an output or setting the node
+  no longer has is kept, listed as missing in Published Names, and
+  reported when the recipe opens; it can be moved or dropped there. A
+  name used twice - only a hand-edited file can - keeps the first.
+- **A pasted copy publishes nothing**: it is not what a screen was bound
+  to, and would clash.
+- **Cosmetic**: publishing is undoable and saved but recomputes nothing.
+- **Only the recipe's own graph** publishes. A name inside a sub-graph
+  waits for promoted parameters (backlog F5).
+
+In Studio: right-click a node, Publish, to publish an output, a setting or
+a viewer as a view; right-click a setting's name in the properties panel;
+Edit, Published Names, to list, rename and unpublish. A published name
+shows as a teal tag beside the output, the setting, or on the viewer's
+header. Binding a screen widget will publish automatically, with the
+member's own label as the offered name.

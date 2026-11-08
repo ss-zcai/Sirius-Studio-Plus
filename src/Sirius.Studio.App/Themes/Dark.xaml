@@ -17,6 +17,11 @@
     <SolidColorBrush x:Key="Surface.NodeHeader" Color="#3C3F45" />
     <SolidColorBrush x:Key="Surface.Border" Color="#4A4D55" />
     <SolidColorBrush x:Key="Accent" Color="#60A5FA" />
+
+    <!-- A published name's tag: on a port, a viewer's header, a setting. -->
+    <SolidColorBrush x:Key="Published.Background" Color="#1E3A40" />
+    <SolidColorBrush x:Key="Published.Border" Color="#2BB3C9" />
+    <SolidColorBrush x:Key="Published.Text" Color="#D9F2F7" />
     <SolidColorBrush x:Key="Text.Primary" Color="#E6E6E6" />
     <SolidColorBrush x:Key="Text.Secondary" Color="#9AA0A6" />
 
@@ -425,6 +430,20 @@
     <!-- Mirrored onto the node's right edge: label first, then socket. -->
     <ControlTemplate x:Key="OutputSocketTemplate" TargetType="nodify:NodeOutput">
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <!-- The name a screen reads this output by, when it is published. -->
+            <Border Margin="10,0,-4,0"
+                    Padding="4,0"
+                    CornerRadius="3"
+                    VerticalAlignment="Center"
+                    Background="{StaticResource Published.Background}"
+                    BorderBrush="{StaticResource Published.Border}"
+                    BorderThickness="1"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding IsPublished, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="{Binding PublishedName}"
+                           FontSize="10"
+                           Foreground="{StaticResource Published.Text}" />
+            </Border>
             <TextBlock Text="{Binding Title}"
                        Margin="10,0,3,0"
                        FontSize="11"

@@ -146,7 +146,25 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
+
+                                    <!-- The name a screen shows this viewer by, when it is published as a view. -->
+                                    <Border Grid.Column="2"
+                                            Margin="8,0,0,0"
+                                            Padding="4,0"
+                                            CornerRadius="3"
+                                            VerticalAlignment="Center"
+                                            Background="{StaticResource Published.Background}"
+                                            BorderBrush="{StaticResource Published.Border}"
+                                            BorderThickness="1"
+                                            ToolTip="Published as a view"
+                                            Visibility="{Binding IsPublishedView, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="{Binding ViewName}"
+                                                   FontSize="10"
+                                                   FontWeight="Normal"
+                                                   Foreground="{StaticResource Published.Text}" />
+                                    </Border>
 
                                     <Image Grid.Column="0"
                                            Source="{Binding IconKey, Converter={StaticResource IconKeyToImage}}"
@@ -182,7 +200,7 @@
                                         amber warning, red error. The message itself lives in
                                         the properties panel.
                                     -->
-                                    <Ellipse Grid.Column="2"
+                                    <Ellipse Grid.Column="3"
                                              Width="8"
                                              Height="8"
                                              Margin="10,0,2,0"
@@ -415,6 +433,10 @@
                             </Style>
                         </MenuItem.ItemContainerStyle>
                     </MenuItem>
+
+                    <MenuItem Header="_Published Names..."
+                              ToolTip="The names screens find this recipe's results, settings and views by."
+                              Click="OnPublishedNamesClick" />
 
                     <Separator />
 
@@ -862,11 +884,30 @@
                                             <DataTemplate DataType="{x:Type vm:ParameterViewModel}">
                                                 <StackPanel Margin="0,0,0,10"
                                                             Visibility="{Binding IsShown, Converter={StaticResource BoolToVisibility}}">
-                                                    <StackPanel Orientation="Horizontal">
+                                                    <!--
+                                                        Right-click the name to publish the setting for a
+                                                        screen; its published name shows as a tag beside it.
+                                                    -->
+                                                    <StackPanel Orientation="Horizontal"
+                                                                Background="Transparent"
+                                                                MouseRightButtonUp="OnParameterLabelRightClick">
                                                         <TextBlock Text="{Binding DisplayName}"
                                                                    Foreground="{StaticResource Text.Secondary}"
                                                                    FontSize="11"
                                                                    ToolTip="{Binding Description}" />
+                                                        <Border Margin="6,0,0,0"
+                                                                Padding="4,0"
+                                                                CornerRadius="3"
+                                                                VerticalAlignment="Center"
+                                                                Background="{StaticResource Published.Background}"
+                                                                BorderBrush="{StaticResource Published.Border}"
+                                                                BorderThickness="1"
+                                                                ToolTip="Published as a setting a screen can change"
+                                                                Visibility="{Binding IsPublished, Converter={StaticResource BoolToVisibility}}">
+                                                            <TextBlock Text="{Binding PublishedName}"
+                                                                       FontSize="10"
+                                                                       Foreground="{StaticResource Published.Text}" />
+                                                        </Border>
                                                         <!-- Shown while an upstream node supplies this value -->
                                                         <TextBlock Text="  (driven by connection)"
                                                                    FontSize="11"

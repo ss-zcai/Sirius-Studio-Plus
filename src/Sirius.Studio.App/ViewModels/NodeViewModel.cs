@@ -178,6 +178,11 @@ public sealed class NodeViewModel : ObservableObject
             option,
             option.Accent == Node.Accent)).ToArray();
 
+    /// <summary>The name this viewer is published under as a view, shown on its header, or null.</summary>
+    public string? ViewName => Publishing.NameOf(Node, PublishedKind.View, string.Empty)?.Name;
+
+    public bool IsPublishedView => ViewName is not null;
+
     private void OnNodePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
@@ -199,6 +204,13 @@ public sealed class NodeViewModel : ObservableObject
                 OnPropertyChanged(nameof(Accent));
                 OnPropertyChanged(nameof(AccentStyle));
                 OnPropertyChanged(nameof(AccentChoices));
+                break;
+            case nameof(VisionNode.Published):
+                foreach (var output in Outputs)
+                    output.RefreshPublished();
+
+                OnPropertyChanged(nameof(ViewName));
+                OnPropertyChanged(nameof(IsPublishedView));
                 break;
             case nameof(VisionNode.LastEvaluationTime):
                 OnPropertyChanged(nameof(TimingText));

@@ -72,4 +72,20 @@ public sealed class ConnectorViewModel : ObservableObject
         get => _isConnected;
         private set => SetProperty(ref _isConnected, value);
     }
+
+    /// <summary>
+    /// The name a screen reads this output by, shown as a tag beside it -
+    /// null for an input, or an output nothing publishes.
+    /// </summary>
+    public string? PublishedName =>
+        IsInput ? null : Publishing.NameOf(Node.Node, PublishedKind.Result, Port.Name)?.Name;
+
+    public bool IsPublished => PublishedName is not null;
+
+    /// <summary>Told by the node when its published names change.</summary>
+    internal void RefreshPublished()
+    {
+        OnPropertyChanged(nameof(PublishedName));
+        OnPropertyChanged(nameof(IsPublished));
+    }
 }

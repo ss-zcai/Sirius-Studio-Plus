@@ -91,6 +91,13 @@ public sealed class ParameterViewModel : ObservableObject
                 return;
             }
 
+            if (e.PropertyName == nameof(VisionNode.Published))
+            {
+                OnPropertyChanged(nameof(PublishedName));
+                OnPropertyChanged(nameof(IsPublished));
+                return;
+            }
+
             // A run placed the geometry again, so a drawing waiting for it
             // has been overtaken.
             if (e.PropertyName == nameof(VisionNode.Placements))
@@ -126,6 +133,14 @@ public sealed class ParameterViewModel : ObservableObject
 
     /// <summary>The node this parameter belongs to.</summary>
     public VisionNode Node => _node;
+
+    /// <summary>The setting's property name, as saved and as published.</summary>
+    public string Name => _descriptor.Name;
+
+    /// <summary>The name a screen changes this setting by, or null.</summary>
+    public string? PublishedName => Publishing.NameOf(_node, PublishedKind.Setting, _descriptor.Name)?.Name;
+
+    public bool IsPublished => PublishedName is not null;
 
     /// <summary>
     /// The label. Taken from the node when the parameter names a source for

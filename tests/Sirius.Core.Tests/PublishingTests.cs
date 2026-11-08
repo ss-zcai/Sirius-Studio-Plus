@@ -247,6 +247,65 @@ public class PublishingTests
         Assert.Single(Publishing.In(graph));
     }
 
+    // ---- the tags in Studio -------------------------------------------
+
+    [Fact]
+    public void An_output_tag_follows_the_node()
+    {
+        var (graph, _, tool, _) = Recipe();
+        var view = new Sirius.Studio.App.ViewModels.NodeViewModel(tool);
+        var output = view.Outputs.Single(connector => connector.Port.Name == "Out");
+        var raised = new List<string>();
+
+        output.PropertyChanged += (_, e) => raised.Add(e.PropertyName ?? string.Empty);
+
+        Assert.False(output.IsPublished);
+
+        Publishing.Publish(graph, tool, PublishedKind.Result, "Out", "Binary");
+
+        Assert.Equal("Binary", output.PublishedName);
+        Assert.Contains(nameof(output.PublishedName), raised);
+
+        // A setting's name is not an output's.
+        Assert.All(view.Inputs, input => Assert.Null(input.PublishedName));
+    }
+
+    [Fact]
+    public void A_setting_tag_follows_the_node()
+    {
+        var (graph, _, tool, _) = Recipe();
+        var view = new Sirius.Studio.App.ViewModels.NodeViewModel(tool);
+        var level = view.Parameters.Single(parameter => parameter.Name == nameof(ThresholdNode.Threshold));
+
+        Publishing.Publish(graph, tool, PublishedKind.Setting, nameof(ThresholdNode.Threshold), "Level");
+
+        Assert.Equal("Level", level.PublishedName);
+        Assert.All(view.Parameters.Where(parameter => parameter != level), other => Assert.False(other.IsPublished));
+    }
+
+    [Fact]
+    public void A_view_tag_follows_the_node()
+    {
+        var (graph, _, _, viewer) = Recipe();
+        var view = new Sirius.Studio.App.ViewModels.NodeViewModel(viewer);
+
+        Publishing.Publish(graph, viewer, PublishedKind.View, string.Empty, "Main View");
+
+        Assert.Equal("Main View", view.ViewName);
+        Assert.True(view.IsPublishedView);
+    }
+
+    /// <summary>The dialog offers the output's or setting's own label to start from.</summary>
+    [Fact]
+    public void The_offered_name_is_the_members_own_label()
+    {
+        var (_, _, tool, viewer) = Recipe();
+
+        Assert.Equal("Out", Sirius.Studio.App.PublishNameWindow.DefaultName(tool, PublishedKind.Result, "Out"));
+        Assert.Equal("Threshold", Sirius.Studio.App.PublishNameWindow.DefaultName(tool, PublishedKind.Setting, nameof(ThresholdNode.Threshold)));
+        Assert.Equal(viewer.Name, Sirius.Studio.App.PublishNameWindow.DefaultName(viewer, PublishedKind.View, string.Empty));
+    }
+
     // ---- undo, and nothing recomputed ------------------------------------
 
     [Fact]

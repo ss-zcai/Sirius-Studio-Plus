@@ -15,6 +15,7 @@ using AvalonDock.Layout.Serialization;
 using Sirius.Studio.App.Layout;
 using Nodify;
 using Sirius.Studio.App.ViewModels;
+using Sirius.Vision.Nodes;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Sirius.Studio.App;
@@ -1274,6 +1275,7 @@ public partial class MainWindow : Window
 
         menu.Items.Add(new Separator());
         menu.Items.Add(BuildAccentMenu(node));
+        menu.Items.Add(BuildPublishMenu(node));
 
         menu.IsOpen = true;
 
@@ -1322,6 +1324,124 @@ public partial class MainWindow : Window
         }
 
         return parent;
+    }
+
+    /// <summary>
+    /// The Publish submenu: each output, each setting, and a viewer itself,
+    /// the published ones checked with their names beside them.
+    /// </summary>
+    /// <remarks>
+    /// Only in the recipe's own graph. A name inside a sub-graph could not
+    /// be reached from a screen until promoted parameters say how.
+    /// </remarks>
+    private MenuItem BuildPublishMenu(NodeViewModel view)
+    {
+        var parent = new MenuItem { Header = "_Publish" };
+        var node = view.Node;
+
+        if (DataContext is not MainViewModel model || model.ActiveDocument.IsSubGraph)
+        {
+            parent.Items.Add(new MenuItem
+            {
+                Header = "Only in the recipe's own graph, not inside a sub-graph",
+                IsEnabled = false,
+            });
+
+            return parent;
+        }
+
+        var graph = model.MainDocument.Graph;
+
+        MenuItem Entry(string header, PublishedKind kind, string member)
+        {
+            var name = Publishing.NameOf(node, kind, member)?.Name;
+            var item = new MenuItem
+            {
+                Header = header,
+                IsCheckable = false,
+                IsChecked = name is not null,
+                InputGestureText = name ?? string.Empty,
+            };
+
+            item.Click += (_, _) => PublishNameWindow.Ask(this, graph, node, kind, member);
+            return item;
+        }
+
+        if (node is ViewerNode)
+            parent.Items.Add(Entry("This _View", PublishedKind.View, string.Empty));
+
+        foreach (var output in node.Outputs)
+            parent.Items.Add(Entry($"Output: {output.DisplayName}", PublishedKind.Result, output.Name));
+
+        var settings = node.Descriptor.Parameters.Where(p => !p.Attribute.Hidden).ToArray();
+
+        if (settings.Length > 0)
+        {
+            var group = new MenuItem { Header = "_Setting" };
+
+            foreach (var setting in settings)
+                group.Items.Add(Entry(setting.DisplayName, PublishedKind.Setting, setting.Name));
+
+            parent.Items.Add(group);
+        }
+
+        if (parent.Items.Count == 0)
+            parent.Items.Add(new MenuItem { Header = "Nothing to publish", IsEnabled = false });
+
+        parent.Items.Add(new Separator());
+
+        var list = new MenuItem { Header = "Published _Names..." };
+        list.Click += (_, _) => PublishedNamesWindow.Show(this, graph);
+        parent.Items.Add(list);
+
+        return parent;
+    }
+
+    private void OnPublishedNamesClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel model)
+            PublishedNamesWindow.Show(this, model.MainDocument.Graph);
+    }
+
+    /// <summary>
+    /// Right-click on a setting's name in the properties panel: publish it
+    /// for a screen to change, or rename or unpublish it.
+    /// </summary>
+    private void OnParameterLabelRightClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: ParameterViewModel parameter } element ||
+            DataContext is not MainViewModel model)
+        {
+            return;
+        }
+
+        e.Handled = true;
+
+        var menu = new ContextMenu { PlacementTarget = element };
+
+        if (!ReferenceEquals(parameter.Node.Graph, model.MainDocument.Graph))
+        {
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Publish: only in the recipe's own graph, not inside a sub-graph",
+                IsEnabled = false,
+            });
+        }
+        else
+        {
+            var item = new MenuItem
+            {
+                Header = parameter.IsPublished ? "_Published Name..." : "_Publish as Setting...",
+                InputGestureText = parameter.PublishedName ?? string.Empty,
+            };
+
+            item.Click += (_, _) => PublishNameWindow.Ask(
+                this, model.MainDocument.Graph, parameter.Node, PublishedKind.Setting, parameter.Name);
+
+            menu.Items.Add(item);
+        }
+
+        menu.IsOpen = true;
     }
 
     /// <summary>

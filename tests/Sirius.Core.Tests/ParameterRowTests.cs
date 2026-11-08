@@ -124,6 +124,9 @@ public class ParameterRowTests
 
             // Nor this: the whole row, offered only while an input is wired.
             .Append("IsShown")
+
+            // Nor this: the tag beside the name of a setting published for a screen.
+            .Append("IsPublished")
             .ToHashSet(StringComparer.Ordinal);
 
         var unknown = BoundFlags.Where(flag => !known.Contains(flag)).ToArray();
