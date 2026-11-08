@@ -46,6 +46,7 @@ public sealed class UndoRecorder : IDisposable
         nameof(VisionNode.Y),
         nameof(VisionNode.Accent),
         nameof(VisionNode.Measurements),
+        nameof(VisionNode.Published),
     ];
 
     /// <summary>
@@ -59,6 +60,7 @@ public sealed class UndoRecorder : IDisposable
         nameof(VisionNode.Y),
         nameof(VisionNode.Accent),
         nameof(VisionNode.Measurements),
+        nameof(VisionNode.Published),
     };
 
     private readonly VisionGraph _graph;
@@ -269,6 +271,9 @@ public sealed class UndoRecorder : IDisposable
 
         if (propertyName == nameof(VisionNode.Measurements))
             return "Measure";
+
+        if (propertyName == nameof(VisionNode.Published))
+            return "Publish";
 
         var parameter = node.Descriptor.Parameters
             .FirstOrDefault(candidate => candidate.Name == propertyName);

@@ -240,6 +240,7 @@ public class UndoStackTests
     [InlineData(nameof(VisionNode.X))]
     [InlineData(nameof(VisionNode.Accent))]
     [InlineData(nameof(VisionNode.Measurements))]
+    [InlineData(nameof(VisionNode.Published))]
     public void The_nodes_own_work_is_undoable(string property) =>
         Assert.Contains(property, UndoRecorder.UndoableProperties(new ThresholdNode()));
 

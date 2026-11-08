@@ -78,6 +78,18 @@ public sealed class NodeRecord
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Accent { get; set; }
 
+    /// <summary>
+    /// The names this node's outputs, settings or viewer are published
+    /// under, for screens.
+    /// </summary>
+    /// <remarks>
+    /// Omitted when there are none, so a recipe that publishes nothing is
+    /// unchanged, and opens in a build that predates publishing.
+    /// </remarks>
+    [JsonPropertyName("published")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<PublishedRecord>? Published { get; set; }
+
     [JsonPropertyName("x")]
     public double X { get; set; }
 
@@ -103,6 +115,25 @@ public sealed class NodeRecord
     [JsonPropertyName("graph")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public GraphDocument? Graph { get; set; }
+}
+
+/// <summary>One published name, as saved.</summary>
+public sealed class PublishedRecord
+{
+    /// <summary>
+    /// Result, Setting or View - a string, so a kind this build does not
+    /// know is skipped with a warning rather than failing the load.
+    /// </summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary>The output's or setting's name; absent for a view.</summary>
+    [JsonPropertyName("member")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string? Member { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
 }
 
 public sealed class ConnectionRecord

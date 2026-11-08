@@ -140,6 +140,11 @@ public static class GraphClipboard
 
         foreach (var node in pasted)
         {
+            // A copy is not what a screen was bound to, and its names would
+            // clash with the original's. Cleared before it joins the graph,
+            // so it is part of the paste rather than an edit of its own.
+            node.Published = [];
+
             node.Id = Guid.NewGuid().ToString("N");
             node.X += offset;
             node.Y += offset;

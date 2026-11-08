@@ -94,6 +94,16 @@ public static class GraphSerializer
                 Measurements = node.Measurements.Count == 0
                     ? null
                     : node.Measurements.Select(MeasurementDocument.From).ToList(),
+                Published = node.Published.Count == 0
+                    ? null
+                    : node.Published
+                        .Select(entry => new PublishedRecord
+                        {
+                            Kind = entry.Kind.ToString(),
+                            Member = string.IsNullOrEmpty(entry.Member) ? null : entry.Member,
+                            Name = entry.Name,
+                        })
+                        .ToList(),
             };
 
             foreach (var parameter in node.Descriptor.Parameters)
@@ -154,6 +164,7 @@ public static class GraphSerializer
         var graph = new VisionGraph();
         var warnings = new List<string>();
         var byId = new Dictionary<string, VisionNode>(StringComparer.Ordinal);
+        var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var record in document.Nodes)
         {
@@ -203,6 +214,9 @@ public static class GraphSerializer
                 var owner = record.Name ?? record.Id;
                 warnings.AddRange(inner.Warnings.Select(warning => $"In '{owner}': {warning}"));
             }
+
+            // After the graph inside: a sub-graph's outputs are its boundaries.
+            ApplyPublished(node, record, taken, warnings);
 
             // Set last: assigning parameters above would otherwise be recorded
             // against a node whose bypass state is not yet the saved one.
@@ -502,6 +516,54 @@ public static class GraphSerializer
     /// <summary>
     /// Restores the node's colouring, or leaves it the default.
     /// </summary>
+    /// <summary>
+    /// Restores a node's published names.
+    /// </summary>
+    /// <remarks>
+    /// A name naming an output or setting the node no longer has is kept -
+    /// the Published list shows it as missing, where it can be moved to the
+    /// right member or dropped - and said once here. A second use of a name,
+    /// which only a hand-edited file can hold, is dropped: a screen could not
+    /// tell which was meant.
+    /// </remarks>
+    private static void ApplyPublished(
+        VisionNode node, NodeRecord record, HashSet<string> taken, List<string> warnings)
+    {
+        if (record.Published is not { Count: > 0 } saved)
+            return;
+
+        var kept = new List<PublishedName>();
+
+        foreach (var entry in saved)
+        {
+            if (!Enum.TryParse<PublishedKind>(entry.Kind, out var kind))
+            {
+                warnings.Add($"'{node.Name}': published name '{entry.Name}' is of a kind this build does not know; dropped.");
+                continue;
+            }
+
+            var name = entry.Name?.Trim() ?? string.Empty;
+
+            if (name.Length == 0)
+                continue;
+
+            if (!taken.Add(name))
+            {
+                warnings.Add($"'{node.Name}': '{name}' is published twice in this recipe; the second was dropped.");
+                continue;
+            }
+
+            var published = new PublishedName(kind, kind == PublishedKind.View ? string.Empty : entry.Member ?? string.Empty, name);
+
+            if (!Publishing.Exists(node, published))
+                warnings.Add($"'{node.Name}' publishes '{name}' on '{published.Member}', which it no longer has.");
+
+            kept.Add(published);
+        }
+
+        node.Published = kept;
+    }
+
     private static void ApplyAccent(
         VisionNode node, NodeRecord record, List<string> warnings)
     {

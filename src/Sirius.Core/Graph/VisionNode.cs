@@ -153,6 +153,23 @@ public abstract class VisionNode : ObservableObject
         set => SetProperty(ref _accent, value);
     }
 
+    private IReadOnlyList<PublishedName> _published = [];
+
+    /// <summary>
+    /// The names this node's outputs, settings or viewer are published
+    /// under, for screens to find them by. See <see cref="Publishing"/>.
+    /// </summary>
+    /// <remarks>
+    /// Saved with the recipe and undoable; changes nothing the recipe
+    /// computes, so it does not invalidate. Set through
+    /// <see cref="Publishing.Publish"/>, which keeps names unique.
+    /// </remarks>
+    public IReadOnlyList<PublishedName> Published
+    {
+        get => _published;
+        set => SetProperty(ref _published, value ?? []);
+    }
+
     public NodeStatus Status
     {
         get => _status;
