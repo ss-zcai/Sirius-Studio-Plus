@@ -247,6 +247,27 @@ public class RingEditingTests
             CursorName(ImageViewer.ResizeCursorFor(degrees)),
             CursorName(ImageViewer.ResizeCursorFor(degrees - 180))));
 
+    /// <summary>
+    /// A turned region's resize arrows turn with it: at 90 degrees the top
+    /// edge stands upright on screen and moves left and right.
+    /// </summary>
+    [Theory]
+    [InlineData((int)(ImageViewer.Edge.Top), 0, "SizeNS")]
+    [InlineData((int)(ImageViewer.Edge.Left), 0, "SizeWE")]
+    [InlineData((int)(ImageViewer.Edge.Top), 10, "SizeNS")]
+    [InlineData((int)(ImageViewer.Edge.Top), 90, "SizeWE")]
+    [InlineData((int)(ImageViewer.Edge.Bottom), 90, "SizeWE")]
+    [InlineData((int)(ImageViewer.Edge.Left), 90, "SizeNS")]
+    [InlineData((int)(ImageViewer.Edge.Right), -90, "SizeNS")]
+    [InlineData((int)(ImageViewer.Edge.Top), 270, "SizeWE")]
+    [InlineData((int)(ImageViewer.Edge.Top), 45, "SizeNESW")]
+    [InlineData((int)(ImageViewer.Edge.Right | ImageViewer.Edge.Bottom), 0, "SizeNWSE")]
+    [InlineData((int)(ImageViewer.Edge.Right | ImageViewer.Edge.Bottom), 90, "SizeNESW")]
+    [InlineData((int)(ImageViewer.Edge.Left | ImageViewer.Edge.Top), 180, "SizeNWSE")]
+    public void A_turned_region_turns_its_resize_cursor(int edge, double angle, string expected) =>
+        WpfTestHost.OnStaThread(() =>
+            Assert.Equal(expected, CursorName(ImageViewer.RegionResizeCursor((ImageViewer.Edge)edge, angle))));
+
     private static string CursorName(System.Windows.Input.Cursor cursor) =>
         typeof(System.Windows.Input.Cursors)
             .GetProperties(BindingFlags.Public | BindingFlags.Static)

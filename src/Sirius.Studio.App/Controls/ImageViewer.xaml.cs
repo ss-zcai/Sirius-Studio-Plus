@@ -3258,16 +3258,44 @@ public partial class ImageViewer : UserControl
             return;
         }
 
-        Surface.Cursor = HitTestRoi(screen) switch
+        var edge = HitTestRoi(screen);
+
+        Surface.Cursor = edge switch
         {
             Edge.Rotate => Cursors.Hand,
-            Edge.Left or Edge.Right => Cursors.SizeWE,
-            Edge.Top or Edge.Bottom => Cursors.SizeNS,
-            Edge.Left | Edge.Top or Edge.Right | Edge.Bottom => Cursors.SizeNWSE,
-            Edge.Right | Edge.Top or Edge.Left | Edge.Bottom => Cursors.SizeNESW,
             Edge.Inside => Cursors.SizeAll,
-            _ => PickMeasurement(screen) is null ? Cursors.Cross : Cursors.Hand,
+            Edge.None => PickMeasurement(screen) is null ? Cursors.Cross : Cursors.Hand,
+            _ => RegionResizeCursor(edge, RoiAngle),
         };
+    }
+
+    /// <summary>
+    /// The resize cursor for an edge or corner of a region turned by
+    /// <paramref name="angle"/> degrees.
+    /// </summary>
+    /// <remarks>
+    /// The arrow points the way the grabbed side moves, which turns with the
+    /// region: a region turned 90 degrees has its top edge upright on the
+    /// screen, and that edge moves left and right. A fixed arrow per edge
+    /// was right only near 0 and 180 degrees.
+    /// </remarks>
+    internal static Cursor RegionResizeCursor(Edge edge, double angle)
+    {
+        // Outward bearing of each side in the region's own frame, Y down.
+        double? bearing = edge switch
+        {
+            Edge.Right => 0,
+            Edge.Right | Edge.Bottom => 45,
+            Edge.Bottom => 90,
+            Edge.Left | Edge.Bottom => 135,
+            Edge.Left => 180,
+            Edge.Left | Edge.Top => 225,
+            Edge.Top => 270,
+            Edge.Right | Edge.Top => 315,
+            _ => null,
+        };
+
+        return bearing is { } b ? ResizeCursorFor(b + angle) : Cursors.Arrow;
     }
 
     /// <summary>How far above the region the turning knob sits, in image units.</summary>
