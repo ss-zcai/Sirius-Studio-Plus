@@ -99,6 +99,9 @@ public sealed class MainViewModel : ObservableObject
 
         NewGraphCommand = new RelayCommand(NewGraph);
         OpenGraphCommand = new RelayCommand(OpenGraph);
+        NewProjectCommand = new RelayCommand(NewProject);
+        OpenProjectCommand = new RelayCommand(OpenProject);
+        CloseProjectCommand = new RelayCommand(CloseProject, () => Project is not null);
         SaveGraphCommand = new RelayCommand(() => SaveGraph());
         SaveGraphAsCommand = new RelayCommand(() => SaveGraphAs());
         RunCommand = new RelayCommand(RunEverything);
@@ -496,6 +499,33 @@ public sealed class MainViewModel : ObservableObject
 
     public IRelayCommand SaveGraphAsCommand { get; }
 
+    /// <summary>Makes a project folder, its first station starting from the recipe open now if wanted.</summary>
+    public IRelayCommand NewProjectCommand { get; }
+
+    public IRelayCommand OpenProjectCommand { get; }
+
+    /// <summary>Closes the project, leaving an empty recipe.</summary>
+    public IRelayCommand CloseProjectCommand { get; }
+
+    private ProjectViewModel? _project;
+
+    /// <summary>The open project, or null when a recipe is open on its own.</summary>
+    public ProjectViewModel? Project
+    {
+        get => _project;
+        private set
+        {
+            if (!SetProperty(ref _project, value))
+                return;
+
+            OnPropertyChanged(nameof(HasProject));
+            CloseProjectCommand.NotifyCanExecuteChanged();
+            RefreshTitle();
+        }
+    }
+
+    public bool HasProject => Project is not null;
+
     public IRelayCommand UndoCommand { get; }
 
     public IRelayCommand RedoCommand { get; }
@@ -712,9 +742,13 @@ public sealed class MainViewModel : ObservableObject
 
     public string Title =>
         (IsModified ? "*" : string.Empty) +
-        (_currentFilePath is null
-            ? "Sirius Studio Plus"
-            : $"Sirius Studio Plus - {Path.GetFileName(_currentFilePath)}");
+        (Project?.ActiveStation is { } station
+            ? $"Sirius Studio Plus - {Project.Name} › {station.Name}"
+            : _currentFilePath is null
+                ? Project is null ? "Sirius Studio Plus" : $"Sirius Studio Plus - {Project.Name}"
+                : $"Sirius Studio Plus - {Path.GetFileName(_currentFilePath)}");
+
+    internal void RefreshTitle() => OnPropertyChanged(nameof(Title));
 
     /// <summary>
     /// A small working graph, so the editor is not empty on launch: a file
@@ -772,7 +806,7 @@ public sealed class MainViewModel : ObservableObject
 
         var answer = Dialog.Ask(
             _currentFilePath is null
-                ? "Save this project before closing it?"
+                ? "Save this recipe before closing it?"
                 : $"Save changes to {Path.GetFileName(_currentFilePath)}?",
             "Unsaved changes");
 
@@ -1092,9 +1126,10 @@ public sealed class MainViewModel : ObservableObject
         if (!ConfirmDiscard())
             return;
 
+        Project = null;
         _currentFilePath = null;
         LoadGraph(CreateEmptyGraph());
-        StatusText = "New graph created.";
+        StatusText = "New recipe created.";
     }
 
     private void OpenGraph()
@@ -1111,31 +1146,171 @@ public sealed class MainViewModel : ObservableObject
         if (dialog.ShowDialog() != true)
             return;
 
+        // A recipe opened on its own is not one of the project's stations.
+        if (OpenRecipeFile(dialog.FileName))
+            Project = null;
+    }
+
+    /// <summary>
+    /// Puts a recipe file in the editor, with its panel arrangement. Does
+    /// not ask to save the one there: the caller already has.
+    /// </summary>
+    /// <returns>Whether it opened.</returns>
+    internal bool OpenRecipeFile(string path)
+    {
         try
         {
-            var result = GraphSerializer.Load(dialog.FileName);
-            _currentFilePath = dialog.FileName;
+            var result = GraphSerializer.Load(path);
+            _currentFilePath = path;
             LoadGraph(result.Graph);
 
             // After the graph, because the layout places panels by id and
             // they do not exist until the graph that owns them is loaded.
-            LayoutRestoreRequested?.Invoke(this, LayoutPathFor(dialog.FileName));
+            LayoutRestoreRequested?.Invoke(this, LayoutPathFor(path));
 
             StatusText = result.HasWarnings
                 ? $"Loaded with {result.Warnings.Count} warning(s)."
-                : $"Loaded {Path.GetFileName(dialog.FileName)}.";
+                : $"Loaded {Path.GetFileName(path)}.";
 
             if (result.HasWarnings)
             {
                 Dialog.Warn(
                     string.Join(Environment.NewLine, result.Warnings),
-                    "Graph loaded with warnings");
+                    "Recipe loaded with warnings");
             }
+
+            return true;
         }
         catch (Exception ex)
         {
-            Dialog.Error(ex.Message, "Could not open graph");
+            Dialog.Error(ex.Message, "Could not open recipe");
+            return false;
         }
+    }
+
+    /// <summary>
+    /// File - New Project: a folder chosen and named, with one station - the
+    /// recipe open now, if it has anything in it and that is wanted.
+    /// </summary>
+    private void NewProject()
+    {
+        if (!ConfirmDiscard())
+            return;
+
+        var dialog = new SaveFileDialog
+        {
+            Filter = "Sirius Project (*.sproj)|*.sproj",
+            DefaultExt = Sirius.Core.Projects.Project.Extension,
+            Title = "New Project - a folder of this name is made here",
+            FileName = "New Project",
+            OverwritePrompt = false,
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var parent = Path.GetDirectoryName(dialog.FileName)!;
+        var name = Path.GetFileNameWithoutExtension(dialog.FileName);
+
+        if (Sirius.Core.Projects.Project.FileNameProblem(name) is { } problem)
+        {
+            Dialog.Warn(problem, "New Project");
+            return;
+        }
+
+        VisionGraph? first = null;
+
+        if (_graph.Nodes.Count > 0)
+        {
+            var answer = Dialog.Ask(
+                "Start the project's first station from the recipe open now?\n\n" +
+                "Yes copies it into the project; No starts the station empty.",
+                "New Project");
+
+            if (answer == MessageBoxResult.Cancel || answer == MessageBoxResult.None)
+                return;
+
+            if (answer == MessageBoxResult.Yes)
+                first = _graph;
+        }
+
+        try
+        {
+            var project = Sirius.Core.Projects.Project.Create(parent, name, first);
+            Show(new ProjectViewModel(project, this));
+            StatusText = $"Made project {project.Name} in {project.Folder}.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Dialog.Error(ex.Message, "Could not make the project");
+        }
+    }
+
+    private void OpenProject()
+    {
+        if (!ConfirmDiscard())
+            return;
+
+        var dialog = new OpenFileDialog
+        {
+            Filter = "Sirius Project (*.sproj)|*.sproj",
+            Title = "Open Project",
+        };
+
+        if (dialog.ShowDialog() == true)
+            OpenProjectFile(dialog.FileName);
+    }
+
+    /// <summary>Opens a project file and its first station. Does not ask to save the recipe open now.</summary>
+    internal bool OpenProjectFile(string path)
+    {
+        try
+        {
+            var loaded = Sirius.Core.Projects.Project.Load(path);
+            Show(new ProjectViewModel(loaded.Project, this));
+
+            if (loaded.Warnings.Count > 0)
+                Dialog.Warn(string.Join(Environment.NewLine, loaded.Warnings), "Project opened with warnings");
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
+        {
+            Dialog.Error(ex.Message, "Could not open project");
+            return false;
+        }
+    }
+
+    /// <summary>Makes <paramref name="project"/> the open one, with its first station in the editor.</summary>
+    private void Show(ProjectViewModel project)
+    {
+        Project = project;
+        project.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ProjectViewModel.ActiveStation))
+                RefreshTitle();
+        };
+
+        project.OpenFirst();
+
+        if (project.ActiveStation is null)
+        {
+            _currentFilePath = null;
+            LoadGraph(CreateEmptyGraph());
+        }
+
+        RefreshTitle();
+    }
+
+    private void CloseProject()
+    {
+        if (Project is null || !ConfirmDiscard())
+            return;
+
+        Project = null;
+        _currentFilePath = null;
+        LoadGraph(CreateEmptyGraph());
+        StatusText = "Project closed.";
     }
 
     /// <summary>
@@ -1155,7 +1330,7 @@ public sealed class MainViewModel : ObservableObject
         {
             Filter = "Sirius Graph (*.sgraph)|*.sgraph",
             DefaultExt = ".sgraph",
-            Title = "Save Project As",
+            Title = "Save Recipe As",
             FileName = _currentFilePath is null ? "recipe.sgraph" : Path.GetFileName(_currentFilePath),
         };
 
@@ -1178,6 +1353,7 @@ public sealed class MainViewModel : ObservableObject
 
             _currentFilePath = path;
             MarkSaved();
+            Project?.Follow(path);
             OnPropertyChanged(nameof(Title));
             StatusText = $"Saved {Path.GetFileName(path)}.";
             return true;

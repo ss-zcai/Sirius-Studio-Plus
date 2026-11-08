@@ -2472,3 +2472,40 @@ Edit, Published Names, to list, rename and unpublish. A published name
 shows as a teal tag beside the output, the setting, or on the viewer's
 header. Binding a screen widget will publish automatically, with the
 member's own label as the offered name.
+
+## 66. Projects: a folder of stations
+
+The runtime MVP's second step (runtime-design.md, section 0). A project
+is what an SI builds for a machine; Studio opens either a lone recipe, as
+before, or a project.
+
+- **A folder.** File - New Project asks where and what to call it, and
+  makes `<name>/<name>.sproj` and `recipes/` beside it. The folder is
+  copied to the machine as it is, so recipes are kept inside it: Add from
+  Recipe copies one in rather than pointing at it.
+- **Stations.** In the MVP a station is a named recipe, its camera inside
+  it. Names are unique ignoring case; they are what screens will show.
+  Each station's recipe is its own `.sgraph`, named after the station when
+  it was added and never renamed with it - renaming a station is a label
+  change, not a file move.
+- **One recipe in the editor at a time.** Double-click a station to open
+  its recipe; the one there is offered for saving first, exactly as
+  opening a recipe always was. Several stations open side by side can
+  come with the runtime's need for them.
+- **The project file is written on every change** - a station added,
+  renamed, moved or removed - so there is no unsaved project to lose.
+  Recipes are saved as they always were.
+- **Removing a station keeps its recipe file.** Tidying a list must not
+  delete work; Add from Recipe brings it back.
+- **The first station can start from the recipe open** when the project
+  is made, since that is usually why a project is being made.
+- **A recipe opened or made on its own closes the project.** Saving a
+  station's recipe under another name leaves the project open with no
+  station active: that file is not the station's.
+- A hand-edited file naming a recipe outside the folder is refused; one
+  whose recipe has gone is listed, marked, and skipped when opening.
+
+The File menu's recipe items, which were called New / Open / Save
+Project, are now New / Open / Save Recipe; Project means this. The
+Project panel sits above the Toolbox, and is put back beside it when a
+layout saved before it existed is restored.

@@ -71,9 +71,9 @@ own JSON layout (section 7), not XAML.
 
 **Order of work**, each step usable and tested before the next:
 
-1. Published names in the recipe: the label on outputs, settings and
+1. **Done 8 November 2026** (decision 65). Published names in the recipe: the label on outputs, settings and
    viewers, saved in the `.sgraph`; the port tag; the Published list.
-2. The project: file, stations, New / Open Project in Studio, a project
+2. **Done 8 November 2026** (decision 66). The project: file, stations, New / Open Project in Studio, a project
    tree, opening a station's recipe in the graph tab.
 3. The station runner, without any UI: load a recipe, Trigger, Run / Stop,
    counts, a snapshot of its published values after each inspection.

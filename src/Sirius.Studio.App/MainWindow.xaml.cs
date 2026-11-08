@@ -655,6 +655,42 @@ public partial class MainWindow : Window
     private void RestoreLayout() => RestoreLayout(_layoutPath);
 
     /// <summary>
+    /// Puts one of the shell's own panels back, as a tab beside another,
+    /// when a restored layout left it out.
+    /// </summary>
+    private void EnsureShellPanel(string contentId, string besides)
+    {
+        var all = Docking.Layout.Descendents().OfType<LayoutAnchorable>().ToArray();
+
+        if (all.Any(anchorable => anchorable.ContentId == contentId) ||
+            !_panelContent.TryGetValue(contentId, out var content) ||
+            all.FirstOrDefault(anchorable => anchorable.ContentId == besides)?.Parent is not LayoutAnchorablePane pane)
+        {
+            return;
+        }
+
+        pane.Children.Insert(0, new LayoutAnchorable
+        {
+            ContentId = contentId,
+            Title = _panelTitles.GetValueOrDefault(contentId, contentId),
+            Content = content,
+            CanClose = false,
+        });
+    }
+
+    /// <summary>Double-clicking a station opens its recipe.</summary>
+    private void OnStationDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is MainViewModel { Project: { } project } &&
+            (e.OriginalSource as DependencyObject) is { } source &&
+            FindDataContext<StationViewModel>(source) is { } station)
+        {
+            project.OpenStationCommand.Execute(station);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
     /// Puts the panels back where a saved layout says they belong.
     /// </summary>
     /// <remarks>
@@ -695,6 +731,10 @@ public partial class MainWindow : Window
             // Anything the restore dropped - a panel the layout did not
             // mention - still needs a home.
             SyncNodeAnchorables();
+
+            // A layout saved before the Project panel existed does not
+            // mention it either, and the restore drops it.
+            EnsureShellPanel("project", besides: "toolbox");
         }
         catch (Exception)
         {
