@@ -8,6 +8,81 @@ open. Change anything; strike what is wrong.
 Marked **Agreed** where it was settled in discussion, **Proposed** where it
 is mine to argue for, **Open** where it needs an answer from you.
 
+**Start with section 0**, the MVP agreed on 8 November. Sections 1-13 are
+the longer view it must not close doors on.
+
+---
+
+## 0. The MVP (agreed 8 November 2026)
+
+Three parts only: **acquire, inspect, publish**. Get the process flowing
+first; PLC, I/O, user levels, records and upload come after.
+
+- **Acquire** is the recipe's own source - its Camera node, a virtual
+  camera, or an Image Sequence for the desk. No station-level trigger
+  yet: a **Trigger** button on the screen runs one inspection, exactly as
+  Run does in Studio, and a **Run / Stop** button runs continuously.
+- **Inspect** is the recipe, unchanged.
+- **Publish** is what the screen shows, plus counts. Counts start from
+  zero each start; saving them when stopped comes later. Result Log and
+  image saving work as they do now, as nodes in the recipe.
+
+**A project, built in Studio.** Studio opens either a lone recipe, as
+today, or a project: a folder holding the project file, its recipes and
+its screens, copied to the machine as it is.
+
+- A project has **stations**. In the MVP a station is a named recipe -
+  the camera is inside it. Several stations run side by side, each with
+  its own camera and inspection, e.g. two cameras with two recipes.
+- One screen may show any station's values and images: Camera 1's image
+  and verdict beside Camera 2's.
+
+**Published names.** A screen finds what it shows by name, never by node.
+
+- Binding a widget to an output - *Measure 1 › Distance* - labels that
+  output `Distance` in the recipe, automatically and editably. Nothing in
+  the graph changes: no wire, no node. The port shows a small tag with the
+  name.
+- Viewers ("Main View") and settings are labelled the same way.
+- A screen stores *station › name*. Replacing a node means giving the new
+  output the same name; a name no longer found is reported when the
+  project opens.
+- A **Published** list shows every name, its node, and what uses it.
+
+**Settings changed on the line, chosen at design time.** In Studio you
+pick which settings appear on the screen, each with a range at most the
+node's own. On the line only those change, only within that range. The
+changed values are kept in a small file beside the recipe and applied when
+it loads; the recipe itself is not rewritten.
+
+**The screen designer** is a free-form canvas - drag, resize, snap to a
+grid - with these widgets: image view with its overlays, PASS/FAIL, value
+readout, counter with reset, button (Trigger, Run/Stop, Reset counts; per
+station or all), setting control, text and logo. Screens are saved as our
+own JSON layout (section 7), not XAML.
+
+**Running it.**
+
+- **Run as Runtime** in Studio opens the screen in a window exactly as the
+  operator will see it, for testing while designing.
+- **The runtime** is a separate program that opens a project, goes full
+  screen and runs it, without Studio. It edits nothing; closing it needs at
+  least a simple lock.
+
+**Order of work**, each step usable and tested before the next:
+
+1. Published names in the recipe: the label on outputs, settings and
+   viewers, saved in the `.sgraph`; the port tag; the Published list.
+2. The project: file, stations, New / Open Project in Studio, a project
+   tree, opening a station's recipe in the graph tab.
+3. The station runner, without any UI: load a recipe, Trigger, Run / Stop,
+   counts, a snapshot of its published values after each inspection.
+   Proved with two simulated or virtual cameras grabbing at once.
+4. Screens: the JSON model, the widgets, the runtime program, Run as
+   Runtime.
+5. The screen designer canvas in Studio.
+6. Settings on the line, with the file of changed values.
+
 ---
 
 ## 1. What it is for
