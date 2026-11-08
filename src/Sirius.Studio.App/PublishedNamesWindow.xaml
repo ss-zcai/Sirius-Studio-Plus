@@ -31,11 +31,15 @@
 
         <ListView x:Name="Items"
                   Grid.Row="1"
+                  Background="{StaticResource Surface.Panel}"
+                  BorderBrush="{StaticResource Surface.Border}"
+                  Foreground="{StaticResource Text.Primary}"
+                  ItemContainerStyle="{StaticResource DarkListViewItem}"
                   SelectionMode="Single"
                   MouseDoubleClick="OnRename"
                   SelectionChanged="OnSelectionChanged">
             <ListView.View>
-                <GridView>
+                <GridView ColumnHeaderContainerStyle="{StaticResource DarkGridViewHeader}">
                     <GridViewColumn Header="Name" Width="170" DisplayMemberBinding="{Binding Name}" />
                     <GridViewColumn Header="Kind" Width="70" DisplayMemberBinding="{Binding Kind}" />
                     <GridViewColumn Header="From" Width="230" DisplayMemberBinding="{Binding Source}" />

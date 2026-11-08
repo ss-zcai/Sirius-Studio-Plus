@@ -65,6 +65,66 @@ public static class PanelLayout
         root.RootPanel?.Children.Add(pane);
     }
 
+    /// <summary>
+    /// Puts <paramref name="anchorable"/> in a pane of its own above the
+    /// pane holding <paramref name="besides"/> - the Project panel above the
+    /// Toolbox, where the default layout has it.
+    /// </summary>
+    /// <remarks>
+    /// For a layout saved before the panel existed, which the restore leaves
+    /// it out of. The new pane is filled before it joins the layout, as in
+    /// <see cref="Attach"/>. Where the other pane is somewhere this cannot
+    /// stack under - floating, say - it goes in as a tab beside it instead.
+    /// </remarks>
+    /// <returns>False when <paramref name="besides"/> is not in the layout, and nothing was done.</returns>
+    public static bool PlaceAbove(LayoutRoot root, LayoutAnchorable anchorable, string besides, double height)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(anchorable);
+
+        if (root.Descendents().OfType<LayoutAnchorable>().FirstOrDefault(a => a.ContentId == besides)?.Parent
+            is not LayoutAnchorablePane below)
+        {
+            return false;
+        }
+
+        var pane = new LayoutAnchorablePane { DockHeight = new GridLength(height) };
+        pane.Children.Add(anchorable);
+
+        switch (below.Parent)
+        {
+            case LayoutAnchorablePaneGroup { Orientation: Orientation.Vertical } column:
+                column.InsertChildAt(column.IndexOfChild(below), pane);
+                break;
+
+            case ILayoutGroup parent and (LayoutPanel or LayoutAnchorablePaneGroup):
+            {
+                var index = parent.IndexOfChild(below);
+                var column = new LayoutAnchorablePaneGroup
+                {
+                    Orientation = Orientation.Vertical,
+                    DockWidth = below.DockWidth,
+                };
+
+                // Filled, then swapped in for the pane below, which then
+                // goes back in underneath.
+                column.Children.Add(pane);
+                parent.ReplaceChildAt(index, column);
+
+                below.DockHeight = new GridLength(1, GridUnitType.Star);
+                column.Children.Add(below);
+                break;
+            }
+
+            default:
+                pane.Children.Remove(anchorable);
+                below.Children.Insert(0, anchorable);
+                break;
+        }
+
+        return true;
+    }
+
     /// <summary>Size given to a freshly floated panel.</summary>
     public static readonly Size DefaultFloatingSize = new(640, 420);
 

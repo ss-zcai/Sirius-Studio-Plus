@@ -428,6 +428,84 @@
     </ControlTemplate>
 
     <!-- Mirrored onto the node's right edge: label first, then socket. -->
+    <!--
+        List rows in the theme's colours. The stock rows draw dark text and a
+        pale blue selection, which on this background left the text all but
+        unreadable.
+    -->
+    <Style x:Key="DarkListBoxItem" TargetType="ListBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource Text.Primary}" />
+        <Setter Property="Padding" Value="4,2" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Bd"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Surface.Node}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#2A3546" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#5B8DD6" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The same for a list with columns: the row presenter lays out the cells. -->
+    <Style x:Key="DarkListViewItem" TargetType="ListViewItem">
+        <Setter Property="Foreground" Value="{StaticResource Text.Primary}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                    <Border x:Name="Bd"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            BorderThickness="1"
+                            Padding="0,2">
+                        <GridViewRowPresenter Columns="{TemplateBinding GridView.ColumnCollection}"
+                                              Content="{TemplateBinding Content}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Surface.Node}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#2A3546" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#5B8DD6" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DarkGridViewHeader" TargetType="GridViewColumnHeader">
+        <Setter Property="Foreground" Value="{StaticResource Text.Secondary}" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridViewColumnHeader">
+                    <Border Background="{StaticResource Surface.Panel}"
+                            BorderBrush="{StaticResource Surface.Border}"
+                            BorderThickness="0,0,1,1"
+                            Padding="6,3">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <ControlTemplate x:Key="OutputSocketTemplate" TargetType="nodify:NodeOutput">
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <!-- The name a screen reads this output by, when it is published. -->

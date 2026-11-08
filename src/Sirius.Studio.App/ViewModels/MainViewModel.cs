@@ -750,6 +750,13 @@ public sealed class MainViewModel : ObservableObject
 
     internal void RefreshTitle() => OnPropertyChanged(nameof(Title));
 
+    /// <summary>An empty, unnamed recipe in the editor. Does not ask to save the one there: the caller already has.</summary>
+    internal void ClearRecipe()
+    {
+        _currentFilePath = null;
+        LoadGraph(CreateEmptyGraph());
+    }
+
     /// <summary>
     /// A small working graph, so the editor is not empty on launch: a file
     /// source, grayscale conversion, a threshold, a histogram tap and a viewer.

@@ -146,6 +146,70 @@ public sealed class ProjectStudioTests : IDisposable
         });
     }
 
+    /// <summary>
+    /// Removing the station that is open takes its recipe out of the editor
+    /// too, and opens the next one.
+    /// </summary>
+    [Fact]
+    public void Removing_the_open_station_opens_the_next()
+    {
+        var project = TwoStations();
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = new MainViewModel();
+            model.OpenProjectFile(project.FilePath);
+
+            model.Project!.RemoveConfirmed(model.Project.Stations[0]);
+
+            var left = Assert.Single(model.Project.Stations);
+            Assert.Same(left, model.Project.ActiveStation);
+            Assert.Equal(2, model.MainDocument.Graph.Nodes.Count);
+            Assert.EndsWith("› Bottom", model.Title, StringComparison.Ordinal);
+        });
+    }
+
+    /// <summary>With no station left, the editor is left empty.</summary>
+    [Fact]
+    public void Removing_the_last_station_empties_the_editor()
+    {
+        var project = Project.Create(_root, "Solo", null, "Only");
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = new MainViewModel();
+            model.OpenProjectFile(project.FilePath);
+            model.MainDocument.Graph.Add(new ThresholdNode());
+            model.SaveGraphCommand.Execute(null);
+
+            model.Project!.RemoveConfirmed(model.Project.Stations[0]);
+
+            Assert.Empty(model.Project.Stations);
+            Assert.Null(model.Project.ActiveStation);
+            Assert.Empty(model.MainDocument.Graph.Nodes);
+            Assert.Equal("Sirius Studio Plus - Solo", model.Title);
+        });
+    }
+
+    /// <summary>Removing another station leaves the open one where it is.</summary>
+    [Fact]
+    public void Removing_another_station_keeps_the_open_one()
+    {
+        var project = TwoStations();
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = new MainViewModel();
+            model.OpenProjectFile(project.FilePath);
+            var top = model.Project!.ActiveStation!;
+
+            model.Project.RemoveConfirmed(model.Project.Stations[1]);
+
+            Assert.Equal(top.Station, model.Project.ActiveStation?.Station);
+            Assert.Single(model.MainDocument.Graph.Nodes);
+        });
+    }
+
     /// <summary>A station whose recipe has gone is listed, marked, and not opened first.</summary>
     [Fact]
     public void A_station_with_a_missing_recipe_is_marked_and_skipped()

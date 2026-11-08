@@ -228,15 +228,35 @@ public sealed class ProjectViewModel : ObservableObject
 
         var answer = Dialog.Confirm(
             $"Remove station '{station.Name}' from the project?\n\n" +
-            $"Its recipe stays in the project's recipes folder ({Path.GetFileName(station.RecipePath)}), " +
+            $"Its recipe file stays in the project's recipes folder ({Path.GetFileName(station.RecipePath)}), " +
             "and can be added back with Add from Recipe.",
             "Remove Station");
 
-        if (!answer)
+        if (answer)
+            RemoveConfirmed(station);
+    }
+
+    /// <summary>Removes a station once the operator has said so.</summary>
+    internal void RemoveConfirmed(StationViewModel station)
+    {
+        // Its recipe goes from the editor with it - offered for saving
+        // first - and the next station's takes its place.
+        var wasOpen = ReferenceEquals(station, ActiveStation);
+
+        if (wasOpen && !_shell.ConfirmDiscard())
             return;
 
-        // Its recipe stays open in the editor, now as a recipe of its own.
         Guard(() => Project.RemoveStation(station.Station), "Remove Station");
+
+        if (wasOpen)
+        {
+            ActiveStation = null;
+            OpenFirst();
+
+            if (ActiveStation is null)
+                _shell.ClearRecipe();
+        }
+
         _shell.RefreshTitle();
     }
 

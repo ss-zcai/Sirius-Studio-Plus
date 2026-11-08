@@ -655,27 +655,36 @@ public partial class MainWindow : Window
     private void RestoreLayout() => RestoreLayout(_layoutPath);
 
     /// <summary>
-    /// Puts one of the shell's own panels back, as a tab beside another,
-    /// when a restored layout left it out.
+    /// Puts one of the shell's own panels back, in a pane of its own above
+    /// another's, when a restored layout left it out - where the default
+    /// layout has it.
     /// </summary>
+    /// <remarks>
+    /// The new pane is filled before it joins the layout: AvalonDock prunes
+    /// an empty pane as it is attached (see <see cref="PanelLayout.Attach"/>).
+    /// Where the other panel's pane is somewhere this cannot stack under -
+    /// floating, say - it goes in as a tab beside it instead.
+    /// </remarks>
     private void EnsureShellPanel(string contentId, string besides)
     {
         var all = Docking.Layout.Descendents().OfType<LayoutAnchorable>().ToArray();
 
         if (all.Any(anchorable => anchorable.ContentId == contentId) ||
             !_panelContent.TryGetValue(contentId, out var content) ||
-            all.FirstOrDefault(anchorable => anchorable.ContentId == besides)?.Parent is not LayoutAnchorablePane pane)
+            all.All(anchorable => anchorable.ContentId != besides))
         {
             return;
         }
 
-        pane.Children.Insert(0, new LayoutAnchorable
+        var anchorable = new LayoutAnchorable
         {
             ContentId = contentId,
             Title = _panelTitles.GetValueOrDefault(contentId, contentId),
             Content = content,
             CanClose = false,
-        });
+        };
+
+        PanelLayout.PlaceAbove(Docking.Layout, anchorable, besides, height: 180);
     }
 
     /// <summary>Double-clicking a station opens its recipe.</summary>

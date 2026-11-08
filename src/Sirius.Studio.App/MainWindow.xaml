@@ -684,7 +684,7 @@
                         station's recipe is in the editor at a time; double-click
                         another to open it.
                     -->
-                    <avalonDock:LayoutAnchorablePane DockHeight="190">
+                    <avalonDock:LayoutAnchorablePane DockHeight="180">
                         <avalonDock:LayoutAnchorable Title="Project"
                                                      ContentId="project"
                                                      CanClose="False">
@@ -729,6 +729,8 @@
                                              ItemsSource="{Binding Stations}"
                                              Background="Transparent"
                                              BorderThickness="0"
+                                             Foreground="{StaticResource Text.Primary}"
+                                             ItemContainerStyle="{StaticResource DarkListBoxItem}"
                                              MouseDoubleClick="OnStationDoubleClick">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate DataType="{x:Type vm:StationViewModel}">

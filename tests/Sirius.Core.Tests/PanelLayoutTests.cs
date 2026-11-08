@@ -49,6 +49,58 @@ public class PanelLayoutTests
         root.Descendents().OfType<LayoutAnchorable>().Contains(anchorable);
 
     /// <summary>
+    /// A layout saved before the Project panel existed gets it back above the
+    /// Toolbox, in a pane of its own, as the default layout has it - not as
+    /// a tab the Toolbox has to share.
+    /// </summary>
+    [Fact]
+    public void A_missing_shell_panel_goes_above_the_toolbox()
+    {
+        var (root, _) = BuildShell(wrapGraphVertically: true);
+        var project = Panel("project");
+
+        Assert.True(PanelLayout.PlaceAbove(root, project, "toolbox", 180));
+
+        var toolbox = root.Descendents().OfType<LayoutAnchorable>().Single(a => a.ContentId == "toolbox");
+        var column = Assert.IsType<LayoutAnchorablePaneGroup>(toolbox.Parent!.Parent);
+
+        Assert.Equal(Orientation.Vertical, column.Orientation);
+        Assert.Equal(2, column.ChildrenCount);
+        Assert.Same(project.Parent, column.Children[0]);
+        Assert.Same(toolbox.Parent, column.Children[1]);
+        Assert.Single(((LayoutAnchorablePane)project.Parent!).Children);
+        Assert.True(IsInLayout(root, project));
+    }
+
+    /// <summary>Where the column already exists, the pane joins it at the top.</summary>
+    [Fact]
+    public void A_missing_shell_panel_joins_an_existing_column()
+    {
+        var toolboxPane = new LayoutAnchorablePane(new LayoutAnchorable { ContentId = "toolbox" });
+        var column = new LayoutAnchorablePaneGroup { Orientation = Orientation.Vertical };
+        column.Children.Add(toolboxPane);
+
+        var horizontal = new LayoutPanel { Orientation = Orientation.Horizontal };
+        horizontal.Children.Add(column);
+        horizontal.Children.Add(new LayoutDocumentPane(new LayoutDocument { ContentId = "graph" }));
+        var root = new LayoutRoot { RootPanel = horizontal };
+
+        var project = Panel("project");
+        PanelLayout.PlaceAbove(root, project, "toolbox", 180);
+
+        Assert.Equal(2, column.ChildrenCount);
+        Assert.Same(project.Parent, column.Children[0]);
+    }
+
+    [Fact]
+    public void Nothing_is_placed_when_the_toolbox_is_not_there()
+    {
+        var root = new LayoutRoot();
+
+        Assert.False(PanelLayout.PlaceAbove(root, Panel("project"), "toolbox", 180));
+    }
+
+    /// <summary>
     /// The regression: attaching a pane to the layout before putting the panel
     /// in it leaves the pane empty at that moment, and AvalonDock prunes it -
     /// so the panel silently never appears.
