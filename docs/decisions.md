@@ -2509,3 +2509,43 @@ The File menu's recipe items, which were called New / Open / Save
 Project, are now New / Open / Save Recipe; Project means this. The
 Project panel sits above the Toolbox, and is put back beside it when a
 layout saved before it existed is restored.
+
+## 67. The station runner: acquire, inspect, publish
+
+The runtime MVP's third step (runtime-design.md, section 0), with no
+screen: `Sirius.Core.Runtime.StationRunner` runs one station's recipe,
+`ProjectRuntime` every station of a project side by side.
+
+- **Trigger** inspects once; **Start** inspects part after part until
+  **Stop**, which finishes the inspection in hand. A trigger while
+  running, or a second Start, is refused rather than queued.
+- **Acquire is the recipe's own source.** Its Camera grabs on each
+  inspection, as in Studio's Run Continuously. A recipe reading an Image
+  Sequence steps to the next image on each inspection, round to the first
+  after the last, so a folder stands in for a camera at the desk.
+- **Inspect** is `InspectAsync`, so Counter and Result Log work as they do
+  in a folder run.
+- **Publish** is an `InspectionSnapshot`: the verdict, timing, node
+  errors, and every published name's value - a result's output, a
+  setting's value, a view's picture and overlays (`ViewFrame`). The
+  station also keeps its own counts (total, passed, failed, unjudged,
+  with errors), from zero at each start, separate from Counter nodes.
+- **Pictures belong to the station** and are valid only until its next
+  inspection: the scheduler disposes what it replaces. So the station
+  awaits its `Inspected` handler before inspecting again, and a screen
+  draws or copies there - the rule `LiveDisplay` already follows. Copying
+  every picture into every snapshot would cost a 5 MP copy per view per
+  part for screens that mostly show one.
+- **Faults and errors.** A recipe that will not open, or will not run (a
+  cycle), faults the station, which is kept and says why rather than
+  vanishing from the screen. A node failing - a camera not found - is an
+  inspection with errors: counted, its message in `LastError`, and a
+  running station backs off (up to a second) while every inspection fails,
+  rather than spinning on the same failure. A published name whose member
+  has gone is listed in `Problems` and does not stop the station.
+- **Two cameras at once.** Each station has its own scheduler and
+  inspects on its own worker. Proved with a test driver's two cameras,
+  whose grabs overlapped, and with two Hikrobot virtual cameras (5 MP
+  colour and 2.3 MP mono) running in two stations together: 26 and 21
+  frames in 2.3 s, no errors. Opening and closing still take turns through
+  the SDK gate (decision 60); grabbing does not.

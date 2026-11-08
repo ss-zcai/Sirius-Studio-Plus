@@ -75,7 +75,7 @@ own JSON layout (section 7), not XAML.
    viewers, saved in the `.sgraph`; the port tag; the Published list.
 2. **Done 8 November 2026** (decision 66). The project: file, stations, New / Open Project in Studio, a project
    tree, opening a station's recipe in the graph tab.
-3. The station runner, without any UI: load a recipe, Trigger, Run / Stop,
+3. **Done 8 November 2026** (decision 67). The station runner, without any UI: load a recipe, Trigger, Run / Stop,
    counts, a snapshot of its published values after each inspection.
    Proved with two simulated or virtual cameras grabbing at once.
 4. Screens: the JSON model, the widgets, the runtime program, Run as

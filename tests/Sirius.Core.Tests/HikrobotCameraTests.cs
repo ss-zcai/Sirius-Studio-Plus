@@ -142,6 +142,71 @@ public class HikrobotCameraTests
         Assert.Throws<ObjectDisposedException>(() => camera.Exposure = 1234);
     }
 
+    /// <summary>
+    /// Two stations, each with its own Hikrobot camera, running at once -
+    /// the runtime MVP's two-camera case (runtime design, section 0, step
+    /// 3). Needs two virtual cameras in MVS; passes having checked nothing
+    /// with fewer.
+    /// </summary>
+    [Fact]
+    public void Two_stations_run_two_hikrobot_cameras_at_once()
+    {
+        if (Hikrobot() is not { } driver)
+            return;
+
+        var cameras = Virtual(driver).Take(2).ToArray();
+
+        if (cameras.Length < 2)
+            return;
+
+        Sirius.Core.Runtime.StationRunner Station(CameraInfo info)
+        {
+            var graph = new VisionGraph();
+            var node = new CameraNode { Device = info.Label, Trigger = CameraTrigger.Software };
+            graph.Add(node);
+
+            var previous = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+            try
+            {
+                return new Sirius.Core.Runtime.StationRunner(info.Serial, graph);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+            }
+        }
+
+        using var first = Station(cameras[0]);
+        using var second = Station(cameras[1]);
+
+        try
+        {
+            first.Start();
+            second.Start();
+
+            var clock = Stopwatch.StartNew();
+
+            while ((first.Counts.Total < 20 || second.Counts.Total < 20) && clock.Elapsed < TimeSpan.FromSeconds(30))
+                Thread.Sleep(20);
+
+            Task.WhenAll(first.StopAsync(), second.StopAsync()).GetAwaiter().GetResult();
+
+            Assert.True(first.Counts.Total >= 20, $"{cameras[0].Label}: {first.Counts.Total} frames, {first.LastError}");
+            Assert.True(second.Counts.Total >= 20, $"{cameras[1].Label}: {second.Counts.Total} frames, {second.LastError}");
+            Assert.Equal(0, first.Counts.WithErrors);
+            Assert.Equal(0, second.Counts.WithErrors);
+        }
+        finally
+        {
+            foreach (var info in cameras)
+            {
+                if (CameraDrivers.Acquire(info.Label) is { } camera)
+                    CameraDrivers.Release(camera);
+            }
+        }
+    }
+
     [Fact]
     public void The_camera_node_takes_frames_from_a_hikrobot_camera()
     {
