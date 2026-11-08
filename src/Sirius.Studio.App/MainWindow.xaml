@@ -518,24 +518,24 @@
                 BorderThickness="0,1,0,1"
                 Padding="6,4">
             <StackPanel Orientation="Horizontal">
-                <!-- Project -->
+                <!-- Recipe -->
                 <Button Style="{StaticResource ToolbarButton}"
-                        ToolTip="New project (Ctrl+N)"
+                        ToolTip="New recipe (Ctrl+N)"
                         Command="{Binding NewGraphCommand}">
                     <Image Source="{StaticResource Icon.ph_new}" Width="18" Height="18" />
                 </Button>
                 <Button Style="{StaticResource ToolbarButton}"
-                        ToolTip="Open project (Ctrl+O)"
+                        ToolTip="Open recipe (Ctrl+O)"
                         Command="{Binding OpenGraphCommand}">
                     <Image Source="{StaticResource Icon.ph_open}" Width="18" Height="18" />
                 </Button>
                 <Button Style="{StaticResource ToolbarButton}"
-                        ToolTip="Save project (Ctrl+S)"
+                        ToolTip="Save recipe (Ctrl+S)"
                         Command="{Binding SaveGraphCommand}">
                     <Image Source="{StaticResource Icon.ph_save}" Width="18" Height="18" />
                 </Button>
                 <Button Style="{StaticResource ToolbarButton}"
-                        ToolTip="Save project as…"
+                        ToolTip="Save recipe as…"
                         Command="{Binding SaveGraphAsCommand}">
                     <Image Source="{StaticResource Icon.ph_save_as}" Width="18" Height="18" />
                 </Button>
@@ -688,18 +688,56 @@
                         <avalonDock:LayoutAnchorable Title="Project"
                                                      ContentId="project"
                                                      CanClose="False">
-                            <Grid Margin="6">
-                                <!-- No project open -->
-                                <StackPanel Visibility="{Binding HasProject, Converter={StaticResource InverseBoolToVisibility}}">
-                                    <TextBlock TextWrapping="Wrap"
-                                               FontSize="11"
-                                               Foreground="{StaticResource Text.Secondary}"
-                                               Text="No project is open. A project holds stations - each a camera and its recipe - and the screens an operator will see." />
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                        <Button Content="New Project…" Command="{Binding NewProjectCommand}" />
-                                        <Button Content="Open Project…" Margin="6,0,0,0" Command="{Binding OpenProjectCommand}" />
-                                    </StackPanel>
+                            <DockPanel>
+                                <!--
+                                    The panel's own toolbar: making and opening projects
+                                    always, the station buttons while one is open.
+                                -->
+                                <StackPanel DockPanel.Dock="Top"
+                                            Orientation="Horizontal"
+                                            Margin="4,4,4,2">
+                                    <Button Style="{StaticResource PanelToolButton}"
+                                            ToolTip="New project…"
+                                            Command="{Binding NewProjectCommand}">
+                                        <Image Source="{StaticResource Icon.ph_new}" Width="15" Height="15" />
+                                    </Button>
+                                    <Button Style="{StaticResource PanelToolButton}"
+                                            ToolTip="Open project…"
+                                            Command="{Binding OpenProjectCommand}">
+                                        <Image Source="{StaticResource Icon.ph_open}" Width="15" Height="15" />
+                                    </Button>
+                                    <Separator Margin="4,3" />
+                                    <Button Style="{StaticResource PanelToolButton}"
+                                            ToolTip="Add a station with an empty recipe"
+                                            IsEnabled="{Binding HasProject}"
+                                            Command="{Binding Project.AddStationCommand}">
+                                        <Path Data="M7,1 L7,13 M1,7 L13,7"
+                                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                              StrokeThickness="1.6"
+                                              Width="14"
+                                              Height="14" />
+                                    </Button>
+                                    <Button Style="{StaticResource PanelToolButton}"
+                                            ToolTip="Add a station running a copy of an existing recipe…"
+                                            IsEnabled="{Binding HasProject}"
+                                            Command="{Binding Project.ImportRecipeCommand}">
+                                        <Image Source="{StaticResource Icon.ph_copy}" Width="15" Height="15" />
+                                    </Button>
+                                    <Separator Margin="4,3" />
+                                    <Button Style="{StaticResource PanelToolButton}"
+                                            ToolTip="Close the project"
+                                            Command="{Binding CloseProjectCommand}">
+                                        <Image Source="{StaticResource Icon.ph_clear}" Width="13" Height="13" />
+                                    </Button>
                                 </StackPanel>
+
+                            <Grid Margin="6">
+                                <!-- No project open: what a project is. -->
+                                <TextBlock TextWrapping="Wrap"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Text.Secondary}"
+                                           Visibility="{Binding HasProject, Converter={StaticResource InverseBoolToVisibility}}"
+                                           Text="No project is open. A project holds stations - each a camera and its recipe - and the screens an operator will see. Make one or open one with the buttons above." />
 
                                 <!-- The project's stations -->
                                 <DockPanel DataContext="{Binding Project}"
@@ -714,16 +752,6 @@
                                                FontSize="10"
                                                Margin="0,4,0,2"
                                                Foreground="{StaticResource Text.Secondary}" />
-
-                                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
-                                        <Button Content="Add Station"
-                                                ToolTip="A new station with an empty recipe."
-                                                Command="{Binding AddStationCommand}" />
-                                        <Button Content="Add from Recipe…"
-                                                Margin="6,0,0,0"
-                                                ToolTip="A new station running a copy of an existing recipe, copied into the project."
-                                                Command="{Binding ImportRecipeCommand}" />
-                                    </StackPanel>
 
                                     <ListBox x:Name="StationList"
                                              ItemsSource="{Binding Stations}"
@@ -783,6 +811,7 @@
                                     </ListBox>
                                 </DockPanel>
                             </Grid>
+                            </DockPanel>
                         </avalonDock:LayoutAnchorable>
                     </avalonDock:LayoutAnchorablePane>
                     <avalonDock:LayoutAnchorablePane DockWidth="230">
