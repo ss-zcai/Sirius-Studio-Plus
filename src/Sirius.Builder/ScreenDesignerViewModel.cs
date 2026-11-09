@@ -82,7 +82,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         UndoCommand = new RelayCommand(Undo, () => _undo.Count > 0);
         RedoCommand = new RelayCommand(Redo, () => _redo.Count > 0);
         SaveCommand = new RelayCommand(() => Save());
-        ResetCommand = new RelayCommand(ResetToStandard);
+        ResetCommand = new RelayCommand(AskThenReset);
 
         Check();
     }
@@ -478,6 +478,24 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         {
             StatusText = $"Could not save the screen: {ex.Message}";
             return false;
+        }
+    }
+
+    /// <summary>Asks the operator a yes-or-no question; replaced in tests.</summary>
+    internal Func<string, bool> Confirm { get; set; } =
+        question => Sirius.Studio.App.Dialog.Confirm(question, "Reset to Standard", System.Windows.Application.Current?.MainWindow);
+
+    /// <summary>
+    /// Screen - Reset to Standard: asks first, since it replaces every
+    /// widget placed by hand. Undo still brings the design back.
+    /// </summary>
+    private void AskThenReset()
+    {
+        if (Confirm("Replace this screen with the standard one made from the stations?\n\n" +
+                    "Every widget placed by hand is replaced. Undo (Ctrl+Z) brings the design back; " +
+                    "nothing is written until the screen is saved."))
+        {
+            ResetToStandard();
         }
     }
 

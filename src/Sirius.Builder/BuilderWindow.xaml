@@ -212,22 +212,11 @@
 
                 <Separator />
 
-                <!-- The screen and the stations -->
-                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Lay the screen out again from what the stations publish" Command="{Binding Designer.ResetCommand}">
-                    <TextBlock Text="Reset to Standard" Style="{StaticResource ToolbarLabel}" />
-                </Button>
-                <Button Style="{StaticResource ToolbarTextButton}"
-                        ToolTip="Open the selected station's recipe in Sirius Studio"
-                        Command="{Binding OpenInStudioCommand}"
-                        CommandParameter="{Binding SelectedStation}">
-                    <StackPanel Orientation="Horizontal">
-                        <Image Source="{StaticResource Icon.ph_sub_graph}" Width="18" Height="18" />
-                        <TextBlock Text="Open in Studio" Style="{StaticResource ToolbarLabel}" />
-                    </StackPanel>
-                </Button>
-
-                <Separator />
-
+                <!--
+                    Reset to Standard is in the Screen menu only, where it
+                    asks first: on the toolbar a stray click replaced the
+                    whole design. Open in Studio is on the Stations panel.
+                -->
                 <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Test-run the project on its saved screen, as Sirius Edge will (F5)" Command="{Binding TestRunCommand}">
                     <StackPanel Orientation="Horizontal">
                         <Image Source="{StaticResource Icon.ph_run}" Width="18" Height="18" />

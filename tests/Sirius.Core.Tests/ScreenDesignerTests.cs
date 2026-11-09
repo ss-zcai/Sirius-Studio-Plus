@@ -413,6 +413,31 @@ public sealed class ScreenDesignerTests : IDisposable
         });
     }
 
+    /// <summary>The menu's Reset to Standard asks first: answered No, the design stays.</summary>
+    [Fact]
+    public void Reset_to_standard_from_the_menu_asks_first()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var (_, recipes) = TwoStations();
+            var designer = new ScreenDesignerViewModel(recipes);
+            var asked = 0;
+            var answer = false;
+            designer.Confirm = _ => { asked++; return answer; };
+
+            designer.Add(WidgetKind.Logo);
+            var count = designer.Widgets.Count;
+
+            designer.ResetCommand.Execute(null);
+            Assert.Equal(1, asked);
+            Assert.Equal(count, designer.Widgets.Count);
+
+            answer = true;
+            designer.ResetCommand.Execute(null);
+            Assert.Equal(count - 1, designer.Widgets.Count);
+        });
+    }
+
     /// <summary>Builder's window builds - its stations, the designer's templates, the palette, the properties - for a real project.</summary>
     [Fact]
     public void The_builder_window_builds()
