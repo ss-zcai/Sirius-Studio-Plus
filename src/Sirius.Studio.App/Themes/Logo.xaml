@@ -5,8 +5,8 @@
       python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Logo.xaml "res/Sirius Stu.svg" "res/Sirius Studio Plus.svg" "res/Sirius Builder.svg" "res/Sirius Edge.svg"
 
     Each icon is a DrawingImage keyed Icon.<file stem>, keeping the
-    artwork's own colours; the toolbar set is multi-coloured, so a
-    single tintable Geometry would lose the design.
+    artwork's own colours - a white glyph over a dark keyline, or the
+    logo's gradients - so a single tintable Geometry would lose them.
 -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
