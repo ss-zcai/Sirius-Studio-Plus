@@ -102,6 +102,7 @@ public sealed class MainViewModel : ObservableObject
         NewProjectCommand = new RelayCommand(NewProject);
         OpenProjectCommand = new RelayCommand(OpenProject);
         CloseProjectCommand = new RelayCommand(CloseProject, () => Project is not null);
+        RunAsRuntimeCommand = new RelayCommand(RunAsRuntime, () => Project is not null);
         SaveGraphCommand = new RelayCommand(() => SaveGraph());
         SaveGraphAsCommand = new RelayCommand(() => SaveGraphAs());
         RunCommand = new RelayCommand(RunEverything);
@@ -507,6 +508,48 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Closes the project, leaving an empty recipe.</summary>
     public IRelayCommand CloseProjectCommand { get; }
 
+    /// <summary>Shows the project running on its screen, as the operator will see it.</summary>
+    public IRelayCommand RunAsRuntimeCommand { get; }
+
+    /// <summary>
+    /// Run as Runtime: the project's screen, running every station from its
+    /// saved recipe, in a window over Studio until closed.
+    /// </summary>
+    /// <remarks>
+    /// The runtime reads recipes from disk, as the runtime program will, so
+    /// unsaved changes to the recipe in the editor are offered for saving
+    /// first. A run in Studio is stopped first: the runtime opens the same
+    /// cameras.
+    /// </remarks>
+    private void RunAsRuntime()
+    {
+        if (Project is not { } project)
+            return;
+
+        if (IsBatching)
+        {
+            Dialog.Inform("Stop running in Studio first: the runtime uses the same cameras.", "Run as Runtime");
+            return;
+        }
+
+        if (IsModified)
+        {
+            var answer = Dialog.Ask(
+                "The runtime runs the recipes as saved. Save the changes to this recipe first?",
+                "Run as Runtime");
+
+            if (answer is MessageBoxResult.Cancel or MessageBoxResult.None)
+                return;
+
+            if (answer == MessageBoxResult.Yes && !SaveGraph())
+                return;
+        }
+
+        StatusText = $"Running {project.Name} as the runtime…";
+        Screens.RuntimeWindow.ShowWindowed(Application.Current?.MainWindow, project.Project);
+        StatusText = "Runtime closed.";
+    }
+
     private ProjectViewModel? _project;
 
     /// <summary>The open project, or null when a recipe is open on its own.</summary>
@@ -520,6 +563,7 @@ public sealed class MainViewModel : ObservableObject
 
             OnPropertyChanged(nameof(HasProject));
             CloseProjectCommand.NotifyCanExecuteChanged();
+            RunAsRuntimeCommand.NotifyCanExecuteChanged();
             RefreshTitle();
         }
     }

@@ -2549,3 +2549,53 @@ screen: `Sirius.Core.Runtime.StationRunner` runs one station's recipe,
   colour and 2.3 MP mono) running in two stations together: 26 and 21
   frames in 2.3 s, no errors. Opening and closing still take turns through
   the SDK gate (decision 60); grabbing does not.
+
+## 68. Screens, the runtime program, and Run as Runtime
+
+The runtime MVP's fourth step (runtime-design.md, section 0).
+
+- **A screen is our own JSON layout** (`Sirius.Core.Screens.Screen`,
+  `screens/Main.screen` in the project): widgets on a canvas of the
+  screen's own size - 1280 by 800 unless changed - scaled as a whole to
+  the display, so a layout looks the same on any monitor. Widgets: Text,
+  Image (a published view with its overlays, or a published image),
+  Verdict, Value, Counter, Button (Trigger, Run/Stop, Reset Counts, for one
+  station or all), Setting, Logo. Each binds to "station › name".
+- **The standard screen.** Until the designer (step 5) exists - and
+  afterwards, for a project nobody has laid out - the screen is generated
+  from what the stations publish: a title and all-station buttons along
+  the top; a column per station with its name, picture, PASS/FAIL, counts,
+  its own Trigger and Run, then its results and settings, as many as fit.
+  A generated screen is marked so, saved, and made again each time it is
+  shown, so it follows stations and names as they change; one edited by
+  hand is kept. An unreadable screen file is reported, left alone, and a
+  standard screen shown.
+- **Checked when shown.** A widget naming a station or a published name
+  that is not there, or a setting that is a result, is listed along the
+  bottom of the runtime, with stations that would not load. A station
+  that would not load shows FAULT in its verdict.
+- **Pictures follow at the screen's pace**, per station, as Studio's live
+  display does (decision 55): values follow every inspection, pictures at
+  up to 30 a second and less when drawing is slow, drawn in the station's
+  Inspected handler. A frame skipped when a run stops is drawn then, from
+  the inspection it stopped on. The picture is Studio's own viewer in a
+  display-only mode - no toolbar or status bar, always fitted - so shapes
+  and labels draw exactly as in Studio.
+- **Stop finishes the inspection in hand.** It had cancelled it, which
+  also freed the previous inspection's pictures with nothing in their
+  place; found by the screen tests. A trigger's own token can still cut
+  one short, and then the station forgets its last inspection.
+- **The runtime program** is `SiriusRuntime.exe` (src/Sirius.Runtime), its
+  own program so a machine can have it without Studio and, later, be
+  licensed apart. It is one call into Studio's assembly
+  (`RuntimeLauncher`): the same theme, screens, camera drivers and custom
+  nodes, so a recipe judges the same in both. `SiriusRuntime.exe
+  project.sproj` runs full screen; `--windowed` in a window; with no
+  project it asks for one. Closing asks first - always full screen, and in
+  a window while a station runs - and stops every station, finishing the
+  inspection in hand. Published beside Studio by pack.ps1.
+- **Run as Runtime** in Studio (Project panel, File menu) shows the
+  project's screen running, in a window over Studio, until closed. It runs
+  the recipes as saved - the runtime program will - so unsaved changes are
+  offered for saving first; and refuses while Studio itself is running,
+  since both would open the same cameras.

@@ -214,6 +214,34 @@ public partial class ImageViewer : UserControl
         UpdateHint();
     }
 
+    /// <summary>
+    /// A picture to look at and nothing more - an operator's screen - with
+    /// no toolbar, no status bar, and the picture fitted to the control
+    /// whenever its size changes.
+    /// </summary>
+    public static readonly DependencyProperty IsDisplayOnlyProperty = DependencyProperty.Register(
+        nameof(IsDisplayOnly),
+        typeof(bool),
+        typeof(ImageViewer),
+        new FrameworkPropertyMetadata(false, OnIsDisplayOnlyChanged));
+
+    public bool IsDisplayOnly
+    {
+        get => (bool)GetValue(IsDisplayOnlyProperty);
+        set => SetValue(IsDisplayOnlyProperty, value);
+    }
+
+    private static void OnIsDisplayOnlyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var viewer = (ImageViewer)d;
+        var chrome = (bool)e.NewValue ? Visibility.Collapsed : Visibility.Visible;
+
+        viewer.ToolbarBar.Visibility = chrome;
+        viewer.StatusBar.Visibility = chrome;
+        viewer.EmptyHint.Text = (bool)e.NewValue ? "No picture yet" : "Open an image to begin.";
+        viewer.FitToWindow();
+    }
+
     public static readonly DependencyProperty ImageSourceProperty = DependencyProperty.Register(
         nameof(ImageSource),
         typeof(BitmapSource),
@@ -653,7 +681,9 @@ public partial class ImageViewer : UserControl
 
     private void OnSurfaceSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (_lastImageSize != Size.Empty && SceneTransform.Matrix.IsIdentity)
+        // On a screen the picture always fills its place: there is no zoom
+        // of the operator's to keep.
+        if (_lastImageSize != Size.Empty && (SceneTransform.Matrix.IsIdentity || IsDisplayOnly))
             FitToWindow();
     }
 

@@ -1,0 +1,415 @@
+using System.IO;
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
+using Sirius.Core.Graph;
+using Sirius.Core.Projects;
+using Sirius.Core.Runtime;
+using Sirius.Core.Screens;
+using Sirius.Studio.App.Screens;
+using Sirius.Vision.Nodes;
+using Xunit;
+
+namespace Sirius.Core.Tests;
+
+/// <summary>
+/// Screens: the layout file, the standard screen made from what stations
+/// publish, and a screen running against them (runtime MVP step 4).
+/// </summary>
+[Collection(WpfCollection.Name)]
+public sealed class ScreenTests : IDisposable
+{
+    private readonly string _folder = Path.Combine(Path.GetTempPath(), "sirius-screen-" + Guid.NewGuid().ToString("N"));
+
+    public ScreenTests(WpfTestHost host)
+    {
+        _ = host;
+        TestCatalog.Ensure();
+        Directory.CreateDirectory(_folder);
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            Directory.Delete(_folder, recursive: true);
+        }
+        catch (Exception)
+        {
+            // A leftover temp folder is not worth failing a run over.
+        }
+    }
+
+    /// <summary>
+    /// A folder of a dark and a bright image; Region Stats' mean published
+    /// as "Brightness"; a check passing up to 128, its Maximum published as
+    /// "Limit"; a viewer published as "Main View".
+    /// </summary>
+    private VisionGraph Recipe(string images = "images")
+    {
+        var folder = Path.Combine(_folder, images);
+        Directory.CreateDirectory(folder);
+
+        foreach (var (name, value) in new[] { ("1.png", 50), ("2.png", 200) })
+        {
+            using var mat = new Mat(300, 400, DepthType.Cv8U, 1);
+            mat.SetTo(new MCvScalar(value));
+            CvInvoke.Imwrite(Path.Combine(folder, name), mat);
+        }
+
+        var graph = new VisionGraph();
+        var source = new ImageSequenceNode { SourcePath = folder };
+        var stats = new RegionStatsNode();
+        var check = new LimitCheckNode { Minimum = 0, Maximum = 128 };
+        var viewer = new ViewerNode();
+
+        foreach (var node in new VisionNode[] { source, stats, check, viewer })
+            graph.Add(node);
+
+        graph.TryConnect(source.ImageOut, stats.ImageIn);
+        graph.TryConnect(source.ImageOut, viewer.ImageIn);
+        graph.TryConnect(stats.MeanOut, check.Inputs.Single(port => port.Name == nameof(LimitCheckNode.Value)));
+        graph.TryConnect(stats.ShapesOut, viewer.ShapesIn);
+
+        Publishing.Publish(graph, stats, PublishedKind.Result, "Mean", "Brightness");
+        Publishing.Publish(graph, check, PublishedKind.Setting, nameof(LimitCheckNode.Maximum), "Limit");
+        Publishing.Publish(graph, viewer, PublishedKind.View, string.Empty, "Main View");
+
+        return graph;
+    }
+
+    private static StationRunner Runner(string name, VisionGraph recipe) => new(name, recipe);
+
+    // ---- the file -----------------------------------------------------
+
+    [Fact]
+    public void A_screen_survives_saving_and_opening()
+    {
+        var screen = new Screen
+        {
+            Name = "Main",
+            Widgets =
+            {
+                new Widget { Kind = WidgetKind.Value, X = 10, Y = 20, Width = 200, Height = 30, Station = "Top", Name = "Diameter", Format = "0.00", Unit = "mm" },
+                new Widget { Kind = WidgetKind.Button, Action = WidgetAction.RunStop },
+            },
+        };
+
+        var path = Path.Combine(_folder, "Main.screen");
+        screen.Save(path);
+        var loaded = Screen.Load(path);
+
+        Assert.Equal(2, loaded.Widgets.Count);
+        Assert.Equal("Diameter", loaded.Widgets[0].Name);
+        Assert.Equal("mm", loaded.Widgets[0].Unit);
+        Assert.Equal(WidgetAction.RunStop, loaded.Widgets[1].Action);
+        Assert.Contains("\"RunStop\"", File.ReadAllText(path), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_newer_screen_format_is_refused()
+    {
+        var path = Path.Combine(_folder, "Main.screen");
+        File.WriteAllText(path, """{ "version": 99, "widgets": [] }""");
+
+        Assert.Throws<InvalidDataException>(() => Screen.Load(path));
+    }
+
+    // ---- the standard screen -------------------------------------------
+
+    [Fact]
+    public void The_standard_screen_has_a_column_per_station()
+    {
+        using var top = Runner("Top", Recipe());
+        using var bottom = Runner("Bottom", Recipe("other"));
+
+        var screen = ScreenLayout.Standard("Line 3", [top, bottom]);
+
+        Assert.True(screen.Generated);
+        Assert.Contains(screen.Widgets, w => w.Kind == WidgetKind.Text && w.Text == "Line 3");
+
+        foreach (var station in new[] { "Top", "Bottom" })
+        {
+            var mine = screen.Widgets.Where(w => w.Station == station).ToArray();
+
+            Assert.Equal("Main View", Assert.Single(mine, w => w.Kind == WidgetKind.Image).Name);
+            Assert.Single(mine, w => w.Kind == WidgetKind.Verdict);
+            Assert.Single(mine, w => w.Kind == WidgetKind.Counter);
+            Assert.Equal("Brightness", Assert.Single(mine, w => w.Kind == WidgetKind.Value).Name);
+            Assert.Equal("Limit", Assert.Single(mine, w => w.Kind == WidgetKind.Setting).Name);
+            Assert.Equal(
+                [WidgetAction.Trigger, WidgetAction.RunStop],
+                mine.Where(w => w.Kind == WidgetKind.Button).Select(w => w.Action!.Value).ToArray());
+        }
+
+        // Buttons for every station, along the top.
+        Assert.Equal(
+            [WidgetAction.Trigger, WidgetAction.RunStop, WidgetAction.ResetCounts],
+            screen.Widgets.Where(w => w.Kind == WidgetKind.Button && w.Station is null).Select(w => w.Action!.Value).ToArray());
+
+        // Side by side, inside the canvas.
+        var left = screen.Widgets.Single(w => w.Station == "Top" && w.Kind == WidgetKind.Image);
+        var right = screen.Widgets.Single(w => w.Station == "Bottom" && w.Kind == WidgetKind.Image);
+        Assert.True(left.X + left.Width < right.X);
+        Assert.All(screen.Widgets, w => Assert.True(w.X + w.Width <= screen.Width && w.Y + w.Height <= screen.Height, $"{w.Kind} is off the screen"));
+
+        Assert.Empty(ScreenLayout.Problems(screen, [top, bottom]));
+    }
+
+    [Fact]
+    public void A_station_publishing_nothing_still_gets_its_verdict_and_buttons()
+    {
+        using var bare = Runner("Bare", new VisionGraph());
+
+        var mine = ScreenLayout.Standard("Line", [bare]).Widgets.Where(w => w.Station == "Bare").ToArray();
+
+        Assert.DoesNotContain(mine, w => w.Kind == WidgetKind.Image);
+        Assert.Single(mine, w => w.Kind == WidgetKind.Verdict);
+        Assert.Equal(2, mine.Count(w => w.Kind == WidgetKind.Button));
+    }
+
+    [Fact]
+    public void A_project_with_no_stations_says_so()
+    {
+        var screen = ScreenLayout.Standard("Empty", []);
+
+        Assert.Contains(screen.Widgets, w => w.Text?.Contains("no stations", StringComparison.Ordinal) == true);
+    }
+
+    // ---- which screen is shown -------------------------------------------
+
+    [Fact]
+    public void A_generated_screen_is_saved_and_made_again_next_time()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+
+        using (var first = StationRunner.Open(project, project.Stations[0]))
+        {
+            ScreenLayout.ScreenFor(project, [first], out var problem);
+            Assert.Null(problem);
+            Assert.True(File.Exists(ScreenLayout.MainScreenPath(project)));
+        }
+
+        project.AddStation("Bottom", new VisionGraph());
+
+        using var top = StationRunner.Open(project, project.Stations[0]);
+        using var bottom = StationRunner.Open(project, project.Stations[1]);
+
+        var again = ScreenLayout.ScreenFor(project, [top, bottom], out _);
+
+        Assert.Contains(again.Widgets, w => w.Station == "Bottom");
+    }
+
+    /// <summary>One edited by hand is the SI's: kept as it is.</summary>
+    [Fact]
+    public void A_screen_edited_by_hand_is_kept()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+        var mine = new Screen { Generated = false, Widgets = { new Widget { Kind = WidgetKind.Text, Text = "Mine" } } };
+        mine.Save(ScreenLayout.MainScreenPath(project));
+
+        using var top = StationRunner.Open(project, project.Stations[0]);
+        var shown = ScreenLayout.ScreenFor(project, [top], out _);
+
+        Assert.Equal("Mine", Assert.Single(shown.Widgets).Text);
+    }
+
+    [Fact]
+    public void An_unreadable_screen_is_reported_and_a_standard_one_shown()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+        Directory.CreateDirectory(Path.GetDirectoryName(ScreenLayout.MainScreenPath(project))!);
+        File.WriteAllText(ScreenLayout.MainScreenPath(project), "not json");
+
+        using var top = StationRunner.Open(project, project.Stations[0]);
+        var shown = ScreenLayout.ScreenFor(project, [top], out var problem);
+
+        Assert.NotNull(problem);
+        Assert.True(shown.Generated);
+        Assert.Equal("not json", File.ReadAllText(ScreenLayout.MainScreenPath(project)));
+    }
+
+    // ---- checking a screen against the stations ---------------------------
+
+    [Fact]
+    public void Bindings_that_cannot_be_found_are_reported()
+    {
+        using var top = Runner("Top", Recipe());
+
+        var screen = new Screen
+        {
+            Widgets =
+            {
+                new Widget { Kind = WidgetKind.Value, Station = "Nowhere", Name = "Brightness" },
+                new Widget { Kind = WidgetKind.Value, Station = "Top", Name = "Diameter" },
+                new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Brightness" },
+                new Widget { Kind = WidgetKind.Image, Station = "Top", Name = "Limit" },
+                new Widget { Kind = WidgetKind.Verdict },
+                new Widget { Kind = WidgetKind.Value, Station = "top", Name = "brightness" },
+                new Widget { Kind = WidgetKind.Button, Action = WidgetAction.Trigger },
+            },
+        };
+
+        var problems = ScreenLayout.Problems(screen, [top]);
+
+        Assert.Equal(5, problems.Count);
+        Assert.Contains(problems, p => p.Contains("no station 'Nowhere'", StringComparison.Ordinal));
+        Assert.Contains(problems, p => p.Contains("publishes no 'Diameter'", StringComparison.Ordinal));
+        Assert.Contains(problems, p => p.Contains("not a setting", StringComparison.Ordinal));
+        Assert.Contains(problems, p => p.Contains("not a picture", StringComparison.Ordinal));
+        Assert.Contains(problems, p => p.Contains("no station is named", StringComparison.Ordinal));
+    }
+
+    // ---- a screen running --------------------------------------------------
+
+    [Theory]
+    [InlineData(12.34567, null, null, "12.346")]
+    [InlineData(12.34567, "0.0", "mm", "12.3 mm")]
+    [InlineData(7, null, null, "7")]
+    [InlineData(true, null, null, "Yes")]
+    [InlineData("LOT 4471", null, null, "LOT 4471")]
+    [InlineData(null, null, "mm", "—")]
+    public void Values_are_written_as_a_screen_shows_them(object? value, string? format, string? unit, string expected) =>
+        Assert.Equal(expected, ValueWidgetViewModel.Format(value, format, unit));
+
+    [Fact]
+    public void A_running_screen_follows_its_stations()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            using var runtime = new ProjectRuntime(project);
+
+            var screen = ScreenLayout.Standard(project.Name, runtime.Stations);
+            using var view = new ScreenViewModel(screen, runtime, project.Folder);
+
+            Assert.False(view.HasProblems, view.ProblemText);
+
+            var trigger = view.Widgets.OfType<ButtonWidgetViewModel>().First(b => b.Station == "Top" && b.Widget.Action == WidgetAction.Trigger);
+            var image = view.Widgets.OfType<ImageWidgetViewModel>().Single();
+            var verdict = view.Widgets.OfType<VerdictWidgetViewModel>().Single();
+            var counter = view.Widgets.OfType<CounterWidgetViewModel>().Single();
+            var brightness = view.Widgets.OfType<ValueWidgetViewModel>().Single(v => v.Widget.Name == "Brightness");
+            var limit = view.Widgets.OfType<ValueWidgetViewModel>().Single(v => v.Widget.Name == "Limit");
+
+            Assert.Equal("—", verdict.Text);
+            Assert.Null(image.Picture);
+
+            WpfTestHost.Wait(trigger.Command.ExecuteAsync(null));
+
+            Assert.Equal("PASS", verdict.Text);
+            Assert.Equal(VerdictLook.Pass, verdict.Look);
+            Assert.Equal("50", brightness.Value);
+            Assert.Equal("128", limit.Value);
+            Assert.True(limit.IsSetting);
+            Assert.NotNull(image.Picture);
+            Assert.Equal(400, image.Picture!.PixelWidth);
+            Assert.Equal("1", counter.Total);
+
+            WpfTestHost.Wait(trigger.Command.ExecuteAsync(null));
+
+            Assert.Equal("FAIL", verdict.Text);
+            Assert.Equal("200", brightness.Value);
+            Assert.Equal("50.0 %", counter.Yield);
+
+            var reset = view.Widgets.OfType<ButtonWidgetViewModel>().Single(b => b.Widget.Action == WidgetAction.ResetCounts);
+            WpfTestHost.Wait(reset.Command.ExecuteAsync(null));
+            Assert.Equal("0", counter.Total);
+        });
+    }
+
+    [Fact]
+    public void A_run_button_says_stop_while_running()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            using var runtime = new ProjectRuntime(project);
+            using var view = new ScreenViewModel(ScreenLayout.Standard(project.Name, runtime.Stations), runtime, project.Folder);
+
+            var run = view.Widgets.OfType<ButtonWidgetViewModel>().Single(b => b.Station == "Top" && b.Widget.Action == WidgetAction.RunStop);
+            var all = view.Widgets.OfType<ButtonWidgetViewModel>().Single(b => b.Station is null && b.Widget.Action == WidgetAction.RunStop);
+
+            Assert.Equal("Run", run.Caption);
+
+            WpfTestHost.Wait(run.Command.ExecuteAsync(null));
+
+            Assert.Equal("Stop", run.Caption);
+            WpfTestHost.PumpUntil(() => runtime.Stations[0].Counts.Total >= 3);
+            Assert.Equal("Stop All", all.Caption);
+
+            WpfTestHost.Wait(all.Command.ExecuteAsync(null));
+
+            Assert.Equal("Run", run.Caption);
+            Assert.True(runtime.Stations[0].Counts.Total > 0);
+
+            // Stopped: the picture of the inspection it stopped on is drawn.
+            Assert.NotNull(view.Widgets.OfType<ImageWidgetViewModel>().Single().Picture);
+        });
+    }
+
+    [Fact]
+    public void A_station_that_would_not_load_shows_a_fault()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            File.WriteAllText(project.RecipePath(project.Stations[0]), "not json");
+
+            using var runtime = new ProjectRuntime(project);
+            using var view = new ScreenViewModel(ScreenLayout.Standard(project.Name, runtime.Stations), runtime, project.Folder);
+
+            var verdict = view.Widgets.OfType<VerdictWidgetViewModel>().Single();
+
+            Assert.Equal("FAULT", verdict.Text);
+            Assert.Equal(VerdictLook.Fault, verdict.Look);
+            Assert.True(view.HasProblems);
+            Assert.Contains("could not be opened", view.ProblemText, StringComparison.Ordinal);
+        });
+    }
+
+    /// <summary>The runtime program's theme, read from Studio's assembly by name, is all there.</summary>
+    [Fact]
+    public void The_runtime_finds_studios_theme()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var app = System.Windows.Application.Current!;
+            var before = app.Resources.MergedDictionaries.Count;
+
+            RuntimeLauncher.LoadTheme(app);
+
+            try
+            {
+                Assert.NotNull(app.TryFindResource("Surface.Panel"));
+                Assert.NotNull(app.TryFindResource("Icon.ph_run"));
+            }
+            finally
+            {
+                while (app.Resources.MergedDictionaries.Count > before)
+                    app.Resources.MergedDictionaries.RemoveAt(app.Resources.MergedDictionaries.Count - 1);
+            }
+        });
+    }
+
+    /// <summary>The window builds - its templates and the screen in it - for a real project.</summary>
+    [Fact]
+    public void The_runtime_window_opens_a_project()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var window = RuntimeWindow.Create(project, fullScreen: false);
+
+            Assert.Equal("Line - Sirius Runtime", window.Title);
+            Assert.Single(window.Runtime.Stations);
+            Assert.NotEmpty(window.Screen.Widgets);
+            Assert.True(File.Exists(ScreenLayout.MainScreenPath(project)));
+
+            window.Runtime.Dispose();
+        });
+    }
+}

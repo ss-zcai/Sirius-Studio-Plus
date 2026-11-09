@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Cameras.Basler", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Cameras.Hikrobot", "src\Sirius.Cameras.Hikrobot\Sirius.Cameras.Hikrobot.csproj", "{442595CC-40E1-462F-88EA-120F50356723}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Runtime", "src\Sirius.Runtime\Sirius.Runtime.csproj", "{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -187,6 +189,18 @@ Global
 		{442595CC-40E1-462F-88EA-120F50356723}.Release|x64.Build.0 = Release|x64
 		{442595CC-40E1-462F-88EA-120F50356723}.Release|x86.ActiveCfg = Release|x64
 		{442595CC-40E1-462F-88EA-120F50356723}.Release|x86.Build.0 = Release|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Debug|Any CPU.Build.0 = Debug|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Debug|x64.ActiveCfg = Debug|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Debug|x64.Build.0 = Debug|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Debug|x86.ActiveCfg = Debug|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Debug|x86.Build.0 = Debug|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Release|Any CPU.ActiveCfg = Release|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Release|Any CPU.Build.0 = Release|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Release|x64.ActiveCfg = Release|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Release|x64.Build.0 = Release|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Release|x86.ActiveCfg = Release|x64
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -204,5 +218,6 @@ Global
 		{D6D376E5-BF60-4F52-8FD5-E1D74C94E312} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{B0205BBC-7F3E-432D-B18A-99164CD18176} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{442595CC-40E1-462F-88EA-120F50356723} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

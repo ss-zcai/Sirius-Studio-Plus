@@ -37,7 +37,8 @@
             a measurement once placed: zoom changes how you look, a tool changes
             what the next drag does, and mixing the two invites mis-clicks.
         -->
-        <Border Grid.Row="0"
+        <Border x:Name="ToolbarBar"
+                Grid.Row="0"
                 Background="{StaticResource Surface.Panel}"
                 BorderBrush="{StaticResource Surface.Border}"
                 BorderThickness="0,0,0,1"
@@ -358,7 +359,8 @@
         </Grid>
 
         <!-- Status bar -->
-        <Border Grid.Row="2"
+        <Border x:Name="StatusBar"
+                Grid.Row="2"
                 Background="{StaticResource Surface.Panel}"
                 BorderBrush="{StaticResource Surface.Border}"
                 BorderThickness="0,1,0,0"

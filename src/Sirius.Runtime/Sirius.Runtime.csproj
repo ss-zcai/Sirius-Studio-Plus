@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    SiriusRuntime: a project's screen, full screen, for the operator - no
+    editor (runtime design, section 0). A program of its own rather than a
+    switch on Studio's, so a machine can be given the runtime without the
+    development tool, and later licensed apart from it.
+
+    Everything it does is in Studio's assembly (Screens/RuntimeLauncher), so
+    the theme, screens, drivers and custom nodes are the ones Studio uses and
+    a recipe judges the same in both. Published into the same folder as
+    Studio, whose runtime and libraries it shares.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Sirius.Runtime</RootNamespace>
+    <AssemblyName>SiriusRuntime</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>
+
+    <!-- Studio is an executable too; both are published self-contained, together. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sirius.Studio.App\Sirius.Studio.App.csproj" />
+  </ItemGroup>
+
+</Project>

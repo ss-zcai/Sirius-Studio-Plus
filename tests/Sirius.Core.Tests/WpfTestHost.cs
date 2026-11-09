@@ -115,6 +115,37 @@ public sealed class WpfTestHost : IDisposable
     }
 
     /// <summary>
+    /// Waits, on the user-interface thread, for <paramref name="task"/> -
+    /// pumping the dispatcher meanwhile, so work it posts back there runs.
+    /// </summary>
+    /// <remarks>Blocking the thread instead would deadlock on the first continuation posted to it.</remarks>
+    public static void Wait(Task task, int timeoutSeconds = 30)
+    {
+        PumpUntil(() => task.IsCompleted, timeoutSeconds);
+        task.GetAwaiter().GetResult();
+    }
+
+    /// <summary>Pumps the user-interface thread's dispatcher until <paramref name="condition"/> holds.</summary>
+    public static void PumpUntil(Func<bool> condition, int timeoutSeconds = 30)
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+
+        while (!condition())
+        {
+            if (clock.Elapsed > TimeSpan.FromSeconds(timeoutSeconds))
+                throw new Xunit.Sdk.XunitException($"still waiting after {timeoutSeconds}s");
+
+            var frame = new DispatcherFrame();
+            dispatcher.BeginInvoke(DispatcherPriority.Background, () => frame.Continue = false);
+            Dispatcher.PushFrame(frame);
+
+            if (!condition())
+                Thread.Sleep(5);
+        }
+    }
+
+    /// <summary>
     /// Runs everything the dispatcher has queued, and the Win32 messages
     /// behind it, until nothing is left.
     /// </summary>

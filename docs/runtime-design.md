@@ -78,7 +78,7 @@ own JSON layout (section 7), not XAML.
 3. **Done 8 November 2026** (decision 67). The station runner, without any UI: load a recipe, Trigger, Run / Stop,
    counts, a snapshot of its published values after each inspection.
    Proved with two simulated or virtual cameras grabbing at once.
-4. Screens: the JSON model, the widgets, the runtime program, Run as
+4. **Done 9 November 2026** (decision 68). Screens: the JSON model, the widgets, the runtime program, Run as
    Runtime.
 5. The screen designer canvas in Studio.
 6. Settings on the line, with the file of changed values.

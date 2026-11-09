@@ -288,7 +288,11 @@ public sealed class StationRunner : ObservableObject, IDisposable
         {
             while (!run.IsCancellationRequested)
             {
-                var snapshot = await InspectOnceAsync(run.Token).ConfigureAwait(true);
+                // Not given the stop token: Stop finishes the inspection in
+                // hand rather than abandoning it half way - which would also
+                // have freed the last inspection's pictures, with nothing new
+                // in their place.
+                var snapshot = await InspectOnceAsync(CancellationToken.None).ConfigureAwait(true);
 
                 if (snapshot is null || State == StationState.Faulted)
                     break;
@@ -336,11 +340,15 @@ public sealed class StationRunner : ObservableObject, IDisposable
         }
         catch (OperationCanceledException)
         {
+            Abandoned();
             return null;
         }
 
         if (result.Cancelled)
+        {
+            Abandoned();
             return null;
+        }
 
         if (result.Error is not null)
         {
@@ -398,6 +406,13 @@ public sealed class StationRunner : ObservableObject, IDisposable
                 .Where(node => node.Status == NodeStatus.Error)
                 .Select(node => string.IsNullOrWhiteSpace(node.StatusMessage) ? node.Name : $"{node.Name}: {node.StatusMessage}")
                 .DefaultIfEmpty("A node failed."));
+
+    /// <summary>
+    /// An inspection cut short - a trigger's token cancelled. It may have
+    /// replaced what the last one left, so the last one's pictures can no
+    /// longer be trusted, and it is forgotten.
+    /// </summary>
+    private void Abandoned() => Last = null;
 
     private void Fault(string problem)
     {
