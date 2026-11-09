@@ -11,12 +11,16 @@ namespace Sirius.Studio.App.ViewModels;
 /// <summary>A station as the Project panel lists it.</summary>
 public sealed class StationViewModel : ObservableObject
 {
+    private readonly Project _project;
     private bool _isActive;
+    private int _lineChanges;
 
     public StationViewModel(Project project, Station station)
     {
+        _project = project;
         Station = station;
         RecipePath = project.RecipePath(station);
+        RefreshLine();
         station.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Station.Name))
@@ -32,6 +36,28 @@ public sealed class StationViewModel : ObservableObject
     public string RecipePath { get; }
 
     public bool RecipeMissing => !File.Exists(RecipePath);
+
+    /// <summary>How many of its settings were changed on the line, over the recipe's own.</summary>
+    public int LineChanges
+    {
+        get => _lineChanges;
+        private set
+        {
+            if (SetProperty(ref _lineChanges, value))
+            {
+                OnPropertyChanged(nameof(HasLineChanges));
+                OnPropertyChanged(nameof(LineChangesText));
+            }
+        }
+    }
+
+    public bool HasLineChanges => _lineChanges > 0;
+
+    /// <summary>"  · 2 changed on the line".</summary>
+    public string LineChangesText => $"  · {_lineChanges} changed on the line";
+
+    /// <summary>Reads its line settings file again.</summary>
+    public void RefreshLine() => LineChanges = LineSettingsViewModel.CountFor(_project, Station);
 
     /// <summary>Whether its recipe is the one in the editor.</summary>
     public bool IsActive
@@ -70,6 +96,7 @@ public sealed class ProjectViewModel : ObservableObject
         RemoveStationCommand = new RelayCommand<StationViewModel>(Remove);
         MoveUpCommand = new RelayCommand<StationViewModel>(station => Move(station, -1));
         MoveDownCommand = new RelayCommand<StationViewModel>(station => Move(station, 1));
+        LineSettingsCommand = new RelayCommand<StationViewModel>(ShowLineSettings);
     }
 
     public Project Project { get; }
@@ -109,6 +136,34 @@ public sealed class ProjectViewModel : ObservableObject
     public IRelayCommand<StationViewModel> MoveUpCommand { get; }
 
     public IRelayCommand<StationViewModel> MoveDownCommand { get; }
+
+    public IRelayCommand<StationViewModel> LineSettingsCommand { get; }
+
+    /// <summary>Reads every station's line settings again: after the runtime has run, say.</summary>
+    internal void RefreshLine()
+    {
+        foreach (var station in Stations)
+            station.RefreshLine();
+    }
+
+    /// <summary>The line settings of <paramref name="station"/>, for its window.</summary>
+    internal LineSettingsViewModel LineSettings(StationViewModel station) =>
+        new(Project, station.Station, ReferenceEquals(station, ActiveStation) ? _shell.EditorGraph : null);
+
+    private void ShowLineSettings(StationViewModel? station)
+    {
+        if (station is null)
+            return;
+
+        if (station.RecipeMissing)
+        {
+            Dialog.Warn($"Station '{station.Name}' has no recipe: {station.RecipePath} is missing.", "Line Settings");
+            return;
+        }
+
+        LineSettingsWindow.Show(System.Windows.Application.Current?.MainWindow, LineSettings(station));
+        station.RefreshLine();
+    }
 
     /// <summary>Opens the first station whose recipe is there - what opening a project shows.</summary>
     internal void OpenFirst()

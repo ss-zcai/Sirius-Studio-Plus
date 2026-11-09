@@ -110,13 +110,27 @@ public sealed record InspectionSnapshot(
 /// Call it from one thread - the screen's - as the scheduler requires.
 /// Several stations run side by side, each inspecting on its own worker.
 /// </para>
+/// <para>
+/// <b>Settings on the line</b> (MVP step 6): a published setting can be
+/// changed while the station is ready or running, within its range
+/// (<see cref="Tunable"/>). A change made during an inspection waits for it
+/// to finish - the scheduler reads the nodes from its worker - and takes
+/// effect from the next. Each is kept in the recipe's
+/// <see cref="LineSettings"/> file and applied whenever it is loaded again.
+/// </para>
 /// </remarks>
 public sealed class StationRunner : ObservableObject, IDisposable
 {
     private readonly GraphScheduler? _scheduler;
     private readonly ISequenceNode? _sequence;
     private readonly List<string> _problems = [];
+    private readonly Dictionary<string, Tunable> _settings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<Tunable> _settingOrder = [];
+    private readonly Dictionary<string, (Tunable Setting, object? Value)> _pending = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _gate = new();
+    private readonly LineSettings? _line;
 
+    private bool _inPass;
     private StationState _state;
     private StationCounts _counts = StationCounts.Zero;
     private InspectionSnapshot? _last;
@@ -128,16 +142,29 @@ public sealed class StationRunner : ObservableObject, IDisposable
 
     /// <summary>A station running <paramref name="recipe"/>.</summary>
     /// <param name="problems">What loading the recipe found, reported with the station's own.</param>
-    public StationRunner(string name, VisionGraph recipe, IEnumerable<string>? problems = null)
+    /// <param name="line">
+    /// The settings changed on the line for this recipe, applied now and
+    /// added to as they are changed; null keeps changes for this run only.
+    /// </param>
+    public StationRunner(string name, VisionGraph recipe, IEnumerable<string>? problems = null, LineSettings? line = null)
     {
         ArgumentNullException.ThrowIfNull(recipe);
 
         Name = name;
         Recipe = recipe;
+        _line = line;
         _problems.AddRange(problems ?? []);
 
         foreach (var item in Publishing.In(recipe).Where(item => !item.Found))
             _problems.Add($"'{item.Name}' names {item.Source}, which is no longer there.");
+
+        foreach (var setting in Tunable.In(recipe))
+        {
+            _settings[setting.Name] = setting;
+            _settingOrder.Add(setting);
+        }
+
+        ApplyLine();
 
         _sequence = FolderRun.SequenceIn(recipe);
         _scheduler = new GraphScheduler(recipe);
@@ -168,7 +195,13 @@ public sealed class StationRunner : ObservableObject, IDisposable
         try
         {
             var loaded = GraphSerializer.Load(path);
-            return new StationRunner(station.Name, loaded.Graph, loaded.Warnings);
+            var line = LineSettings.ForRecipe(path, out var lineProblem);
+
+            return new StationRunner(
+                station.Name,
+                loaded.Graph,
+                lineProblem is null ? loaded.Warnings : [.. loaded.Warnings, lineProblem],
+                line);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
         {
@@ -292,6 +325,128 @@ public sealed class StationRunner : ObservableObject, IDisposable
     /// <summary>Starts the station's counts again from zero. Counter nodes in the recipe keep their own.</summary>
     public void ResetCounts() => Counts = StationCounts.Zero;
 
+    // ---- settings on the line ----------------------------------------------
+
+    /// <summary>The settings the recipe publishes, in node order.</summary>
+    public IReadOnlyList<Tunable> Settings => _settingOrder;
+
+    /// <summary>The setting published as <paramref name="name"/>, or null.</summary>
+    public Tunable? Setting(string name) => _settings.GetValueOrDefault(name);
+
+    /// <summary>The settings changed on the line, kept for the next start; null when not kept.</summary>
+    public LineSettings? Line => _line;
+
+    /// <summary>After a setting was changed: its published name.</summary>
+    public event EventHandler<string>? SettingChanged;
+
+    /// <summary>
+    /// What <paramref name="name"/> is set to: a change waiting for the
+    /// inspection in hand to finish, or the node's value.
+    /// </summary>
+    public object? SettingValue(string name)
+    {
+        lock (_gate)
+        {
+            if (_pending.TryGetValue(name, out var waiting))
+                return waiting.Value;
+        }
+
+        return _settings.TryGetValue(name, out var setting) ? setting.Value : null;
+    }
+
+    /// <summary>
+    /// Changes a published setting: now, or - during an inspection - as soon
+    /// as it is finished; and keeps it for the next start.
+    /// </summary>
+    /// <param name="value">A number, on or off, a choice's name, or typed text.</param>
+    /// <returns>Why it was not changed, or not kept; null when all is well.</returns>
+    public string? ChangeSetting(string name, object? value)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (_scheduler is null)
+            return $"{Name} has no recipe loaded.";
+
+        if (!_settings.TryGetValue(name, out var setting))
+            return $"{Name} publishes no setting called '{name}'.";
+
+        if (setting.Convert(value, out var converted) is { } problem)
+            return problem;
+
+        bool now;
+
+        lock (_gate)
+        {
+            now = !_inPass;
+
+            if (now)
+                _pending.Remove(setting.Name);
+            else
+                _pending[setting.Name] = (setting, converted);
+        }
+
+        if (now)
+            setting.Apply(converted);
+
+        SettingChanged?.Invoke(this, setting.Name);
+
+        if (_line is null)
+            return null;
+
+        try
+        {
+            _line.Set(setting.Name, Tunable.ToStored(converted));
+            _line.Save();
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"{setting.Name} is changed, but could not be kept for the next start: {ex.Message}";
+        }
+    }
+
+    /// <summary>The values changed on the line, put into the recipe as it loads.</summary>
+    private void ApplyLine()
+    {
+        if (_line is null)
+            return;
+
+        foreach (var entry in _line.Entries)
+        {
+            if (!_settings.TryGetValue(entry.Name, out var setting))
+            {
+                _problems.Add($"'{entry.Name}' was changed on the line to {entry.ValueText}, but the recipe no longer publishes it as a setting; not applied.");
+                continue;
+            }
+
+            if (setting.Convert(entry.Value, out var converted) is { } problem)
+            {
+                _problems.Add($"'{entry.Name}' was changed on the line to {entry.ValueText}, which is not applied: {problem}");
+                continue;
+            }
+
+            setting.Apply(converted);
+        }
+    }
+
+    /// <summary>Changes made during the inspection just finished, applied now it has.</summary>
+    private void ApplyPending()
+    {
+        (Tunable Setting, object? Value)[] waiting;
+
+        lock (_gate)
+        {
+            if (_pending.Count == 0)
+                return;
+
+            waiting = _pending.Values.ToArray();
+            _pending.Clear();
+        }
+
+        foreach (var (setting, value) in waiting)
+            setting.Apply(value);
+    }
+
     private async Task RunAsync(CancellationTokenSource run)
     {
         var failingInARow = 0;
@@ -345,8 +500,26 @@ public sealed class StationRunner : ObservableObject, IDisposable
         if (_sequence is { Count: > 0 } sequence && _serial > 0)
             sequence.Index = sequence.Index >= sequence.Count ? 1 : sequence.Index + 1;
 
+        try
+        {
+            return await InspectAndPublishAsync(scheduler, cancellationToken).ConfigureAwait(true);
+        }
+        finally
+        {
+            // A setting changed while the recipe ran, in time for the next -
+            // after this inspection is published, so its snapshot shows the
+            // values it was judged with.
+            ApplyPending();
+        }
+    }
+
+    private async Task<InspectionSnapshot?> InspectAndPublishAsync(GraphScheduler scheduler, CancellationToken cancellationToken)
+    {
         var clock = Stopwatch.StartNew();
         GraphRunResult result;
+
+        lock (_gate)
+            _inPass = true;
 
         try
         {
@@ -356,6 +529,11 @@ public sealed class StationRunner : ObservableObject, IDisposable
         {
             Abandoned();
             return null;
+        }
+        finally
+        {
+            lock (_gate)
+                _inPass = false;
         }
 
         if (result.Cancelled)

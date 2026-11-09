@@ -135,6 +135,48 @@ public sealed class ScreenDesignerTests : IDisposable
     }
 
     [Fact]
+    public void A_setting_widget_limits_its_setting_in_the_stations_recipe()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var (project, _, recipes) = TwoStations();
+            var designer = new ScreenDesignerViewModel(recipes);
+
+            var widget = designer.Add(WidgetKind.Setting);
+            widget.StationValue = "Bottom";
+            widget.Choice = widget.Choices.First(c => c.Node is ThresholdNode && c.Member == nameof(ThresholdNode.Threshold));
+
+            Assert.True(widget.OperatorMayChange);
+            Assert.True(widget.HasLimits);
+            Assert.Contains("0 – 255", widget.SettingNote, StringComparison.Ordinal);
+
+            widget.LowestText = "20";
+            widget.HighestText = "90";
+
+            // Bottom is not in the editor: its file has them at once.
+            var saved = GraphSerializer.Load(project.RecipePath(project.Stations[1])).Graph;
+            var entry = Publishing.Find(saved, widget.Widget.Name!)!.Entry;
+            Assert.Equal(20, entry.Lowest);
+            Assert.Equal(90, entry.Highest);
+            Assert.Equal("20", widget.LowestText);
+
+            widget.LowestText = "100";
+            Assert.Contains("above", designer.StatusText, StringComparison.Ordinal);
+            Assert.Equal("20", widget.LowestText);
+
+            widget.LowestText = string.Empty;
+            Assert.Null(Publishing.Find(recipes.Recipe("Bottom")!, widget.Widget.Name!)!.Entry.Lowest);
+
+            widget.OperatorMayChange = false;
+            Assert.True(widget.Widget.ReadOnly);
+            Assert.False(widget.HasLimits);
+
+            designer.UndoCommand.Execute(null);
+            Assert.False(designer.Widgets.Single(w => w.Kind == WidgetKind.Setting && w.Widget.Station == "Bottom").Widget.ReadOnly);
+        });
+    }
+
+    [Fact]
     public void Saving_makes_the_screen_the_SIs_own()
     {
         WpfTestHost.OnStaThread(() =>

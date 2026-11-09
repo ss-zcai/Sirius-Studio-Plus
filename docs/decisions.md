@@ -2642,3 +2642,50 @@ The runtime MVP's fifth step (runtime-design.md, section 0).
 - On the canvas a widget is drawn as what it is and what it shows - "PASS
   / FAIL", "Top › Diameter" - rather than as a live preview: the designer
   is for placing and binding, and Save and Run shows the real thing.
+
+## 70. Settings changed on the line
+
+The runtime MVP's sixth and last step (runtime-design.md, section 0):
+settings changed from a screen, only those chosen at design time, only
+within the range chosen then.
+
+- **Which settings** are the ones a screen has a Setting widget for. The
+  designer's "The operator may change it" (on by default) makes one
+  read-only instead, shown without a control.
+- **Their range** is kept on the published setting in the recipe - a
+  lowest and a highest on the line, either left blank - rather than on the
+  widget, so every screen, and later a PLC writing it, is held to the
+  same. Set in the Publish dialog or in the designer's properties panel
+  (written as the designer publishes: the editor's recipe for the station
+  open in Studio, the file at once for any other). Limits are combined with
+  the node's own range, never widening it; the node's own follows the
+  image's bit depth and a bound taken from another setting, as the
+  properties panel does. Renaming a published setting keeps its limits.
+- **Controls**: a number is typed or stepped with − and +; on / off is a
+  switch; an enum is a list. Anything else - a region, a file, a range,
+  text - is shown only, as is a setting a wire in the recipe sets. A value
+  out of range is refused, the widget saying why and going back to what the
+  setting holds.
+- **When it takes effect**: at once while the station is ready; during an
+  inspection it waits for the inspection to finish (the scheduler reads the
+  nodes from its worker) and applies from the next, after the finished one
+  is published - so a snapshot always shows the values it was judged with.
+- **Kept beside the recipe**, as `recipes/<recipe>.line.json`: by
+  published name, with the value and when it was changed, written whole
+  through a temporary file on every change, removed when empty. Applied
+  whenever the recipe is loaded to run; the recipe itself is never
+  rewritten. A value whose setting is no longer published, or which no
+  longer fits its range, is **reported and not applied**, rather than
+  clamped as section 4 proposed: on the line a quietly moved threshold is
+  worse than a visible notice, and the recipe's own value is a known one.
+  An unreadable file is reported and the recipe runs as saved.
+- **Studio shows the difference.** A station with line values says "· 2
+  changed on the line" in the Project panel; Line Settings on its
+  right-click menu lists each beside the recipe's own value, with when it
+  was changed, and either takes them into the recipe - the editor's, to be
+  saved and undone like any change, or the file directly - or forgets them.
+  After Run as Runtime the status line names any station with changes.
+  Copying a project from the desk to the line copies its line files too;
+  forget them first for a clean start.
+- Not yet: user levels for who may change what (the PIN comes with them),
+  an audit log of changes, a slider. Counts saved on stop are still to do.

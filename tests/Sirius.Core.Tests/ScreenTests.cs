@@ -290,7 +290,7 @@ public sealed class ScreenTests : IDisposable
             var verdict = view.Widgets.OfType<VerdictWidgetViewModel>().Single();
             var counter = view.Widgets.OfType<CounterWidgetViewModel>().Single();
             var brightness = view.Widgets.OfType<ValueWidgetViewModel>().Single(v => v.Widget.Name == "Brightness");
-            var limit = view.Widgets.OfType<ValueWidgetViewModel>().Single(v => v.Widget.Name == "Limit");
+            var limit = view.Widgets.OfType<SettingWidgetViewModel>().Single(v => v.Widget.Name == "Limit");
 
             Assert.Equal("—", verdict.Text);
             Assert.Null(image.Picture);
@@ -300,8 +300,8 @@ public sealed class ScreenTests : IDisposable
             Assert.Equal("PASS", verdict.Text);
             Assert.Equal(VerdictLook.Pass, verdict.Look);
             Assert.Equal("50", brightness.Value);
-            Assert.Equal("128", limit.Value);
-            Assert.True(limit.IsSetting);
+            Assert.Equal("128", limit.ValueText);
+            Assert.True(limit.IsNumberEditor);
             Assert.NotNull(image.Picture);
             Assert.Equal(400, image.Picture!.PixelWidth);
             Assert.Equal("1", counter.Total);
@@ -315,6 +315,86 @@ public sealed class ScreenTests : IDisposable
             var reset = view.Widgets.OfType<ButtonWidgetViewModel>().Single(b => b.Widget.Action == WidgetAction.ResetCounts);
             WpfTestHost.Wait(reset.Command.ExecuteAsync(null));
             Assert.Equal("0", counter.Total);
+        });
+    }
+
+    [Fact]
+    public void A_setting_is_changed_from_the_screen_within_its_limits()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var recipe = Recipe();
+            var check = recipe.Nodes.OfType<LimitCheckNode>().Single();
+            Publishing.Limit(check, nameof(LimitCheckNode.Maximum), 100, 150);
+
+            var project = Project.Create(_folder, "Line", recipe, "Top");
+            using var runtime = new ProjectRuntime(project);
+            using var view = new ScreenViewModel(ScreenLayout.Standard(project.Name, runtime.Stations), runtime, project.Folder);
+
+            var limit = view.Widgets.OfType<SettingWidgetViewModel>().Single(v => v.Widget.Name == "Limit");
+            var verdict = view.Widgets.OfType<VerdictWidgetViewModel>().Single();
+            var trigger = view.Widgets.OfType<ButtonWidgetViewModel>().First(b => b.Station == "Top" && b.Widget.Action == WidgetAction.Trigger);
+
+            Assert.Contains("100 – 150", limit.Hint, StringComparison.Ordinal);
+
+            // Refused: said why, and the box goes back.
+            limit.ValueText = "300";
+            Assert.True(limit.HasProblem);
+            Assert.Contains("between 100 and 150", limit.Problem, StringComparison.Ordinal);
+            Assert.Equal("128", limit.ValueText);
+
+            limit.RaiseCommand.Execute(null);
+            Assert.False(limit.HasProblem);
+            Assert.NotEqual("128", limit.ValueText);
+
+            limit.ValueText = "100";
+            Assert.Equal("100", limit.ValueText);
+            Assert.False(limit.LowerCommand.CanExecute(null));
+
+            // The first image is 50: under 100, a pass.
+            WpfTestHost.Wait(trigger.Command.ExecuteAsync(null));
+            Assert.Equal("PASS", verdict.Text);
+
+            // The second is 200, a fail - and the change is kept for the next start.
+            WpfTestHost.Wait(trigger.Command.ExecuteAsync(null));
+            Assert.Equal("FAIL", verdict.Text);
+
+            using var again = new ProjectRuntime(project);
+            Assert.Equal(100.0, again.Stations[0].SettingValue("Limit"));
+        });
+    }
+
+    [Fact]
+    public void A_read_only_setting_is_only_shown()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            using var runtime = new ProjectRuntime(project);
+
+            var screen = new Screen
+            {
+                Widgets =
+                {
+                    new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Limit", ReadOnly = true, Width = 300, Height = 30 },
+                    new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Nothing", Width = 300, Height = 30 },
+                },
+            };
+
+            using var view = new ScreenViewModel(screen, runtime, project.Folder);
+            var shown = (SettingWidgetViewModel)view.Widgets[0];
+            var missing = (SettingWidgetViewModel)view.Widgets[1];
+
+            Assert.True(shown.IsDisplayOnly);
+            Assert.False(shown.IsNumberEditor);
+            Assert.Equal("128", shown.DisplayText);
+            Assert.True(missing.IsDisplayOnly);
+            Assert.Contains("publishes no setting", missing.Hint, StringComparison.Ordinal);
+
+            var path = Path.Combine(_folder, "ro.screen");
+            screen.Save(path);
+            Assert.True(Screen.Load(path).Widgets[0].ReadOnly);
+            Assert.DoesNotContain("readOnly\": false", File.ReadAllText(path), StringComparison.Ordinal);
         });
     }
 

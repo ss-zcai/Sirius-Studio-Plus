@@ -119,7 +119,7 @@
             </Border>
         </DataTemplate>
 
-        <!-- A result or a setting -->
+        <!-- A result -->
         <DataTemplate DataType="{x:Type screens:ValueWidgetViewModel}">
             <Border CornerRadius="3"
                     Background="{StaticResource Surface.Panel}"
@@ -132,6 +132,118 @@
                                FontSize="{Binding FontSize}"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource Text.Primary}" />
+                    <TextBlock Text="{Binding Label}"
+                               FontSize="{Binding FontSize}"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource Text.Secondary}" />
+                </DockPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- On / off, big enough for a finger -->
+        <Style x:Key="SettingSwitch" TargetType="ToggleButton">
+            <Setter Property="MinWidth" Value="64" />
+            <Setter Property="Foreground" Value="{StaticResource Text.Primary}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Track"
+                                CornerRadius="3"
+                                Padding="10,2"
+                                Background="{StaticResource Surface.Node}"
+                                BorderBrush="{StaticResource Surface.Border}"
+                                BorderThickness="1">
+                            <TextBlock x:Name="Word"
+                                       Text="Off"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Text.Secondary}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Word" Property="Text" Value="On" />
+                                <Setter TargetName="Word" Property="Foreground" Value="#B7E8A0" />
+                                <Setter TargetName="Track" Property="Background" Value="#1E3A24" />
+                                <Setter TargetName="Track" Property="BorderBrush" Value="#6DBF4A" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource Text.Secondary}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A setting: changed here within its limits, or only shown -->
+        <DataTemplate DataType="{x:Type screens:SettingWidgetViewModel}">
+            <Border x:Name="Box"
+                    CornerRadius="3"
+                    Background="{StaticResource Surface.Panel}"
+                    BorderBrush="{StaticResource Surface.Border}"
+                    BorderThickness="1"
+                    Padding="8,2"
+                    ToolTip="{Binding Hint}">
+                <DockPanel VerticalAlignment="Center">
+                    <!-- Only shown -->
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="{Binding DisplayText}"
+                               FontSize="{Binding FontSize}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource Text.Primary}"
+                               Visibility="{Binding IsDisplayOnly, Converter={StaticResource BoolToVisibility}}" />
+
+                    <!-- A number: − box + -->
+                    <StackPanel DockPanel.Dock="Right"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Stretch"
+                                Visibility="{Binding IsNumberEditor, Converter={StaticResource BoolToVisibility}}">
+                        <Button Content="−"
+                                MinWidth="32"
+                                FontSize="{Binding FontSize}"
+                                Padding="0"
+                                Command="{Binding LowerCommand}"
+                                ToolTip="Lower" />
+                        <TextBox x:Name="NumberBox"
+                                 Width="90"
+                                 Margin="4,0"
+                                 FontSize="{Binding FontSize}"
+                                 FontWeight="SemiBold"
+                                 TextAlignment="Right"
+                                 VerticalContentAlignment="Center"
+                                 Text="{Binding ValueText, UpdateSourceTrigger=LostFocus}"
+                                 KeyDown="OnSettingBoxKeyDown" />
+                        <Button Content="+"
+                                MinWidth="32"
+                                FontSize="{Binding FontSize}"
+                                Padding="0"
+                                Command="{Binding RaiseCommand}"
+                                ToolTip="Raise" />
+                        <TextBlock Text="{Binding Unit}"
+                                   Margin="6,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontSize="{Binding FontSize}"
+                                   Foreground="{StaticResource Text.Secondary}"
+                                   Visibility="{Binding HasUnit, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+
+                    <!-- On or off -->
+                    <ToggleButton DockPanel.Dock="Right"
+                                  Style="{StaticResource SettingSwitch}"
+                                  FontSize="{Binding FontSize}"
+                                  IsChecked="{Binding IsOn}"
+                                  Visibility="{Binding IsToggleEditor, Converter={StaticResource BoolToVisibility}}" />
+
+                    <!-- One of a list -->
+                    <ComboBox DockPanel.Dock="Right"
+                              MinWidth="120"
+                              FontSize="{Binding FontSize}"
+                              ItemsSource="{Binding Choices}"
+                              SelectedItem="{Binding SelectedChoice}"
+                              Visibility="{Binding IsChoiceEditor, Converter={StaticResource BoolToVisibility}}" />
+
                     <Border DockPanel.Dock="Left"
                             Margin="0,0,6,0"
                             Padding="3,0"
@@ -140,16 +252,29 @@
                             Background="{StaticResource Published.Background}"
                             BorderBrush="{StaticResource Published.Border}"
                             BorderThickness="1"
-                            ToolTip="A setting"
-                            Visibility="{Binding IsSetting, Converter={StaticResource BoolToVisibility}}">
+                            ToolTip="A setting">
                         <TextBlock Text="set" FontSize="9" Foreground="{StaticResource Published.Text}" />
                     </Border>
-                    <TextBlock Text="{Binding Label}"
+
+                    <!-- The label - or, after a refused change, why -->
+                    <TextBlock x:Name="Caption"
+                               Text="{Binding Label}"
                                FontSize="{Binding FontSize}"
+                               VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis"
                                Foreground="{StaticResource Text.Secondary}" />
                 </DockPanel>
             </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding HasProblem}" Value="True">
+                    <Setter TargetName="Caption" Property="Text" Value="{Binding Problem}" />
+                    <Setter TargetName="Caption" Property="Foreground" Value="#F8C4C4" />
+                    <Setter TargetName="Caption" Property="FontSize" Value="12" />
+                    <Setter TargetName="Caption" Property="TextWrapping" Value="Wrap" />
+                    <Setter TargetName="Box" Property="BorderBrush" Value="#DB5C5C" />
+                    <Setter TargetName="Box" Property="ToolTip" Value="{Binding Problem}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
         <!-- A button -->

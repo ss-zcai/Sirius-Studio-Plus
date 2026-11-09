@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using Sirius.Core.Graph;
+using Sirius.Core.Runtime;
 
 namespace Sirius.Studio.App;
 
@@ -34,6 +36,16 @@ public partial class PublishNameWindow : Window
         WhatText.Text = what;
         NameBox.Text = current?.Name ?? Publishing.Suggest(graph, DefaultName(node, kind, member));
         UnpublishButton.Visibility = current is null ? Visibility.Collapsed : Visibility.Visible;
+
+        // A number published as a setting can be limited for the line.
+        if (kind == PublishedKind.Setting &&
+            Tunable.For(node, current ?? new PublishedName(kind, member, string.Empty)) is { IsNumeric: true } setting)
+        {
+            LimitsPanel.Visibility = Visibility.Visible;
+            LowestBox.Text = LimitText(current?.Lowest);
+            HighestBox.Text = LimitText(current?.Highest);
+            NodeRangeText.Text = $"The node itself allows {NodeRange(setting)}.";
+        }
 
         Loaded += (_, _) =>
         {
@@ -74,26 +86,81 @@ public partial class PublishNameWindow : Window
         _ => $"Publish {node.Name} as a view a screen can show, with everything drawn on it.",
     };
 
-    private void OnNameChanged(object sender, TextChangedEventArgs e)
+    private void OnNameChanged(object sender, TextChangedEventArgs e) => Check();
+
+    private void OnLimitsChanged(object sender, TextChangedEventArgs e) => Check();
+
+    private bool HasLimits => LimitsPanel.Visibility == Visibility.Visible;
+
+    private void Check()
     {
+        // Null while the window is still being built.
+        if (ProblemText is null || OkButton is null || LimitsPanel is null || LowestBox is null || HighestBox is null)
+            return;
+
         var problem = Publishing.Problem(_graph, NameBox.Text, _node, _kind, _member);
+
+        if (problem is null && HasLimits)
+            problem = LimitsProblem(out _, out _);
 
         ProblemText.Text = problem ?? string.Empty;
         ProblemText.Visibility = problem is null ? Visibility.Collapsed : Visibility.Visible;
         OkButton.IsEnabled = problem is null;
     }
 
+    private string? LimitsProblem(out double? lowest, out double? highest)
+    {
+        var low = ReadLimit(LowestBox.Text, out lowest);
+        var high = ReadLimit(HighestBox.Text, out highest);
+
+        return !low || !high
+            ? "A limit must be a number, or blank."
+            : Publishing.LimitProblem(lowest, highest);
+    }
+
+    private static bool ReadLimit(string text, out double? limit)
+    {
+        limit = null;
+
+        if (string.IsNullOrWhiteSpace(text))
+            return true;
+
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value) || !double.IsFinite(value))
+            return false;
+
+        limit = value;
+        return true;
+    }
+
+    private static string LimitText(double? limit) =>
+        limit is { } value ? value.ToString("0.###", CultureInfo.CurrentCulture) : string.Empty;
+
+    private static string NodeRange(Tunable setting) =>
+        (double.IsFinite(setting.NodeMinimum), double.IsFinite(setting.NodeMaximum)) switch
+        {
+            (true, true) => $"{setting.Format(setting.NodeMinimum)} – {setting.Format(setting.NodeMaximum)}",
+            (true, false) => $"{setting.Format(setting.NodeMinimum)} or more",
+            (false, true) => $"{setting.Format(setting.NodeMaximum)} or less",
+            _ => "any value",
+        };
+
     private void OnOk(object sender, RoutedEventArgs e)
     {
         var current = Publishing.NameOf(_node, _kind, _member);
+        double? lowest = current?.Lowest, highest = current?.Highest;
 
-        if (current is not null && current.Name == NameBox.Text.Trim())
+        if (HasLimits && LimitsProblem(out lowest, out highest) is not null)
+            return;
+
+        if (current is not null && current.Name == NameBox.Text.Trim() &&
+            current.Lowest == lowest && current.Highest == highest)
         {
             DialogResult = false;
             return;
         }
 
-        Publishing.Publish(_graph, _node, _kind, _member, NameBox.Text);
+        // One change to the node, so one undo step.
+        Publishing.Publish(_graph, _node, _kind, _member, NameBox.Text, lowest, highest);
         DialogResult = true;
     }
 

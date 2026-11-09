@@ -573,10 +573,21 @@ public sealed class MainViewModel : ObservableObject
 
         StatusText = $"Running {project.Name} as the runtime…";
         Screens.RuntimeWindow.ShowWindowed(owner ?? Application.Current?.MainWindow, project.Project);
-        StatusText = "Runtime closed.";
+
+        // Settings changed from its screen are kept for the line; say so,
+        // or the recipe here would quietly differ from what runs.
+        project.RefreshLine();
+        var changed = project.Stations.Where(station => station.HasLineChanges).Select(station => station.Name).ToArray();
+
+        StatusText = changed.Length == 0
+            ? "Runtime closed."
+            : $"Runtime closed. Settings changed on the line for {string.Join(", ", changed)} - right-click a station for Line Settings.";
     }
 
     private ProjectViewModel? _project;
+
+    /// <summary>The recipe in the editor.</summary>
+    internal VisionGraph EditorGraph => _graph;
 
     /// <summary>The open project, or null when a recipe is open on its own.</summary>
     public ProjectViewModel? Project

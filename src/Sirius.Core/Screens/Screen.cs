@@ -24,7 +24,7 @@ public enum WidgetKind
     /// <summary>Does something: trigger, run or stop, reset counts.</summary>
     Button,
 
-    /// <summary>A published setting, shown - and, from step 6, changed - on the line.</summary>
+    /// <summary>A published setting, shown and - unless made read-only - changed on the line, within its limits.</summary>
     Setting,
 
     /// <summary>A picture file from the project: a logo.</summary>
@@ -98,6 +98,11 @@ public sealed class Widget
     /// <summary>A Logo's picture, relative to the project folder.</summary>
     [JsonPropertyName("file")]
     public string? File { get; set; }
+
+    /// <summary>A Setting shown but not changed from this screen.</summary>
+    [JsonPropertyName("readOnly")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool ReadOnly { get; set; }
 }
 
 /// <summary>

@@ -102,6 +102,8 @@ public static class GraphSerializer
                             Kind = entry.Kind.ToString(),
                             Member = string.IsNullOrEmpty(entry.Member) ? null : entry.Member,
                             Name = entry.Name,
+                            Lowest = entry.Lowest,
+                            Highest = entry.Highest,
                         })
                         .ToList(),
             };
@@ -554,6 +556,14 @@ public static class GraphSerializer
             }
 
             var published = new PublishedName(kind, kind == PublishedKind.View ? string.Empty : entry.Member ?? string.Empty, name);
+
+            if (kind == PublishedKind.Setting && (entry.Lowest is not null || entry.Highest is not null))
+            {
+                if (Publishing.LimitProblem(entry.Lowest, entry.Highest) is { } limits)
+                    warnings.Add($"'{node.Name}': the limits of '{name}' could not be used ({limits}); it is limited only by the node.");
+                else
+                    published = published with { Lowest = entry.Lowest, Highest = entry.Highest };
+            }
 
             if (!Publishing.Exists(node, published))
                 warnings.Add($"'{node.Name}' publishes '{name}' on '{published.Member}', which it no longer has.");

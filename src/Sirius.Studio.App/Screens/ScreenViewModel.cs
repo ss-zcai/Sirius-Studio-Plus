@@ -69,7 +69,8 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
     {
         WidgetKind.Image => new ImageWidgetViewModel(widget),
         WidgetKind.Verdict => new VerdictWidgetViewModel(widget),
-        WidgetKind.Value or WidgetKind.Setting => new ValueWidgetViewModel(widget),
+        WidgetKind.Value => new ValueWidgetViewModel(widget),
+        WidgetKind.Setting => new SettingWidgetViewModel(widget, _runtime),
         WidgetKind.Counter => new CounterWidgetViewModel(widget),
         WidgetKind.Button => new ButtonWidgetViewModel(widget, _runtime),
         WidgetKind.Logo => new LogoWidgetViewModel(widget, projectFolder),
@@ -136,6 +137,9 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        foreach (var widget in Widgets)
+            widget.Detach();
+
         foreach (var station in _runtime.Stations)
         {
             station.PropertyChanged -= OnStationChanged;

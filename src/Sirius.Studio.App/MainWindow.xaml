@@ -790,6 +790,12 @@
                                                                FontStyle="Italic"
                                                                Foreground="#DB5C5C"
                                                                Visibility="{Binding RecipeMissing, Converter={StaticResource BoolToVisibility}}" />
+                                                    <TextBlock Text="{Binding LineChangesText}"
+                                                               FontSize="11"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="#D9A33A"
+                                                               ToolTip="Settings changed from a screen, used over the recipe's own - right-click for Line Settings"
+                                                               Visibility="{Binding HasLineChanges, Converter={StaticResource BoolToVisibility}}" />
                                                     <StackPanel.ContextMenu>
                                                         <ContextMenu>
                                                             <MenuItem Header="_Open"
@@ -797,6 +803,9 @@
                                                                       CommandParameter="{Binding}" />
                                                             <MenuItem Header="_Rename…"
                                                                       Command="{Binding PlacementTarget.Tag.RenameStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                      CommandParameter="{Binding}" />
+                                                            <MenuItem Header="_Line Settings…"
+                                                                      Command="{Binding PlacementTarget.Tag.LineSettingsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                       CommandParameter="{Binding}" />
                                                             <Separator />
                                                             <MenuItem Header="Move _Up"

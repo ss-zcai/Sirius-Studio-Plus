@@ -52,6 +52,11 @@ public abstract class WidgetViewModel : ObservableObject
     internal virtual void StationChanged(StationRunner station)
     {
     }
+
+    /// <summary>The screen is closing: let go of the stations.</summary>
+    internal virtual void Detach()
+    {
+    }
 }
 
 /// <summary>Fixed text.</summary>
@@ -241,7 +246,7 @@ public sealed class CounterWidgetViewModel(Widget widget) : WidgetViewModel(widg
     }
 }
 
-/// <summary>One published result, or - until settings can be changed on a screen - a published setting.</summary>
+/// <summary>One published result.</summary>
 public sealed class ValueWidgetViewModel(Widget widget) : WidgetViewModel(widget)
 {
     private string _value = "—";
@@ -253,9 +258,6 @@ public sealed class ValueWidgetViewModel(Widget widget) : WidgetViewModel(widget
         get => _value;
         private set => SetProperty(ref _value, value);
     }
-
-    /// <summary>A setting, shown with a mark that says so.</summary>
-    public bool IsSetting => Widget.Kind == WidgetKind.Setting;
 
     internal override void Inspected(StationRunner station, InspectionSnapshot snapshot, bool drawPictures)
     {

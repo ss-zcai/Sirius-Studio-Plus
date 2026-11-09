@@ -85,6 +85,31 @@ public partial class RuntimeWindow : Window
 
     private void OnExitClick(object sender, RoutedEventArgs e) => Close();
 
+    /// <summary>
+    /// A setting's box: Enter changes the setting, Escape puts back what it
+    /// holds - and neither closes the window.
+    /// </summary>
+    private void OnSettingBoxKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox box)
+            return;
+
+        var binding = box.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty);
+
+        if (e.Key == Key.Enter)
+        {
+            binding?.UpdateSource();
+            box.SelectAll();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            binding?.UpdateTarget();
+            box.SelectAll();
+            e.Handled = true;
+        }
+    }
+
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape && WindowStyle != WindowStyle.None)

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Sirius.Core.Graph;
+using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
 
 namespace Sirius.Studio.App.Screens;
@@ -214,6 +215,128 @@ public sealed class DesignWidgetViewModel : ObservableObject
     {
         get => Widget.File;
         set => Set(() => Widget.File = string.IsNullOrWhiteSpace(value) ? null : value, Widget.File, value);
+    }
+
+    // ---- a setting on the line ---------------------------------------------
+
+    public bool HasSettingOptions => Kind == WidgetKind.Setting;
+
+    /// <summary>The setting the widget shows, in its station's recipe, or null.</summary>
+    private Tunable? BoundSetting =>
+        HasSettingOptions && _choicesFrom is { } recipe && !string.IsNullOrWhiteSpace(Widget.Name)
+            ? Tunable.Find(recipe, Widget.Name!)
+            : null;
+
+    /// <summary>A setting a screen has a control for - or none bound yet, which may become one.</summary>
+    public bool IsChangeableKind => BoundSetting is not { IsChangeable: false };
+
+    /// <summary>Unticked, the screen shows the setting without a control.</summary>
+    public bool OperatorMayChange
+    {
+        get => !Widget.ReadOnly && IsChangeableKind;
+        set => Set(() => Widget.ReadOnly = !value, !Widget.ReadOnly, value);
+    }
+
+    /// <summary>A number the operator may change: its limits on the line can be set.</summary>
+    public bool HasLimits => BoundSetting is { IsNumeric: true } && !Widget.ReadOnly;
+
+    /// <summary>The lowest it may be set to on the line; blank for as low as the node allows.</summary>
+    public string LowestText
+    {
+        get => LimitText(BoundSetting?.Entry.Lowest);
+        set => SetLimit(value, lowest: true);
+    }
+
+    public string HighestText
+    {
+        get => LimitText(BoundSetting?.Entry.Highest);
+        set => SetLimit(value, lowest: false);
+    }
+
+    /// <summary>What the node itself allows, and anything else worth knowing about the setting.</summary>
+    public string? SettingNote
+    {
+        get
+        {
+            if (BoundSetting is not { } setting)
+                return null;
+
+            if (setting.IsWired)
+                return "A wire in the recipe sets this, so the screen only shows it.";
+
+            if (!setting.IsChangeable)
+                return "A screen has no control for this kind of setting yet; it is shown only.";
+
+            if (Widget.ReadOnly)
+                return null;
+
+            if (!setting.IsNumeric)
+                return setting.Kind == TunableKind.Toggle ? "Shown as an On / Off switch." : "Shown as a list to choose from.";
+
+            var low = setting.NodeMinimum;
+            var high = setting.NodeMaximum;
+            var own = (double.IsFinite(low), double.IsFinite(high)) switch
+            {
+                (true, true) => $"{setting.Format(low)} – {setting.Format(high)}",
+                (true, false) => $"{setting.Format(low)} or more",
+                (false, true) => $"{setting.Format(high)} or less",
+                _ => "any value",
+            };
+
+            return $"{setting.Source} itself allows {own}. Limits are kept in the recipe, with the setting's name.";
+        }
+    }
+
+    private static string LimitText(double? limit) =>
+        limit is { } value ? value.ToString("0.###", System.Globalization.CultureInfo.CurrentCulture) : string.Empty;
+
+    /// <summary>
+    /// Sets one end of the setting's range on the line, in its recipe - as
+    /// binding publishes there: the editor's recipe for the station open in
+    /// Studio, saved with it; any other station's file at once.
+    /// </summary>
+    private void SetLimit(string? text, bool lowest)
+    {
+        if (BoundSetting is not { } setting || _choicesFrom is not { } recipe || Widget.Station is not { } station)
+            return;
+
+        double? limit = null;
+
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            if (!double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out var parsed) ||
+                !double.IsFinite(parsed))
+            {
+                _owner.StatusText = $"'{text}' is not a number.";
+                Raise();
+                return;
+            }
+
+            limit = parsed;
+        }
+
+        var low = lowest ? limit : setting.Entry.Lowest;
+        var high = lowest ? setting.Entry.Highest : limit;
+
+        if (Publishing.LimitProblem(low, high) is { } problem)
+        {
+            _owner.StatusText = problem;
+            Raise();
+            return;
+        }
+
+        if (!Publishing.Limit(setting.Node, setting.Entry.Member, low, high))
+            return;
+
+        var range = Tunable.For(setting.Node, Publishing.NameOf(setting.Node, PublishedKind.Setting, setting.Entry.Member)!)!.RangeText;
+        var written = _owner.Recipes.Published(station, recipe);
+
+        _owner.StatusText = written
+            ? $"{setting.Name} may be set to {range} on the line; saved in {station}'s recipe."
+            : $"{setting.Name} may be set to {range} on the line. Save the recipe in Studio to keep it.";
+
+        _owner.Changed();
+        Raise();
     }
 
     /// <summary>Position and size, typed in the properties panel.</summary>

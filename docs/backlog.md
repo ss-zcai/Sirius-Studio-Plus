@@ -81,7 +81,12 @@ from you before they start.
 
 - **F2. Write the runtime design document** (M, design only) - **draft
   written 8 November 2026: `runtime-design.md`**, for review, with
-  proposals, phases and open questions (its section 12). The
+  proposals, phases and open questions (its section 12). **The MVP of
+  section 0 is built, 8-9 November 2026** (decisions 65-70): published
+  names, projects and stations, the station runner, screens with the
+  runtime program and Run as Runtime, the screen designer, and settings
+  changed on the line. Next on it: counts kept over a stop, user levels,
+  then PLC triggers (F3). The
   fourteen ideas agreed on 1 November - recipe vs project, published
   results and tunables, stations, the HMI designer, the runtime exe, PLC
   handshake and drivers, licensing per machine, edge vs cloud - into

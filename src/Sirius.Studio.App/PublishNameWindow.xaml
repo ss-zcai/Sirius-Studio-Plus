@@ -31,6 +31,28 @@
                    TextWrapping="Wrap"
                    Foreground="#DB5C5C" />
 
+        <!-- A number published as a setting: how far the line may take it -->
+        <StackPanel x:Name="LimitsPanel" Visibility="Collapsed">
+            <TextBlock Text="On the line, between (blank for the node's own limit)"
+                       Margin="0,14,0,4"
+                       FontSize="11"
+                       Foreground="{StaticResource Text.Secondary}" />
+            <UniformGrid Columns="2">
+                <TextBox x:Name="LowestBox"
+                         Margin="0,0,4,0"
+                         ToolTip="The lowest it may be set to on the line"
+                         TextChanged="OnLimitsChanged" />
+                <TextBox x:Name="HighestBox"
+                         ToolTip="The highest it may be set to on the line"
+                         TextChanged="OnLimitsChanged" />
+            </UniformGrid>
+            <TextBlock x:Name="NodeRangeText"
+                       Margin="0,4,0,0"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Text.Secondary}" />
+        </StackPanel>
+
         <TextBlock x:Name="HintText"
                    Margin="0,6,0,0"
                    FontSize="11"

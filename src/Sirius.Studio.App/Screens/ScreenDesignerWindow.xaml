@@ -337,6 +337,33 @@
                             <TextBox Text="{Binding Unit}" />
                         </StackPanel>
 
+                        <!-- A setting: whether the operator may change it, and within what -->
+                        <StackPanel Visibility="{Binding HasSettingOptions, Converter={StaticResource BoolToVisibility}}">
+                            <CheckBox Content="The operator may change it"
+                                      Margin="0,10,0,0"
+                                      IsChecked="{Binding OperatorMayChange}"
+                                      IsEnabled="{Binding IsChangeableKind}"
+                                      ToolTip="Off: the screen only shows it" />
+
+                            <StackPanel Visibility="{Binding HasLimits, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="On the line, between (blank for the node's own limit)" Style="{StaticResource FieldLabel}" />
+                                <UniformGrid Columns="2">
+                                    <TextBox Text="{Binding LowestText, UpdateSourceTrigger=LostFocus}"
+                                             ToolTip="The lowest it may be set to"
+                                             Margin="0,0,3,0" />
+                                    <TextBox Text="{Binding HighestText, UpdateSourceTrigger=LostFocus}"
+                                             ToolTip="The highest it may be set to" />
+                                </UniformGrid>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding SettingNote}"
+                                       TextWrapping="Wrap"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"
+                                       Foreground="{StaticResource Text.Secondary}"
+                                       Visibility="{Binding SettingNote, Converter={StaticResource NullToVisibility}}" />
+                        </StackPanel>
+
                         <StackPanel Visibility="{Binding HasFile, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Picture (copied into the project)" Style="{StaticResource FieldLabel}" />
                             <DockPanel>

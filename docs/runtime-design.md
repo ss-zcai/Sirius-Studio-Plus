@@ -81,7 +81,7 @@ own JSON layout (section 7), not XAML.
 4. **Done 9 November 2026** (decision 68). Screens: the JSON model, the widgets, the runtime program, Run as
    Runtime.
 5. **Done 9 November 2026** (decision 69). The screen designer canvas in Studio.
-6. Settings on the line, with the file of changed values.
+6. **Done 9 November 2026** (decision 70). Settings on the line, with the file of changed values.
 
 ---
 
