@@ -392,6 +392,133 @@ public sealed class ScreenTests : IDisposable
         });
     }
 
+    /// <summary>
+    /// Exit with nothing running closes the window. It had thrown: the
+    /// stop finished at once and the window was closed again from inside
+    /// its own closing.
+    /// </summary>
+    [Fact]
+    public void Exit_with_nothing_running_closes()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var window = RuntimeWindow.Create(project, fullScreen: false);
+            var asked = 0;
+            window.Confirm = _ => { asked++; return true; };
+            var closed = false;
+            window.Closed += (_, _) => closed = true;
+
+            window.Show();
+            window.Close();
+            WpfTestHost.PumpUntil(() => closed);
+
+            Assert.Equal(0, asked);
+        });
+    }
+
+    /// <summary>With a station running, Exit asks, stops it - finishing the inspection in hand - and closes.</summary>
+    [Fact]
+    public void Exit_while_running_asks_stops_and_closes()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var window = RuntimeWindow.Create(project, fullScreen: false);
+            var asked = new List<string>();
+            window.Confirm = question => { asked.Add(question); return true; };
+            var closed = false;
+            window.Closed += (_, _) => closed = true;
+
+            window.Show();
+            var station = window.Runtime.Stations[0];
+            station.Start();
+            WpfTestHost.PumpUntil(() => station.Counts.Total >= 2);
+
+            window.Close();
+            WpfTestHost.PumpUntil(() => closed);
+
+            Assert.Equal(["Stop every station and close?"], asked);
+            Assert.Equal(StationState.Ready, station.State);
+        });
+    }
+
+    /// <summary>
+    /// A running station leaves the window time for its own work - even the
+    /// least urgent, which a bare yield between inspections starved.
+    /// </summary>
+    [Fact]
+    public void A_running_station_does_not_starve_the_window()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var window = RuntimeWindow.Create(project, fullScreen: false);
+            window.Confirm = _ => true;
+            var closed = false;
+            window.Closed += (_, _) => closed = true;
+
+            window.Show();
+            var station = window.Runtime.Stations[0];
+            station.Start();
+            WpfTestHost.PumpUntil(() => station.Counts.Total >= 3);
+
+            var ran = 0;
+
+            for (var i = 0; i < 5; i++)
+            {
+                var before = ran;
+                window.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () => ran++);
+                WpfTestHost.PumpUntil(() => ran > before, timeoutSeconds: 5);
+            }
+
+            Assert.True(station.State == StationState.Running);
+
+            window.Close();
+            WpfTestHost.PumpUntil(() => closed);
+        });
+    }
+
+    /// <summary>Answering no leaves it running and open.</summary>
+    [Fact]
+    public void Exit_answered_no_keeps_running()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var window = RuntimeWindow.Create(project, fullScreen: false);
+            window.Confirm = _ => false;
+            var closed = false;
+            window.Closed += (_, _) => closed = true;
+
+            window.Show();
+            var station = window.Runtime.Stations[0];
+            station.Start();
+
+            window.Close();
+            WpfTestHost.Settle(window.Dispatcher);
+
+            Assert.False(closed);
+            Assert.Equal(StationState.Running, station.State);
+
+            window.Confirm = _ => true;
+            window.Close();
+            WpfTestHost.PumpUntil(() => closed);
+        });
+    }
+
     /// <summary>The window builds - its templates and the screen in it - for a real project.</summary>
     [Fact]
     public void The_runtime_window_opens_a_project()

@@ -43,6 +43,7 @@ public partial class RuntimeWindow : Window
 
         DataContext = _screen;
         Title = $"{project.Name} - Sirius Runtime";
+        Confirm = question => Dialog.Confirm(question, Title, this);
 
         if (fullScreen)
         {
@@ -93,36 +94,76 @@ public partial class RuntimeWindow : Window
         }
     }
 
-    private async void OnClosing(object? sender, CancelEventArgs e)
+    /// <summary>Asks before closing; a test answers for the operator.</summary>
+    internal Func<string, bool> Confirm { get; set; }
+
+    /// <remarks>
+    /// <para>
+    /// With nothing running the window simply closes, once asked. With a
+    /// station running, this close is called off, the stations are stopped -
+    /// each finishing the inspection in hand - and the window is closed
+    /// again afterwards.
+    /// </para>
+    /// <para>
+    /// That second close is posted, never made from in here: WPF refuses a
+    /// Close while the window is still closing. Stopping stations that had
+    /// already stopped finishes at once, and closing straight after it was
+    /// exactly that - an exception on every Exit with nothing running.
+    /// </para>
+    /// </remarks>
+    private void OnClosing(object? sender, CancelEventArgs e)
     {
         if (_closed)
             return;
 
-        e.Cancel = true;
-
         if (_closing)
+        {
+            e.Cancel = true;
             return;
+        }
 
         // Always asked full screen, where this is the operator's whole
         // application; in Studio's window, only while something runs.
         var running = _runtime.Stations.Any(station => station.IsBusy);
         var ask = running || WindowStyle == WindowStyle.None;
 
-        if (ask && !Dialog.Confirm(running ? "Stop every station and close?" : "Close the runtime?", Title, this))
+        if (ask && !Confirm(running ? "Stop every station and close?" : "Close the runtime?"))
+        {
+            e.Cancel = true;
             return;
+        }
 
+        if (!running)
+        {
+            ShutDown();
+            return;
+        }
+
+        e.Cancel = true;
         _closing = true;
+        _ = StopThenCloseAsync();
+    }
 
+    private async Task StopThenCloseAsync()
+    {
         try
         {
             await _runtime.StopAllAsync().ConfigureAwait(true);
         }
         finally
         {
-            _screen.Dispose();
-            _runtime.Dispose();
-            _closed = true;
-            Close();
+            ShutDown();
+            await Dispatcher.InvokeAsync(Close);
         }
+    }
+
+    private void ShutDown()
+    {
+        if (_closed)
+            return;
+
+        _closed = true;
+        _screen.Dispose();
+        _runtime.Dispose();
     }
 }

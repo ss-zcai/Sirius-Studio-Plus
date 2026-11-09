@@ -228,6 +228,18 @@ public sealed class StationRunner : ObservableObject, IDisposable
     /// </summary>
     public Func<InspectionSnapshot, Task>? Inspected { get; set; }
 
+    /// <summary>
+    /// Awaited between one inspection and the next while running - the
+    /// screen's chance to catch up. Null for a bare yield.
+    /// </summary>
+    /// <remarks>
+    /// A fast recipe finishes inspections back to back, and each resumes on
+    /// the screen's thread ahead of anything less urgent there: a bare yield
+    /// let a running station starve the window's own work. A screen gives
+    /// one that waits until it has drawn and answered input.
+    /// </remarks>
+    public Func<Task>? Breathe { get; set; }
+
     /// <summary>Inspects once.</summary>
     /// <returns>The inspection, or null when the station was busy or faulted and did nothing.</returns>
     public async Task<InspectionSnapshot?> TriggerAsync(CancellationToken cancellationToken = default)
@@ -304,6 +316,8 @@ public sealed class StationRunner : ObservableObject, IDisposable
 
                 if (failingInARow > 1)
                     await Task.Delay(Math.Min(1000, 100 * failingInARow), run.Token).ConfigureAwait(true);
+                else if (Breathe is { } breathe)
+                    await breathe().ConfigureAwait(true);
                 else
                     await Task.Yield();
             }

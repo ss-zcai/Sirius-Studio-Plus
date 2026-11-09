@@ -137,7 +137,9 @@ public sealed class WpfTestHost : IDisposable
                 throw new Xunit.Sdk.XunitException($"still waiting after {timeoutSeconds}s");
 
             var frame = new DispatcherFrame();
-            dispatcher.BeginInvoke(DispatcherPriority.Background, () => frame.Continue = false);
+            // Out once everything queued has run, at every priority - a
+            // running station's pause between inspections included.
+            dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => frame.Continue = false);
             Dispatcher.PushFrame(frame);
 
             if (!condition())

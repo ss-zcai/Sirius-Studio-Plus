@@ -44,6 +44,7 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
         {
             _pacing[station] = (new LiveDisplay(0), false);
             station.Inspected = snapshot => OnInspected(station, snapshot);
+            station.Breathe = Breathe;
             station.PropertyChanged += OnStationChanged;
             Refresh(station);
         }
@@ -74,6 +75,14 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
         WidgetKind.Logo => new LogoWidgetViewModel(widget, projectFolder),
         _ => new TextWidgetViewModel(widget),
     };
+
+    /// <summary>
+    /// Between inspections: back once the window has drawn, answered input
+    /// and done its background work - so a running station never freezes
+    /// the screen, however fast its recipe.
+    /// </summary>
+    private static async Task Breathe() =>
+        await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
 
     private Task OnInspected(StationRunner station, InspectionSnapshot snapshot)
     {
@@ -131,6 +140,7 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
         {
             station.PropertyChanged -= OnStationChanged;
             station.Inspected = null;
+            station.Breathe = null;
         }
     }
 }
