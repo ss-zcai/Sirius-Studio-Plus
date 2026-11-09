@@ -458,6 +458,68 @@ public sealed class ScreenDesignerTests : IDisposable
     // ---- the property grid ---------------------------------------------------
 
     [Fact]
+    public void Cut_copy_and_paste_a_widget()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var (_, recipes) = TwoStations();
+            var designer = new ScreenDesignerViewModel(recipes);
+            var count = designer.Widgets.Count;
+            var value = designer.Add(WidgetKind.Value, 100, 100);
+
+            designer.CopyCommand.Execute(null);
+            Assert.True(designer.PasteCommand.CanExecute(null));
+
+            // Each paste a step further on.
+            designer.PasteCommand.Execute(null);
+            Assert.Equal((120, 120), (designer.Selected!.X, designer.Selected.Y));
+            designer.PasteCommand.Execute(null);
+            Assert.Equal((140, 140), (designer.Selected!.X, designer.Selected.Y));
+            Assert.Equal(count + 3, designer.Widgets.Count);
+
+            // Cut, then paste: back where it was.
+            designer.Selected = value;
+            designer.CutCommand.Execute(null);
+            Assert.DoesNotContain(value, designer.Widgets);
+            designer.PasteCommand.Execute(null);
+            Assert.Equal((100, 100), (designer.Selected!.X, designer.Selected.Y));
+            Assert.Equal(count + 3, designer.Widgets.Count);
+
+            designer.UndoCommand.Execute(null);
+            Assert.Equal(count + 2, designer.Widgets.Count);
+        });
+    }
+
+    [Fact]
+    public void Arrange_moves_a_widget_one_step_or_to_the_end()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var (_, recipes) = TwoStations();
+            var designer = new ScreenDesignerViewModel(recipes);
+            var widget = designer.Add(WidgetKind.Text);
+            var last = designer.Widgets.Count - 1;
+
+            Assert.False(designer.BringForwardCommand.CanExecute(null));
+            Assert.False(designer.BringToFrontCommand.CanExecute(null));
+
+            designer.SendBackwardCommand.Execute(null);
+            Assert.Equal(last - 1, designer.Widgets.IndexOf(designer.Selected!));
+
+            designer.SendToBackCommand.Execute(null);
+            Assert.Equal(0, designer.Widgets.IndexOf(designer.Selected!));
+            Assert.False(designer.SendBackwardCommand.CanExecute(null));
+
+            designer.BringForwardCommand.Execute(null);
+            Assert.Equal(1, designer.Widgets.IndexOf(designer.Selected!));
+
+            designer.BringToFrontCommand.Execute(null);
+            Assert.Equal(last, designer.Widgets.IndexOf(designer.Selected!));
+            Assert.Same(widget, designer.Selected);
+        });
+    }
+
+    [Fact]
     public void A_widget_lists_only_the_properties_of_its_kind()
     {
         WpfTestHost.OnStaThread(() =>
@@ -469,7 +531,7 @@ public sealed class ScreenDesignerTests : IDisposable
             Assert.Equal(["Widget", "Shows", "Text", "Layout"], value.Categories.Select(category => category.Name));
 
             var logo = designer.Add(WidgetKind.Logo);
-            Assert.Equal(["Widget", "Picture", "Layout"], logo.Categories.Select(category => category.Name));
+            Assert.Equal(["Widget", "Logo", "Layout"], logo.Categories.Select(category => category.Name));
             Assert.Equal(PropertyEditor.File, logo.Categories[1].Rows.Single().Editor);
 
             var setting = designer.Add(WidgetKind.Setting);

@@ -134,6 +134,13 @@ PHOSPHOR = {
     # reticle fixes a scale. The ruler went to Line Calipers, which reads
     # along a straight edge.
     "crosshair": "ph_calibrate",
+
+    # Sirius Builder's widgets: a picture for an image viewer, sliders for
+    # a setting the operator moves, and a trademark for a logo. PASS / FAIL
+    # shares the limit check's tick in a ring.
+    "image": "ph_image",
+    "sliders": "ph_sliders",
+    "trademark": "ph_trademark",
 }
 
 # source file -> the resource key it supplies
@@ -155,6 +162,13 @@ INSTALL = {
     # cropping.
     "zoom-1.svg": "ph_zoom_actual",
     "numbers.svg": "ph_number",
+
+    # Arranging what overlaps, as drawing programs do: one step forward or
+    # back, or all the way.
+    "bring-forward.svg": "ph_bring_forward",
+    "send-backward.svg": "ph_send_backward",
+    "bring-to-front.svg": "ph_bring_to_front",
+    "send-to-back.svg": "ph_send_to_back",
 }
 
 KEYLINE_EXTRA = 32.0

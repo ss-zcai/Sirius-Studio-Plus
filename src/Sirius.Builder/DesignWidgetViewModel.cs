@@ -55,10 +55,10 @@ public sealed class DesignWidgetViewModel : ObservableObject
 
     // ---- what the canvas shows -----------------------------------------
 
-    /// <summary>"Picture", "PASS / FAIL" - what kind of widget it is.</summary>
+    /// <summary>"Image Viewer", "PASS / FAIL" - what kind of widget it is.</summary>
     public string KindLabel => Kind switch
     {
-        WidgetKind.Image => "Picture",
+        WidgetKind.Image => "Image Viewer",
         WidgetKind.Verdict => "PASS / FAIL",
         WidgetKind.Counter => "Total · Pass · Fail · Yield",
         WidgetKind.Button => "Button",
@@ -516,7 +516,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         if (HasName)
         {
             yield return new PropertyRow(
-                "Shows", Kind switch { WidgetKind.Image => "Picture", WidgetKind.Setting => "Setting", _ => "Value" },
+                "Shows", Kind switch { WidgetKind.Image => "Image", WidgetKind.Setting => "Setting", _ => "Value" },
                 PropertyEditor.Choice,
                 () => Widget.Name,
                 value => Choice = _choices.FirstOrDefault(choice => string.Equals(choice.Name, value as string, StringComparison.OrdinalIgnoreCase)),
@@ -576,7 +576,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         if (HasFile)
         {
             yield return new PropertyRow(
-                "Picture", "File", PropertyEditor.File,
+                "Logo", "Picture", PropertyEditor.File,
                 () => File ?? string.Empty,
                 value => File = value as string,
                 "A picture in the project folder. One chosen from outside is copied into its screens folder.",

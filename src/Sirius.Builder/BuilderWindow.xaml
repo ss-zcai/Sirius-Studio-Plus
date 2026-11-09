@@ -43,6 +43,13 @@
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding Designer.UndoCommand}" />
         <KeyBinding Key="Y" Modifiers="Control" Command="{Binding Designer.RedoCommand}" />
         <KeyBinding Key="D" Modifiers="Control" Command="{Binding Designer.DuplicateCommand}" />
+        <KeyBinding Key="X" Modifiers="Control" Command="{Binding Designer.CutCommand}" />
+        <KeyBinding Key="C" Modifiers="Control" Command="{Binding Designer.CopyCommand}" />
+        <KeyBinding Key="V" Modifiers="Control" Command="{Binding Designer.PasteCommand}" />
+        <KeyBinding Key="OemCloseBrackets" Modifiers="Control" Command="{Binding Designer.BringForwardCommand}" />
+        <KeyBinding Key="OemOpenBrackets" Modifiers="Control" Command="{Binding Designer.SendBackwardCommand}" />
+        <KeyBinding Key="OemCloseBrackets" Modifiers="Control+Shift" Command="{Binding Designer.BringToFrontCommand}" />
+        <KeyBinding Key="OemOpenBrackets" Modifiers="Control+Shift" Command="{Binding Designer.SendToBackCommand}" />
     </Window.InputBindings>
 
     <Grid>
@@ -60,19 +67,53 @@
                 <MenuItem Header="_Open Project…" InputGestureText="Ctrl+O" Command="{Binding OpenProjectCommand}" />
                 <MenuItem Header="_Close Project" Command="{Binding CloseProjectCommand}" />
                 <Separator />
-                <MenuItem Header="_Save Screen" InputGestureText="Ctrl+S" Command="{Binding Designer.SaveCommand}" />
+                <!--
+                    The project file is written as it changes - stations,
+                    limits - so the screen is all there is to save.
+                -->
+                <MenuItem Header="_Save Project"
+                          InputGestureText="Ctrl+S"
+                          ToolTip="Saves the screen. Stations and limits are saved as you change them."
+                          Command="{Binding Designer.SaveCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_save}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
                 <Separator />
                 <MenuItem Header="E_xit" Click="OnExit" />
             </MenuItem>
             <MenuItem Header="_Edit">
-                <MenuItem Header="_Undo" InputGestureText="Ctrl+Z" Command="{Binding Designer.UndoCommand}" />
-                <MenuItem Header="_Redo" InputGestureText="Ctrl+Y" Command="{Binding Designer.RedoCommand}" />
+                <MenuItem Header="_Undo" InputGestureText="Ctrl+Z" Command="{Binding Designer.UndoCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_undo}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Redo" InputGestureText="Ctrl+Y" Command="{Binding Designer.RedoCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_redo}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
                 <Separator />
+                <MenuItem Header="Cu_t" InputGestureText="Ctrl+X" Command="{Binding Designer.CutCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_cut}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Copy" InputGestureText="Ctrl+C" Command="{Binding Designer.CopyCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_copy}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Paste" InputGestureText="Ctrl+V" Command="{Binding Designer.PasteCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_paste}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
                 <MenuItem Header="_Duplicate" InputGestureText="Ctrl+D" Command="{Binding Designer.DuplicateCommand}" />
-                <MenuItem Header="De_lete" InputGestureText="Del" Command="{Binding Designer.DeleteCommand}" />
+                <MenuItem Header="De_lete" InputGestureText="Del" Command="{Binding Designer.DeleteCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_delete}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
                 <Separator />
-                <MenuItem Header="Bring to _Front" Command="{Binding Designer.BringToFrontCommand}" />
-                <MenuItem Header="Send to _Back" Command="{Binding Designer.SendToBackCommand}" />
+                <MenuItem Header="Bring _Forward" InputGestureText="Ctrl+]" Command="{Binding Designer.BringForwardCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_bring_forward}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Send Back_ward" InputGestureText="Ctrl+[" Command="{Binding Designer.SendBackwardCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_send_backward}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Bring to F_ront" InputGestureText="Ctrl+Shift+]" Command="{Binding Designer.BringToFrontCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_bring_to_front}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Send to _Back" InputGestureText="Ctrl+Shift+[" Command="{Binding Designer.SendToBackCommand}">
+                    <MenuItem.Icon><Image Source="{StaticResource Icon.ph_send_to_back}" Width="16" Height="16" /></MenuItem.Icon>
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="_Screen">
                 <MenuItem Header="_Reset to Standard" Command="{Binding Designer.ResetCommand}" />
@@ -114,7 +155,7 @@
                 <Button Style="{StaticResource ToolbarButton}" ToolTip="Open project (Ctrl+O)" Command="{Binding OpenProjectCommand}">
                     <Image Source="{StaticResource Icon.ph_open}" Width="18" Height="18" />
                 </Button>
-                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Save the screen (Ctrl+S)" Command="{Binding Designer.SaveCommand}">
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Save the project (Ctrl+S): the screen - stations and limits are saved as you change them" Command="{Binding Designer.SaveCommand}">
                     <StackPanel Orientation="Horizontal">
                         <Image Source="{StaticResource Icon.ph_save}" Width="18" Height="18" />
                         <TextBlock Text="Save" Style="{StaticResource ToolbarLabel}" />
@@ -139,24 +180,34 @@
 
                 <Separator />
 
-                <!-- The selected widget -->
-                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Duplicate the selected widget (Ctrl+D)" Command="{Binding Designer.DuplicateCommand}">
-                    <StackPanel Orientation="Horizontal">
-                        <Image Source="{StaticResource Icon.ph_copy}" Width="18" Height="18" />
-                        <TextBlock Text="Duplicate" Style="{StaticResource ToolbarLabel}" />
-                    </StackPanel>
+                <!-- Clipboard -->
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="Cut the selected widget (Ctrl+X)" Command="{Binding Designer.CutCommand}">
+                    <Image Source="{StaticResource Icon.ph_cut}" Width="18" Height="18" />
                 </Button>
-                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Delete the selected widget (Del)" Command="{Binding Designer.DeleteCommand}">
-                    <StackPanel Orientation="Horizontal">
-                        <Image Source="{StaticResource Icon.ph_delete}" Width="18" Height="18" />
-                        <TextBlock Text="Delete" Style="{StaticResource ToolbarLabel}" />
-                    </StackPanel>
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="Copy the selected widget (Ctrl+C)" Command="{Binding Designer.CopyCommand}">
+                    <Image Source="{StaticResource Icon.ph_copy}" Width="18" Height="18" />
                 </Button>
-                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Bring the selected widget in front of the others" Command="{Binding Designer.BringToFrontCommand}">
-                    <TextBlock Text="To Front" Style="{StaticResource ToolbarLabel}" />
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="Paste (Ctrl+V)" Command="{Binding Designer.PasteCommand}">
+                    <Image Source="{StaticResource Icon.ph_paste}" Width="18" Height="18" />
                 </Button>
-                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Send the selected widget behind the others" Command="{Binding Designer.SendToBackCommand}">
-                    <TextBlock Text="To Back" Style="{StaticResource ToolbarLabel}" />
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="Delete the selected widget (Del)" Command="{Binding Designer.DeleteCommand}">
+                    <Image Source="{StaticResource Icon.ph_delete}" Width="18" Height="18" />
+                </Button>
+
+                <Separator />
+
+                <!-- Arrange: what overlaps -->
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="Bring forward (Ctrl+])" Command="{Binding Designer.BringForwardCommand}">
+                    <Image Source="{StaticResource Icon.ph_bring_forward}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="Send backward (Ctrl+[)" Command="{Binding Designer.SendBackwardCommand}">
+                    <Image Source="{StaticResource Icon.ph_send_backward}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="Bring to front (Ctrl+Shift+])" Command="{Binding Designer.BringToFrontCommand}">
+                    <Image Source="{StaticResource Icon.ph_bring_to_front}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="Send to back (Ctrl+Shift+[)" Command="{Binding Designer.SendToBackCommand}">
+                    <Image Source="{StaticResource Icon.ph_send_to_back}" Width="18" Height="18" />
                 </Button>
 
                 <Separator />

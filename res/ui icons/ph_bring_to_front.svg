@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" data-name="ph_bring_to_front">
+  <g opacity=".5"><rect x="72" y="72" width="112" height="112" fill="none" stroke="#333" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/><polyline points="136 40 216 40 216 120" fill="none" stroke="#333" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/><polyline points="120 216 40 216 40 136" fill="none" stroke="#333" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <rect x="72" y="72" width="112" height="112" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><polyline points="136 40 216 40 216 120" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><polyline points="120 216 40 216 40 136" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

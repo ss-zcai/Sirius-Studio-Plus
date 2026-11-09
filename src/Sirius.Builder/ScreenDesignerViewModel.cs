@@ -72,8 +72,13 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         AddCommand = new RelayCommand<WidgetKind>(kind => Add(kind));
         DeleteCommand = new RelayCommand(Delete, () => Selected is not null);
         DuplicateCommand = new RelayCommand(Duplicate, () => Selected is not null);
-        BringToFrontCommand = new RelayCommand(() => Restack(toFront: true), () => Selected is not null);
-        SendToBackCommand = new RelayCommand(() => Restack(toFront: false), () => Selected is not null);
+        CutCommand = new RelayCommand(Cut, () => Selected is not null);
+        CopyCommand = new RelayCommand(Copy, () => Selected is not null);
+        PasteCommand = new RelayCommand(Paste, () => _clipboard is not null);
+        BringForwardCommand = new RelayCommand(() => Restack(+1), () => CanRestack(+1));
+        SendBackwardCommand = new RelayCommand(() => Restack(-1), () => CanRestack(-1));
+        BringToFrontCommand = new RelayCommand(() => Restack(int.MaxValue), () => CanRestack(+1));
+        SendToBackCommand = new RelayCommand(() => Restack(int.MinValue), () => CanRestack(-1));
         UndoCommand = new RelayCommand(Undo, () => _undo.Count > 0);
         RedoCommand = new RelayCommand(Redo, () => _redo.Count > 0);
         SaveCommand = new RelayCommand(() => Save());
@@ -92,14 +97,14 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     /// <summary>The Widgets panel: each kind, with what it is for.</summary>
     public static IReadOnlyList<WidgetTool> Tools { get; } =
     [
-        new(WidgetKind.Image, "Picture", "A station's picture, with what its recipe draws on it.", "ph_image_viewer"),
-        new(WidgetKind.Verdict, "PASS / FAIL", "A station's verdict, and its grade or what went wrong.", "ph_grade"),
+        new(WidgetKind.Image, "Image Viewer", "A station's image, with what its recipe draws on it - as Studio's Image Viewer shows it.", "ph_image"),
+        new(WidgetKind.Verdict, "PASS / FAIL", "A station's verdict, and its grade or what went wrong.", "ph_limit_check"),
         new(WidgetKind.Value, "Value", "One published result: a measurement, a count, a code read.", "ph_number"),
-        new(WidgetKind.Setting, "Setting", "A published setting, changed by the operator within its limits - or only shown.", "ph_limit_check"),
+        new(WidgetKind.Setting, "Setting", "A published setting, changed by the operator within its limits - or only shown.", "ph_sliders"),
         new(WidgetKind.Counter, "Counts", "A station's total, passed, failed and yield.", "ph_counter"),
         new(WidgetKind.Button, "Button", "Trigger, Run / Stop or Reset Counts - for one station or all.", "ph_pointer"),
         new(WidgetKind.Text, "Text", "Fixed text: a title, a label, an instruction.", "ph_text"),
-        new(WidgetKind.Logo, "Logo", "A picture from the project folder.", "ph_open_image"),
+        new(WidgetKind.Logo, "Logo", "A picture from the project folder: the customer's or yours.", "ph_trademark"),
     ];
 
     // ---- the property grid ------------------------------------------------
@@ -178,6 +183,18 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
 
     public IRelayCommand DuplicateCommand { get; }
 
+    public IRelayCommand CutCommand { get; }
+
+    public IRelayCommand CopyCommand { get; }
+
+    public IRelayCommand PasteCommand { get; }
+
+    /// <summary>One step nearer the front: in front of the widget just above it.</summary>
+    public IRelayCommand BringForwardCommand { get; }
+
+    /// <summary>One step further back.</summary>
+    public IRelayCommand SendBackwardCommand { get; }
+
     public IRelayCommand BringToFrontCommand { get; }
 
     public IRelayCommand SendToBackCommand { get; }
@@ -251,16 +268,95 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         Selected = added;
     }
 
-    private void Restack(bool toFront)
+    // ---- the clipboard -------------------------------------------------------
+
+    /// <summary>
+    /// The widget cut or copied, as the screen file writes it - shared by
+    /// every designer in Builder, so a widget can go from one project's
+    /// screen to another's.
+    /// </summary>
+    private static string? _clipboard;
+
+    /// <summary>How many times what is on the clipboard has been pasted; each paste lands a step further on.</summary>
+    private static int _pastes;
+
+    private void Copy()
+    {
+        if (Selected is not { } widget)
+            return;
+
+        _clipboard = JsonSerializer.Serialize(widget.Widget, Screen.Options);
+        _pastes = 1;
+        PasteCommand.NotifyCanExecuteChanged();
+        StatusText = $"Copied the {widget.KindLabel}.";
+    }
+
+    /// <summary>Copies the selected widget and removes it; pasting puts it back where it was.</summary>
+    private void Cut()
+    {
+        if (Selected is not { } widget)
+            return;
+
+        Copy();
+        _pastes = 0;
+        Delete();
+        StatusText = $"Cut the {widget.KindLabel}.";
+    }
+
+    private void Paste()
+    {
+        if (_clipboard is null || JsonSerializer.Deserialize<Widget>(_clipboard, Screen.Options) is not { } pasted)
+            return;
+
+        var offset = 20 * _pastes++;
+        pasted.X = Snap(pasted.X + offset);
+        pasted.Y = Snap(pasted.Y + offset);
+
+        DesignWidgetViewModel added = null!;
+
+        Edit(() =>
+        {
+            added = new DesignWidgetViewModel(pasted, this);
+            Keep(added);
+            Widgets.Add(added);
+        });
+
+        Selected = added;
+    }
+
+    // ---- arranging ---------------------------------------------------------
+
+    private bool CanRestack(int direction)
+    {
+        if (Selected is not { } widget)
+            return false;
+
+        var index = Widgets.IndexOf(widget);
+        return direction > 0 ? index < Widgets.Count - 1 : index > 0;
+    }
+
+    /// <summary>Moves the selected widget forward (positive) or back in the stack; past either end stops there.</summary>
+    private void Restack(int steps)
     {
         if (Selected is not { } widget)
             return;
 
         var from = Widgets.IndexOf(widget);
-        var to = toFront ? Widgets.Count - 1 : 0;
+        var to = (int)Math.Clamp((long)from + steps, 0, Widgets.Count - 1);
 
         if (from != to)
+        {
             Edit(() => Widgets.Move(from, to));
+            NotifyArrange();
+        }
+    }
+
+    private void NotifyArrange()
+    {
+        BringForwardCommand.NotifyCanExecuteChanged();
+        SendBackwardCommand.NotifyCanExecuteChanged();
+        BringToFrontCommand.NotifyCanExecuteChanged();
+        SendToBackCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>Moves the selected widget by a number of grid steps - the arrow keys.</summary>
@@ -354,8 +450,10 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
 
         DeleteCommand.NotifyCanExecuteChanged();
         DuplicateCommand.NotifyCanExecuteChanged();
-        BringToFrontCommand.NotifyCanExecuteChanged();
-        SendToBackCommand.NotifyCanExecuteChanged();
+        CutCommand.NotifyCanExecuteChanged();
+        CopyCommand.NotifyCanExecuteChanged();
+        PasteCommand.NotifyCanExecuteChanged();
+        NotifyArrange();
         RefreshProperties();
     }
 

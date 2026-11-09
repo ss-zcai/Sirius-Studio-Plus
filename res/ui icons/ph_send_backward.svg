@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" data-name="ph_send_backward">
+  <g opacity=".5"><polyline points="184 168 184 216 40 216 40 72 88 72" fill="none" stroke="#333" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/><rect x="120" y="40" width="96" height="96" fill="none" stroke="#333" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <polyline points="184 168 184 216 40 216 40 72 88 72" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><rect x="120" y="40" width="96" height="96" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
