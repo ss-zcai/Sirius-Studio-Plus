@@ -5,7 +5,7 @@ using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Serialization;
 
-namespace Sirius.Studio.App.ViewModels;
+namespace Sirius.Builder;
 
 /// <summary>One setting changed on the line, beside what the recipe has.</summary>
 public sealed record LineSettingRow(LineSetting Entry, string Source, string InRecipe)
@@ -29,24 +29,21 @@ public sealed record LineSettingRow(LineSetting Entry, string Source, string InR
 /// forgets the line's entry, so the two agree again.
 /// </para>
 /// <para>
-/// The station open in the editor takes it into the editor's recipe, to be
-/// saved with the rest of its changes - and undone like any of them. Any
-/// other station's recipe file is changed and saved at once.
+/// The recipe file is changed and saved at once. Builder never has a recipe
+/// open for editing - Studio does - so a recipe open in Studio meanwhile is
+/// to be opened there again.
 /// </para>
 /// </remarks>
 public sealed class LineSettingsViewModel
 {
     private readonly Project _project;
     private readonly Station _station;
-    private readonly VisionGraph? _editor;
-    private LineSettings _line;
+    private readonly LineSettings _line;
 
-    /// <param name="editor">The editor's recipe when it is this station's; null otherwise.</param>
-    public LineSettingsViewModel(Project project, Station station, VisionGraph? editor)
+    public LineSettingsViewModel(Project project, Station station)
     {
         _project = project;
         _station = station;
-        _editor = editor;
         _line = Load();
         Rows = BuildRows();
     }
@@ -58,9 +55,6 @@ public sealed class LineSettingsViewModel
 
     public IReadOnlyList<LineSettingRow> Rows { get; private set; }
 
-    /// <summary>Whether the recipe being changed is the editor's, so needs saving there.</summary>
-    public bool ChangesEditor => _editor is not null;
-
     /// <summary>
     /// Puts the line's values of <paramref name="rows"/> into the recipe and
     /// forgets them on the line.
@@ -69,7 +63,7 @@ public sealed class LineSettingsViewModel
     public IReadOnlyList<string> TakeIntoRecipe(IEnumerable<LineSettingRow> rows)
     {
         var problems = new List<string>();
-        var recipe = _editor ?? GraphSerializer.Load(_project.RecipePath(_station)).Graph;
+        var recipe = GraphSerializer.Load(_project.RecipePath(_station)).Graph;
         var taken = 0;
 
         foreach (var row in rows)
@@ -86,9 +80,7 @@ public sealed class LineSettingsViewModel
 
         if (taken > 0)
         {
-            if (_editor is null)
-                GraphSerializer.Save(recipe, _project.RecipePath(_station));
-
+            GraphSerializer.Save(recipe, _project.RecipePath(_station));
             _line.Save();
         }
 
@@ -115,18 +107,15 @@ public sealed class LineSettingsViewModel
 
     private IReadOnlyList<LineSettingRow> BuildRows()
     {
-        VisionGraph? recipe = _editor;
+        VisionGraph? recipe;
 
-        if (recipe is null)
+        try
         {
-            try
-            {
-                recipe = GraphSerializer.Load(_project.RecipePath(_station)).Graph;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
-            {
-                recipe = null;
-            }
+            recipe = GraphSerializer.Load(_project.RecipePath(_station)).Graph;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
+        {
+            recipe = null;
         }
 
         return _line.Entries

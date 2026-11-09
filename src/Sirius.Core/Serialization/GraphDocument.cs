@@ -134,15 +134,6 @@ public sealed class PublishedRecord
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
-
-    /// <summary>A setting's lowest value on the line; absent for no limit of its own.</summary>
-    [JsonPropertyName("lowest")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public double? Lowest { get; set; }
-
-    [JsonPropertyName("highest")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public double? Highest { get; set; }
 }
 
 public sealed class ConnectionRecord

@@ -4,7 +4,7 @@ using Sirius.Core.Nodes;
 using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Serialization;
-using Sirius.Studio.App.ViewModels;
+using Sirius.Builder;
 using Xunit;
 
 namespace Sirius.Core.Tests;
@@ -117,14 +117,17 @@ public sealed class LineSettingsTests : IDisposable
         }
     }
 
-    /// <summary>The tunable node, each setting published under its own name, Level limited to 10 - 60.</summary>
+    /// <summary>Level's limit on the line, as Sirius Builder sets it for the station.</summary>
+    private static readonly SettingLimit Limited = new(10, 60);
+
+    /// <summary>The tunable node, each setting published under its own name.</summary>
     private static (VisionGraph Recipe, TestTunableNode Node) Recipe()
     {
         var graph = new VisionGraph();
         var node = new TestTunableNode();
         graph.Add(node);
 
-        Publishing.Publish(graph, node, PublishedKind.Setting, nameof(TestTunableNode.Level), "Level", 10, 60);
+        Publishing.Publish(graph, node, PublishedKind.Setting, nameof(TestTunableNode.Level), "Level");
         Publishing.Publish(graph, node, PublishedKind.Setting, nameof(TestTunableNode.Count), "Count");
         Publishing.Publish(graph, node, PublishedKind.Setting, nameof(TestTunableNode.UseIt), "Use It");
         Publishing.Publish(graph, node, PublishedKind.Setting, nameof(TestTunableNode.Mode), "Mode");
@@ -132,6 +135,14 @@ public sealed class LineSettingsTests : IDisposable
         Publishing.Publish(graph, node, PublishedKind.Result, "Seen", "Seen");
 
         return (graph, node);
+    }
+
+    /// <summary>A project of one station, Top, running <see cref="Recipe"/> with Level limited to 10 - 60.</summary>
+    private Project LineProject()
+    {
+        var project = Project.Create(_folder, "Line", Recipe().Recipe, "Top");
+        project.SetLimit(project.Stations[0], "Level", Limited.Lowest, Limited.Highest);
+        return project;
     }
 
     /// <summary>Made with no synchronisation context, so the passes run where the test is.</summary>
@@ -154,23 +165,26 @@ public sealed class LineSettingsTests : IDisposable
     // ---- the range ---------------------------------------------------------
 
     [Fact]
-    public void A_setting_ranges_between_the_nodes_own_limits_and_its_published_ones()
+    public void A_setting_ranges_between_the_nodes_own_limits_and_the_stations()
     {
-        var (recipe, node) = Recipe();
-        var level = Tunable.Find(recipe, "Level")!;
+        var (recipe, _) = Recipe();
 
-        Assert.Equal(TunableKind.Number, level.Kind);
+        var unlimited = Tunable.Find(recipe, "Level")!;
+        Assert.Equal(TunableKind.Number, unlimited.Kind);
+        Assert.Equal(0, unlimited.Minimum);
+        Assert.Equal(100, unlimited.Maximum);
+
+        var level = Tunable.Find(recipe, "Level", Limited)!;
         Assert.Equal(0, level.NodeMinimum);
         Assert.Equal(100, level.NodeMaximum);
         Assert.Equal(10, level.Minimum);
         Assert.Equal(60, level.Maximum);
 
         // Limits wider than the node's own do not widen it.
-        Publishing.Limit(node, nameof(TestTunableNode.Level), -5, 500);
-        level = Tunable.Find(recipe, "Level")!;
-        Assert.Equal(0, level.Minimum);
-        Assert.Equal(100, level.Maximum);
-        Assert.Equal("0 – 100", level.RangeText.Replace(" ", " ", StringComparison.Ordinal));
+        var wide = Tunable.Find(recipe, "Level", new SettingLimit(-5, 500))!;
+        Assert.Equal(0, wide.Minimum);
+        Assert.Equal(100, wide.Maximum);
+        Assert.Equal("0 – 100", wide.RangeText);
     }
 
     [Fact]
@@ -178,9 +192,9 @@ public sealed class LineSettingsTests : IDisposable
     {
         var (recipe, _) = Recipe();
 
-        Assert.Null(Tunable.Find(recipe, "Level")!.Convert("42", out var level));
+        Assert.Null(Tunable.Find(recipe, "Level", Limited)!.Convert("42", out var level));
         Assert.Equal(42.0, level);
-        Assert.Contains("between 10 and 60", Tunable.Find(recipe, "Level")!.Convert(75, out _), StringComparison.Ordinal);
+        Assert.Contains("between 10 and 60", Tunable.Find(recipe, "Level", Limited)!.Convert(75, out _), StringComparison.Ordinal);
         Assert.NotNull(Tunable.Find(recipe, "Level")!.Convert("lots", out _));
 
         var count = Tunable.Find(recipe, "Count")!;
@@ -203,22 +217,25 @@ public sealed class LineSettingsTests : IDisposable
     }
 
     [Fact]
-    public void Limits_survive_saving_and_renaming()
+    public void Limits_are_kept_in_the_project_by_station_and_name()
     {
-        var (recipe, node) = Recipe();
+        var project = LineProject();
+        project.AddStation("Bottom", Recipe().Recipe);
 
-        var loaded = GraphSerializer.Deserialize(GraphSerializer.Serialize(recipe)).Graph;
-        var entry = Publishing.Find(loaded, "Level")!.Entry;
-        Assert.Equal(10, entry.Lowest);
-        Assert.Equal(60, entry.Highest);
+        var loaded = Project.Load(project.FilePath);
+        Assert.Empty(loaded.Warnings);
+        Assert.Equal(Limited, loaded.Project.Find("Top")!.LimitFor("level"));
+        Assert.Null(loaded.Project.Find("Bottom")!.LimitFor("Level"));
 
-        Publishing.Publish(recipe, node, PublishedKind.Setting, nameof(TestTunableNode.Level), "Brightness");
-        var renamed = Publishing.Find(recipe, "Brightness")!.Entry;
-        Assert.Equal(10, renamed.Lowest);
-        Assert.Equal(60, renamed.Highest);
+        // The recipe carries none.
+        Assert.DoesNotContain("lowest", File.ReadAllText(project.RecipePath(project.Stations[0])), StringComparison.OrdinalIgnoreCase);
 
-        Assert.NotNull(Publishing.LimitProblem(70, 60));
-        Assert.Throws<ArgumentException>(() => Publishing.Limit(node, nameof(TestTunableNode.Level), 70, 60));
+        Assert.False(project.SetLimit(project.Stations[0], "Level", 10, 60));
+        Assert.True(project.SetLimit(project.Stations[0], "Level", null, null));
+        Assert.Empty(Project.Load(project.FilePath).Project.Find("Top")!.Limits);
+
+        Assert.NotNull(SettingLimit.Problem(70, 60));
+        Assert.Throws<ArgumentException>(() => project.SetLimit(project.Stations[0], "Level", 70, 60));
     }
 
     // ---- a station changing them -------------------------------------------
@@ -226,7 +243,7 @@ public sealed class LineSettingsTests : IDisposable
     [Fact]
     public void A_change_while_ready_is_applied_and_kept_for_the_next_start()
     {
-        var project = Project.Create(_folder, "Line", Recipe().Recipe, "Top");
+        var project = LineProject();
 
         using (var runner = Open(project))
         {
@@ -258,7 +275,7 @@ public sealed class LineSettingsTests : IDisposable
     [Fact]
     public void A_value_outside_the_range_is_refused_and_not_kept()
     {
-        var project = Project.Create(_folder, "Line", Recipe().Recipe, "Top");
+        var project = LineProject();
         using var runner = Open(project);
 
         var problem = runner.ChangeSetting("Level", 90);
@@ -272,7 +289,7 @@ public sealed class LineSettingsTests : IDisposable
     [Fact]
     public void A_change_during_an_inspection_waits_for_it_to_finish()
     {
-        var project = Project.Create(_folder, "Line", Recipe().Recipe, "Top");
+        var project = LineProject();
         using var runner = Open(project);
         var node = NodeOf(runner);
         node.Hold = node.Release;
@@ -303,7 +320,7 @@ public sealed class LineSettingsTests : IDisposable
     [Fact]
     public void A_line_value_that_no_longer_fits_the_recipe_is_reported_not_applied()
     {
-        var project = Project.Create(_folder, "Line", Recipe().Recipe, "Top");
+        var project = LineProject();
         var line = LineSettings.ForRecipe(project.RecipePath(project.Stations[0]), out _);
         line.Set("Level", 95.0);
         line.Set("Gone", 3.0);
@@ -321,7 +338,7 @@ public sealed class LineSettingsTests : IDisposable
     [Fact]
     public void An_unreadable_line_file_leaves_the_recipe_as_saved()
     {
-        var project = Project.Create(_folder, "Line", Recipe().Recipe, "Top");
+        var project = LineProject();
         File.WriteAllText(LineSettings.PathFor(project.RecipePath(project.Stations[0])), "{ not json");
 
         using var runner = Open(project);
@@ -357,7 +374,7 @@ public sealed class LineSettingsTests : IDisposable
     [Fact]
     public void Line_values_can_be_taken_into_a_recipe_file()
     {
-        var project = Project.Create(_folder, "Line", Recipe().Recipe, "Top");
+        var project = LineProject();
 
         using (var runner = Open(project))
         {
@@ -368,7 +385,7 @@ public sealed class LineSettingsTests : IDisposable
         var station = project.Stations[0];
         Assert.Equal(2, LineSettingsViewModel.CountFor(project, station));
 
-        var model = new LineSettingsViewModel(project, station, editor: null);
+        var model = new LineSettingsViewModel(project, station);
         var level = model.Rows.Single(row => row.Name == "Level");
         Assert.Equal("50", level.InRecipe);
         Assert.Equal("33", level.OnLine);
@@ -382,25 +399,5 @@ public sealed class LineSettingsTests : IDisposable
         model.Forget(model.Rows);
         Assert.Empty(model.Rows);
         Assert.False(File.Exists(LineSettings.PathFor(project.RecipePath(station))));
-    }
-
-    [Fact]
-    public void Taking_line_values_into_the_open_recipe_changes_the_editor_not_the_file()
-    {
-        var project = Project.Create(_folder, "Line", Recipe().Recipe, "Top");
-        var station = project.Stations[0];
-
-        using (var runner = Open(project))
-            runner.ChangeSetting("Level", 12);
-
-        var editor = GraphSerializer.Load(project.RecipePath(station)).Graph;
-        var model = new LineSettingsViewModel(project, station, editor);
-
-        Assert.True(model.ChangesEditor);
-        Assert.Empty(model.TakeIntoRecipe(model.Rows));
-
-        Assert.Equal(12, editor.Nodes.OfType<TestTunableNode>().Single().Level);
-        Assert.Equal(50, GraphSerializer.Load(project.RecipePath(station)).Graph.Nodes.OfType<TestTunableNode>().Single().Level);
-        Assert.Equal(0, LineSettingsViewModel.CountFor(project, station));
     }
 }

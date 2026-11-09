@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sirius Edge: runs a Sirius project on the machine - its screens, full
+    screen, for the operator - and edits nothing (decision 71). Projects are
+    built in Sirius Builder, their recipes in Sirius Studio.
+
+    The theme, screens, drivers and custom nodes are Studio's (its assembly's
+    Hosting and Screens), so a recipe judges the same in all three.
+    Published into the same folder as Studio, whose runtime and libraries it
+    shares.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Sirius.Edge</RootNamespace>
+    <AssemblyName>SiriusEdge</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>
+
+    <!-- Studio is an executable too; both are published self-contained, together. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sirius.Studio.App\Sirius.Studio.App.csproj" />
+  </ItemGroup>
+
+</Project>

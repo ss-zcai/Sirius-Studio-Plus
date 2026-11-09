@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -6,23 +5,23 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using Sirius.Core.Screens;
 
-namespace Sirius.Studio.App.Screens;
+namespace Sirius.Builder;
 
 /// <summary>
-/// The screen designer's window: dragging widgets about, resizing them by
-/// their handles, dropping new ones from the palette.
+/// The screen designer, the middle of Sirius Builder's window: dragging
+/// widgets about, resizing them by their handles, dropping new ones from the
+/// palette.
 /// </summary>
 /// <remarks>
 /// Pointer positions are read against the canvas itself, so they are in the
 /// screen's own units whatever the zoom. A move or resize snaps to the grid
 /// and is one undoable step, opened on the press and closed on the release.
 /// </remarks>
-public partial class ScreenDesignerWindow : Window
+public partial class ScreenDesignerView : UserControl
 {
     private const string DragFormat = "SiriusScreenWidgetKind";
 
-    private readonly ScreenDesignerViewModel _model;
-    private readonly Action<Window>? _run;
+    private ScreenDesignerViewModel? _model;
 
     // ---- the gesture in hand ------------------------------------------------
 
@@ -33,44 +32,34 @@ public partial class ScreenDesignerWindow : Window
 
     private Point _paletteDownAt;
 
-    private ScreenDesignerWindow(ScreenDesignerViewModel model, Action<Window>? run)
+    public ScreenDesignerView()
     {
         InitializeComponent();
-        DarkTitleBar.Apply(this);
-
-        _model = model;
-        _run = run;
-        DataContext = model;
-
-        model.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(ScreenDesignerViewModel.Width) or nameof(ScreenDesignerViewModel.Height))
-                Fit();
-        };
     }
 
-    /// <summary>
-    /// Opens the designer for a project's screen, over <paramref name="owner"/>.
-    /// </summary>
-    /// <param name="run">Shows the project running, after the screen is saved.</param>
-    public static ScreenDesignerWindow Open(Window? owner, StationRecipes recipes, Action<Window>? run)
+    /// <summary>Save and Run pressed, and the screen saved: show the project running.</summary>
+    public event EventHandler? RunRequested;
+
+    internal ScreenDesignerViewModel? Model => _model;
+
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        var window = new ScreenDesignerWindow(new ScreenDesignerViewModel(recipes), run)
-        {
-            Owner = owner is { IsLoaded: true } ? owner : null,
-        };
+        if (_model is not null)
+            _model.PropertyChanged -= OnModelChanged;
 
-        if (window.Owner is null)
-            window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        _model = DataContext as ScreenDesignerViewModel;
 
-        window.Show();
-        return window;
+        if (_model is not null)
+            _model.PropertyChanged += OnModelChanged;
+
+        Fit();
     }
 
-    internal ScreenDesignerViewModel Model => _model;
-
-    /// <summary>For tests: the window, built but not shown.</summary>
-    internal static ScreenDesignerWindow Unshown(ScreenDesignerViewModel model) => new(model, run: null);
+    private void OnModelChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ScreenDesignerViewModel.Width) or nameof(ScreenDesignerViewModel.Height))
+            Fit();
+    }
 
     // ---- the zoom --------------------------------------------------------
 
@@ -82,7 +71,7 @@ public partial class ScreenDesignerWindow : Window
         var width = Scroller.ActualWidth - 60;
         var height = Scroller.ActualHeight - 60;
 
-        if (width <= 0 || height <= 0 || _model.Width <= 0 || _model.Height <= 0)
+        if (_model is null || width <= 0 || height <= 0 || _model.Width <= 0 || _model.Height <= 0)
             return;
 
         var scale = Math.Clamp(Math.Min(width / _model.Width, height / _model.Height), 0.1, 2);
@@ -94,6 +83,9 @@ public partial class ScreenDesignerWindow : Window
 
     private void OnCanvasMouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (_model is null)
+            return;
+
         var source = e.OriginalSource as DependencyObject;
         var widget = Find<DesignWidgetViewModel>(source);
 
@@ -160,7 +152,7 @@ public partial class ScreenDesignerWindow : Window
 
     private void EndDrag()
     {
-        if (_dragged is null)
+        if (_dragged is null || _model is null)
             return;
 
         _dragged = null;
@@ -196,7 +188,7 @@ public partial class ScreenDesignerWindow : Window
 
     private void OnCanvasDrop(object sender, DragEventArgs e)
     {
-        if (e.Data.GetData(DragFormat) is not WidgetKind kind)
+        if (_model is null || e.Data.GetData(DragFormat) is not WidgetKind kind)
             return;
 
         var at = e.GetPosition(DesignCanvas);
@@ -208,6 +200,9 @@ public partial class ScreenDesignerWindow : Window
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (_model is null)
+            return;
+
         // Typing in a box is typing, not editing the canvas.
         if (Keyboard.FocusedElement is TextBox or ComboBox)
         {
@@ -264,28 +259,12 @@ public partial class ScreenDesignerWindow : Window
         e.Handled = true;
     }
 
-    // ---- the window --------------------------------------------------------
-
-    /// <summary>Back in front: a recipe may have been saved in Studio meanwhile.</summary>
-    private void OnActivated(object? sender, EventArgs e) => _model.Refresh();
+    // ---- running ---------------------------------------------------------
 
     private void OnRunClick(object sender, RoutedEventArgs e)
     {
-        if (_model.Save())
-            _run?.Invoke(this);
-    }
-
-    private void OnClosing(object? sender, CancelEventArgs e)
-    {
-        if (!_model.IsModified)
-            return;
-
-        var answer = Dialog.Ask("Save the screen before closing?", "Screen", this);
-
-        if (answer == MessageBoxResult.Yes && !_model.Save())
-            e.Cancel = true;
-        else if (answer is MessageBoxResult.Cancel or MessageBoxResult.None)
-            e.Cancel = true;
+        if (_model?.Save() == true)
+            RunRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private static T? Find<T>(DependencyObject? source)

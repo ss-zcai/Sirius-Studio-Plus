@@ -25,22 +25,7 @@ public enum PublishedKind
 /// setting, and empty for a view - which is the node itself.
 /// </param>
 /// <param name="Name">The name, unique in the recipe.</param>
-/// <param name="Lowest">
-/// For a numeric setting, the lowest it may be set to on the line; null for
-/// as low as the node itself allows. Never wider than the node's own range:
-/// the two are combined (<see cref="Runtime.Tunable"/>).
-/// </param>
-/// <param name="Highest">The highest, likewise.</param>
-public sealed record PublishedName(
-    PublishedKind Kind,
-    string Member,
-    string Name,
-    double? Lowest = null,
-    double? Highest = null)
-{
-    /// <summary>Whether limits are set for the line.</summary>
-    public bool IsLimited => Lowest is not null || Highest is not null;
-}
+public sealed record PublishedName(PublishedKind Kind, string Member, string Name);
 
 /// <summary>One published name in a recipe, and the node it is on.</summary>
 /// <param name="Node">The node carrying it.</param>
@@ -180,73 +165,20 @@ public static class Publishing
 
     /// <summary>
     /// Gives a member of <paramref name="node"/> a published name, replacing
-    /// any it had - and keeping a setting's limits for the line, so renaming
-    /// does not widen them. Throws when <see cref="Problem"/> would object.
+    /// any it had. Throws when <see cref="Problem"/> would object.
     /// </summary>
     public static void Publish(VisionGraph graph, VisionNode node, PublishedKind kind, string member, string name)
-    {
-        ArgumentNullException.ThrowIfNull(node);
-
-        var current = NameOf(node, kind, member);
-        Publish(graph, node, kind, member, name, current?.Lowest, current?.Highest);
-    }
-
-    /// <summary>
-    /// Publishes a setting with limits for the line, in one change to the
-    /// node - so one undo step. Throws when <see cref="Problem"/> or
-    /// <see cref="LimitProblem"/> would object.
-    /// </summary>
-    public static void Publish(
-        VisionGraph graph, VisionNode node, PublishedKind kind, string member, string name, double? lowest, double? highest)
     {
         if (Problem(graph, name, node, kind, member) is { } problem)
             throw new ArgumentException(problem, nameof(name));
 
-        if (kind != PublishedKind.Setting)
-            (lowest, highest) = (null, null);
-        else if (LimitProblem(lowest, highest) is { } limits)
-            throw new ArgumentException(limits, nameof(lowest));
-
-        var entry = new PublishedName(kind, member, name.Trim(), lowest, highest);
+        var entry = new PublishedName(kind, member, name.Trim());
 
         node.Published =
         [
             .. node.Published.Where(existing => !(existing.Kind == kind && existing.Member == member)),
             entry,
         ];
-    }
-
-    /// <summary>
-    /// Sets the limits on the line of a published setting, keeping its name
-    /// and its place in the node's list.
-    /// </summary>
-    /// <returns>Whether anything changed.</returns>
-    public static bool Limit(VisionNode node, string member, double? lowest, double? highest)
-    {
-        ArgumentNullException.ThrowIfNull(node);
-
-        if (LimitProblem(lowest, highest) is { } problem)
-            throw new ArgumentException(problem, nameof(lowest));
-
-        if (NameOf(node, PublishedKind.Setting, member) is not { } current)
-            throw new InvalidOperationException($"'{member}' of {node.Name} is not published as a setting.");
-
-        var limited = current with { Lowest = lowest, Highest = highest };
-
-        if (limited == current)
-            return false;
-
-        node.Published = node.Published.Select(entry => ReferenceEquals(entry, current) ? limited : entry).ToArray();
-        return true;
-    }
-
-    /// <summary>Why a setting cannot be limited to these ends, or null.</summary>
-    public static string? LimitProblem(double? lowest, double? highest)
-    {
-        if (lowest is { } low && !double.IsFinite(low) || highest is { } high && !double.IsFinite(high))
-            return "A limit must be a number.";
-
-        return lowest > highest ? "The lowest value is above the highest." : null;
     }
 
     /// <summary>Takes a member's published name off it, if it has one.</summary>

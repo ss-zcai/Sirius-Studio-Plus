@@ -1,4 +1,4 @@
-<Window x:Class="Sirius.Studio.App.LineSettingsWindow"
+<Window x:Class="Sirius.Builder.LineSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Line Settings"

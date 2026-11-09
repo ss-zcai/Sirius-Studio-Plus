@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sirius Builder: where a system integrator builds a Sirius project - its
+    stations, each running a recipe made in Sirius Studio; the screens the
+    operator sees; how far the line may change each setting; and later the
+    PLC and I/O. It test-runs the project; Sirius Edge runs it on the
+    machine (decision 71).
+
+    Recipes are Studio's: Builder reads them, and binds screens only to what
+    a recipe publishes. The theme, image viewer and screens are Studio's
+    assembly's, as Edge's are. Published into the same folder as Studio.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Sirius.Builder</RootNamespace>
+    <AssemblyName>SiriusBuilder</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>
+
+    <!-- Studio is an executable too; all are published self-contained, together. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sirius.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sirius.Studio.App\Sirius.Studio.App.csproj" />
+  </ItemGroup>
+
+</Project>

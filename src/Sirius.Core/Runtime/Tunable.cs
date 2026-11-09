@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
+using Sirius.Core.Projects;
 
 namespace Sirius.Core.Runtime;
 
@@ -33,9 +34,9 @@ public enum TunableKind
 /// </summary>
 /// <remarks>
 /// <para>
-/// The range is the node's own, narrowed by the limits the setting was
-/// published with (<see cref="PublishedName.Lowest"/>,
-/// <see cref="PublishedName.Highest"/>) - never widened by them. The node's
+/// The range is the node's own, narrowed by the station's limits for it
+/// (<see cref="Station.Limits"/>, set in Sirius Builder) - never widened by
+/// them. The node's
 /// own is read as Studio's properties panel reads it: a grey level follows
 /// the image's bit depth, and a bound taken from another setting follows that
 /// setting.
@@ -48,13 +49,17 @@ public enum TunableKind
 /// </remarks>
 public sealed class Tunable
 {
-    private Tunable(VisionNode node, ParamDescriptor parameter, PublishedName entry)
+    private Tunable(VisionNode node, ParamDescriptor parameter, PublishedName entry, SettingLimit? limit)
     {
         Node = node;
         Parameter = parameter;
         Entry = entry;
+        Limit = limit;
         Kind = KindOf(parameter);
     }
+
+    /// <summary>The station's limit for it on the line, or null for the node's own range.</summary>
+    public SettingLimit? Limit { get; }
 
     /// <summary>The published name.</summary>
     public string Name => Entry.Name;
@@ -97,7 +102,7 @@ public sealed class Tunable
     {
         get
         {
-            var low = Math.Max(NodeMinimum, Entry.Lowest ?? double.NegativeInfinity);
+            var low = Math.Max(NodeMinimum, Limit?.Lowest ?? double.NegativeInfinity);
 
             // Limits made for another bit depth, or past where another
             // setting now bounds it, can leave nothing between them: hold
@@ -107,7 +112,7 @@ public sealed class Tunable
     }
 
     /// <summary>The highest it may be set to on the line.</summary>
-    public double Maximum => Math.Min(NodeMaximum, Entry.Highest ?? double.PositiveInfinity);
+    public double Maximum => Math.Min(NodeMaximum, Limit?.Highest ?? double.PositiveInfinity);
 
     /// <summary>Whether both ends are known, so it can be shown as a slider.</summary>
     public bool IsBounded => IsNumeric && double.IsFinite(Minimum) && double.IsFinite(Maximum);
@@ -168,23 +173,24 @@ public sealed class Tunable
     /// The published settings of <paramref name="recipe"/> that its nodes
     /// still have, in node order.
     /// </summary>
-    public static IReadOnlyList<Tunable> In(VisionGraph recipe)
+    /// <param name="limits">The station's limits, by published name; null for none.</param>
+    public static IReadOnlyList<Tunable> In(VisionGraph recipe, IReadOnlyDictionary<string, SettingLimit>? limits = null)
     {
         ArgumentNullException.ThrowIfNull(recipe);
 
         return Publishing.In(recipe)
             .Where(item => item.Kind == PublishedKind.Setting && item.Found)
-            .Select(item => For(item.Node, item.Entry))
+            .Select(item => For(item.Node, item.Entry, limits?.GetValueOrDefault(item.Name)))
             .OfType<Tunable>()
             .ToArray();
     }
 
     /// <summary>The setting published under <paramref name="name"/>, or null.</summary>
-    public static Tunable? Find(VisionGraph recipe, string name) =>
-        Publishing.Find(recipe, name) is { Kind: PublishedKind.Setting, Found: true } item ? For(item.Node, item.Entry) : null;
+    public static Tunable? Find(VisionGraph recipe, string name, SettingLimit? limit = null) =>
+        Publishing.Find(recipe, name) is { Kind: PublishedKind.Setting, Found: true } item ? For(item.Node, item.Entry, limit) : null;
 
     /// <summary>The tunable for one published setting entry, or null when the node has no such setting.</summary>
-    public static Tunable? For(VisionNode node, PublishedName entry)
+    public static Tunable? For(VisionNode node, PublishedName entry, SettingLimit? limit = null)
     {
         ArgumentNullException.ThrowIfNull(node);
         ArgumentNullException.ThrowIfNull(entry);
@@ -193,7 +199,7 @@ public sealed class Tunable
             return null;
 
         var parameter = node.Descriptor.Parameters.FirstOrDefault(p => p.Name == entry.Member);
-        return parameter is null ? null : new Tunable(node, parameter, entry);
+        return parameter is null ? null : new Tunable(node, parameter, entry, limit);
     }
 
     /// <summary>

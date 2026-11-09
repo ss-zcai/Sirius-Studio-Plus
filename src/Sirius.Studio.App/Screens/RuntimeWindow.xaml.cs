@@ -13,8 +13,8 @@ namespace Sirius.Studio.App.Screens;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The runtime program shows it full screen, with no title bar; Studio's
-/// Run as Runtime shows it in a window of its own, to try a project while
+/// Sirius Edge shows it full screen, with no title bar; Sirius Builder's
+/// Test Run shows it in a window of its own, to try a project while
 /// building it. Either way it loads each station's recipe as saved, so what
 /// runs is what is on disk.
 /// </para>
@@ -42,7 +42,7 @@ public partial class RuntimeWindow : Window
         _screen = new ScreenViewModel(screen, _runtime, project.Folder, [.. problems ?? [], .. problem is null ? [] : new[] { problem }]);
 
         DataContext = _screen;
-        Title = $"{project.Name} - Sirius Runtime";
+        Title = $"{project.Name} - Sirius Edge";
         Confirm = question => Dialog.Confirm(question, Title, this);
 
         if (fullScreen)

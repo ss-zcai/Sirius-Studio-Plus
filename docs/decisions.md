@@ -2689,3 +2689,47 @@ within the range chosen then.
   forget them first for a clean start.
 - Not yet: user levels for who may change what (the PIN comes with them),
   an audit log of changes, a slider. Counts saved on stop are still to do.
+
+## 71. Three programs: Studio, Builder, Edge
+
+Asked for on 9 November 2026: Studio should be only for recipe design, and
+the project and screen work a program of its own. Names chosen then.
+
+- **Sirius Studio** (`SiriusStudioPlus.exe`) builds recipes. It keeps
+  publishing - the Publish dialog, the port tags, the Published list -
+  since what a recipe offers the outside world is the engineer's to say.
+  Its Project panel, New / Open / Close Project, Design Screen and Run as
+  Runtime are gone. Opening a recipe that has settings changed on its line
+  says so on the status line, naming them, so a value is not tuned here
+  that the line overrides. It opens a recipe named on its command line.
+- **Sirius Builder** (`SiriusBuilder.exe`, src/Sirius.Builder) is the SI's:
+  the project's stations on the left, its screen in the designer beside
+  them. Stations are added empty or from a recipe file (copied in),
+  renamed - the screen's widgets follow, as one undoable change - moved
+  and removed. Double-click, or Open in Studio, starts Studio on a
+  station's recipe. Test Run (F5) shows the project running on its saved
+  screen, as Edge will. Line Settings is here. It reopens the last
+  project. A new project starts with no station.
+- **Sirius Edge** (`SiriusEdge.exe`, src/Sirius.Edge) is the runtime,
+  renamed: a project full screen on the machine, `--windowed` at a desk,
+  editing nothing.
+- **Only Studio writes recipes.** Builder binds a widget only to a name
+  the recipe already publishes, and says where to publish one when there
+  is none (decision 69's publish-on-bind is gone): two programs writing the
+  same file would lose changes. A recipe saved in Studio is read again when
+  Builder comes back to the front. The one exception is Line Settings'
+  Take into Recipe, which says to reopen the recipe in Studio.
+- **Line limits are the project's** (changing decision 70): per station,
+  by published setting name, in the `.sproj` (`stations[].limits`), set
+  in Builder's designer. They are a deployment choice - which settings
+  the operator may move and how far - not the recipe's. The node's own
+  range stays the hard limit. Studio's Publish dialog has no limit boxes.
+- **The project file stays `.sproj`**: a Sirius project, which will hold
+  PLC and I/O too, not only Edge's screens.
+- **Code.** Builder and Edge are their own executables built on Studio's
+  assembly - its theme, image viewer, screens and the new
+  `Hosting/SiriusHost` start-up (node library, custom nodes, cameras) - as
+  the runtime already was. The image viewer is tied to Studio's panels
+  (measurements, profiles), so a shared UI library is left until the
+  programs need to ship or be licensed apart. All three publish into one
+  folder.

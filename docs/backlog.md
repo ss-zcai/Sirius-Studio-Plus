@@ -85,8 +85,10 @@ from you before they start.
   section 0 is built, 8-9 November 2026** (decisions 65-70): published
   names, projects and stations, the station runner, screens with the
   runtime program and Run as Runtime, the screen designer, and settings
-  changed on the line. Next on it: counts kept over a stop, user levels,
-  then PLC triggers (F3). The
+  changed on the line; then split into Sirius Builder (projects, screens)
+  and Sirius Edge (the runtime), Studio keeping recipes (decision 71).
+  Next on it: counts kept over a stop, user levels, then PLC triggers
+  (F3); later a shared UI library so the three can ship apart. The
   fourteen ideas agreed on 1 November - recipe vs project, published
   results and tunables, stations, the HMI designer, the runtime exe, PLC
   handshake and drivers, licensing per machine, edge vs cloud - into

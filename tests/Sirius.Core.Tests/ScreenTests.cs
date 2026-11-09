@@ -323,11 +323,9 @@ public sealed class ScreenTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var recipe = Recipe();
-            var check = recipe.Nodes.OfType<LimitCheckNode>().Single();
-            Publishing.Limit(check, nameof(LimitCheckNode.Maximum), 100, 150);
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            project.SetLimit(project.Stations[0], "Limit", 100, 150);
 
-            var project = Project.Create(_folder, "Line", recipe, "Top");
             using var runtime = new ProjectRuntime(project);
             using var view = new ScreenViewModel(ScreenLayout.Standard(project.Name, runtime.Stations), runtime, project.Folder);
 
@@ -457,7 +455,7 @@ public sealed class ScreenTests : IDisposable
             var app = System.Windows.Application.Current!;
             var before = app.Resources.MergedDictionaries.Count;
 
-            RuntimeLauncher.LoadTheme(app);
+            Sirius.Studio.App.Hosting.SiriusHost.LoadTheme(app);
 
             try
             {
@@ -611,7 +609,7 @@ public sealed class ScreenTests : IDisposable
 
             var window = RuntimeWindow.Create(project, fullScreen: false);
 
-            Assert.Equal("Line - Sirius Runtime", window.Title);
+            Assert.Equal("Line - Sirius Edge", window.Title);
             Assert.Single(window.Runtime.Stations);
             Assert.NotEmpty(window.Screen.Widgets);
             Assert.True(File.Exists(ScreenLayout.MainScreenPath(project)));

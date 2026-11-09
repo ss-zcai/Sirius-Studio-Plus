@@ -99,11 +99,6 @@ public sealed class MainViewModel : ObservableObject
 
         NewGraphCommand = new RelayCommand(NewGraph);
         OpenGraphCommand = new RelayCommand(OpenGraph);
-        NewProjectCommand = new RelayCommand(NewProject);
-        OpenProjectCommand = new RelayCommand(OpenProject);
-        CloseProjectCommand = new RelayCommand(CloseProject, () => Project is not null);
-        RunAsRuntimeCommand = new RelayCommand(() => RunAsRuntime(null), () => Project is not null);
-        DesignScreenCommand = new RelayCommand(DesignScreen, () => Project is not null);
         SaveGraphCommand = new RelayCommand(() => SaveGraph());
         SaveGraphAsCommand = new RelayCommand(() => SaveGraphAs());
         RunCommand = new RelayCommand(RunEverything);
@@ -501,116 +496,6 @@ public sealed class MainViewModel : ObservableObject
 
     public IRelayCommand SaveGraphAsCommand { get; }
 
-    /// <summary>Makes a project folder, its first station starting from the recipe open now if wanted.</summary>
-    public IRelayCommand NewProjectCommand { get; }
-
-    public IRelayCommand OpenProjectCommand { get; }
-
-    /// <summary>Closes the project, leaving an empty recipe.</summary>
-    public IRelayCommand CloseProjectCommand { get; }
-
-    /// <summary>Shows the project running on its screen, as the operator will see it.</summary>
-    public IRelayCommand RunAsRuntimeCommand { get; }
-
-    /// <summary>
-    /// Run as Runtime: the project's screen, running every station from its
-    /// saved recipe, in a window over Studio until closed.
-    /// </summary>
-    /// <remarks>
-    /// The runtime reads recipes from disk, as the runtime program will, so
-    /// unsaved changes to the recipe in the editor are offered for saving
-    /// first. A run in Studio is stopped first: the runtime opens the same
-    /// cameras.
-    /// </remarks>
-    /// <summary>Opens the screen designer for the project's screen, or brings it forward.</summary>
-    public IRelayCommand DesignScreenCommand { get; }
-
-    private Screens.ScreenDesignerWindow? _designer;
-
-    private void DesignScreen()
-    {
-        if (Project is not { } project)
-            return;
-
-        if (_designer is { IsLoaded: true } open)
-        {
-            open.Activate();
-            return;
-        }
-
-        var recipes = new Screens.StationRecipes(
-            project.Project,
-            () => Project?.ActiveStation?.Station,
-            () => _graph);
-
-        _designer = Screens.ScreenDesignerWindow.Open(Application.Current?.MainWindow, recipes, RunAsRuntime);
-        _designer.Closed += (_, _) => _designer = null;
-    }
-
-    private void RunAsRuntime(Window? owner)
-    {
-        if (Project is not { } project)
-            return;
-
-        if (IsBatching)
-        {
-            Dialog.Inform("Stop running in Studio first: the runtime uses the same cameras.", "Run as Runtime");
-            return;
-        }
-
-        if (IsModified)
-        {
-            var answer = Dialog.Ask(
-                "The runtime runs the recipes as saved. Save the changes to this recipe first?",
-                "Run as Runtime");
-
-            if (answer is MessageBoxResult.Cancel or MessageBoxResult.None)
-                return;
-
-            if (answer == MessageBoxResult.Yes && !SaveGraph())
-                return;
-        }
-
-        StatusText = $"Running {project.Name} as the runtime…";
-        Screens.RuntimeWindow.ShowWindowed(owner ?? Application.Current?.MainWindow, project.Project);
-
-        // Settings changed from its screen are kept for the line; say so,
-        // or the recipe here would quietly differ from what runs.
-        project.RefreshLine();
-        var changed = project.Stations.Where(station => station.HasLineChanges).Select(station => station.Name).ToArray();
-
-        StatusText = changed.Length == 0
-            ? "Runtime closed."
-            : $"Runtime closed. Settings changed on the line for {string.Join(", ", changed)} - right-click a station for Line Settings.";
-    }
-
-    private ProjectViewModel? _project;
-
-    /// <summary>The recipe in the editor.</summary>
-    internal VisionGraph EditorGraph => _graph;
-
-    /// <summary>The open project, or null when a recipe is open on its own.</summary>
-    public ProjectViewModel? Project
-    {
-        get => _project;
-        private set
-        {
-            if (!SetProperty(ref _project, value))
-                return;
-
-            OnPropertyChanged(nameof(HasProject));
-            CloseProjectCommand.NotifyCanExecuteChanged();
-            RunAsRuntimeCommand.NotifyCanExecuteChanged();
-            DesignScreenCommand.NotifyCanExecuteChanged();
-
-            // The designer belongs to the project it was opened on.
-            _designer?.Close();
-            RefreshTitle();
-        }
-    }
-
-    public bool HasProject => Project is not null;
-
     public IRelayCommand UndoCommand { get; }
 
     public IRelayCommand RedoCommand { get; }
@@ -827,20 +712,9 @@ public sealed class MainViewModel : ObservableObject
 
     public string Title =>
         (IsModified ? "*" : string.Empty) +
-        (Project?.ActiveStation is { } station
-            ? $"Sirius Studio Plus - {Project.Name} › {station.Name}"
-            : _currentFilePath is null
-                ? Project is null ? "Sirius Studio Plus" : $"Sirius Studio Plus - {Project.Name}"
-                : $"Sirius Studio Plus - {Path.GetFileName(_currentFilePath)}");
-
-    internal void RefreshTitle() => OnPropertyChanged(nameof(Title));
-
-    /// <summary>An empty, unnamed recipe in the editor. Does not ask to save the one there: the caller already has.</summary>
-    internal void ClearRecipe()
-    {
-        _currentFilePath = null;
-        LoadGraph(CreateEmptyGraph());
-    }
+        (_currentFilePath is null
+            ? "Sirius Studio Plus"
+            : $"Sirius Studio Plus - {Path.GetFileName(_currentFilePath)}");
 
     /// <summary>
     /// A small working graph, so the editor is not empty on launch: a file
@@ -1218,7 +1092,6 @@ public sealed class MainViewModel : ObservableObject
         if (!ConfirmDiscard())
             return;
 
-        Project = null;
         _currentFilePath = null;
         LoadGraph(CreateEmptyGraph());
         StatusText = "New recipe created.";
@@ -1238,9 +1111,7 @@ public sealed class MainViewModel : ObservableObject
         if (dialog.ShowDialog() != true)
             return;
 
-        // A recipe opened on its own is not one of the project's stations.
-        if (OpenRecipeFile(dialog.FileName))
-            Project = null;
+        OpenRecipeFile(dialog.FileName);
     }
 
     /// <summary>
@@ -1264,6 +1135,12 @@ public sealed class MainViewModel : ObservableObject
                 ? $"Loaded with {result.Warnings.Count} warning(s)."
                 : $"Loaded {Path.GetFileName(path)}.";
 
+            // A recipe a Sirius project runs may have settings changed on its
+            // line, used there over the values here; say so, or a threshold
+            // could be tuned here that the line is not using.
+            if (LineChangesNote(path) is { } note)
+                StatusText += " " + note;
+
             if (result.HasWarnings)
             {
                 Dialog.Warn(
@@ -1281,128 +1158,32 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// File - New Project: a folder chosen and named, with one station - the
-    /// recipe open now, if it has anything in it and that is wanted.
+    /// "3 settings are changed on the line: Level, Mode, Count. ..." for a
+    /// recipe with a line settings file beside it, or null.
     /// </summary>
-    private void NewProject()
+    internal static string? LineChangesNote(string recipePath)
     {
-        if (!ConfirmDiscard())
-            return;
+        var line = Sirius.Core.Runtime.LineSettings.ForRecipe(recipePath, out _);
 
-        var dialog = new SaveFileDialog
-        {
-            Filter = "Sirius Project (*.sproj)|*.sproj",
-            DefaultExt = Sirius.Core.Projects.Project.Extension,
-            Title = "New Project - a folder of this name is made here",
-            FileName = "New Project",
-            OverwritePrompt = false,
-        };
+        if (line.Entries.Count == 0)
+            return null;
 
-        if (dialog.ShowDialog() != true)
-            return;
+        var names = string.Join(", ", line.Entries.Select(entry => $"{entry.Name} {entry.ValueText}"));
+        var count = line.Entries.Count == 1 ? "1 setting is" : $"{line.Entries.Count} settings are";
 
-        var parent = Path.GetDirectoryName(dialog.FileName)!;
-        var name = Path.GetFileNameWithoutExtension(dialog.FileName);
-
-        if (Sirius.Core.Projects.Project.FileNameProblem(name) is { } problem)
-        {
-            Dialog.Warn(problem, "New Project");
-            return;
-        }
-
-        VisionGraph? first = null;
-
-        if (_graph.Nodes.Count > 0)
-        {
-            var answer = Dialog.Ask(
-                "Start the project's first station from the recipe open now?\n\n" +
-                "Yes copies it into the project; No starts the station empty.",
-                "New Project");
-
-            if (answer == MessageBoxResult.Cancel || answer == MessageBoxResult.None)
-                return;
-
-            if (answer == MessageBoxResult.Yes)
-                first = _graph;
-        }
-
-        try
-        {
-            var project = Sirius.Core.Projects.Project.Create(parent, name, first);
-            Show(new ProjectViewModel(project, this));
-            StatusText = $"Made project {project.Name} in {project.Folder}.";
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            Dialog.Error(ex.Message, "Could not make the project");
-        }
+        return $"On the line {count} changed from the recipe's: {names}. Sirius Builder's Line Settings takes them in or forgets them.";
     }
 
-    private void OpenProject()
+    /// <summary>
+    /// Opens a recipe named on the command line - Sirius Builder's Open in
+    /// Studio - once the window is up.
+    /// </summary>
+    internal void OpenAtStart(string path)
     {
-        if (!ConfirmDiscard())
-            return;
-
-        var dialog = new OpenFileDialog
-        {
-            Filter = "Sirius Project (*.sproj)|*.sproj",
-            Title = "Open Project",
-        };
-
-        if (dialog.ShowDialog() == true)
-            OpenProjectFile(dialog.FileName);
-    }
-
-    /// <summary>Opens a project file and its first station. Does not ask to save the recipe open now.</summary>
-    internal bool OpenProjectFile(string path)
-    {
-        try
-        {
-            var loaded = Sirius.Core.Projects.Project.Load(path);
-            Show(new ProjectViewModel(loaded.Project, this));
-
-            if (loaded.Warnings.Count > 0)
-                Dialog.Warn(string.Join(Environment.NewLine, loaded.Warnings), "Project opened with warnings");
-
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
-        {
-            Dialog.Error(ex.Message, "Could not open project");
-            return false;
-        }
-    }
-
-    /// <summary>Makes <paramref name="project"/> the open one, with its first station in the editor.</summary>
-    private void Show(ProjectViewModel project)
-    {
-        Project = project;
-        project.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(ProjectViewModel.ActiveStation))
-                RefreshTitle();
-        };
-
-        project.OpenFirst();
-
-        if (project.ActiveStation is null)
-        {
-            _currentFilePath = null;
-            LoadGraph(CreateEmptyGraph());
-        }
-
-        RefreshTitle();
-    }
-
-    private void CloseProject()
-    {
-        if (Project is null || !ConfirmDiscard())
-            return;
-
-        Project = null;
-        _currentFilePath = null;
-        LoadGraph(CreateEmptyGraph());
-        StatusText = "Project closed.";
+        if (File.Exists(path))
+            OpenRecipeFile(Path.GetFullPath(path));
+        else
+            Dialog.Warn($"There is no recipe at {path}.", "Open Recipe");
     }
 
     /// <summary>
@@ -1445,7 +1226,6 @@ public sealed class MainViewModel : ObservableObject
 
             _currentFilePath = path;
             MarkSaved();
-            Project?.Follow(path);
             OnPropertyChanged(nameof(Title));
             StatusText = $"Saved {Path.GetFileName(path)}.";
             return true;

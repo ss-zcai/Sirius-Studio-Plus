@@ -2,11 +2,11 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
-using Sirius.Core.Graph;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
+using Sirius.Studio.App;
 
-namespace Sirius.Studio.App.Screens;
+namespace Sirius.Builder;
 
 /// <summary>
 /// A widget on the designer's canvas: where it is, and what it is bound to.
@@ -25,7 +25,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
     private readonly ScreenDesignerViewModel _owner;
     private bool _isSelected;
     private IReadOnlyList<BindingChoice> _choices = [];
-    private VisionGraph? _choicesFrom;
+    private Sirius.Core.Graph.VisionGraph? _choicesFrom;
 
     public DesignWidgetViewModel(Widget widget, ScreenDesignerViewModel owner)
     {
@@ -140,8 +140,11 @@ public sealed class DesignWidgetViewModel : ObservableObject
         }
     }
 
-    /// <summary>What the widget can show from its station's recipe: published names, then what would be published.</summary>
+    /// <summary>What the widget can show from its station's recipe: the names it publishes, of the right kind.</summary>
     public IReadOnlyList<BindingChoice> Choices => _choices;
+
+    /// <summary>The station's recipe publishes nothing this widget could show.</summary>
+    public bool HasNoChoices => HasName && _choicesFrom is not null && _choices.Count == 0;
 
     /// <summary>The choice it is bound to, or null when its name is not found.</summary>
     public BindingChoice? Choice
@@ -150,24 +153,9 @@ public sealed class DesignWidgetViewModel : ObservableObject
             choice.IsPublished && string.Equals(choice.Name, Widget.Name, StringComparison.OrdinalIgnoreCase));
         set
         {
-            if (value is null || _choicesFrom is not { } recipe || Widget.Station is not { } station)
+            // Only what the recipe publishes: Studio publishes, Builder binds.
+            if (value is not { Name: { } name } || string.Equals(name, Widget.Name, StringComparison.OrdinalIgnoreCase))
                 return;
-
-            if (value.IsPublished && string.Equals(value.Name, Widget.Name, StringComparison.OrdinalIgnoreCase))
-                return;
-
-            // Binding publishes when it has to: the output is labelled in
-            // its recipe, and nothing is wired.
-            var (name, published) = ScreenBinding.Bind(recipe, value);
-
-            if (published)
-            {
-                var written = _owner.Recipes.Published(station, recipe);
-
-                _owner.StatusText = written
-                    ? $"Published {value.Source} as '{name}' in {station}'s recipe, and saved it."
-                    : $"Published {value.Source} as '{name}'. Save the recipe in Studio to keep it.";
-            }
 
             _owner.Edit(() => Widget.Name = name);
             RefreshChoices();
@@ -175,11 +163,26 @@ public sealed class DesignWidgetViewModel : ObservableObject
         }
     }
 
-    /// <summary>Said under the name when it is not among the station's published names.</summary>
-    public string? NameProblem =>
-        HasName && !string.IsNullOrWhiteSpace(Widget.Name) && Choice is null
-            ? $"'{Widget.Name}' is not published by {Widget.Station ?? "any station"}."
-            : null;
+    /// <summary>Said under the name when it is not among the station's published names, or there are none.</summary>
+    public string? NameProblem
+    {
+        get
+        {
+            if (!HasName)
+                return null;
+
+            if (Widget.Station is { } station && _choicesFrom is null)
+                return $"{station}'s recipe could not be read.";
+
+            if (!string.IsNullOrWhiteSpace(Widget.Name) && Choice is null)
+                return $"'{Widget.Name}' is not published by {Widget.Station ?? "any station"}. Publish it in Studio, or choose another.";
+
+            if (HasNoChoices)
+                return $"{Widget.Station}'s recipe publishes nothing of this kind yet. In Studio, right-click an output, a setting or a viewer, choose Publish, and save the recipe.";
+
+            return null;
+        }
+    }
 
     public string? Text
     {
@@ -221,10 +224,10 @@ public sealed class DesignWidgetViewModel : ObservableObject
 
     public bool HasSettingOptions => Kind == WidgetKind.Setting;
 
-    /// <summary>The setting the widget shows, in its station's recipe, or null.</summary>
+    /// <summary>The setting the widget shows, in its station's recipe, with the station's limit for it - or null.</summary>
     private Tunable? BoundSetting =>
         HasSettingOptions && _choicesFrom is { } recipe && !string.IsNullOrWhiteSpace(Widget.Name)
-            ? Tunable.Find(recipe, Widget.Name!)
+            ? Tunable.Find(recipe, Widget.Name!, _owner.Recipes.Station(Widget.Station)?.LimitFor(Widget.Name!))
             : null;
 
     /// <summary>A setting a screen has a control for - or none bound yet, which may become one.</summary>
@@ -243,13 +246,13 @@ public sealed class DesignWidgetViewModel : ObservableObject
     /// <summary>The lowest it may be set to on the line; blank for as low as the node allows.</summary>
     public string LowestText
     {
-        get => LimitText(BoundSetting?.Entry.Lowest);
+        get => LimitText(BoundSetting?.Limit?.Lowest);
         set => SetLimit(value, lowest: true);
     }
 
     public string HighestText
     {
-        get => LimitText(BoundSetting?.Entry.Highest);
+        get => LimitText(BoundSetting?.Limit?.Highest);
         set => SetLimit(value, lowest: false);
     }
 
@@ -283,7 +286,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 _ => "any value",
             };
 
-            return $"{setting.Source} itself allows {own}. Limits are kept in the recipe, with the setting's name.";
+            return $"{setting.Source} itself allows {own}. Limits are kept in the project, for this station.";
         }
     }
 
@@ -291,13 +294,13 @@ public sealed class DesignWidgetViewModel : ObservableObject
         limit is { } value ? value.ToString("0.###", System.Globalization.CultureInfo.CurrentCulture) : string.Empty;
 
     /// <summary>
-    /// Sets one end of the setting's range on the line, in its recipe - as
-    /// binding publishes there: the editor's recipe for the station open in
-    /// Studio, saved with it; any other station's file at once.
+    /// Sets one end of the setting's range on the line - for this station,
+    /// in the project, written at once. Every screen showing the setting,
+    /// and later a PLC writing it, is held to the same.
     /// </summary>
     private void SetLimit(string? text, bool lowest)
     {
-        if (BoundSetting is not { } setting || _choicesFrom is not { } recipe || Widget.Station is not { } station)
+        if (BoundSetting is not { } setting || _owner.Recipes.Station(Widget.Station) is not { } station)
             return;
 
         double? limit = null;
@@ -315,25 +318,30 @@ public sealed class DesignWidgetViewModel : ObservableObject
             limit = parsed;
         }
 
-        var low = lowest ? limit : setting.Entry.Lowest;
-        var high = lowest ? setting.Entry.Highest : limit;
+        var low = lowest ? limit : setting.Limit?.Lowest;
+        var high = lowest ? setting.Limit?.Highest : limit;
 
-        if (Publishing.LimitProblem(low, high) is { } problem)
+        if (Sirius.Core.Projects.SettingLimit.Problem(low, high) is { } problem)
         {
             _owner.StatusText = problem;
             Raise();
             return;
         }
 
-        if (!Publishing.Limit(setting.Node, setting.Entry.Member, low, high))
+        try
+        {
+            if (!_owner.Recipes.Project.SetLimit(station, setting.Name, low, high))
+                return;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _owner.StatusText = $"Could not save the project: {ex.Message}";
+            Raise();
             return;
+        }
 
-        var range = Tunable.For(setting.Node, Publishing.NameOf(setting.Node, PublishedKind.Setting, setting.Entry.Member)!)!.RangeText;
-        var written = _owner.Recipes.Published(station, recipe);
-
-        _owner.StatusText = written
-            ? $"{setting.Name} may be set to {range} on the line; saved in {station}'s recipe."
-            : $"{setting.Name} may be set to {range} on the line. Save the recipe in Studio to keep it.";
+        var range = BoundSetting?.RangeText ?? string.Empty;
+        _owner.StatusText = $"{station.Name} › {setting.Name} may be set to {range} on the line.";
 
         _owner.Changed();
         Raise();
@@ -402,11 +410,15 @@ public sealed class DesignWidgetViewModel : ObservableObject
     internal void RefreshChoices()
     {
         _choicesFrom = HasName ? _owner.Recipes.Recipe(Widget.Station) : null;
-        _choices = _choicesFrom is null ? [] : ScreenBinding.Choices(_choicesFrom, Kind);
+        _choices = _choicesFrom is null ? [] : ScreenBinding.Choices(_choicesFrom, Kind).Where(choice => choice.IsPublished).ToArray();
 
+        OnPropertyChanged(nameof(StationOptions));
+        OnPropertyChanged(nameof(StationValue));
+        OnPropertyChanged(nameof(Caption));
         OnPropertyChanged(nameof(Choices));
         OnPropertyChanged(nameof(Choice));
         OnPropertyChanged(nameof(NameProblem));
+        OnPropertyChanged(nameof(HasNoChoices));
     }
 
     /// <summary>

@@ -1,25 +1,18 @@
-<Window x:Class="Sirius.Studio.App.Screens.ScreenDesignerWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:screens="clr-namespace:Sirius.Studio.App.Screens"
-        xmlns:core="clr-namespace:Sirius.Core.Screens;assembly=Sirius.Core"
-        Title="{Binding Title}"
-        Width="1400"
-        Height="880"
-        MinWidth="900"
-        MinHeight="560"
-        WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Surface.Background}"
-        PreviewKeyDown="OnPreviewKeyDown"
-        Activated="OnActivated"
-        Closing="OnClosing">
+<UserControl x:Class="Sirius.Builder.ScreenDesignerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:screens="clr-namespace:Sirius.Builder"
+             xmlns:core="clr-namespace:Sirius.Core.Screens;assembly=Sirius.Core"
+             Background="{StaticResource Surface.Background}"
+             PreviewKeyDown="OnPreviewKeyDown"
+             DataContextChanged="OnDataContextChanged">
 
     <!--
         The screen designer. Palette on the left, the screen in the middle
         at a size that fits, the selected widget's properties on the right,
         and along the bottom what the screen cannot find.
     -->
-    <Window.Resources>
+    <UserControl.Resources>
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Margin" Value="0,8,0,3" />
@@ -75,7 +68,7 @@
             <Setter Property="Stroke" Value="#DCE8F7" />
             <Setter Property="StrokeThickness" Value="1" />
         </Style>
-    </Window.Resources>
+    </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -111,7 +104,7 @@
                             Command="{Binding ResetCommand}" />
                     <Button Content="Save and Run"
                             Margin="6,0,0,0"
-                            ToolTip="Save the screen and show the project running on it"
+                            ToolTip="Save the screen and test-run the project on it, as Sirius Edge will (F5)"
                             Click="OnRunClick" />
                     <Border Width="1" Margin="8,2" Background="{StaticResource Surface.Border}" />
                     <TextBlock Text="Screen" VerticalAlignment="Center" Foreground="{StaticResource Text.Secondary}" Margin="0,0,6,0" />
@@ -144,7 +137,7 @@
                                     HorizontalContentAlignment="Left"
                                     Padding="8,4"
                                     ToolTip="Click to add, or drag onto the screen"
-                                    Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}"
                                     PreviewMouseLeftButtonDown="OnPaletteMouseDown"
                                     PreviewMouseMove="OnPaletteMouseMove" />
@@ -298,15 +291,14 @@
                             <TextBlock Text="Shows" Style="{StaticResource FieldLabel}" />
                             <ComboBox ItemsSource="{Binding Choices}"
                                       SelectedItem="{Binding Choice}"
-                                      ToolTip="Published names first; choosing anything else publishes it">
+                                      ToolTip="What the station's recipe publishes. Publish more in Studio, then save the recipe there.">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding Display}" />
-                                            <TextBlock Text="  (publishes it)"
-                                                       FontStyle="Italic"
-                                                       Foreground="{StaticResource Text.Secondary}"
-                                                       Visibility="{Binding IsPublished, Converter={StaticResource InverseBoolToVisibility}}" />
+                                            <TextBlock Text="{Binding Source, StringFormat='  {0}'}"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource Text.Secondary}" />
                                         </StackPanel>
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
@@ -321,7 +313,7 @@
 
                         <StackPanel Visibility="{Binding HasAction, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Does" Style="{StaticResource FieldLabel}" />
-                            <ComboBox ItemsSource="{Binding DataContext.Actions, RelativeSource={RelativeSource AncestorType=Window}}"
+                            <ComboBox ItemsSource="{Binding DataContext.Actions, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                       SelectedItem="{Binding Action}" />
                         </StackPanel>
 
@@ -417,4 +409,4 @@
             </TextBlock>
         </Border>
     </Grid>
-</Window>
+</UserControl>

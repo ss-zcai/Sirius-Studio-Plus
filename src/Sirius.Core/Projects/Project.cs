@@ -17,12 +17,31 @@ namespace Sirius.Core.Projects;
 /// </remarks>
 public sealed class Station : ObservableObject
 {
+    private readonly Dictionary<string, SettingLimit> _limits = new(StringComparer.OrdinalIgnoreCase);
     private string _name;
 
     public Station(string name, string recipe)
     {
         _name = name;
         Recipe = recipe;
+    }
+
+    /// <summary>
+    /// How far the line may take each published setting, by its published
+    /// name - chosen in Sirius Builder for this deployment. A setting not
+    /// listed is limited only by its node.
+    /// </summary>
+    public IReadOnlyDictionary<string, SettingLimit> Limits => _limits;
+
+    /// <summary>The limit set for <paramref name="setting"/>, or null.</summary>
+    public SettingLimit? LimitFor(string setting) => _limits.GetValueOrDefault(setting);
+
+    internal void SetLimit(string setting, SettingLimit? limit)
+    {
+        if (limit is null || limit.IsNone)
+            _limits.Remove(setting);
+        else
+            _limits[setting] = limit;
     }
 
     /// <summary>What screens and the operator call it: "Camera 1", "Top".</summary>
@@ -38,12 +57,33 @@ public sealed class Station : ObservableObject
     public override string ToString() => Name;
 }
 
+/// <summary>
+/// The lowest and highest a published setting may be set to on the line;
+/// either null for as far as its node allows. Never wider than the node's
+/// own range: the two are combined (<see cref="Runtime.Tunable"/>).
+/// </summary>
+public sealed record SettingLimit(double? Lowest, double? Highest)
+{
+    /// <summary>Neither end set: no limit of its own.</summary>
+    public bool IsNone => Lowest is null && Highest is null;
+
+    /// <summary>Why a setting cannot be limited to these ends, or null.</summary>
+    public static string? Problem(double? lowest, double? highest)
+    {
+        if (lowest is { } low && !double.IsFinite(low) || highest is { } high && !double.IsFinite(high))
+            return "A limit must be a number.";
+
+        return lowest > highest ? "The lowest value is above the highest." : null;
+    }
+}
+
 /// <summary>What opening a project found, besides the project.</summary>
 public sealed record ProjectLoadResult(Project Project, IReadOnlyList<string> Warnings);
 
 /// <summary>
-/// A deployment built in Studio: stations, each running a recipe, and later
-/// the screens that show them (runtime design, section 0).
+/// A deployment built in Sirius Builder: stations, each running a recipe
+/// made in Studio, the screens that show them, and later the PLC and I/O
+/// (runtime design, section 0; decision 71).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -94,13 +134,11 @@ public sealed class Project
 
     /// <summary>
     /// Makes a project folder <paramref name="name"/> inside
-    /// <paramref name="parent"/>, with one station.
+    /// <paramref name="parent"/>, with one station - or none.
     /// </summary>
-    /// <param name="firstRecipe">
-    /// The first station's recipe - the one open in Studio when the project
-    /// was made - or null for an empty one.
-    /// </param>
-    public static Project Create(string parent, string name, VisionGraph? firstRecipe = null, string firstStation = "Station 1")
+    /// <param name="firstRecipe">The first station's recipe, or null for an empty one.</param>
+    /// <param name="firstStation">The first station's name; null makes the project with no station yet.</param>
+    public static Project Create(string parent, string name, VisionGraph? firstRecipe = null, string? firstStation = "Station 1")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(parent);
 
@@ -115,7 +153,11 @@ public sealed class Project
         Directory.CreateDirectory(Path.Combine(folder, RecipesFolder));
 
         var project = new Project(Path.Combine(folder, name.Trim() + Extension));
-        project.AddStation(firstStation, firstRecipe ?? new VisionGraph());
+
+        if (firstStation is null)
+            project.Save();
+        else
+            project.AddStation(firstStation, firstRecipe ?? new VisionGraph());
         return project;
     }
 
@@ -161,6 +203,17 @@ public sealed class Project
             if (!File.Exists(project.RecipePath(station)))
                 warnings.Add($"Station '{name}': its recipe {record.Recipe} is missing.");
 
+            foreach (var (setting, limit) in record.Limits ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(setting) || limit is null)
+                    continue;
+
+                if (SettingLimit.Problem(limit.Lowest, limit.Highest) is { } problem)
+                    warnings.Add($"Station '{name}': the limits of '{setting}' could not be used ({problem}).");
+                else
+                    station.SetLimit(setting.Trim(), new SettingLimit(limit.Lowest, limit.Highest));
+            }
+
             project._stations.Add(station);
         }
 
@@ -172,7 +225,16 @@ public sealed class Project
         var document = new ProjectDocument
         {
             Stations = _stations
-                .Select(station => new StationRecord { Name = station.Name, Recipe = station.Recipe })
+                .Select(station => new StationRecord
+                {
+                    Name = station.Name,
+                    Recipe = station.Recipe,
+                    Limits = station.Limits.Count == 0
+                        ? null
+                        : station.Limits.ToDictionary(
+                            pair => pair.Key,
+                            pair => (LimitRecord?)new LimitRecord { Lowest = pair.Value.Lowest, Highest = pair.Value.Highest }),
+                })
                 .ToList(),
         };
 
@@ -277,6 +339,31 @@ public sealed class Project
     /// Takes a station out of the project. Its recipe file stays in the
     /// recipes folder: work is not deleted by tidying a list.
     /// </summary>
+    /// <summary>
+    /// Sets how far the line may take a station's published setting; both
+    /// ends null takes the limit off. Written at once, as every change is.
+    /// </summary>
+    /// <returns>Whether anything changed.</returns>
+    public bool SetLimit(Station station, string setting, double? lowest, double? highest)
+    {
+        ArgumentNullException.ThrowIfNull(station);
+        ArgumentException.ThrowIfNullOrWhiteSpace(setting);
+
+        if (SettingLimit.Problem(lowest, highest) is { } problem)
+            throw new ArgumentException(problem, nameof(lowest));
+
+        var limit = new SettingLimit(lowest, highest);
+        var current = station.LimitFor(setting) ?? new SettingLimit(null, null);
+
+        if (current == limit)
+            return false;
+
+        station.SetLimit(setting.Trim(), limit);
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     public void RemoveStation(Station station)
     {
         if (!_stations.Remove(station))
@@ -374,5 +461,18 @@ public sealed class Project
 
         [JsonPropertyName("recipe")]
         public string? Recipe { get; set; }
+
+        /// <summary>Published setting name to its limits on the line.</summary>
+        [JsonPropertyName("limits")]
+        public Dictionary<string, LimitRecord?>? Limits { get; set; }
+    }
+
+    private sealed class LimitRecord
+    {
+        [JsonPropertyName("lowest")]
+        public double? Lowest { get; set; }
+
+        [JsonPropertyName("highest")]
+        public double? Highest { get; set; }
     }
 }

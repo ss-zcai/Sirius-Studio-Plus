@@ -345,22 +345,6 @@
                     <MenuItem Header="Save Recipe _As…"
                               Command="{Binding SaveGraphAsCommand}" />
                     <Separator />
-                    <!--
-                        A project: a folder of stations, each running a recipe,
-                        and later the screens that show them. A recipe opened
-                        or made on its own closes it.
-                    -->
-                    <MenuItem Header="New _Project…"
-                              Command="{Binding NewProjectCommand}" />
-                    <MenuItem Header="Open Pro_ject…"
-                              Command="{Binding OpenProjectCommand}" />
-                    <MenuItem Header="Design _Screen…"
-                              Command="{Binding DesignScreenCommand}" />
-                    <MenuItem Header="Run as R_untime"
-                              Command="{Binding RunAsRuntimeCommand}" />
-                    <MenuItem Header="_Close Project"
-                              Command="{Binding CloseProjectCommand}" />
-                    <Separator />
                     <MenuItem Header="E_xit" Click="OnExitClick" />
                 </MenuItem>
 
@@ -474,7 +458,6 @@
                 </MenuItem>
 
                 <MenuItem Header="_View">
-                    <MenuItem Header="P_roject" Tag="project" Click="OnShowPanelClick" />
                     <MenuItem Header="_Toolbox" Tag="toolbox" Click="OnShowPanelClick" />
                     <MenuItem Header="_Properties" Tag="properties" Click="OnShowPanelClick" />
                     <Separator />
@@ -681,162 +664,6 @@
             <avalonDock:LayoutRoot>
                 <avalonDock:LayoutPanel Orientation="Horizontal">
 
-                    <avalonDock:LayoutAnchorablePaneGroup Orientation="Vertical" DockWidth="230">
-
-                    <!--
-                        The open project: its stations, each running a recipe. One
-                        station's recipe is in the editor at a time; double-click
-                        another to open it.
-                    -->
-                    <avalonDock:LayoutAnchorablePane DockHeight="180">
-                        <avalonDock:LayoutAnchorable Title="Project"
-                                                     ContentId="project"
-                                                     CanClose="False">
-                            <DockPanel>
-                                <!--
-                                    The panel's own toolbar: making and opening projects
-                                    always, the station buttons while one is open.
-                                -->
-                                <StackPanel DockPanel.Dock="Top"
-                                            Orientation="Horizontal"
-                                            Margin="4,4,4,2">
-                                    <Button Style="{StaticResource PanelToolButton}"
-                                            ToolTip="New project…"
-                                            Command="{Binding NewProjectCommand}">
-                                        <Image Source="{StaticResource Icon.ph_new}" Width="15" Height="15" />
-                                    </Button>
-                                    <Button Style="{StaticResource PanelToolButton}"
-                                            ToolTip="Open project…"
-                                            Command="{Binding OpenProjectCommand}">
-                                        <Image Source="{StaticResource Icon.ph_open}" Width="15" Height="15" />
-                                    </Button>
-                                    <Separator Margin="4,3" />
-                                    <Button Style="{StaticResource PanelToolButton}"
-                                            ToolTip="Add a station with an empty recipe"
-                                            IsEnabled="{Binding HasProject}"
-                                            Command="{Binding Project.AddStationCommand}">
-                                        <Path Data="M7,1 L7,13 M1,7 L13,7"
-                                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                              StrokeThickness="1.6"
-                                              Width="14"
-                                              Height="14" />
-                                    </Button>
-                                    <Button Style="{StaticResource PanelToolButton}"
-                                            ToolTip="Add a station running a copy of an existing recipe…"
-                                            IsEnabled="{Binding HasProject}"
-                                            Command="{Binding Project.ImportRecipeCommand}">
-                                        <Image Source="{StaticResource Icon.ph_copy}" Width="15" Height="15" />
-                                    </Button>
-                                    <Separator Margin="4,3" />
-                                    <Button Style="{StaticResource PanelToolButton}"
-                                            ToolTip="Design the screen: lay out what the operator sees"
-                                            Command="{Binding DesignScreenCommand}">
-                                        <Image Source="{StaticResource Icon.ph_image_viewer}" Width="15" Height="15" />
-                                    </Button>
-                                    <Button Style="{StaticResource PanelToolButton}"
-                                            ToolTip="Run as Runtime: the project's screen, every station running, as the operator will see it"
-                                            Command="{Binding RunAsRuntimeCommand}">
-                                        <Image Source="{StaticResource Icon.ph_run}" Width="15" Height="15" />
-                                    </Button>
-                                    <Button Style="{StaticResource PanelToolButton}"
-                                            ToolTip="Close the project"
-                                            Command="{Binding CloseProjectCommand}">
-                                        <Image Source="{StaticResource Icon.ph_clear}" Width="13" Height="13" />
-                                    </Button>
-                                </StackPanel>
-
-                            <Grid Margin="6">
-                                <!-- No project open: what a project is. -->
-                                <TextBlock TextWrapping="Wrap"
-                                           FontSize="11"
-                                           Foreground="{StaticResource Text.Secondary}"
-                                           Visibility="{Binding HasProject, Converter={StaticResource InverseBoolToVisibility}}"
-                                           Text="No project is open. A project holds stations - each a camera and its recipe - and the screens an operator will see. Make one or open one with the buttons above." />
-
-                                <!-- The project's stations -->
-                                <DockPanel DataContext="{Binding Project}"
-                                           Visibility="{Binding Converter={StaticResource NullToVisibility}}">
-                                    <TextBlock DockPanel.Dock="Top"
-                                               Text="{Binding Name}"
-                                               ToolTip="{Binding Folder}"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,2" />
-                                    <TextBlock DockPanel.Dock="Top"
-                                               Text="STATIONS"
-                                               FontSize="10"
-                                               Margin="0,4,0,2"
-                                               Foreground="{StaticResource Text.Secondary}" />
-
-                                    <ListBox x:Name="StationList"
-                                             ItemsSource="{Binding Stations}"
-                                             Background="Transparent"
-                                             BorderThickness="0"
-                                             Foreground="{StaticResource Text.Primary}"
-                                             ItemContainerStyle="{StaticResource DarkListBoxItem}"
-                                             MouseDoubleClick="OnStationDoubleClick">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type vm:StationViewModel}">
-                                                <StackPanel Orientation="Horizontal"
-                                                            Background="Transparent"
-                                                            ToolTip="{Binding RecipePath}">
-                                                    <Ellipse Width="6"
-                                                             Height="6"
-                                                             Margin="0,0,6,0"
-                                                             VerticalAlignment="Center"
-                                                             Fill="{StaticResource Published.Border}"
-                                                             Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}" />
-                                                    <TextBlock x:Name="StationName" Text="{Binding Name}" />
-                                                    <TextBlock Text="  (recipe missing)"
-                                                               FontStyle="Italic"
-                                                               Foreground="#DB5C5C"
-                                                               Visibility="{Binding RecipeMissing, Converter={StaticResource BoolToVisibility}}" />
-                                                    <TextBlock Text="{Binding LineChangesText}"
-                                                               FontSize="11"
-                                                               VerticalAlignment="Center"
-                                                               Foreground="#D9A33A"
-                                                               ToolTip="Settings changed from a screen, used over the recipe's own - right-click for Line Settings"
-                                                               Visibility="{Binding HasLineChanges, Converter={StaticResource BoolToVisibility}}" />
-                                                    <StackPanel.ContextMenu>
-                                                        <ContextMenu>
-                                                            <MenuItem Header="_Open"
-                                                                      Command="{Binding PlacementTarget.Tag.OpenStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                                      CommandParameter="{Binding}" />
-                                                            <MenuItem Header="_Rename…"
-                                                                      Command="{Binding PlacementTarget.Tag.RenameStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                                      CommandParameter="{Binding}" />
-                                                            <MenuItem Header="_Line Settings…"
-                                                                      Command="{Binding PlacementTarget.Tag.LineSettingsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                                      CommandParameter="{Binding}" />
-                                                            <Separator />
-                                                            <MenuItem Header="Move _Up"
-                                                                      Command="{Binding PlacementTarget.Tag.MoveUpCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                                      CommandParameter="{Binding}" />
-                                                            <MenuItem Header="Move _Down"
-                                                                      Command="{Binding PlacementTarget.Tag.MoveDownCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                                      CommandParameter="{Binding}" />
-                                                            <Separator />
-                                                            <MenuItem Header="Re_move from Project…"
-                                                                      Command="{Binding PlacementTarget.Tag.RemoveStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                                      CommandParameter="{Binding}" />
-                                                        </ContextMenu>
-                                                    </StackPanel.ContextMenu>
-                                                    <StackPanel.Tag>
-                                                        <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                                                    </StackPanel.Tag>
-                                                </StackPanel>
-                                                <DataTemplate.Triggers>
-                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                        <Setter TargetName="StationName" Property="FontWeight" Value="SemiBold" />
-                                                    </DataTrigger>
-                                                </DataTemplate.Triggers>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </DockPanel>
-                            </Grid>
-                            </DockPanel>
-                        </avalonDock:LayoutAnchorable>
-                    </avalonDock:LayoutAnchorablePane>
                     <avalonDock:LayoutAnchorablePane DockWidth="230">
                         <avalonDock:LayoutAnchorable Title="Toolbox"
                                                      ContentId="toolbox"
@@ -939,7 +766,6 @@
                         </DockPanel>
                         </avalonDock:LayoutAnchorable>
                     </avalonDock:LayoutAnchorablePane>
-                    </avalonDock:LayoutAnchorablePaneGroup>
 
                     <avalonDock:LayoutPanel Orientation="Vertical">
 

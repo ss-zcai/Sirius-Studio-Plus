@@ -11,6 +11,21 @@ is mine to argue for, **Open** where it needs an answer from you.
 **Start with section 0**, the MVP agreed on 8 November. Sections 1-13 are
 the longer view it must not close doors on.
 
+**Three programs (decision 71, 9 November 2026).** What section 0 first
+put in Studio is now apart from it:
+
+- **Sirius Studio** builds recipes - the vision logic - and publishes the
+  names a screen shows. Nothing else.
+- **Sirius Builder** (`SiriusBuilder.exe`) builds the project: its
+  stations, each running a recipe made in Studio; the screen; how far the
+  line may change each setting; later the PLC and I/O. It test-runs the
+  project, and opens a station's recipe in Studio.
+- **Sirius Edge** (`SiriusEdge.exe`, formerly the runtime) runs the project
+  on the machine, full screen, and edits nothing.
+
+Where section 0 below says Studio for projects, screens or Run as
+Runtime, read Builder.
+
 ---
 
 ## 0. The MVP (agreed 8 November 2026)
@@ -49,9 +64,9 @@ its screens, copied to the machine as it is.
   project opens.
 - A **Published** list shows every name, its node, and what uses it.
 
-**Settings changed on the line, chosen at design time.** In Studio you
+**Settings changed on the line, chosen at design time.** In Builder you
 pick which settings appear on the screen, each with a range at most the
-node's own. On the line only those change, only within that range. The
+node's own, kept in the project for the station. On the line only those change, only within that range. The
 changed values are kept in a small file beside the recipe and applied when
 it loads; the recipe itself is not rewritten.
 
@@ -82,6 +97,8 @@ own JSON layout (section 7), not XAML.
    Runtime.
 5. **Done 9 November 2026** (decision 69). The screen designer canvas in Studio.
 6. **Done 9 November 2026** (decision 70). Settings on the line, with the file of changed values.
+7. **Done 9 November 2026** (decision 71). Projects, screens and line settings moved out of Studio
+   into Sirius Builder; the runtime renamed Sirius Edge.
 
 ---
 

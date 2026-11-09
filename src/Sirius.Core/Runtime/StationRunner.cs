@@ -146,7 +146,13 @@ public sealed class StationRunner : ObservableObject, IDisposable
     /// The settings changed on the line for this recipe, applied now and
     /// added to as they are changed; null keeps changes for this run only.
     /// </param>
-    public StationRunner(string name, VisionGraph recipe, IEnumerable<string>? problems = null, LineSettings? line = null)
+    /// <param name="limits">The station's limits on its settings, by published name; null for the nodes' own.</param>
+    public StationRunner(
+        string name,
+        VisionGraph recipe,
+        IEnumerable<string>? problems = null,
+        LineSettings? line = null,
+        IReadOnlyDictionary<string, SettingLimit>? limits = null)
     {
         ArgumentNullException.ThrowIfNull(recipe);
 
@@ -158,7 +164,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
         foreach (var item in Publishing.In(recipe).Where(item => !item.Found))
             _problems.Add($"'{item.Name}' names {item.Source}, which is no longer there.");
 
-        foreach (var setting in Tunable.In(recipe))
+        foreach (var setting in Tunable.In(recipe, limits))
         {
             _settings[setting.Name] = setting;
             _settingOrder.Add(setting);
@@ -201,7 +207,8 @@ public sealed class StationRunner : ObservableObject, IDisposable
                 station.Name,
                 loaded.Graph,
                 lineProblem is null ? loaded.Warnings : [.. loaded.Warnings, lineProblem],
-                line);
+                line,
+                station.Limits);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
         {

@@ -170,6 +170,15 @@ public partial class MainWindow : Window
         FrameGraph();
 
         CheckNativeLibraries();
+
+        // A recipe named on the command line - Sirius Builder's Open in
+        // Studio, or a file dropped on the program - opens in place of the
+        // starting one.
+        if (Environment.GetCommandLineArgs().Skip(1).FirstOrDefault(arg => !arg.StartsWith("--", StringComparison.Ordinal)) is { } recipe &&
+            DataContext is MainViewModel model)
+        {
+            model.OpenAtStart(recipe);
+        }
     }
 
     /// <summary>
@@ -655,51 +664,6 @@ public partial class MainWindow : Window
     private void RestoreLayout() => RestoreLayout(_layoutPath);
 
     /// <summary>
-    /// Puts one of the shell's own panels back, in a pane of its own above
-    /// another's, when a restored layout left it out - where the default
-    /// layout has it.
-    /// </summary>
-    /// <remarks>
-    /// The new pane is filled before it joins the layout: AvalonDock prunes
-    /// an empty pane as it is attached (see <see cref="PanelLayout.Attach"/>).
-    /// Where the other panel's pane is somewhere this cannot stack under -
-    /// floating, say - it goes in as a tab beside it instead.
-    /// </remarks>
-    private void EnsureShellPanel(string contentId, string besides)
-    {
-        var all = Docking.Layout.Descendents().OfType<LayoutAnchorable>().ToArray();
-
-        if (all.Any(anchorable => anchorable.ContentId == contentId) ||
-            !_panelContent.TryGetValue(contentId, out var content) ||
-            all.All(anchorable => anchorable.ContentId != besides))
-        {
-            return;
-        }
-
-        var anchorable = new LayoutAnchorable
-        {
-            ContentId = contentId,
-            Title = _panelTitles.GetValueOrDefault(contentId, contentId),
-            Content = content,
-            CanClose = false,
-        };
-
-        PanelLayout.PlaceAbove(Docking.Layout, anchorable, besides, height: 180);
-    }
-
-    /// <summary>Double-clicking a station opens its recipe.</summary>
-    private void OnStationDoubleClick(object sender, MouseButtonEventArgs e)
-    {
-        if (DataContext is MainViewModel { Project: { } project } &&
-            (e.OriginalSource as DependencyObject) is { } source &&
-            FindDataContext<StationViewModel>(source) is { } station)
-        {
-            project.OpenStationCommand.Execute(station);
-            e.Handled = true;
-        }
-    }
-
-    /// <summary>
     /// Puts the panels back where a saved layout says they belong.
     /// </summary>
     /// <remarks>
@@ -740,10 +704,6 @@ public partial class MainWindow : Window
             // Anything the restore dropped - a panel the layout did not
             // mention - still needs a home.
             SyncNodeAnchorables();
-
-            // A layout saved before the Project panel existed does not
-            // mention it either, and the restore drops it.
-            EnsureShellPanel("project", besides: "toolbox");
         }
         catch (Exception)
         {

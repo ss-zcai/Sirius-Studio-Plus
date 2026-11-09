@@ -3,6 +3,7 @@ using Sirius.Core.Graph;
 using Sirius.Core.Projects;
 using Sirius.Core.Screens;
 using Sirius.Core.Serialization;
+using Sirius.Builder;
 using Sirius.Studio.App.Screens;
 using Sirius.Vision.Nodes;
 using Xunit;
@@ -57,16 +58,26 @@ public sealed class ScreenDesignerTests : IDisposable
         return graph;
     }
 
-    /// <summary>A project with stations Top and Bottom, Top open in the "editor".</summary>
-    private (Project Project, VisionGraph Editor, StationRecipes Recipes) TwoStations()
+    /// <summary>
+    /// <see cref="Recipe"/> with more published, as Studio would leave it:
+    /// region stats' mean as "Mean", the viewer, and the threshold level.
+    /// </summary>
+    private static VisionGraph PublishedRecipe()
     {
-        var project = Project.Create(_folder, "Line", Recipe(), "Top");
-        project.AddStation("Bottom", Recipe());
+        var graph = Recipe();
+        Publishing.Publish(graph, graph.Nodes.OfType<RegionStatsNode>().Single(), PublishedKind.Result, "Mean", "Mean");
+        Publishing.Publish(graph, graph.Nodes.OfType<ViewerNode>().Single(), PublishedKind.View, string.Empty, "Image Viewer");
+        Publishing.Publish(graph, graph.Nodes.OfType<ThresholdNode>().Single(), PublishedKind.Setting, nameof(ThresholdNode.Threshold), "Level");
+        return graph;
+    }
 
-        var editor = GraphSerializer.Load(project.RecipePath(project.Stations[0])).Graph;
-        var recipes = new StationRecipes(project, () => project.Stations[0], () => editor);
+    /// <summary>A project with stations Top and Bottom, their recipes as Studio saved them.</summary>
+    private (Project Project, StationRecipes Recipes) TwoStations()
+    {
+        var project = Project.Create(_folder, "Line", PublishedRecipe(), "Top");
+        project.AddStation("Bottom", PublishedRecipe());
 
-        return (project, editor, recipes);
+        return (project, new StationRecipes(project));
     }
 
     // ---- what a widget can show --------------------------------------------
@@ -126,7 +137,7 @@ public sealed class ScreenDesignerTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (_, _, recipes) = TwoStations();
+            var (_, recipes) = TwoStations();
             var designer = new ScreenDesignerViewModel(recipes);
 
             Assert.Contains(designer.Widgets, w => w.Widget.Station == "Bottom");
@@ -135,16 +146,17 @@ public sealed class ScreenDesignerTests : IDisposable
     }
 
     [Fact]
-    public void A_setting_widget_limits_its_setting_in_the_stations_recipe()
+    public void A_setting_widget_limits_its_setting_for_the_station_in_the_project()
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (project, _, recipes) = TwoStations();
+            var (project, recipes) = TwoStations();
+            var recipeFile = File.ReadAllText(project.RecipePath(project.Stations[1]));
             var designer = new ScreenDesignerViewModel(recipes);
 
             var widget = designer.Add(WidgetKind.Setting);
             widget.StationValue = "Bottom";
-            widget.Choice = widget.Choices.First(c => c.Node is ThresholdNode && c.Member == nameof(ThresholdNode.Threshold));
+            widget.Choice = widget.Choices.Single(c => c.Name == "Level");
 
             Assert.True(widget.OperatorMayChange);
             Assert.True(widget.HasLimits);
@@ -153,11 +165,11 @@ public sealed class ScreenDesignerTests : IDisposable
             widget.LowestText = "20";
             widget.HighestText = "90";
 
-            // Bottom is not in the editor: its file has them at once.
-            var saved = GraphSerializer.Load(project.RecipePath(project.Stations[1])).Graph;
-            var entry = Publishing.Find(saved, widget.Widget.Name!)!.Entry;
-            Assert.Equal(20, entry.Lowest);
-            Assert.Equal(90, entry.Highest);
+            // In the project, for Bottom, written at once - and the recipe untouched.
+            Assert.Equal(new SettingLimit(20, 90), project.Stations[1].LimitFor("Level"));
+            Assert.Null(project.Stations[0].LimitFor("Level"));
+            Assert.Equal(new SettingLimit(20, 90), Project.Load(project.FilePath).Project.Stations[1].LimitFor("level"));
+            Assert.Equal(recipeFile, File.ReadAllText(project.RecipePath(project.Stations[1])));
             Assert.Equal("20", widget.LowestText);
 
             widget.LowestText = "100";
@@ -165,14 +177,15 @@ public sealed class ScreenDesignerTests : IDisposable
             Assert.Equal("20", widget.LowestText);
 
             widget.LowestText = string.Empty;
-            Assert.Null(Publishing.Find(recipes.Recipe("Bottom")!, widget.Widget.Name!)!.Entry.Lowest);
+            widget.HighestText = string.Empty;
+            Assert.Empty(project.Stations[1].Limits);
 
             widget.OperatorMayChange = false;
             Assert.True(widget.Widget.ReadOnly);
             Assert.False(widget.HasLimits);
 
             designer.UndoCommand.Execute(null);
-            Assert.False(designer.Widgets.Single(w => w.Kind == WidgetKind.Setting && w.Widget.Station == "Bottom").Widget.ReadOnly);
+            Assert.False(designer.Widgets.Last().Widget.ReadOnly);
         });
     }
 
@@ -181,7 +194,7 @@ public sealed class ScreenDesignerTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (project, _, recipes) = TwoStations();
+            var (project, recipes) = TwoStations();
             var designer = new ScreenDesignerViewModel(recipes);
 
             designer.Add(WidgetKind.Text);
@@ -202,7 +215,7 @@ public sealed class ScreenDesignerTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (_, _, recipes) = TwoStations();
+            var (_, recipes) = TwoStations();
             var designer = new ScreenDesignerViewModel(recipes);
             var count = designer.Widgets.Count;
 
@@ -227,7 +240,7 @@ public sealed class ScreenDesignerTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (_, _, recipes) = TwoStations();
+            var (_, recipes) = TwoStations();
             var designer = new ScreenDesignerViewModel(recipes);
             var widget = designer.Add(WidgetKind.Verdict, 100, 100);
 
@@ -249,7 +262,7 @@ public sealed class ScreenDesignerTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (_, _, recipes) = TwoStations();
+            var (_, recipes) = TwoStations();
             var designer = new ScreenDesignerViewModel(recipes);
             var widget = designer.Add(WidgetKind.Button);
 
@@ -266,7 +279,7 @@ public sealed class ScreenDesignerTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (_, _, recipes) = TwoStations();
+            var (_, recipes) = TwoStations();
             var designer = new ScreenDesignerViewModel(recipes);
             var widget = designer.Add(WidgetKind.Counter, 100, 100);
             var count = designer.Widgets.Count;
@@ -285,47 +298,55 @@ public sealed class ScreenDesignerTests : IDisposable
         });
     }
 
-    /// <summary>
-    /// Binding on a station not in the editor publishes in its recipe file,
-    /// which nothing else has open.
-    /// </summary>
+    /// <summary>Builder binds only to what Studio published, and writes no recipe.</summary>
     [Fact]
-    public void Binding_on_another_station_publishes_in_its_file()
+    public void Binding_offers_only_published_names_and_writes_no_recipe()
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (project, _, recipes) = TwoStations();
+            var (project, recipes) = TwoStations();
+            var before = File.ReadAllText(project.RecipePath(project.Stations[1]));
             var designer = new ScreenDesignerViewModel(recipes);
             var value = designer.Add(WidgetKind.Value);
 
             value.StationValue = "Bottom";
-            value.Choice = value.Choices.Single(c => c.Source == "Region Stats › Mean");
+
+            Assert.All(value.Choices, c => Assert.True(c.IsPublished));
+            Assert.DoesNotContain(value.Choices, c => c.Source.Contains("Std Dev", StringComparison.Ordinal));
+
+            value.Choice = value.Choices.Single(c => c.Name == "Mean");
 
             Assert.Equal("Mean", value.Widget.Name);
             Assert.Null(value.NameProblem);
-
-            var file = GraphSerializer.Load(project.RecipePath(project.Stations[1])).Graph;
-            Assert.NotNull(Publishing.Find(file, "Mean"));
+            Assert.Equal(before, File.ReadAllText(project.RecipePath(project.Stations[1])));
         });
     }
 
-    /// <summary>On the station in the editor, it publishes there, to be saved with the rest.</summary>
+    /// <summary>A name published and saved in Studio meanwhile appears once Builder looks again.</summary>
     [Fact]
-    public void Binding_on_the_open_station_publishes_in_the_editor()
+    public void A_recipe_saved_in_Studio_is_read_again()
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (project, editor, recipes) = TwoStations();
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            var recipes = new StationRecipes(project);
             var designer = new ScreenDesignerViewModel(recipes);
-            var picture = designer.Add(WidgetKind.Image);
+            var value = designer.Add(WidgetKind.Value);
 
-            picture.Choice = picture.Choices.Single(c => c.Kind == PublishedKind.View);
+            Assert.True(value.HasNoChoices);
+            Assert.Contains("Studio", value.NameProblem, StringComparison.Ordinal);
 
-            Assert.Equal("Image Viewer", picture.Widget.Name);
-            Assert.NotNull(Publishing.Find(editor, "Image Viewer"));
+            // Studio publishes the mean and saves the recipe.
+            var path = project.RecipePath(project.Stations[0]);
+            var recipe = GraphSerializer.Load(path).Graph;
+            Publishing.Publish(recipe, recipe.Nodes.OfType<RegionStatsNode>().Single(), PublishedKind.Result, "Mean", "Mean");
+            GraphSerializer.Save(recipe, path);
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(5));
 
-            var file = GraphSerializer.Load(project.RecipePath(project.Stations[0])).Graph;
-            Assert.Null(Publishing.Find(file, "Image Viewer"));
+            designer.Refresh();
+
+            Assert.False(value.HasNoChoices);
+            Assert.Contains(value.Choices, c => c.Name == "Mean");
         });
     }
 
@@ -334,7 +355,7 @@ public sealed class ScreenDesignerTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (_, _, recipes) = TwoStations();
+            var (_, recipes) = TwoStations();
             var designer = new ScreenDesignerViewModel(recipes);
             designer.Save();
             Assert.False(designer.HasProblems, designer.ProblemText);
@@ -355,7 +376,7 @@ public sealed class ScreenDesignerTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (_, _, recipes) = TwoStations();
+            var (_, recipes) = TwoStations();
             var designer = new ScreenDesignerViewModel(recipes);
             var button = designer.Add(WidgetKind.Button);
 
@@ -379,7 +400,7 @@ public sealed class ScreenDesignerTests : IDisposable
     {
         WpfTestHost.OnStaThread(() =>
         {
-            var (_, _, recipes) = TwoStations();
+            var (_, recipes) = TwoStations();
             var designer = new ScreenDesignerViewModel(recipes);
             var count = designer.Widgets.Count;
 
@@ -392,19 +413,24 @@ public sealed class ScreenDesignerTests : IDisposable
         });
     }
 
-    /// <summary>The window builds - its templates, the palette, the properties - for a real project.</summary>
+    /// <summary>Builder's window builds - its stations, the designer's templates, the palette, the properties - for a real project.</summary>
     [Fact]
-    public void The_designer_window_builds()
+    public void The_builder_window_builds()
     {
         WpfTestHost.OnStaThread(() =>
         {
             WpfTestHost.EnsureApplicationResources();
 
-            var (_, _, recipes) = TwoStations();
-            var window = ScreenDesignerWindow.Unshown(new ScreenDesignerViewModel(recipes));
+            var (project, _) = TwoStations();
+            var model = new BuilderViewModel { RememberProjects = false };
+            model.Show(project);
 
-            Assert.Equal("*Screen - Line", window.Model.Title);
-            Assert.NotEmpty(window.Model.Widgets);
+            var window = new BuilderWindow(model);
+
+            Assert.Equal("*Line - Sirius Builder", model.Title);
+            Assert.Equal(2, model.Stations.Count);
+            Assert.NotEmpty(model.Designer!.Widgets);
+            Assert.Same(model, window.Model);
         });
     }
 }

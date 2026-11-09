@@ -1,8 +1,8 @@
 using System.IO;
 using System.Windows;
-using Sirius.Studio.App.ViewModels;
+using Sirius.Studio.App;
 
-namespace Sirius.Studio.App;
+namespace Sirius.Builder;
 
 /// <summary>A station's settings changed on the line: seen, taken into the recipe, or forgotten.</summary>
 public partial class LineSettingsWindow : Window
@@ -20,8 +20,8 @@ public partial class LineSettingsWindow : Window
         IntroText.Text =
             $"Settings changed from a screen while {model.StationName} ran. They are kept beside the recipe and " +
             "used whenever it runs, over the recipe's own values. Take them into the recipe to make them its own, " +
-            "or forget them to go back to the recipe's." +
-            (model.ChangesEditor ? " This recipe is open in the editor: what is taken in is saved with it." : string.Empty);
+            "or forget them to go back to the recipe's. Taking them in saves the recipe file; if it is open in " +
+            "Studio, open it there again.";
 
         Refresh();
 
@@ -52,9 +52,7 @@ public partial class LineSettingsWindow : Window
         {
             var problems = _model.TakeIntoRecipe(Chosen);
             Refresh();
-            Say(problems.Count == 0
-                ? _model.ChangesEditor ? "Taken into the recipe in the editor. Save it to keep them." : null
-                : string.Join("\n", problems));
+            Say(problems.Count == 0 ? null : string.Join("\n", problems));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
         {

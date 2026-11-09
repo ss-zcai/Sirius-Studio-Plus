@@ -5,7 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Sirius.Core.Screens;
 
-namespace Sirius.Studio.App.Screens;
+namespace Sirius.Builder;
 
 /// <summary>A station a widget can be bound to, as the designer lists it - or every station, for a button.</summary>
 public sealed record StationOption(string Label, string Value);
@@ -342,10 +342,36 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         Widgets = Widgets.Select(widget => ScreenLayout.Copy(widget.Widget)).ToList(),
     };
 
+    /// <summary>
+    /// After a station was renamed: the widgets showing it follow, as one
+    /// undoable change.
+    /// </summary>
+    /// <returns>Whether any widget showed it.</returns>
+    public bool RenameStation(string from, string to)
+    {
+        var following = Widgets
+            .Where(widget => string.Equals(widget.Widget.Station, from, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (following.Length == 0)
+            return false;
+
+        Edit(() =>
+        {
+            foreach (var widget in following)
+                widget.Widget.Station = to;
+        });
+
+        Refresh();
+        return true;
+    }
+
     /// <summary>Re-reads the station recipes and checks the screen against them again.</summary>
     public void Refresh()
     {
         Recipes.Refresh();
+        OnPropertyChanged(nameof(StationOptions));
+        OnPropertyChanged(nameof(ButtonStationOptions));
 
         foreach (var widget in Widgets)
             widget.RefreshChoices();
