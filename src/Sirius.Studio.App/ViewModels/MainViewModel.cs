@@ -102,7 +102,8 @@ public sealed class MainViewModel : ObservableObject
         NewProjectCommand = new RelayCommand(NewProject);
         OpenProjectCommand = new RelayCommand(OpenProject);
         CloseProjectCommand = new RelayCommand(CloseProject, () => Project is not null);
-        RunAsRuntimeCommand = new RelayCommand(RunAsRuntime, () => Project is not null);
+        RunAsRuntimeCommand = new RelayCommand(() => RunAsRuntime(null), () => Project is not null);
+        DesignScreenCommand = new RelayCommand(DesignScreen, () => Project is not null);
         SaveGraphCommand = new RelayCommand(() => SaveGraph());
         SaveGraphAsCommand = new RelayCommand(() => SaveGraphAs());
         RunCommand = new RelayCommand(RunEverything);
@@ -521,7 +522,32 @@ public sealed class MainViewModel : ObservableObject
     /// first. A run in Studio is stopped first: the runtime opens the same
     /// cameras.
     /// </remarks>
-    private void RunAsRuntime()
+    /// <summary>Opens the screen designer for the project's screen, or brings it forward.</summary>
+    public IRelayCommand DesignScreenCommand { get; }
+
+    private Screens.ScreenDesignerWindow? _designer;
+
+    private void DesignScreen()
+    {
+        if (Project is not { } project)
+            return;
+
+        if (_designer is { IsLoaded: true } open)
+        {
+            open.Activate();
+            return;
+        }
+
+        var recipes = new Screens.StationRecipes(
+            project.Project,
+            () => Project?.ActiveStation?.Station,
+            () => _graph);
+
+        _designer = Screens.ScreenDesignerWindow.Open(Application.Current?.MainWindow, recipes, RunAsRuntime);
+        _designer.Closed += (_, _) => _designer = null;
+    }
+
+    private void RunAsRuntime(Window? owner)
     {
         if (Project is not { } project)
             return;
@@ -546,7 +572,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         StatusText = $"Running {project.Name} as the runtime…";
-        Screens.RuntimeWindow.ShowWindowed(Application.Current?.MainWindow, project.Project);
+        Screens.RuntimeWindow.ShowWindowed(owner ?? Application.Current?.MainWindow, project.Project);
         StatusText = "Runtime closed.";
     }
 
@@ -564,6 +590,10 @@ public sealed class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(HasProject));
             CloseProjectCommand.NotifyCanExecuteChanged();
             RunAsRuntimeCommand.NotifyCanExecuteChanged();
+            DesignScreenCommand.NotifyCanExecuteChanged();
+
+            // The designer belongs to the project it was opened on.
+            _designer?.Close();
             RefreshTitle();
         }
     }

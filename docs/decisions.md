@@ -2599,3 +2599,46 @@ The runtime MVP's fourth step (runtime-design.md, section 0).
   the recipes as saved - the runtime program will - so unsaved changes are
   offered for saving first; and refuses while Studio itself is running,
   since both would open the same cameras.
+
+## 69. The screen designer
+
+The runtime MVP's fifth step (runtime-design.md, section 0).
+
+- **A window of its own**, opened from the Project panel or File - Design
+  Screen, rather than a tab beside the graph: the graph's tabs are built
+  around graphs, and a separate window lets a recipe be edited - and a name
+  published - while the screen is open beside it. One at a time; it closes
+  with its project.
+- **Palette, canvas, properties.** Click a widget kind to add it, or drag
+  it onto the screen. Drag to move; drag a handle to resize; positions and
+  edges snap to a 10-unit grid, and a widget stays on the canvas and no
+  smaller than 20. Arrow keys nudge a grid step (Shift: five), Delete
+  removes, Ctrl+D duplicates; To Front and To Back restack. The canvas is
+  the screen's own size, zoomed to fit; its size is set on the toolbar.
+- **Binding publishes when it has to** (as agreed for the MVP). A
+  widget's "Shows" list has the station's published names first, then
+  every output, setting or viewer it could show, marked "publishes it".
+  Choosing one of those publishes it under its own label, made unique.
+  For the station whose recipe is in the editor that happens in the
+  editor - the port's tag appears, saved with the rest of the recipe; for
+  any other station, in its recipe file, written at once, since nothing
+  else has it open. A picture is a viewer or an image output; a value any
+  other output; a setting a visible setting.
+- **Checked as it goes.** The bottom bar lists anything the screen cannot
+  find, and a widget's own panel says when its name is not published. The
+  recipes read from files are read again whenever the designer comes back
+  to the front: one may have been saved in Studio meanwhile.
+- **Undo** keeps the whole screen as it was before each change - a
+  property, an added or removed widget, a whole drag as one step, a
+  reset. A screen is a few dozen widgets; a snapshot cannot miss a kind of
+  change.
+- **Save** writes `screens/Main.screen` and from then on it is the SI's,
+  kept as it is rather than made again from the project. Reset to Standard
+  lays it out again from what the stations publish, to start from; Save
+  and Run saves and shows the project running on it. Closing with unsaved
+  changes asks first.
+- **Logos** are copied into the project's screens folder when chosen from
+  outside it, so the project folder stays complete.
+- On the canvas a widget is drawn as what it is and what it shows - "PASS
+  / FAIL", "Top › Diameter" - rather than as a live preview: the designer
+  is for placing and binding, and Save and Run shows the real thing.

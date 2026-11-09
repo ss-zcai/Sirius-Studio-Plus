@@ -72,8 +72,12 @@ public static class ScreenLayout
         return generated;
     }
 
-    /// <summary>The standard screen for <paramref name="stations"/>.</summary>
-    public static Screen Standard(string title, IReadOnlyList<StationRunner> stations)
+    /// <summary>The standard screen for running <paramref name="stations"/>.</summary>
+    public static Screen Standard(string title, IReadOnlyList<StationRunner> stations) =>
+        Standard(title, Recipes(stations));
+
+    /// <summary>The standard screen for stations by name and recipe - what the designer resets to.</summary>
+    public static Screen Standard(string title, IReadOnlyList<StationRecipe> stations)
     {
         ArgumentNullException.ThrowIfNull(stations);
 
@@ -260,7 +264,11 @@ public static class ScreenLayout
     /// station or name it binds to that is not there - "Value 'Diameter':
     /// station 'Top' publishes no 'Diameter'".
     /// </summary>
-    public static IReadOnlyList<string> Problems(Screen screen, IReadOnlyList<StationRunner> stations)
+    public static IReadOnlyList<string> Problems(Screen screen, IReadOnlyList<StationRunner> stations) =>
+        Problems(screen, Recipes(stations));
+
+    /// <summary>The same, against stations by name and recipe - what the designer checks as it goes.</summary>
+    public static IReadOnlyList<string> Problems(Screen screen, IReadOnlyList<StationRecipe> stations)
     {
         ArgumentNullException.ThrowIfNull(screen);
 
@@ -306,10 +314,52 @@ public static class ScreenLayout
         return problems;
     }
 
-    private static bool NeedsStation(WidgetKind kind) =>
+    private static StationRecipe[] Recipes(IReadOnlyList<StationRunner> stations) =>
+        stations.Select(station => new StationRecipe(station.Name, station.Recipe)).ToArray();
+
+    /// <summary>
+    /// A new widget of <paramref name="kind"/> at (<paramref name="x"/>,
+    /// <paramref name="y"/>), of a size that suits it - what the designer
+    /// puts down when one is added.
+    /// </summary>
+    public static Widget NewWidget(WidgetKind kind, double x, double y, string? station = null)
+    {
+        var (width, height, fontSize) = kind switch
+        {
+            WidgetKind.Image => (400.0, 300.0, 16.0),
+            WidgetKind.Verdict => (180.0, 60.0, 26.0),
+            WidgetKind.Counter => (300.0, 60.0, 14.0),
+            WidgetKind.Button => (140.0, 36.0, 16.0),
+            WidgetKind.Logo => (160.0, 60.0, 16.0),
+            WidgetKind.Text => (240.0, 36.0, 18.0),
+            _ => (300.0, 30.0, 15.0),
+        };
+
+        return new Widget
+        {
+            Kind = kind,
+            X = x,
+            Y = y,
+            Width = width,
+            Height = height,
+            FontSize = fontSize,
+            Station = NeedsStation(kind) || kind == WidgetKind.Button ? station : null,
+            Action = kind == WidgetKind.Button ? WidgetAction.Trigger : null,
+            Text = kind == WidgetKind.Text ? "Text" : null,
+        };
+    }
+
+    /// <summary>A copy of <paramref name="widget"/>, sharing nothing with it.</summary>
+    public static Widget Copy(Widget widget) =>
+        System.Text.Json.JsonSerializer.Deserialize<Widget>(
+            System.Text.Json.JsonSerializer.Serialize(widget, Screen.Options), Screen.Options)!;
+
+    /// <summary>Whether a widget of this kind shows a station's values.</summary>
+    public static bool NeedsStation(WidgetKind kind) =>
         kind is WidgetKind.Image or WidgetKind.Verdict or WidgetKind.Value or WidgetKind.Counter or WidgetKind.Setting;
 
-    private static bool NeedsName(WidgetKind kind) =>
+    /// <summary>Whether a widget of this kind shows one published name.</summary>
+    public static bool NeedsName(WidgetKind kind) =>
         kind is WidgetKind.Image or WidgetKind.Value or WidgetKind.Setting;
 
     /// <summary>The first published view, or else the first published image.</summary>
@@ -326,3 +376,6 @@ public static class ScreenLayout
     private static bool IsListed(PublishedItem item) =>
         item.Kind == PublishedKind.Setting || (item.Kind == PublishedKind.Result && !IsImage(item));
 }
+
+/// <summary>A station by its name and recipe, running or not.</summary>
+public sealed record StationRecipe(string Name, VisionGraph Recipe);

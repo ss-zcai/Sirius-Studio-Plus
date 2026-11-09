@@ -80,7 +80,7 @@ own JSON layout (section 7), not XAML.
    Proved with two simulated or virtual cameras grabbing at once.
 4. **Done 9 November 2026** (decision 68). Screens: the JSON model, the widgets, the runtime program, Run as
    Runtime.
-5. The screen designer canvas in Studio.
+5. **Done 9 November 2026** (decision 69). The screen designer canvas in Studio.
 6. Settings on the line, with the file of changed values.
 
 ---

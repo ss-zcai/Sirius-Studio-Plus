@@ -354,6 +354,8 @@
                               Command="{Binding NewProjectCommand}" />
                     <MenuItem Header="Open Pro_ject…"
                               Command="{Binding OpenProjectCommand}" />
+                    <MenuItem Header="Design _Screen…"
+                              Command="{Binding DesignScreenCommand}" />
                     <MenuItem Header="Run as R_untime"
                               Command="{Binding RunAsRuntimeCommand}" />
                     <MenuItem Header="_Close Project"
@@ -726,6 +728,11 @@
                                         <Image Source="{StaticResource Icon.ph_copy}" Width="15" Height="15" />
                                     </Button>
                                     <Separator Margin="4,3" />
+                                    <Button Style="{StaticResource PanelToolButton}"
+                                            ToolTip="Design the screen: lay out what the operator sees"
+                                            Command="{Binding DesignScreenCommand}">
+                                        <Image Source="{StaticResource Icon.ph_image_viewer}" Width="15" Height="15" />
+                                    </Button>
                                     <Button Style="{StaticResource PanelToolButton}"
                                             ToolTip="Run as Runtime: the project's screen, every station running, as the operator will see it"
                                             Command="{Binding RunAsRuntimeCommand}">

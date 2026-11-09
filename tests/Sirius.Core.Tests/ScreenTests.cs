@@ -171,7 +171,7 @@ public sealed class ScreenTests : IDisposable
     [Fact]
     public void A_project_with_no_stations_says_so()
     {
-        var screen = ScreenLayout.Standard("Empty", []);
+        var screen = ScreenLayout.Standard("Empty", Array.Empty<StationRecipe>());
 
         Assert.Contains(screen.Widgets, w => w.Text?.Contains("no stations", StringComparison.Ordinal) == true);
     }

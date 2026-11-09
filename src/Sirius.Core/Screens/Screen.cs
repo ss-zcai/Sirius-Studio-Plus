@@ -168,7 +168,8 @@ public sealed class Screen
         System.IO.File.Move(temporary, path, overwrite: true);
     }
 
-    internal static readonly JsonSerializerOptions Options = new()
+    /// <summary>How screens are written: indented, enums by name.</summary>
+    public static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
