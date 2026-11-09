@@ -193,6 +193,22 @@ public partial class ImageViewer : UserControl
     /// </remarks>
     private bool _templateReady;
 
+    /// <summary>
+    /// The dark grey behind the image, as the viewer's default rather than a
+    /// value set in its markup.
+    /// </summary>
+    /// <remarks>
+    /// Set in the markup it was a local value, which outranks a value given
+    /// by a template - so a screen's Image Viewer, built from a data
+    /// template, could not change it. A default gives way to anything.
+    /// </remarks>
+    static ImageViewer()
+    {
+        var background = new SolidColorBrush(Color.FromRgb(0x17, 0x18, 0x1A));
+        background.Freeze();
+        BackgroundProperty.OverrideMetadata(typeof(ImageViewer), new FrameworkPropertyMetadata(background));
+    }
+
     public ImageViewer()
     {
         InitializeComponent();

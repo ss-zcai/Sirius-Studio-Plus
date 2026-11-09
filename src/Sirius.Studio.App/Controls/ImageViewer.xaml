@@ -3,8 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:Sirius.Studio.App.ViewModels"
              ClipToBounds="True"
-             Focusable="True"
-             Background="#17181A">
+             Focusable="True">
 
     <UserControl.Resources>
         <!-- Vertical rule between toolbar groups. -->

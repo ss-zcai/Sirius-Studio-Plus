@@ -516,6 +516,78 @@ public sealed class ScreenTests : IDisposable
         });
     }
 
+    /// <summary>
+    /// An Image Viewer the screen colours is that colour when running. The
+    /// viewer's own dark grey was set in its markup, which outranked the
+    /// screen's template, so the designer showed the colour and the running
+    /// screen did not.
+    /// </summary>
+    [Fact]
+    public void A_running_image_viewer_is_the_colour_the_screen_gives_it()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+        new Screen
+        {
+            Widgets =
+            {
+                new Widget { Kind = WidgetKind.Image, X = 0, Y = 0, Width = 300, Height = 200, Station = "Top", Name = "Main View", Background = "#000000" },
+                new Widget { Kind = WidgetKind.Image, X = 300, Y = 0, Width = 300, Height = 200, Station = "Top", Name = "Main View" },
+            },
+        }.Save(ScreenLayout.MainScreenPath(project));
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var window = RuntimeWindow.Create(project, fullScreen: false);
+            window.ShowActivated = false;
+            window.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+            window.Left = -20000;
+            window.Top = -20000;
+
+            try
+            {
+                window.Show();
+                WpfTestHost.Settle(window.Dispatcher);
+
+                var viewers = Descendants(window).OfType<Sirius.Studio.App.Controls.ImageViewer>().ToArray();
+                Assert.Equal(2, viewers.Length);
+
+                Assert.Equal(System.Windows.Media.Colors.Black, ((System.Windows.Media.SolidColorBrush)viewers[0].Background).Color);
+                Assert.Equal(System.Windows.Media.Color.FromRgb(0x17, 0x18, 0x1A), ((System.Windows.Media.SolidColorBrush)viewers[1].Background).Color);
+            }
+            finally
+            {
+                window.Close();
+                WpfTestHost.Settle(window.Dispatcher);
+            }
+        });
+    }
+
+    /// <summary>Studio's viewers, which set no colour, keep the dark grey.</summary>
+    [Fact]
+    public void A_viewer_with_no_colour_set_is_dark_grey() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var viewer = new Sirius.Studio.App.Controls.ImageViewer();
+
+            Assert.Equal(System.Windows.Media.Color.FromRgb(0x17, 0x18, 0x1A), ((System.Windows.Media.SolidColorBrush)viewer.Background).Color);
+        });
+
+    private static IEnumerable<System.Windows.DependencyObject> Descendants(System.Windows.DependencyObject root)
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            yield return child;
+
+            foreach (var below in Descendants(child))
+                yield return below;
+        }
+    }
+
     /// <summary>With a station running, Exit asks, stops it - finishing the inspection in hand - and closes.</summary>
     [Fact]
     public void Exit_while_running_asks_stops_and_closes()
