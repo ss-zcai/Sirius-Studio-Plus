@@ -77,9 +77,15 @@ copied nodes survive a paste.
 keyboard behaviour. **Node colours**: seven presets, checked for contrast
 by test.
 
-**The logo.** `res/Sirius Stu.svg` is the master, drawn as vectors in the
-About box. `res/Sirius Stu.ico` stays hand-made: its small frames, 16 px
-especially, were drawn by hand - never regenerate it from the SVG.
+**The logos.** Each program has its own, drawn by the user: `res/Sirius
+Studio Plus.svg`, `res/Sirius Builder.svg`, `res/Sirius Edge.svg` (9
+November 2026). The SVG is the master: `tools/svg2xaml.py` puts it in
+`Themes/Logo.xaml` (Studio's About box draws it as vectors) and
+`tools/make-app-icons.ps1` renders the `.ico` each program carries, at 16
+to 256 px. A logo whose small frames need drawing by hand can have its
+`.ico` replaced; nothing regenerates it unless the script is run. The
+earlier `res/Sirius Stu.svg` / `.ico` (hand-made frames) are kept but no
+longer used by a program.
 
 **Packaging.** `tools/pack.ps1` produces a self-contained zip, runs the
 tests, regenerates the node reference, checks the licence notices,

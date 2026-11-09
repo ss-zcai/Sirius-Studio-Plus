@@ -18,7 +18,7 @@
     <AssemblyName>SiriusBuilder</AssemblyName>
     <UseWPF>true</UseWPF>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\res\Sirius Builder.ico</ApplicationIcon>
 
     <!-- Studio is an executable too; all are published self-contained, together. -->
     <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>

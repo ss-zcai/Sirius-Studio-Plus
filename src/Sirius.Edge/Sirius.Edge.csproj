@@ -17,7 +17,7 @@
     <AssemblyName>SiriusEdge</AssemblyName>
     <UseWPF>true</UseWPF>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\res\Sirius Edge.ico</ApplicationIcon>
 
     <!-- Studio is an executable too; both are published self-contained, together. -->
     <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>

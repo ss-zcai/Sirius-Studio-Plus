@@ -13,7 +13,7 @@
     <RootNamespace>Sirius.Runner</RootNamespace>
     <AssemblyName>sirius-run</AssemblyName>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\res\Sirius Studio Plus.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

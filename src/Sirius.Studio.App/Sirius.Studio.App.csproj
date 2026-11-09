@@ -8,7 +8,8 @@
     <UseWPF>true</UseWPF>
     <!-- Only English resources ship; the satellite packs add ~10 MB. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>
+    <!-- Made from res/Sirius Studio Plus.svg by tools/make-app-icons.ps1, as Builder's and Edge's are. -->
+    <ApplicationIcon>..\..\res\Sirius Studio Plus.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

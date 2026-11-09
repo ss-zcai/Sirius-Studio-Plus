@@ -22,15 +22,15 @@
                 rather than a logo - and on the one screen whose whole job
                 is to say what this application is.
 
-                Drawn from the SVG master (res/Sirius Stu.svg, through
-                Themes/Logo.xaml), so it is sharp at any size and on any
-                display scaling - the .ico's frames are bitmaps.
+                Drawn from the SVG master (res/Sirius Studio Plus.svg,
+                through Themes/Logo.xaml), so it is sharp at any size and on
+                any display scaling - the .ico's frames are bitmaps.
             -->
             <Image Width="40"
                    Height="40"
                    VerticalAlignment="Top"
                    Margin="0,0,14,0"
-                   Source="{StaticResource Icon.SiriusStu}" />
+                   Source="{StaticResource Icon.SiriusStudioPlus}" />
 
             <StackPanel>
                 <TextBlock Text="Sirius Studio Plus" FontSize="18" FontWeight="SemiBold" />

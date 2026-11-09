@@ -72,26 +72,32 @@ public class WindowChromeTests
         {
             WpfTestHost.EnsureApplicationResources();
 
-            Assert.IsType<System.Windows.Media.DrawingImage>(System.Windows.Application.Current!.FindResource("Icon.SiriusStu"));
+            Assert.IsType<System.Windows.Media.DrawingImage>(System.Windows.Application.Current!.FindResource("Icon.SiriusStudioPlus"));
 
             var xaml = File.ReadAllText(Path.Combine(Source, "AboutWindow.xaml"));
 
-            Assert.Contains("Icon.SiriusStu", xaml, StringComparison.Ordinal);
+            Assert.Contains("Icon.SiriusStudioPlus", xaml, StringComparison.Ordinal);
             Assert.DoesNotContain("Icon.ph_run", xaml, StringComparison.Ordinal);
         });
 
     /// <summary>
-    /// The logo is generated from the SVG master the .ico shows, not drawn
-    /// a second time by hand.
+    /// Each program's logo is generated from its SVG master, as its .ico is,
+    /// not drawn a second time by hand.
     /// </summary>
-    [Fact]
-    public void The_logo_is_generated_from_the_svg_master()
+    [Theory]
+    [InlineData("Sirius.Studio.App", "Sirius Studio Plus")]
+    [InlineData("Sirius.Builder", "Sirius Builder")]
+    [InlineData("Sirius.Edge", "Sirius Edge")]
+    public void Each_program_has_its_own_icon_from_its_svg_master(string folder, string name)
     {
-        var project = File.ReadAllText(Path.Combine(Source, "Sirius.Studio.App.csproj"));
+        var project = File.ReadAllText(Path.Combine(Source, "..", folder, folder + ".csproj"));
         var logo = File.ReadAllText(Path.Combine(Source, "Themes", "Logo.xaml"));
+        var res = Path.Combine(Source, "..", "..", "res");
 
-        Assert.Contains(@"<ApplicationIcon>..\..\res\Sirius Stu.ico</ApplicationIcon>", project, StringComparison.Ordinal);
-        Assert.Contains(@"tools/svg2xaml.py src/Sirius.Studio.App/Themes/Logo.xaml ""res/Sirius Stu.svg""", logo, StringComparison.Ordinal);
+        Assert.Contains($@"<ApplicationIcon>..\..\res\{name}.ico</ApplicationIcon>", project, StringComparison.Ordinal);
+        Assert.Contains($@"""res/{name}.svg""", logo, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(res, name + ".svg")));
+        Assert.True(File.Exists(Path.Combine(res, name + ".ico")));
     }
 
     /// <summary>
