@@ -10,6 +10,9 @@ namespace Sirius.Builder;
 /// <summary>A station a widget can be bound to, as the designer lists it - or every station, for a button.</summary>
 public sealed record StationOption(string Label, string Value);
 
+/// <summary>A kind of widget, as the Widgets panel offers it.</summary>
+public sealed record WidgetTool(WidgetKind Kind, string Name, string Description, string Icon);
+
 /// <summary>
 /// The screen designer: a project's screen laid out on a canvas, its
 /// widgets placed, sized and bound (runtime MVP step 5).
@@ -85,6 +88,63 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
 
     /// <summary>Every widget kind, for the palette.</summary>
     public IReadOnlyList<WidgetKind> Kinds { get; } = Enum.GetValues<WidgetKind>();
+
+    /// <summary>The Widgets panel: each kind, with what it is for.</summary>
+    public static IReadOnlyList<WidgetTool> Tools { get; } =
+    [
+        new(WidgetKind.Image, "Picture", "A station's picture, with what its recipe draws on it.", "ph_image_viewer"),
+        new(WidgetKind.Verdict, "PASS / FAIL", "A station's verdict, and its grade or what went wrong.", "ph_grade"),
+        new(WidgetKind.Value, "Value", "One published result: a measurement, a count, a code read.", "ph_number"),
+        new(WidgetKind.Setting, "Setting", "A published setting, changed by the operator within its limits - or only shown.", "ph_limit_check"),
+        new(WidgetKind.Counter, "Counts", "A station's total, passed, failed and yield.", "ph_counter"),
+        new(WidgetKind.Button, "Button", "Trigger, Run / Stop or Reset Counts - for one station or all.", "ph_pointer"),
+        new(WidgetKind.Text, "Text", "Fixed text: a title, a label, an instruction.", "ph_text"),
+        new(WidgetKind.Logo, "Logo", "A picture from the project folder.", "ph_open_image"),
+    ];
+
+    // ---- the property grid ------------------------------------------------
+
+    private IReadOnlyList<PropertyCategory>? _screenCategories;
+
+    /// <summary>What the property grid shows: the selected widget's properties, or the screen's.</summary>
+    public IReadOnlyList<PropertyCategory> PropertyCategories => Selected?.Categories ?? ScreenCategories;
+
+    /// <summary>"Picture", or "Screen" with nothing selected.</summary>
+    public string PropertyTitle => Selected?.KindLabel ?? "Screen";
+
+    /// <summary>"Top › Main View", or the screen file.</summary>
+    public string PropertySubtitle => Selected?.Caption ?? $"{ScreenLayout.ScreensFolder}/{Path.GetFileName(_path)} · {Widgets.Count} widgets";
+
+    /// <summary>The screen's own properties, shown with no widget selected.</summary>
+    public IReadOnlyList<PropertyCategory> ScreenCategories => _screenCategories ??= PropertyCategory.From(
+    [
+        new PropertyRow(
+            "Screen", "Width", PropertyEditor.Text,
+            () => DesignWidgetViewModel.Number(Width),
+            value => { if (DesignWidgetViewModel.Parse(value) is { } width) Width = width; },
+            "In the screen's own units. It is scaled as a whole to whatever display shows it."),
+        new PropertyRow(
+            "Screen", "Height", PropertyEditor.Text,
+            () => DesignWidgetViewModel.Number(Height),
+            value => { if (DesignWidgetViewModel.Parse(value) is { } height) Height = height; }),
+        new PropertyRow("Screen", "Grid", PropertyEditor.ReadOnly, () => $"{GridSize:0} units"),
+        new PropertyRow(
+            "Screen", "Made", PropertyEditor.ReadOnly,
+            () => _generated ? "From the stations, each time it is shown, until saved" : "By hand"),
+    ]);
+
+    private void RefreshProperties()
+    {
+        if (_screenCategories is not null)
+        {
+            foreach (var category in _screenCategories)
+                category.Refresh();
+        }
+
+        OnPropertyChanged(nameof(PropertyCategories));
+        OnPropertyChanged(nameof(PropertyTitle));
+        OnPropertyChanged(nameof(PropertySubtitle));
+    }
 
     public IReadOnlyList<WidgetAction> Actions { get; } = Enum.GetValues<WidgetAction>();
 
@@ -245,6 +305,9 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         OnPropertyChanged(nameof(IsModified));
         OnPropertyChanged(nameof(Title));
 
+        if (_gesture is null)
+            RefreshProperties();
+
         // Null while the constructor is still laying the screen out.
         UndoCommand?.NotifyCanExecuteChanged();
         RedoCommand?.NotifyCanExecuteChanged();
@@ -293,6 +356,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         DuplicateCommand.NotifyCanExecuteChanged();
         BringToFrontCommand.NotifyCanExecuteChanged();
         SendToBackCommand.NotifyCanExecuteChanged();
+        RefreshProperties();
     }
 
     // ---- the file ----------------------------------------------------------

@@ -425,12 +425,106 @@ public sealed class ScreenDesignerTests : IDisposable
             var model = new BuilderViewModel { RememberProjects = false };
             model.Show(project);
 
-            var window = new BuilderWindow(model);
+            var window = new BuilderWindow(model) { KeepsLayout = false, ShowActivated = false, WindowStartupLocation = System.Windows.WindowStartupLocation.Manual, Left = -20000, Top = -20000 };
 
-            Assert.Equal("*Line - Sirius Builder", model.Title);
-            Assert.Equal(2, model.Stations.Count);
-            Assert.NotEmpty(model.Designer!.Widgets);
-            Assert.Same(model, window.Model);
+            try
+            {
+                window.Show();
+                WpfTestHost.Settle(window.Dispatcher);
+
+                Assert.Equal("*Line - Sirius Builder", model.Title);
+                Assert.Equal(2, model.Stations.Count);
+                Assert.NotEmpty(model.Designer!.Widgets);
+                Assert.Same(model, window.Model);
+
+                // The property grid follows the selection.
+                Assert.Equal("Screen", model.Designer.PropertyTitle);
+                model.Designer.Selected = model.Designer.Widgets.First(widget => widget.Kind == WidgetKind.Value);
+                WpfTestHost.Settle(window.Dispatcher);
+                Assert.Equal("Value", model.Designer.PropertyTitle);
+                Assert.Contains(model.Designer.PropertyCategories, category => category.Name == "Shows");
+
+                window.ShowPanel("properties");
+            }
+            finally
+            {
+                model.Designer!.Save();
+                window.Close();
+                WpfTestHost.Settle(window.Dispatcher);
+            }
+        });
+    }
+
+    // ---- the property grid ---------------------------------------------------
+
+    [Fact]
+    public void A_widget_lists_only_the_properties_of_its_kind()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var (_, recipes) = TwoStations();
+            var designer = new ScreenDesignerViewModel(recipes);
+
+            var value = designer.Add(WidgetKind.Value);
+            Assert.Equal(["Widget", "Shows", "Text", "Layout"], value.Categories.Select(category => category.Name));
+
+            var logo = designer.Add(WidgetKind.Logo);
+            Assert.Equal(["Widget", "Picture", "Layout"], logo.Categories.Select(category => category.Name));
+            Assert.Equal(PropertyEditor.File, logo.Categories[1].Rows.Single().Editor);
+
+            var setting = designer.Add(WidgetKind.Setting);
+            Assert.Contains(setting.Categories, category => category.Name == "On the line");
+        });
+    }
+
+    [Fact]
+    public void Property_rows_read_and_write_the_widget_undoably()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var (_, recipes) = TwoStations();
+            var designer = new ScreenDesignerViewModel(recipes);
+            var value = designer.Add(WidgetKind.Value, 100, 100);
+            var rows = value.Categories.SelectMany(category => category.Rows).ToArray();
+
+            var x = rows.Single(row => row.Name == "X");
+            x.Value = "240";
+            Assert.Equal(240, value.X);
+            Assert.Equal("240", x.Value);
+
+            // Refused: reads back as it was.
+            x.Value = "left a bit";
+            Assert.Equal("240", x.Value);
+
+            var shows = rows.Single(row => row.Name == "Value");
+            Assert.Contains(shows.Options!.Cast<PropertyOption>(), option => Equals(option.Value, "Mean"));
+            shows.Value = "Mean";
+            Assert.Equal("Mean", value.Widget.Name);
+
+            var station = rows.Single(row => row.Name == "Station");
+            station.Value = "Bottom";
+            Assert.Equal("Bottom", value.Widget.Station);
+
+            designer.UndoCommand.Execute(null);
+            Assert.Equal("Top", designer.Widgets.Last().Widget.Station);
+        });
+    }
+
+    [Fact]
+    public void With_nothing_selected_the_grid_shows_the_screen()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var (_, recipes) = TwoStations();
+            var designer = new ScreenDesignerViewModel(recipes);
+
+            Assert.Null(designer.Selected);
+            Assert.Same(designer.ScreenCategories, designer.PropertyCategories);
+
+            var width = designer.ScreenCategories.Single().Rows.Single(row => row.Name == "Width");
+            width.Value = "1920";
+
+            Assert.Equal(1920, designer.Width);
         });
     }
 }

@@ -199,6 +199,10 @@ public sealed partial class BuilderViewModel : ObservableObject
         {
             if (e.PropertyName == nameof(ScreenDesignerViewModel.IsModified))
                 OnPropertyChanged(nameof(Title));
+
+            // The designer's news - saved, limited, reset - on Builder's status line.
+            if (e.PropertyName == nameof(ScreenDesignerViewModel.StatusText) && !string.IsNullOrEmpty(designer.StatusText))
+                StatusText = designer.StatusText;
         };
 
         Designer = designer;

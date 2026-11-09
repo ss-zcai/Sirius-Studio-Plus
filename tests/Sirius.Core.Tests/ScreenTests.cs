@@ -168,6 +168,24 @@ public sealed class ScreenTests : IDisposable
         Assert.Equal(2, mine.Count(w => w.Kind == WidgetKind.Button));
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void The_standard_screen_sits_on_the_designers_grid(int stations)
+    {
+        var recipe = Recipe();
+        var screen = ScreenLayout.Standard("Line", Enumerable.Range(1, stations).Select(i => new StationRecipe($"Camera {i}", recipe)).ToArray());
+
+        Assert.All(screen.Widgets, widget =>
+        {
+            foreach (var value in new[] { widget.X, widget.Y, widget.Width, widget.Height })
+                Assert.Equal(0, value % ScreenLayout.Grid);
+
+            Assert.True(widget.X + widget.Width <= screen.Width && widget.Y + widget.Height <= screen.Height);
+        });
+    }
+
     [Fact]
     public void A_project_with_no_stations_says_so()
     {

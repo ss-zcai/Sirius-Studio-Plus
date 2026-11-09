@@ -1,0 +1,154 @@
+<UserControl x:Class="Sirius.Builder.PropertyGridView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Sirius.Builder"
+             x:Name="Root">
+
+    <!--
+        A property grid: the selected widget's - or the screen's - properties
+        by category, a name column and an editor column, and the description
+        of the row being edited underneath.
+    -->
+    <UserControl.Resources>
+        <!-- Editors, by row kind -->
+        <DataTemplate x:Key="TextEditor" DataType="{x:Type local:PropertyRow}">
+            <TextBox Text="{Binding Value, UpdateSourceTrigger=LostFocus}"
+                     BorderThickness="0"
+                     Padding="2,1"
+                     VerticalContentAlignment="Center"
+                     KeyDown="OnTextKeyDown" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="ChoiceEditor" DataType="{x:Type local:PropertyRow}">
+            <ComboBox ItemsSource="{Binding Options}"
+                      DisplayMemberPath="Label"
+                      SelectedValuePath="Value"
+                      SelectedValue="{Binding Value}"
+                      BorderThickness="0" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="CheckEditor" DataType="{x:Type local:PropertyRow}">
+            <CheckBox IsChecked="{Binding Value}" VerticalAlignment="Center" Margin="3,0" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="FileEditor" DataType="{x:Type local:PropertyRow}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right"
+                        Content="…"
+                        Width="24"
+                        Padding="0"
+                        Command="{Binding Browse}"
+                        ToolTip="Choose a picture…" />
+                <TextBox Text="{Binding Value, UpdateSourceTrigger=LostFocus}"
+                         BorderThickness="0"
+                         Padding="2,1"
+                         VerticalContentAlignment="Center"
+                         KeyDown="OnTextKeyDown" />
+            </DockPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ReadOnlyEditor" DataType="{x:Type local:PropertyRow}">
+            <TextBlock Text="{Binding Text}"
+                       Margin="4,2"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource Text.Secondary}" />
+        </DataTemplate>
+
+        <local:PropertyEditorSelector x:Key="EditorSelector"
+                                      Text="{StaticResource TextEditor}"
+                                      Choice="{StaticResource ChoiceEditor}"
+                                      Check="{StaticResource CheckEditor}"
+                                      File="{StaticResource FileEditor}"
+                                      ReadOnly="{StaticResource ReadOnlyEditor}" />
+    </UserControl.Resources>
+
+    <DockPanel>
+        <!-- What is selected -->
+        <Border DockPanel.Dock="Top"
+                Padding="8,6"
+                BorderBrush="{StaticResource Surface.Border}"
+                BorderThickness="0,0,0,1">
+            <StackPanel>
+                <TextBlock Text="{Binding Title, ElementName=Root}"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource Text.Primary}" />
+                <TextBlock Text="{Binding Subtitle, ElementName=Root}"
+                           FontSize="11"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{StaticResource Text.Secondary}" />
+            </StackPanel>
+        </Border>
+
+        <!-- The row being edited, described -->
+        <Border DockPanel.Dock="Bottom"
+                MinHeight="54"
+                Padding="8,5"
+                BorderBrush="{StaticResource Surface.Border}"
+                BorderThickness="0,1,0,0">
+            <StackPanel>
+                <TextBlock x:Name="DescriptionName"
+                           FontWeight="SemiBold"
+                           FontSize="11"
+                           Foreground="{StaticResource Text.Primary}" />
+                <TextBlock x:Name="DescriptionText"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource Text.Secondary}" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Grid.IsSharedSizeScope="True">
+            <ItemsControl ItemsSource="{Binding Categories, ElementName=Root}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type local:PropertyCategory}">
+                        <StackPanel Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}">
+                            <!-- Category header -->
+                            <Border Background="{StaticResource Surface.Node}" Padding="6,3">
+                                <TextBlock Text="{Binding Name}"
+                                           FontWeight="SemiBold"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Text.Primary}" />
+                            </Border>
+
+                            <ItemsControl ItemsSource="{Binding Rows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type local:PropertyRow}">
+                                        <Border BorderBrush="{StaticResource Surface.Border}"
+                                                BorderThickness="0,0,0,1"
+                                                Background="Transparent"
+                                                MinHeight="24"
+                                                ToolTip="{Binding Description}"
+                                                IsEnabled="{Binding IsEnabled}"
+                                                Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}"
+                                                GotKeyboardFocus="OnRowFocused"
+                                                PreviewMouseDown="OnRowFocused">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" SharedSizeGroup="PropertyName" MinWidth="104" />
+                                                    <ColumnDefinition Width="1" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Name}"
+                                                           Margin="14,0,8,0"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{StaticResource Text.Secondary}" />
+                                                <Border Grid.Column="1" Background="{StaticResource Surface.Border}" />
+                                                <ContentPresenter Grid.Column="2"
+                                                                  Content="{Binding}"
+                                                                  ContentTemplateSelector="{StaticResource EditorSelector}"
+                                                                  VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

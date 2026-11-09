@@ -21,9 +21,18 @@ public static class ScreenLayout
     /// <summary>The folder screens are kept in, inside the project's.</summary>
     public const string ScreensFolder = "screens";
 
-    private const double Margin = 16;
-    private const double Gap = 8;
-    private const double Row = 34;
+    /// <summary>
+    /// The grid the standard screen is laid out on - the designer's, so a
+    /// generated screen's widgets sit on it and move with it.
+    /// </summary>
+    public const double Grid = 10;
+
+    private const double Margin = 20;
+    private const double Gap = 10;
+    private const double Row = 40;
+
+    /// <summary>Down to a whole number of grid steps.</summary>
+    private static double OnGrid(double value) => Math.Floor(value / Grid) * Grid;
 
     /// <summary>The project's screen file.</summary>
     public static string MainScreenPath(Project project) =>
@@ -90,7 +99,7 @@ public static class ScreenLayout
         {
             Kind = WidgetKind.Text,
             X = Margin,
-            Y = 12,
+            Y = 10,
             Width = 560,
             Height = 40,
             Text = title,
@@ -112,9 +121,9 @@ public static class ScreenLayout
             {
                 Kind = WidgetKind.Button,
                 X = screen.Width - Margin - ((actions.Length - i) * buttonWidth) - ((actions.Length - i - 1) * Gap),
-                Y = 14,
+                Y = 10,
                 Width = buttonWidth,
-                Height = 36,
+                Height = 40,
                 Action = actions[i].Action,
                 Text = actions[i].Caption,
             });
@@ -137,9 +146,9 @@ public static class ScreenLayout
 
         // ---- a column per station --------------------------------------
 
-        var top = 66.0;
+        var top = 70.0;
         var bottom = screen.Height - Margin;
-        var width = (screen.Width - (Margin * (stations.Count + 1))) / stations.Count;
+        var width = OnGrid((screen.Width - (Margin * (stations.Count + 1))) / stations.Count);
 
         for (var column = 0; column < stations.Count; column++)
         {
@@ -164,7 +173,7 @@ public static class ScreenLayout
 
             if (PictureOf(items) is { } picture)
             {
-                var height = Math.Round((bottom - top) * 0.55);
+                var height = OnGrid((bottom - top) * 0.55);
 
                 widgets.Add(new Widget
                 {
@@ -180,7 +189,7 @@ public static class ScreenLayout
                 y += height + Gap;
             }
 
-            var verdictWidth = Math.Round(width * 0.4);
+            var verdictWidth = OnGrid(width * 0.4);
 
             widgets.Add(new Widget
             {
@@ -206,7 +215,7 @@ public static class ScreenLayout
 
             y += 60 + Gap;
 
-            var half = (width - Gap) / 2;
+            var half = OnGrid((width - Gap) / 2);
 
             widgets.Add(new Widget
             {
@@ -214,7 +223,7 @@ public static class ScreenLayout
                 X = x,
                 Y = y,
                 Width = half,
-                Height = 34,
+                Height = 40,
                 Station = station.Name,
                 Action = WidgetAction.Trigger,
                 Text = "Trigger",
@@ -225,14 +234,14 @@ public static class ScreenLayout
                 Kind = WidgetKind.Button,
                 X = x + half + Gap,
                 Y = y,
-                Width = half,
-                Height = 34,
+                Width = width - half - Gap,
+                Height = 40,
                 Station = station.Name,
                 Action = WidgetAction.RunStop,
                 Text = "Run",
             });
 
-            y += 34 + Gap;
+            y += 40 + Gap;
 
             // Results, then settings, as many as fit.
             foreach (var item in items.Where(item => IsListed(item)).OrderBy(item => item.Kind == PublishedKind.Setting))
@@ -246,7 +255,7 @@ public static class ScreenLayout
                     X = x,
                     Y = y,
                     Width = width,
-                    Height = Row - 4,
+                    Height = Row - Gap,
                     Station = station.Name,
                     Name = item.Name,
                     FontSize = 15,

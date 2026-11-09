@@ -2,6 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Sirius.Builder"
+        xmlns:avalonDock="https://github.com/Dirkster99/AvalonDock"
+        xmlns:themes="clr-namespace:AvalonDock.Themes;assembly=AvalonDock.Themes.VS2013"
         Title="{Binding Title}"
         Width="1600"
         Height="920"
@@ -10,30 +12,72 @@
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Surface.Background}"
         Activated="OnActivated"
+        Loaded="OnLoaded"
         Closing="OnClosing">
 
     <!--
-        Sirius Builder: the project's stations on the left, its screen in the
-        designer beside them. Recipes are built in Studio (Open in Studio);
-        the project runs on the machine in Sirius Edge (Test Run shows it
-        here first).
+        Sirius Builder, laid out as Studio is: menu, toolbar, then docking
+        panels - Stations and Widgets on the left, the screen in the middle,
+        Properties on the right - arranged as the user leaves them. With no
+        project open, a landing page instead.
     -->
+    <Window.Resources>
+        <!-- A toolbar button with an icon and a word. -->
+        <Style x:Key="ToolbarTextButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Width" Value="NaN" />
+            <Setter Property="MinWidth" Value="34" />
+        </Style>
+
+        <Style x:Key="ToolbarLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="5,0,6,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+        </Style>
+    </Window.Resources>
+
     <Window.InputBindings>
         <KeyBinding Key="F5" Command="{Binding TestRunCommand}" />
         <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenProjectCommand}" />
         <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewProjectCommand}" />
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding Designer.SaveCommand}" />
+        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding Designer.UndoCommand}" />
+        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding Designer.RedoCommand}" />
+        <KeyBinding Key="D" Modifiers="Control" Command="{Binding Designer.DuplicateCommand}" />
     </Window.InputBindings>
 
-    <DockPanel>
-        <Menu DockPanel.Dock="Top">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Menu -->
+        <Menu Grid.Row="0">
             <MenuItem Header="_File">
                 <MenuItem Header="_New Project…" InputGestureText="Ctrl+N" Command="{Binding NewProjectCommand}" />
                 <MenuItem Header="_Open Project…" InputGestureText="Ctrl+O" Command="{Binding OpenProjectCommand}" />
                 <MenuItem Header="_Close Project" Command="{Binding CloseProjectCommand}" />
                 <Separator />
+                <MenuItem Header="_Save Screen" InputGestureText="Ctrl+S" Command="{Binding Designer.SaveCommand}" />
+                <Separator />
                 <MenuItem Header="E_xit" Click="OnExit" />
             </MenuItem>
-            <MenuItem Header="_Station">
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Undo" InputGestureText="Ctrl+Z" Command="{Binding Designer.UndoCommand}" />
+                <MenuItem Header="_Redo" InputGestureText="Ctrl+Y" Command="{Binding Designer.RedoCommand}" />
+                <Separator />
+                <MenuItem Header="_Duplicate" InputGestureText="Ctrl+D" Command="{Binding Designer.DuplicateCommand}" />
+                <MenuItem Header="De_lete" InputGestureText="Del" Command="{Binding Designer.DeleteCommand}" />
+                <Separator />
+                <MenuItem Header="Bring to _Front" Command="{Binding Designer.BringToFrontCommand}" />
+                <MenuItem Header="Send to _Back" Command="{Binding Designer.SendToBackCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Screen">
+                <MenuItem Header="_Reset to Standard" Command="{Binding Designer.ResetCommand}" />
+            </MenuItem>
+            <MenuItem Header="S_tation">
                 <MenuItem Header="_Add Station…" Command="{Binding AddStationCommand}" />
                 <MenuItem Header="Add from _Recipe…" Command="{Binding AddFromRecipeCommand}" />
                 <Separator />
@@ -47,9 +91,294 @@
             <MenuItem Header="_Run">
                 <MenuItem Header="_Test Run" InputGestureText="F5" Command="{Binding TestRunCommand}" />
             </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Stations" Tag="stations" Click="OnShowPanelClick" />
+                <MenuItem Header="_Widgets" Tag="widgets" Click="OnShowPanelClick" />
+                <MenuItem Header="_Properties" Tag="properties" Click="OnShowPanelClick" />
+                <Separator />
+                <MenuItem Header="_Reset Layout" Click="OnResetLayoutClick" />
+            </MenuItem>
         </Menu>
 
-        <Border DockPanel.Dock="Bottom"
+        <!-- Toolbar -->
+        <Border Grid.Row="1"
+                Background="{StaticResource Surface.Panel}"
+                BorderBrush="{StaticResource Surface.Border}"
+                BorderThickness="0,1,0,1"
+                Padding="6,4">
+            <StackPanel Orientation="Horizontal">
+                <!-- Project -->
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="New project (Ctrl+N)" Command="{Binding NewProjectCommand}">
+                    <Image Source="{StaticResource Icon.ph_new}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}" ToolTip="Open project (Ctrl+O)" Command="{Binding OpenProjectCommand}">
+                    <Image Source="{StaticResource Icon.ph_open}" Width="18" Height="18" />
+                </Button>
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Save the screen (Ctrl+S)" Command="{Binding Designer.SaveCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="{StaticResource Icon.ph_save}" Width="18" Height="18" />
+                        <TextBlock Text="Save" Style="{StaticResource ToolbarLabel}" />
+                    </StackPanel>
+                </Button>
+
+                <Separator />
+
+                <!-- History -->
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Undo (Ctrl+Z)" Command="{Binding Designer.UndoCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="{StaticResource Icon.ph_undo}" Width="18" Height="18" />
+                        <TextBlock Text="Undo" Style="{StaticResource ToolbarLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Redo (Ctrl+Y)" Command="{Binding Designer.RedoCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="{StaticResource Icon.ph_redo}" Width="18" Height="18" />
+                        <TextBlock Text="Redo" Style="{StaticResource ToolbarLabel}" />
+                    </StackPanel>
+                </Button>
+
+                <Separator />
+
+                <!-- The selected widget -->
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Duplicate the selected widget (Ctrl+D)" Command="{Binding Designer.DuplicateCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="{StaticResource Icon.ph_copy}" Width="18" Height="18" />
+                        <TextBlock Text="Duplicate" Style="{StaticResource ToolbarLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Delete the selected widget (Del)" Command="{Binding Designer.DeleteCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="{StaticResource Icon.ph_delete}" Width="18" Height="18" />
+                        <TextBlock Text="Delete" Style="{StaticResource ToolbarLabel}" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Bring the selected widget in front of the others" Command="{Binding Designer.BringToFrontCommand}">
+                    <TextBlock Text="To Front" Style="{StaticResource ToolbarLabel}" />
+                </Button>
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Send the selected widget behind the others" Command="{Binding Designer.SendToBackCommand}">
+                    <TextBlock Text="To Back" Style="{StaticResource ToolbarLabel}" />
+                </Button>
+
+                <Separator />
+
+                <!-- The screen and the stations -->
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Lay the screen out again from what the stations publish" Command="{Binding Designer.ResetCommand}">
+                    <TextBlock Text="Reset to Standard" Style="{StaticResource ToolbarLabel}" />
+                </Button>
+                <Button Style="{StaticResource ToolbarTextButton}"
+                        ToolTip="Open the selected station's recipe in Sirius Studio"
+                        Command="{Binding OpenInStudioCommand}"
+                        CommandParameter="{Binding SelectedStation}">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="{StaticResource Icon.ph_sub_graph}" Width="18" Height="18" />
+                        <TextBlock Text="Open in Studio" Style="{StaticResource ToolbarLabel}" />
+                    </StackPanel>
+                </Button>
+
+                <Separator />
+
+                <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Test-run the project on its saved screen, as Sirius Edge will (F5)" Command="{Binding TestRunCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="{StaticResource Icon.ph_run}" Width="18" Height="18" />
+                        <TextBlock Text="Test Run" Style="{StaticResource ToolbarLabel}" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- No project open -->
+        <StackPanel Grid.Row="2"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    MaxWidth="520"
+                    Visibility="{Binding HasProject, Converter={StaticResource InverseBoolToVisibility}}">
+            <TextBlock Text="Sirius Builder"
+                       FontSize="26"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource Text.Primary}" />
+            <TextBlock Margin="0,10,0,18"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource Text.Secondary}"
+                       Text="A project holds stations - each a camera and the recipe made for it in Sirius Studio - and the screen the operator sees. Build it here, test-run it here, and run it on the machine with Sirius Edge." />
+            <StackPanel Orientation="Horizontal">
+                <Button Content="New Project…" MinWidth="120" Command="{Binding NewProjectCommand}" />
+                <Button Content="Open Project…" MinWidth="120" Margin="8,0,0,0" Command="{Binding OpenProjectCommand}" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- A project -->
+        <avalonDock:DockingManager x:Name="Docking"
+                                   Grid.Row="2"
+                                   AllowMixedOrientation="True"
+                                   Background="{StaticResource Surface.Background}"
+                                   Visibility="{Binding HasProject, Converter={StaticResource BoolToVisibility}}">
+            <avalonDock:DockingManager.Theme>
+                <themes:Vs2013DarkTheme />
+            </avalonDock:DockingManager.Theme>
+
+            <avalonDock:LayoutRoot>
+                <avalonDock:LayoutPanel Orientation="Horizontal">
+
+                    <avalonDock:LayoutAnchorablePaneGroup Orientation="Vertical" DockWidth="240">
+                        <!-- Stations -->
+                        <avalonDock:LayoutAnchorablePane DockHeight="2*">
+                            <avalonDock:LayoutAnchorable Title="Stations" ContentId="stations" CanClose="False">
+                                <DockPanel Margin="6">
+                                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
+                                        <Button Style="{StaticResource PanelToolButton}"
+                                                ToolTip="Add a station with an empty recipe, to build in Studio"
+                                                Command="{Binding AddStationCommand}">
+                                            <Path Data="M7,1 L7,13 M1,7 L13,7"
+                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                  StrokeThickness="1.6"
+                                                  Width="14"
+                                                  Height="14" />
+                                        </Button>
+                                        <Button Style="{StaticResource PanelToolButton}"
+                                                ToolTip="Add a station running a copy of a recipe made in Studio…"
+                                                Command="{Binding AddFromRecipeCommand}">
+                                            <Image Source="{StaticResource Icon.ph_copy}" Width="15" Height="15" />
+                                        </Button>
+                                        <Button Style="{StaticResource PanelToolButton}"
+                                                ToolTip="Open the selected station's recipe in Studio"
+                                                Command="{Binding OpenInStudioCommand}"
+                                                CommandParameter="{Binding SelectedStation}">
+                                            <Image Source="{StaticResource Icon.ph_sub_graph}" Width="15" Height="15" />
+                                        </Button>
+                                    </StackPanel>
+
+                                    <TextBlock DockPanel.Dock="Bottom"
+                                               TextWrapping="Wrap"
+                                               FontSize="11"
+                                               Margin="0,8,0,0"
+                                               Foreground="{StaticResource Text.Secondary}"
+                                               Text="Double-click a station to open its recipe in Studio. Publish there what the screen shows; save, and it appears here." />
+
+                                    <Grid>
+                                        <TextBlock TextWrapping="Wrap"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource Text.Secondary}"
+                                                   Text="No stations yet. Add one from a recipe made in Studio."
+                                                   Visibility="{Binding HasNoStations, Converter={StaticResource BoolToVisibility}}" />
+
+                                        <ListBox x:Name="StationList"
+                                                 ItemsSource="{Binding Stations}"
+                                                 SelectedItem="{Binding SelectedStation}"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 Foreground="{StaticResource Text.Primary}"
+                                                 ItemContainerStyle="{StaticResource DarkListBoxItem}"
+                                                 MouseDoubleClick="OnStationDoubleClick">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type local:StationViewModel}">
+                                                    <StackPanel Background="Transparent" ToolTip="{Binding RecipePath}">
+                                                        <TextBlock Text="{Binding Name}" />
+                                                        <TextBlock Text="{Binding RecipeFile}"
+                                                                   FontSize="10"
+                                                                   Foreground="{StaticResource Text.Secondary}" />
+                                                        <TextBlock Text="recipe missing"
+                                                                   FontSize="10"
+                                                                   FontStyle="Italic"
+                                                                   Foreground="#DB5C5C"
+                                                                   Visibility="{Binding RecipeMissing, Converter={StaticResource BoolToVisibility}}" />
+                                                        <TextBlock Text="{Binding LineChangesText}"
+                                                                   FontSize="10"
+                                                                   Foreground="#D9A33A"
+                                                                   ToolTip="Settings changed from a screen, used over the recipe's own - right-click for Line Settings"
+                                                                   Visibility="{Binding HasLineChanges, Converter={StaticResource BoolToVisibility}}" />
+                                                        <StackPanel.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem Header="Open in _Studio"
+                                                                          Command="{Binding PlacementTarget.Tag.OpenInStudioCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <MenuItem Header="_Line Settings…"
+                                                                          Command="{Binding PlacementTarget.Tag.LineSettingsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <MenuItem Header="_Rename…"
+                                                                          Command="{Binding PlacementTarget.Tag.RenameStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <Separator />
+                                                                <MenuItem Header="Move _Up"
+                                                                          Command="{Binding PlacementTarget.Tag.MoveUpCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <MenuItem Header="Move _Down"
+                                                                          Command="{Binding PlacementTarget.Tag.MoveDownCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <Separator />
+                                                                <MenuItem Header="Re_move from Project…"
+                                                                          Command="{Binding PlacementTarget.Tag.RemoveStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                            </ContextMenu>
+                                                        </StackPanel.ContextMenu>
+                                                        <StackPanel.Tag>
+                                                            <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ListBox}" />
+                                                        </StackPanel.Tag>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </DockPanel>
+                            </avalonDock:LayoutAnchorable>
+                        </avalonDock:LayoutAnchorablePane>
+
+                        <!--
+                            Widgets, as Studio's Toolbox: drag one onto the
+                            screen to put it where it lands, or double-click
+                            to add it at the top left.
+                        -->
+                        <avalonDock:LayoutAnchorablePane DockHeight="3*">
+                            <avalonDock:LayoutAnchorable Title="Widgets" ContentId="widgets" CanClose="False">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{x:Static local:ScreenDesignerViewModel.Tools}" Margin="0,4">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type local:WidgetTool}">
+                                                <Border Background="Transparent"
+                                                        Padding="10,4,8,4"
+                                                        Cursor="Hand"
+                                                        ToolTip="{Binding Description}"
+                                                        PreviewMouseLeftButtonDown="OnWidgetToolMouseDown"
+                                                        PreviewMouseMove="OnWidgetToolMouseMove">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Image Source="{Binding Icon, Converter={StaticResource IconKeyToImage}}"
+                                                               Width="16"
+                                                               Height="16"
+                                                               Margin="0,0,8,0"
+                                                               VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{StaticResource Text.Primary}" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </avalonDock:LayoutAnchorable>
+                        </avalonDock:LayoutAnchorablePane>
+                    </avalonDock:LayoutAnchorablePaneGroup>
+
+                    <!-- The screen -->
+                    <avalonDock:LayoutDocumentPane>
+                        <avalonDock:LayoutDocument Title="Screen" ContentId="screen" CanClose="False">
+                            <local:ScreenDesignerView x:Name="Designer" DataContext="{Binding Designer}" />
+                        </avalonDock:LayoutDocument>
+                    </avalonDock:LayoutDocumentPane>
+
+                    <!-- Properties -->
+                    <avalonDock:LayoutAnchorablePane DockWidth="300">
+                        <avalonDock:LayoutAnchorable Title="Properties" ContentId="properties" CanClose="False">
+                            <local:PropertyGridView Categories="{Binding Designer.PropertyCategories}"
+                                                    Title="{Binding Designer.PropertyTitle}"
+                                                    Subtitle="{Binding Designer.PropertySubtitle}" />
+                        </avalonDock:LayoutAnchorable>
+                    </avalonDock:LayoutAnchorablePane>
+                </avalonDock:LayoutPanel>
+            </avalonDock:LayoutRoot>
+        </avalonDock:DockingManager>
+
+        <!-- Status -->
+        <Border Grid.Row="3"
                 Background="{StaticResource Surface.Panel}"
                 BorderBrush="{StaticResource Surface.Border}"
                 BorderThickness="0,1,0,0"
@@ -60,154 +389,5 @@
                        Foreground="{StaticResource Text.Secondary}"
                        ToolTip="{Binding StatusText}" />
         </Border>
-
-        <Grid>
-            <!-- No project open -->
-            <StackPanel HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        MaxWidth="520"
-                        Visibility="{Binding HasProject, Converter={StaticResource InverseBoolToVisibility}}">
-                <TextBlock Text="Sirius Builder"
-                           FontSize="26"
-                           FontWeight="SemiBold"
-                           Foreground="{StaticResource Text.Primary}" />
-                <TextBlock Margin="0,10,0,18"
-                           TextWrapping="Wrap"
-                           Foreground="{StaticResource Text.Secondary}"
-                           Text="A project holds stations - each a camera and the recipe made for it in Sirius Studio - and the screen the operator sees. Build it here, test-run it here, and run it on the machine with Sirius Edge." />
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="New Project…" MinWidth="120" Command="{Binding NewProjectCommand}" />
-                    <Button Content="Open Project…" MinWidth="120" Margin="8,0,0,0" Command="{Binding OpenProjectCommand}" />
-                </StackPanel>
-            </StackPanel>
-
-            <!-- A project -->
-            <Grid Visibility="{Binding HasProject, Converter={StaticResource BoolToVisibility}}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="230" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Stations -->
-                <Border Background="{StaticResource Surface.Panel}"
-                        BorderBrush="{StaticResource Surface.Border}"
-                        BorderThickness="0,0,1,0">
-                    <DockPanel Margin="8">
-                        <TextBlock DockPanel.Dock="Top"
-                                   Text="{Binding Project.Name}"
-                                   ToolTip="{Binding Project.Folder}"
-                                   FontWeight="SemiBold"
-                                   FontSize="14"
-                                   Foreground="{StaticResource Text.Primary}" />
-
-                        <DockPanel DockPanel.Dock="Top" Margin="0,10,0,4">
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Button Style="{StaticResource PanelToolButton}"
-                                        ToolTip="Add a station with an empty recipe, to build in Studio"
-                                        Command="{Binding AddStationCommand}">
-                                    <Path Data="M7,1 L7,13 M1,7 L13,7"
-                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                          StrokeThickness="1.6"
-                                          Width="14"
-                                          Height="14" />
-                                </Button>
-                                <Button Style="{StaticResource PanelToolButton}"
-                                        ToolTip="Add a station running a copy of a recipe made in Studio…"
-                                        Command="{Binding AddFromRecipeCommand}">
-                                    <Image Source="{StaticResource Icon.ph_copy}" Width="15" Height="15" />
-                                </Button>
-                                <Button Style="{StaticResource PanelToolButton}"
-                                        ToolTip="Test-run the project, as Sirius Edge will (F5)"
-                                        Command="{Binding TestRunCommand}">
-                                    <Image Source="{StaticResource Icon.ph_run}" Width="15" Height="15" />
-                                </Button>
-                            </StackPanel>
-                            <TextBlock Text="STATIONS"
-                                       FontSize="10"
-                                       VerticalAlignment="Center"
-                                       Foreground="{StaticResource Text.Secondary}" />
-                        </DockPanel>
-
-                        <TextBlock DockPanel.Dock="Bottom"
-                                   TextWrapping="Wrap"
-                                   FontSize="11"
-                                   Margin="0,8,0,0"
-                                   Foreground="{StaticResource Text.Secondary}"
-                                   Text="Double-click a station to open its recipe in Studio. Publish there what the screen shows; save, and it appears here." />
-
-                        <Grid>
-                            <TextBlock TextWrapping="Wrap"
-                                       FontSize="11"
-                                       Foreground="{StaticResource Text.Secondary}"
-                                       Text="No stations yet. Add one from a recipe made in Studio."
-                                       Visibility="{Binding HasNoStations, Converter={StaticResource BoolToVisibility}}" />
-
-                            <ListBox x:Name="StationList"
-                                     ItemsSource="{Binding Stations}"
-                                     SelectedItem="{Binding SelectedStation}"
-                                     Background="Transparent"
-                                     BorderThickness="0"
-                                     Foreground="{StaticResource Text.Primary}"
-                                     ItemContainerStyle="{StaticResource DarkListBoxItem}"
-                                     MouseDoubleClick="OnStationDoubleClick">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type local:StationViewModel}">
-                                        <StackPanel Background="Transparent" ToolTip="{Binding RecipePath}">
-                                            <TextBlock Text="{Binding Name}" />
-                                            <TextBlock Text="{Binding RecipeFile}"
-                                                       FontSize="10"
-                                                       Foreground="{StaticResource Text.Secondary}" />
-                                            <TextBlock Text="recipe missing"
-                                                       FontSize="10"
-                                                       FontStyle="Italic"
-                                                       Foreground="#DB5C5C"
-                                                       Visibility="{Binding RecipeMissing, Converter={StaticResource BoolToVisibility}}" />
-                                            <TextBlock Text="{Binding LineChangesText}"
-                                                       FontSize="10"
-                                                       Foreground="#D9A33A"
-                                                       ToolTip="Settings changed from a screen, used over the recipe's own - right-click for Line Settings"
-                                                       Visibility="{Binding HasLineChanges, Converter={StaticResource BoolToVisibility}}" />
-                                            <StackPanel.ContextMenu>
-                                                <ContextMenu>
-                                                    <MenuItem Header="Open in _Studio"
-                                                              Command="{Binding PlacementTarget.Tag.OpenInStudioCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              CommandParameter="{Binding}" />
-                                                    <MenuItem Header="_Line Settings…"
-                                                              Command="{Binding PlacementTarget.Tag.LineSettingsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              CommandParameter="{Binding}" />
-                                                    <MenuItem Header="_Rename…"
-                                                              Command="{Binding PlacementTarget.Tag.RenameStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              CommandParameter="{Binding}" />
-                                                    <Separator />
-                                                    <MenuItem Header="Move _Up"
-                                                              Command="{Binding PlacementTarget.Tag.MoveUpCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              CommandParameter="{Binding}" />
-                                                    <MenuItem Header="Move _Down"
-                                                              Command="{Binding PlacementTarget.Tag.MoveDownCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              CommandParameter="{Binding}" />
-                                                    <Separator />
-                                                    <MenuItem Header="Re_move from Project…"
-                                                              Command="{Binding PlacementTarget.Tag.RemoveStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                              CommandParameter="{Binding}" />
-                                                </ContextMenu>
-                                            </StackPanel.ContextMenu>
-                                            <StackPanel.Tag>
-                                                <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                                            </StackPanel.Tag>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </Grid>
-                    </DockPanel>
-                </Border>
-
-                <!-- The screen -->
-                <local:ScreenDesignerView x:Name="Designer"
-                                          Grid.Column="1"
-                                          DataContext="{Binding Designer}"
-                                          RunRequested="OnRunRequested" />
-            </Grid>
-        </Grid>
-    </DockPanel>
+    </Grid>
 </Window>

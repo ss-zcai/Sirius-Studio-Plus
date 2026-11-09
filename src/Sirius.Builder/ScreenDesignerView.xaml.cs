@@ -8,9 +8,9 @@ using Sirius.Core.Screens;
 namespace Sirius.Builder;
 
 /// <summary>
-/// The screen designer, the middle of Sirius Builder's window: dragging
-/// widgets about, resizing them by their handles, dropping new ones from the
-/// palette.
+/// The screen being designed, the document in the middle of Sirius Builder's
+/// window: dragging widgets about, resizing them by their handles, taking new
+/// ones dropped from the Widgets panel.
 /// </summary>
 /// <remarks>
 /// Pointer positions are read against the canvas itself, so they are in the
@@ -19,7 +19,8 @@ namespace Sirius.Builder;
 /// </remarks>
 public partial class ScreenDesignerView : UserControl
 {
-    private const string DragFormat = "SiriusScreenWidgetKind";
+    /// <summary>What the Widgets panel drags: a <see cref="WidgetKind"/>.</summary>
+    internal const string DragFormat = "SiriusScreenWidgetKind";
 
     private ScreenDesignerViewModel? _model;
 
@@ -30,15 +31,10 @@ public partial class ScreenDesignerView : UserControl
     private Point _pressedAt;
     private Rect _startedAs;
 
-    private Point _paletteDownAt;
-
     public ScreenDesignerView()
     {
         InitializeComponent();
     }
-
-    /// <summary>Save and Run pressed, and the screen saved: show the project running.</summary>
-    public event EventHandler? RunRequested;
 
     internal ScreenDesignerViewModel? Model => _model;
 
@@ -164,27 +160,7 @@ public partial class ScreenDesignerView : UserControl
         _model.EndGesture();
     }
 
-    // ---- the palette -----------------------------------------------------
-
-    private void OnPaletteMouseDown(object sender, MouseButtonEventArgs e) =>
-        _paletteDownAt = e.GetPosition(this);
-
-    /// <summary>Dragging a palette entry onto the screen puts the widget where it is dropped.</summary>
-    private void OnPaletteMouseMove(object sender, MouseEventArgs e)
-    {
-        if (e.LeftButton != MouseButtonState.Pressed || sender is not Button { DataContext: WidgetKind kind } button)
-            return;
-
-        var moved = e.GetPosition(this) - _paletteDownAt;
-
-        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
-        {
-            return;
-        }
-
-        DragDrop.DoDragDrop(button, new DataObject(DragFormat, kind), DragDropEffects.Copy);
-    }
+    // ---- dropped from the Widgets panel --------------------------------
 
     private void OnCanvasDrop(object sender, DragEventArgs e)
     {
@@ -257,14 +233,6 @@ public partial class ScreenDesignerView : UserControl
         }
 
         e.Handled = true;
-    }
-
-    // ---- running ---------------------------------------------------------
-
-    private void OnRunClick(object sender, RoutedEventArgs e)
-    {
-        if (_model?.Save() == true)
-            RunRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private static T? Find<T>(DependencyObject? source)

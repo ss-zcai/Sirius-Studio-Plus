@@ -403,6 +403,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         OnPropertyChanged(nameof(EditWidth));
         OnPropertyChanged(nameof(EditHeight));
 
+        RefreshRows();
         _owner.Changed();
     }
 
@@ -419,6 +420,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         OnPropertyChanged(nameof(Choice));
         OnPropertyChanged(nameof(NameProblem));
         OnPropertyChanged(nameof(HasNoChoices));
+        RefreshRows();
     }
 
     /// <summary>
@@ -478,5 +480,157 @@ public sealed class DesignWidgetViewModel : ObservableObject
     private void Raise()
     {
         OnPropertyChanged(string.Empty);
+        RefreshRows();
     }
+
+    // ---- the property grid -------------------------------------------------
+
+    private IReadOnlyList<PropertyCategory>? _categories;
+
+    /// <summary>The widget's properties, by category, for the property grid - only those its kind has.</summary>
+    public IReadOnlyList<PropertyCategory> Categories => _categories ??= PropertyCategory.From(Rows());
+
+    private void RefreshRows()
+    {
+        if (_categories is null)
+            return;
+
+        foreach (var category in _categories)
+            category.Refresh();
+    }
+
+    private IEnumerable<PropertyRow> Rows()
+    {
+        yield return new PropertyRow("Widget", "Kind", PropertyEditor.ReadOnly, () => KindLabel);
+
+        if (HasStation)
+        {
+            yield return new PropertyRow(
+                "Shows", "Station", PropertyEditor.Choice,
+                () => StationValue,
+                value => StationValue = value as string ?? string.Empty,
+                Kind == WidgetKind.Button ? "The station the button acts on, or every station." : "The station it shows.",
+                options: () => StationOptions.Select(option => new PropertyOption(option.Label, option.Value)).ToArray());
+        }
+
+        if (HasName)
+        {
+            yield return new PropertyRow(
+                "Shows", Kind switch { WidgetKind.Image => "Picture", WidgetKind.Setting => "Setting", _ => "Value" },
+                PropertyEditor.Choice,
+                () => Widget.Name,
+                value => Choice = _choices.FirstOrDefault(choice => string.Equals(choice.Name, value as string, StringComparison.OrdinalIgnoreCase)),
+                "What the station's recipe publishes. Publish more in Studio, then save the recipe there.",
+                options: () => _choices.Select(choice => new PropertyOption($"{choice.Display}   ({choice.Source})", choice.Name)).ToArray());
+
+            yield return new PropertyRow(
+                "Shows", "Problem", PropertyEditor.ReadOnly,
+                () => NameProblem,
+                visible: () => NameProblem is not null);
+        }
+
+        if (HasAction)
+        {
+            yield return new PropertyRow(
+                "Shows", "Does", PropertyEditor.Choice,
+                () => Action,
+                value => { if (value is WidgetAction action) Action = action; },
+                "Trigger inspects once; Run / Stop runs part after part; Reset Counts starts the counts from zero.",
+                options: () => _owner.Actions.Select(action => new PropertyOption(ActionLabel(action), action)).ToArray());
+        }
+
+        if (HasText)
+        {
+            yield return new PropertyRow(
+                "Text", Kind == WidgetKind.Text ? "Text" : Kind == WidgetKind.Button ? "Caption" : "Label",
+                PropertyEditor.Text,
+                () => Text ?? string.Empty,
+                value => Text = value as string,
+                TextLabel);
+        }
+
+        if (HasNumberFormat)
+        {
+            yield return new PropertyRow(
+                "Text", "Number format", PropertyEditor.Text,
+                () => Format ?? string.Empty,
+                value => Format = value as string,
+                "How a number is written: 0.00 for two decimals, 0 for none. Blank for up to three.");
+
+            yield return new PropertyRow(
+                "Text", "Unit", PropertyEditor.Text,
+                () => Unit ?? string.Empty,
+                value => Unit = value as string,
+                "Written after the number: mm, px.");
+        }
+
+        if (HasFontSize)
+        {
+            yield return new PropertyRow(
+                "Text", "Font size", PropertyEditor.Text,
+                () => Number(FontSize),
+                value => { if (Parse(value) is { } size) FontSize = size; },
+                "In the screen's own units; the whole screen is scaled to the display.");
+        }
+
+        if (HasFile)
+        {
+            yield return new PropertyRow(
+                "Picture", "File", PropertyEditor.File,
+                () => File ?? string.Empty,
+                value => File = value as string,
+                "A picture in the project folder. One chosen from outside is copied into its screens folder.",
+                browse: BrowseCommand);
+        }
+
+        if (HasSettingOptions)
+        {
+            yield return new PropertyRow(
+                "On the line", "Operator may change", PropertyEditor.Check,
+                () => OperatorMayChange,
+                value => { if (value is bool may) OperatorMayChange = may; },
+                "Off: the screen only shows the setting.",
+                enabled: () => IsChangeableKind);
+
+            yield return new PropertyRow(
+                "On the line", "Lowest", PropertyEditor.Text,
+                () => LowestText,
+                value => LowestText = value as string ?? string.Empty,
+                "The lowest the operator may set it to. Blank for as low as the node allows. Kept in the project, for this station.",
+                visible: () => HasLimits);
+
+            yield return new PropertyRow(
+                "On the line", "Highest", PropertyEditor.Text,
+                () => HighestText,
+                value => HighestText = value as string ?? string.Empty,
+                "The highest the operator may set it to. Blank for as high as the node allows.",
+                visible: () => HasLimits);
+
+            yield return new PropertyRow(
+                "On the line", "Note", PropertyEditor.ReadOnly,
+                () => SettingNote,
+                visible: () => SettingNote is not null);
+        }
+
+        yield return new PropertyRow("Layout", "X", PropertyEditor.Text, () => Number(X), value => { if (Parse(value) is { } x) EditX = x; }, "From the screen's left edge.");
+        yield return new PropertyRow("Layout", "Y", PropertyEditor.Text, () => Number(Y), value => { if (Parse(value) is { } y) EditY = y; }, "From the screen's top edge.");
+        yield return new PropertyRow("Layout", "Width", PropertyEditor.Text, () => Number(Width), value => { if (Parse(value) is { } width) EditWidth = width; });
+        yield return new PropertyRow("Layout", "Height", PropertyEditor.Text, () => Number(Height), value => { if (Parse(value) is { } height) EditHeight = height; });
+    }
+
+    internal static string ActionLabel(WidgetAction action) => action switch
+    {
+        WidgetAction.RunStop => "Run / Stop",
+        WidgetAction.ResetCounts => "Reset Counts",
+        _ => "Trigger",
+    };
+
+    internal static string Number(double value) => value.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture);
+
+    internal static double? Parse(object? value) =>
+        value is string text &&
+        double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out var number) &&
+        double.IsFinite(number)
+            ? number
+            : null;
 }
