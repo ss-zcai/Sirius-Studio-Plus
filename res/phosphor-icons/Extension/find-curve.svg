@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <style>
+      .cls-1, .cls-2 {
+        fill: none;
+      }
+
+      .cls-2 {
+        stroke: #000;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 16px;
+      }
+    </style>
+  </defs>
+  <rect class="cls-1" width="256" height="256"/>
+  <path class="cls-2" d="M32,184C96,184 96,72 152,72C192,72 208,104 224,128"/>
+  <circle cx="56.88" cy="177.2" r="16"/>
+  <circle cx="104" cy="111.42" r="16"/>
+  <circle cx="200.21" cy="94.39" r="16"/>
+</svg>

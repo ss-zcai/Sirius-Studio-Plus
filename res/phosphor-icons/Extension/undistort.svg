@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <style>
+      .cls-1, .cls-2 {
+        fill: none;
+      }
+
+      .cls-2 {
+        stroke: #000;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 16px;
+      }
+    </style>
+  </defs>
+  <rect class="cls-1" width="256" height="256"/>
+  <path class="cls-2" d="M56,40Q104,128 56,216"/>
+  <line class="cls-2" x1="200" y1="40" x2="200" y2="216"/>
+  <line class="cls-2" x1="104" y1="128" x2="152" y2="128"/>
+  <polyline class="cls-2" points="136 104 160 128 136 152"/>
+</svg>

@@ -169,6 +169,16 @@ INSTALL = {
     "send-backward.svg": "ph_send_backward",
     "bring-to-front.svg": "ph_bring_to_front",
     "send-to-back.svg": "ph_send_to_back",
+
+    # Drawn straight into Icons.xaml with their nodes (b0f2528) and
+    # recovered from it, so that regenerating no longer drops them.
+    # Find Curve: edge points along a curve. Line Defects: a straight
+    # edge with a notch in it, and a warning mark. Lens Calibration: a
+    # chessboard. Undistort: a bowed line made straight.
+    "find-curve.svg": "ph_find_curve",
+    "line-defects.svg": "ph_line_defects",
+    "lens-calibration.svg": "ph_lens_calibration",
+    "undistort.svg": "ph_undistort",
 }
 
 KEYLINE_EXTRA = 32.0

@@ -1,7 +1,7 @@
 # Icon inventory
 
-Every icon the application shows. 34 nodes and 23 UI icons, all 57 currently
-drawn from **Phosphor Regular**, restyled into the house style.
+Every icon the application shows: 112, drawn from **Phosphor Regular** or in
+house in Phosphor's geometry, all restyled into the house style.
 
 Companion to `icon-style.md`, which specifies how to draw a new one.
 
@@ -9,22 +9,30 @@ Companion to `icon-style.md`, which specifies how to draw a new one.
 
 | Folder | Count | Keys | Status |
 |---|---|---|---|
-| `ui icons/` | 57 | `ph_*` | **live** - the set the application loads |
-| `phosphor-icons/Extension/` | 5 | - | **source** - hand-drawn additions, see below |
-| `toolbox icons/` | 32 | `tool-icon-NN` | kept, unreferenced - the earlier mono set |
-| `toolbar icons/` | 119 | `icon_*` | kept, unreferenced - the original multi-colour set |
+| `ui icons/` | 112 | `ph_*` | **live** - the set the application loads |
+| `phosphor-icons/Extension/` | 18 | - | **source** - hand-drawn additions, see below |
+| `phosphor-icons/SVGs/regular/` | - | - | **source** - Phosphor Regular, as published |
 
-Of the 57 live icons, 52 are restyled Phosphor Regular and 5 are drawn in
-house. The per-row "Current" columns in sections 1-3 below still name the
-pre-Phosphor keys they were written against; the `ph_*` key for any row is
-`KEYS` in `install_phosphor.py`.
+Of the 112 live icons, 94 are restyled Phosphor Regular and 18 are drawn in
+house. The earlier sets - the mono `toolbox icons/` and the multi-colour
+`toolbar icons/` - were removed from `res/` in d5d5fda. The per-row "Current"
+columns in sections 1-3 below still name the pre-Phosphor keys they were
+written against.
 
-All three are converted into `Themes/Icons.xaml`, so every key stays
-resolvable and reverting any single icon is a one-word change:
+`tools/install_extension.py` restyles the hand-drawn set and the Phosphor
+icons named in its `PHOSPHOR` map into `res/ui icons/`; the rest of that
+folder was installed once, from Phosphor, by a script since retired, and is
+kept as is. Only `res/ui icons/` is converted into `Themes/Icons.xaml`, so a
+full regeneration is:
 
 ```
+python tools/install_extension.py
 python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
 ```
+
+An icon that exists only in `Icons.xaml` is deleted by the second command;
+every key needs an SVG in `res/ui icons/`, and every hand-drawn one a source
+in `Extension/`.
 
 ## How Phosphor was restyled
 
@@ -44,7 +52,7 @@ must ship with the product.
 
 ## The hand-drawn extensions
 
-Five icons are not Phosphor. They are drawn in Phosphor's geometry - 256
+Eighteen icons are not Phosphor. They are drawn in Phosphor's geometry - 256
 canvas, stroke 16, round caps - and live in
 `res/phosphor-icons/Extension/`, which is the editable source; the installed
 copies in `res/ui icons/` are generated from it.
@@ -56,6 +64,22 @@ copies in `res/ui icons/` are generated from it.
 | `circle-centre-radius.svg` | `ph_measure_circle` | `circle-dashed` |
 | `circle-3-points.svg` | `ph_measure_circle3` | `circles-three` |
 | `highpass.svg` | `ph_highpass` | `wave-sine` |
+| `fit-circle.svg` | `ph_fit_circle` | `circle-dashed` |
+| `fit-ellipse.svg` | `ph_fit_ellipse` | `orange-slice` |
+| `fit-line.svg` | `ph_fit_line` | `chart-line-up` |
+| `zoom-1.svg` | `ph_zoom_actual` | a magnifier with a square |
+| `numbers.svg` | `ph_number` | - |
+| `bring-forward.svg` | `ph_bring_forward` | - |
+| `send-backward.svg` | `ph_send_backward` | - |
+| `bring-to-front.svg` | `ph_bring_to_front` | - |
+| `send-to-back.svg` | `ph_send_to_back` | - |
+| `find-curve.svg` | `ph_find_curve` | - |
+| `line-defects.svg` | `ph_line_defects` | - |
+| `lens-calibration.svg` | `ph_lens_calibration` | - |
+| `undistort.svg` | `ph_undistort` | - |
+
+The last four were first drawn straight into `Icons.xaml` and had no source,
+so a regeneration dropped them; their SVGs were recovered from its geometry.
 
 The measurement tools are the four Phosphor could only approximate - a
 generic two-point vector or an equals sign says nothing about *which*

@@ -169,8 +169,8 @@ distinct from Threshold's vertical split).
 
 ---
 
-> **Note.** Sections 1-6 describe the original 128-grid filled set, which is
-> still in `res/toolbox icons/` but is no longer referenced. The application
+> **Note.** Sections 1-6 describe the original 128-grid filled set, which was
+> `res/toolbox icons/` until it was removed in d5d5fda. The application
 > now runs on restyled Phosphor Regular - 256 canvas, stroked, round caps.
 > `icon-inventory.md` has the specification for drawing a new one that blends
 > in with it. The reasoning below still applies: the 8-unit rule becomes a
