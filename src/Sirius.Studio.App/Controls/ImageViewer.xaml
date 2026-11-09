@@ -276,7 +276,11 @@
         </Border>
 
         <!-- Canvas -->
-        <Grid x:Name="Surface" Grid.Row="1" ClipToBounds="True" Background="#17181A">
+        <!-- Behind the image: the viewer's own Background, which a screen may set. -->
+        <Grid x:Name="Surface"
+              Grid.Row="1"
+              ClipToBounds="True"
+              Background="{Binding Background, RelativeSource={RelativeSource AncestorType=UserControl}}">
             <!--
                 `Scene` is positioned in image-pixel coordinates and carries the
                 zoom/pan matrix, so overlay geometry can be placed at raw pixel

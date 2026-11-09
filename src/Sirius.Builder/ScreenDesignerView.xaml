@@ -168,7 +168,9 @@
                                     <Setter TargetName="CaptionText" Property="HorizontalAlignment" Value="Left" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Kind}" Value="{x:Static core:WidgetKind.Image}">
-                                    <Setter TargetName="Body" Property="Background" Value="#17181A" />
+                                    <Setter TargetName="Body" Property="Background" Value="{Binding PreviewBackground}" />
+                                    <Setter TargetName="KindText" Property="Foreground" Value="{Binding PreviewForeground}" />
+                                    <Setter TargetName="CaptionText" Property="Foreground" Value="{Binding PreviewForeground}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Kind}" Value="{x:Static core:WidgetKind.Verdict}">
                                     <Setter TargetName="Body" Property="Background" Value="#1E3A24" />

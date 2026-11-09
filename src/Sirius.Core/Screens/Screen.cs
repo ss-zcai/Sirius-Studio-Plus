@@ -99,6 +99,13 @@ public sealed class Widget
     [JsonPropertyName("file")]
     public string? File { get; set; }
 
+    /// <summary>
+    /// An Image Viewer's colour behind the image: "#RRGGBB", "#AARRGGBB" or
+    /// a colour name. Blank for the viewer's own dark grey.
+    /// </summary>
+    [JsonPropertyName("background")]
+    public string? Background { get; set; }
+
     /// <summary>A Setting shown but not changed from this screen.</summary>
     [JsonPropertyName("readOnly")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

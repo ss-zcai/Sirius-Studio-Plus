@@ -47,6 +47,25 @@
             </DockPanel>
         </DataTemplate>
 
+        <!-- A colour: a swatch, then a list of presets that also takes a typed name or #RRGGBB. -->
+        <DataTemplate x:Key="ColourEditor" DataType="{x:Type local:PropertyRow}">
+            <DockPanel>
+                <Border DockPanel.Dock="Left"
+                        Width="16"
+                        Height="16"
+                        Margin="3,0,4,0"
+                        BorderThickness="1"
+                        BorderBrush="{StaticResource Text.Secondary}"
+                        Background="{Binding Swatch}" />
+                <ComboBox IsEditable="True"
+                          ItemsSource="{Binding Options}"
+                          Text="{Binding Value, UpdateSourceTrigger=LostFocus}"
+                          BorderThickness="0"
+                          SelectionChanged="OnColourChosen"
+                          KeyDown="OnColourKeyDown" />
+            </DockPanel>
+        </DataTemplate>
+
         <DataTemplate x:Key="ReadOnlyEditor" DataType="{x:Type local:PropertyRow}">
             <TextBlock Text="{Binding Text}"
                        Margin="4,2"
@@ -60,6 +79,7 @@
                                       Choice="{StaticResource ChoiceEditor}"
                                       Check="{StaticResource CheckEditor}"
                                       File="{StaticResource FileEditor}"
+                                      Colour="{StaticResource ColourEditor}"
                                       ReadOnly="{StaticResource ReadOnlyEditor}" />
     </UserControl.Resources>
 

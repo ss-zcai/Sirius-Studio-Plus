@@ -598,6 +598,61 @@ public sealed class ScreenDesignerTests : IDisposable
     }
 
     [Fact]
+    public void An_image_viewer_takes_a_background_colour()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var (_, recipes) = TwoStations();
+            var designer = new ScreenDesignerViewModel(recipes);
+            var viewer = designer.Add(WidgetKind.Image);
+            var row = viewer.Categories.Single(category => category.Name == "Appearance").Rows.Single();
+
+            Assert.Equal(PropertyEditor.Colour, row.Editor);
+            Assert.Equal("Default", row.Value);
+            Assert.Contains("White", row.Options!.Cast<string>());
+
+            row.Value = "White";
+            Assert.Equal("#FFFFFF", viewer.Widget.Background);
+            Assert.Equal("White", row.Value);
+            Assert.Equal(System.Windows.Media.Brushes.Black, viewer.PreviewForeground);
+
+            row.Value = "#336699";
+            Assert.Equal("#336699", viewer.Widget.Background);
+
+            row.Value = "navy";
+            Assert.Equal("#000080", viewer.Widget.Background);
+
+            // Not a colour: refused, and said.
+            row.Value = "sky-ish";
+            Assert.Equal("#000080", viewer.Widget.Background);
+            Assert.Contains("not a colour", designer.StatusText, StringComparison.Ordinal);
+
+            row.Value = "Default";
+            Assert.Null(viewer.Widget.Background);
+
+            // No other kind has one.
+            Assert.DoesNotContain(designer.Add(WidgetKind.Value).Categories, category => category.Name == "Appearance");
+        });
+    }
+
+    [Fact]
+    public void A_running_image_viewer_shows_its_background()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var plain = new ImageWidgetViewModel(new Widget { Kind = WidgetKind.Image });
+            var white = new ImageWidgetViewModel(new Widget { Kind = WidgetKind.Image, Background = "#FFFFFF" });
+
+            Assert.Equal(System.Windows.Media.Color.FromRgb(0x17, 0x18, 0x1A), ((System.Windows.Media.SolidColorBrush)plain.Background).Color);
+            Assert.Equal(System.Windows.Media.Colors.White, ((System.Windows.Media.SolidColorBrush)white.Background).Color);
+
+            var path = Path.Combine(_folder, "colour.screen");
+            new Screen { Widgets = { new Widget { Kind = WidgetKind.Image, Background = "#FFFFFF" } } }.Save(path);
+            Assert.Equal("#FFFFFF", Screen.Load(path).Widgets[0].Background);
+        });
+    }
+
+    [Fact]
     public void With_nothing_selected_the_grid_shows_the_screen()
     {
         WpfTestHost.OnStaThread(() =>

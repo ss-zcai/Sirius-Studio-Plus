@@ -19,6 +19,9 @@ public enum PropertyEditor
     /// <summary>A file, typed or picked with "…".</summary>
     File,
 
+    /// <summary>A colour: one of a list, or typed as a name or #RRGGBB, with a swatch.</summary>
+    Colour,
+
     /// <summary>Shown, not edited.</summary>
     ReadOnly,
 }
@@ -108,6 +111,12 @@ public sealed class PropertyRow : ObservableObject
     };
 
     public IEnumerable? Options => _options?.Invoke();
+
+    /// <summary>A colour row's colour, for its swatch.</summary>
+    public System.Windows.Media.Brush? Swatch =>
+        Editor == PropertyEditor.Colour
+            ? Sirius.Studio.App.Screens.ScreenColours.Brush(Sirius.Studio.App.Screens.ScreenColours.Normalise(Value as string, out _))
+            : null;
 
     public bool IsVisible => _visible?.Invoke() ?? true;
 

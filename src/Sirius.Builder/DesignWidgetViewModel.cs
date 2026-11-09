@@ -110,6 +110,38 @@ public sealed class DesignWidgetViewModel : ObservableObject
 
     public bool HasFontSize => Kind is not (WidgetKind.Image or WidgetKind.Logo);
 
+    /// <summary>An Image Viewer has a colour behind its image.</summary>
+    public bool HasBackground => Kind == WidgetKind.Image;
+
+    /// <summary>"Default", "Black", or the "#RRGGBB" kept - as the Background box shows it.</summary>
+    public string BackgroundText
+    {
+        get => Sirius.Studio.App.Screens.ScreenColours.Describe(Widget.Background);
+        set
+        {
+            var colour = Sirius.Studio.App.Screens.ScreenColours.Normalise(value, out var valid);
+
+            if (!valid)
+            {
+                _owner.StatusText = $"'{value}' is not a colour. Type a name such as Black, or #RRGGBB.";
+                Raise();
+                return;
+            }
+
+            Set(() => Widget.Background = colour, Widget.Background, colour);
+        }
+    }
+
+    /// <summary>The widget's colour on the designer's canvas, as the running screen will show it.</summary>
+    public System.Windows.Media.Brush PreviewBackground => Sirius.Studio.App.Screens.ScreenColours.Brush(Widget.Background);
+
+    /// <summary>The canvas caption's colour: dark over a light background, light over a dark one.</summary>
+    public System.Windows.Media.Brush PreviewForeground =>
+        Sirius.Studio.App.Screens.ScreenColours.Parse(Widget.Background) is { } colour &&
+        (0.299 * colour.R) + (0.587 * colour.G) + (0.114 * colour.B) > 150
+            ? System.Windows.Media.Brushes.Black
+            : System.Windows.Media.Brushes.Gainsboro;
+
     /// <summary>What the Text box is called for this kind.</summary>
     public string TextLabel => Kind switch
     {
@@ -571,6 +603,16 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 () => Number(FontSize),
                 value => { if (Parse(value) is { } size) FontSize = size; },
                 "In the screen's own units; the whole screen is scaled to the display.");
+        }
+
+        if (HasBackground)
+        {
+            yield return new PropertyRow(
+                "Appearance", "Background", PropertyEditor.Colour,
+                () => BackgroundText,
+                value => BackgroundText = value as string ?? string.Empty,
+                "The colour behind the image, where it does not fill the viewer. Pick one, or type a name or #RRGGBB.",
+                options: () => Sirius.Studio.App.Screens.ScreenColours.Presets.Select(preset => preset.Name).ToArray());
         }
 
         if (HasFile)

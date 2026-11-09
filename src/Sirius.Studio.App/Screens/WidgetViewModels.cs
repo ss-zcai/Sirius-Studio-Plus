@@ -103,6 +103,9 @@ public sealed class ImageWidgetViewModel(Widget widget) : WidgetViewModel(widget
     private BitmapSource? _picture;
     private ShapeSet? _shapes;
 
+    /// <summary>Behind the image: the colour the screen gives it, or the viewer's own.</summary>
+    public System.Windows.Media.Brush Background { get; } = ScreenColours.Brush(widget.Background);
+
     public BitmapSource? Picture
     {
         get => _picture;

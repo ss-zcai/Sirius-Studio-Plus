@@ -16,6 +16,8 @@ public sealed class PropertyEditorSelector : DataTemplateSelector
 
     public DataTemplate? File { get; set; }
 
+    public DataTemplate? Colour { get; set; }
+
     public DataTemplate? ReadOnly { get; set; }
 
     public override DataTemplate? SelectTemplate(object item, DependencyObject container) =>
@@ -25,6 +27,7 @@ public sealed class PropertyEditorSelector : DataTemplateSelector
             PropertyEditor.Choice => Choice,
             PropertyEditor.Check => Check,
             PropertyEditor.File => File,
+            PropertyEditor.Colour => Colour,
             _ => ReadOnly,
         };
 }
@@ -80,6 +83,32 @@ public partial class PropertyGridView : UserControl
     {
         DescriptionName.Text = row?.Name ?? string.Empty;
         DescriptionText.Text = row?.Description ?? string.Empty;
+    }
+
+    /// <summary>A preset picked from a colour's list is the colour at once, not on leaving the box.</summary>
+    private void OnColourChosen(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox { SelectedItem: string chosen, DataContext: PropertyRow row })
+            row.Value = chosen;
+    }
+
+    private void OnColourKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not ComboBox box)
+            return;
+
+        var binding = box.GetBindingExpression(ComboBox.TextProperty);
+
+        if (e.Key == Key.Enter)
+        {
+            binding?.UpdateSource();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            binding?.UpdateTarget();
+            e.Handled = true;
+        }
     }
 
     /// <summary>Enter commits the box; Escape puts back what the property holds.</summary>

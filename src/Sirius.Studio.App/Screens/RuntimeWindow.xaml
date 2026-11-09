@@ -43,6 +43,7 @@
         <DataTemplate DataType="{x:Type screens:ImageWidgetViewModel}">
             <Border BorderBrush="{StaticResource Surface.Border}" BorderThickness="1">
                 <controls:ImageViewer IsDisplayOnly="True"
+                                      Background="{Binding Background}"
                                       ImageSource="{Binding Picture}"
                                       Shapes="{Binding Shapes}" />
             </Border>
