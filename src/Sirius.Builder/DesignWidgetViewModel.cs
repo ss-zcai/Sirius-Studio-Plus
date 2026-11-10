@@ -354,9 +354,9 @@ public sealed class DesignWidgetViewModel : ObservableObject
         }
     }
 
-    /// <summary>A label above a control: two lines of the font, the control's frame, the widget's edge - on the grid.</summary>
+    /// <summary>A label above a control: two lines of the font, the gap between them, the control's frame, the widget's edge - on the grid.</summary>
     internal static double TwoLineHeight(double fontSize) =>
-        Math.Ceiling(((fontSize * 3) + 14) / ScreenLayout.Grid) * ScreenLayout.Grid;
+        Math.Ceiling(((fontSize * 3) + 11 + Sirius.Studio.App.Screens.SettingWidgetViewModel.LabelGap) / ScreenLayout.Grid) * ScreenLayout.Grid;
 
     /// <summary>The lowest it may be set to on the line; blank for as low as the node allows.</summary>
     public string LowestText

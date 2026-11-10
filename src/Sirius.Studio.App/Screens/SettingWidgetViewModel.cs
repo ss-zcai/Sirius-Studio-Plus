@@ -139,7 +139,10 @@ public sealed class SettingWidgetViewModel : WidgetViewModel
     /// <summary>The number box: a fixed width beside the label, the room between − and + above it.</summary>
     public double BoxWidth => IsLabelOnTop && IsStepperEditor ? double.NaN : 90;
 
-    public Thickness LabelMargin => IsLabelOnTop ? new Thickness(0, 0, 0, 3) : new Thickness(0, 0, 8, 0);
+    /// <summary>The gap between a label above and its control, in the screen's units.</summary>
+    public const double LabelGap = 8;
+
+    public Thickness LabelMargin => IsLabelOnTop ? new Thickness(0, 0, 0, LabelGap) : new Thickness(0, 0, 8, 0);
 
     // ---- the values ------------------------------------------------------------------
 
