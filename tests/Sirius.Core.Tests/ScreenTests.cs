@@ -635,6 +635,7 @@ public sealed class ScreenTests : IDisposable
                 new Widget { Kind = WidgetKind.Setting, X = 0, Y = 0, Width = 400, Height = 40, Station = "Top", Name = "Limit", Style = SettingStyle.Slider },
                 new Widget { Kind = WidgetKind.Setting, X = 0, Y = 50, Width = 400, Height = 60, Station = "Top", Name = "Floor", HighName = "Limit", Style = SettingStyle.Range, LabelPlacement = LabelPlacement.Top },
                 new Widget { Kind = WidgetKind.Setting, X = 0, Y = 120, Width = 400, Height = 60, Station = "Top", Name = "Limit", LabelPlacement = LabelPlacement.Top },
+                new Widget { Kind = WidgetKind.Value, X = 0, Y = 190, Width = 400, Height = 60, Station = "Top", Name = "Limit", LabelPlacement = LabelPlacement.Top },
             },
         }.Save(ScreenLayout.MainScreenPath(project));
 
@@ -670,6 +671,15 @@ public sealed class ScreenTests : IDisposable
 
                 var model = (ScreenViewModel)window.DataContext;
                 Assert.Equal(60.0, model.Widgets.OfType<SettingWidgetViewModel>().First().SliderValue);
+
+                // A value with its label above: the value is under the label, not beside it.
+                var valueTexts = Descendants(window).OfType<System.Windows.Controls.TextBlock>()
+                    .Where(block => block.DataContext is ValueWidgetViewModel)
+                    .ToArray();
+                var label = valueTexts.Single(block => block.FontWeight != System.Windows.FontWeights.SemiBold);
+                var shown = valueTexts.Single(block => block.FontWeight == System.Windows.FontWeights.SemiBold);
+                Assert.Equal(System.Windows.Controls.Dock.Bottom, System.Windows.Controls.DockPanel.GetDock(shown));
+                Assert.True(shown.TranslatePoint(new System.Windows.Point(0, 0), label).Y >= label.ActualHeight, "the value is not under its label");
             }
             finally
             {

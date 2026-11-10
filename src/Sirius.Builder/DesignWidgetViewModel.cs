@@ -107,6 +107,9 @@ public sealed class DesignWidgetViewModel : ObservableObject
 
     public bool HasNumberFormat => Kind is WidgetKind.Value or WidgetKind.Setting;
 
+    /// <summary>A label that may go beside or above what it names.</summary>
+    public bool HasLabelPlacement => Kind is WidgetKind.Value or WidgetKind.Setting;
+
     public bool HasFile => Kind == WidgetKind.Logo;
 
     public bool HasFontSize => Kind is not (WidgetKind.Image or WidgetKind.Logo);
@@ -354,7 +357,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         }
     }
 
-    /// <summary>A label above a control: two lines of the font, the gap between them, the control's frame, the widget's edge - on the grid.</summary>
+    /// <summary>A label above a control or a value: two lines of the font, the gap between them, the control's frame, the widget's edge - on the grid.</summary>
     internal static double TwoLineHeight(double fontSize) =>
         Math.Ceiling(((fontSize * 3) + 11 + Sirius.Studio.App.Screens.SettingWidgetViewModel.LabelGap) / ScreenLayout.Grid) * ScreenLayout.Grid;
 
@@ -703,6 +706,22 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 TextLabel);
         }
 
+        if (HasLabelPlacement)
+        {
+            yield return new PropertyRow(
+                "Text", "Label position", PropertyEditor.Choice,
+                () => LabelPlacement,
+                value => { if (value is LabelPlacement placement) LabelPlacement = placement; },
+                Kind == WidgetKind.Setting
+                    ? "Beside the control, on one line; or above it, so a long name and a wide control both fit. Above makes the widget taller if it needs to be."
+                    : "Beside the value, on one line; or above it, so a long name has the width to itself. Above makes the widget taller if it needs to be.",
+                options: () => new[]
+                {
+                    new PropertyOption("Left", LabelPlacement.Left),
+                    new PropertyOption("Top", LabelPlacement.Top),
+                });
+        }
+
         if (HasNumberFormat)
         {
             yield return new PropertyRow(
@@ -769,17 +788,6 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 "Setting", "Problem", PropertyEditor.ReadOnly,
                 () => HighNameProblem,
                 visible: () => HighNameProblem is not null);
-
-            yield return new PropertyRow(
-                "Setting", "Label", PropertyEditor.Choice,
-                () => LabelPlacement,
-                value => { if (value is LabelPlacement placement) LabelPlacement = placement; },
-                "Beside the control, on one line; or above it, so a long name and a wide control both fit. Above makes the widget taller if it needs to be.",
-                options: () => new[]
-                {
-                    new PropertyOption("Left", LabelPlacement.Left),
-                    new PropertyOption("Top", LabelPlacement.Top),
-                });
 
             yield return new PropertyRow(
                 "On the line", "Operator may change", PropertyEditor.Check,

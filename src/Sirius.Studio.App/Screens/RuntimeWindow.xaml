@@ -127,12 +127,25 @@
                     BorderBrush="{StaticResource Surface.Border}"
                     BorderThickness="1"
                     Padding="8,0">
+                <!-- Beside: the label left, the value right. Above: the label, then the value under it. -->
                 <DockPanel VerticalAlignment="Center">
-                    <TextBlock DockPanel.Dock="Right"
-                               Text="{Binding Value}"
+                    <TextBlock Text="{Binding Value}"
                                FontSize="{Binding FontSize}"
                                FontWeight="SemiBold"
-                               Foreground="{StaticResource Text.Primary}" />
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource Text.Primary}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="DockPanel.Dock" Value="Right" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLabelOnTop}" Value="True">
+                                        <Setter Property="DockPanel.Dock" Value="Bottom" />
+                                        <Setter Property="Margin" Value="0,4,0,0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                     <TextBlock Text="{Binding Label}"
                                FontSize="{Binding FontSize}"
                                TextTrimming="CharacterEllipsis"

@@ -604,6 +604,32 @@ public sealed class ScreenDesignerTests : IDisposable
     }
 
     /// <summary>
+    /// A value's label goes beside it or above it, as a setting's does, and
+    /// above makes the widget tall enough for two lines.
+    /// </summary>
+    [Fact]
+    public void A_value_puts_its_label_beside_or_above()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var (_, recipes) = TwoStations();
+            var designer = new ScreenDesignerViewModel(recipes);
+
+            var value = designer.Add(WidgetKind.Value);
+            var row = value.Categories.Single(c => c.Name == "Text").Rows.Single(r => r.Name == "Label position");
+            Assert.Equal(LabelPlacement.Left, row.Value);
+
+            row.Value = LabelPlacement.Top;
+            Assert.Equal(LabelPlacement.Top, value.Widget.LabelPlacement);
+            Assert.Equal(DesignWidgetViewModel.TwoLineHeight(value.Widget.FontSize), value.Height);
+
+            // Only the kinds with a label have the choice.
+            var text = designer.Add(WidgetKind.Text);
+            Assert.DoesNotContain(text.Categories.SelectMany(c => c.Rows), r => r.Name == "Label position");
+        });
+    }
+
+    /// <summary>
     /// A setting's control - − and +, slider, box, range - and its label's
     /// place are chosen in the property grid. A range takes a second setting
     /// for its high end, and its limits are the slider's two ends.
@@ -660,7 +686,7 @@ public sealed class ScreenDesignerTests : IDisposable
 
             // The label above: the widget grows to two lines, on the grid.
             Assert.Equal(30, widget.Height);
-            Find("Setting", "Label").Single.Value = LabelPlacement.Top;
+            Find("Text", "Label position").Single.Value = LabelPlacement.Top;
             Assert.Equal(LabelPlacement.Top, widget.Widget.LabelPlacement);
             Assert.Equal(DesignWidgetViewModel.TwoLineHeight(widget.Widget.FontSize), widget.Height);
             Assert.Equal(0, widget.Height % ScreenLayout.Grid);

@@ -256,6 +256,9 @@ public sealed class ValueWidgetViewModel(Widget widget) : WidgetViewModel(widget
 
     public string Label => string.IsNullOrWhiteSpace(Widget.Text) ? Widget.Name ?? string.Empty : Widget.Text!;
 
+    /// <summary>The label above the value rather than beside it, so a long name has the width to itself.</summary>
+    public bool IsLabelOnTop => Widget.LabelPlacement == LabelPlacement.Top;
+
     public string Value
     {
         get => _value;
