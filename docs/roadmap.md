@@ -78,14 +78,15 @@ keyboard behaviour. **Node colours**: seven presets, checked for contrast
 by test.
 
 **The logos.** Each program has its own, drawn by the user: `res/Sirius
-Studio Plus.svg`, `res/Sirius Builder.svg`, `res/Sirius Edge.svg` (9
-November 2026). The SVG is the master: `tools/svg2xaml.py` puts it in
-`Themes/Logo.xaml` (Studio's About box draws it as vectors) and
+Studio Plus.svg`, `res/Sirius Builder.svg`, `res/Sirius Edge.svg`, and
+`res/Sirius Image Viewer.svg` for the image viewer still to come (redrawn
+10 November 2026 as two offset rounded squares). The SVG is the master,
+exported with its text converted to outlines: `tools/svg2xaml.py` puts it
+in `Themes/Logo.xaml` (Studio's About box draws it as vectors) and
 `tools/make-app-icons.ps1` renders the `.ico` each program carries, at 16
 to 256 px. A logo whose small frames need drawing by hand can have its
 `.ico` replaced; nothing regenerates it unless the script is run. The
-earlier `res/Sirius Stu.svg` / `.ico` (hand-made frames) are kept but no
-longer used by a program.
+earlier designs, including `Sirius Stu`, are no longer used.
 
 **Packaging.** `tools/pack.ps1` produces a self-contained zip, runs the
 tests, regenerates the node reference, checks the licence notices,

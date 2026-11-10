@@ -3,17 +3,19 @@
 #   powershell -ExecutionPolicy Bypass -File tools/make-app-icons.ps1
 #
 # Each logo is drawn by WPF from the DrawingImage svg2xaml.py made from its
-# SVG (res/Sirius Studio Plus.svg, Sirius Builder.svg, Sirius Edge.svg), at
-# the sizes Windows asks an .ico for - taskbar, title bar, Explorer's views,
-# 256 for large icons - and packed as PNG frames, which Windows reads since
-# Vista. Run it after changing an SVG and regenerating Logo.xaml:
+# SVG (res/Sirius Studio Plus.svg, Sirius Builder.svg, Sirius Edge.svg,
+# Sirius Image Viewer.svg), at the sizes Windows asks an .ico for - taskbar,
+# title bar, Explorer's views, 256 for large icons - and packed as PNG
+# frames, which Windows reads since Vista. Run it after changing an SVG and
+# regenerating Logo.xaml:
 #
-#   python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Logo.xaml "res/Sirius Stu.svg" \
-#       "res/Sirius Studio Plus.svg" "res/Sirius Builder.svg" "res/Sirius Edge.svg"
+#   python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Logo.xaml "res/Sirius Studio Plus.svg" \
+#       "res/Sirius Builder.svg" "res/Sirius Edge.svg" "res/Sirius Image Viewer.svg"
 #
-# res/Sirius Stu.ico is not made here: its small frames were drawn by hand.
-# A logo whose 16 px frame needs the same care can have its .ico replaced by
-# a hand-made one; nothing regenerates it unless this script is run.
+# The SVGs need their text converted to outlines: svg2xaml.py draws shapes
+# only. A logo whose 16 px frame needs drawing by hand can have its .ico
+# replaced by a hand-made one; nothing regenerates it unless this script is
+# run.
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
@@ -23,9 +25,10 @@ $logos = Join-Path $root 'src/Sirius.Studio.App/Themes/Logo.xaml'
 $sizes = 16, 20, 24, 32, 40, 48, 64, 96, 128, 256
 
 $icons = [ordered]@{
-    'Icon.SiriusStudioPlus' = 'res/Sirius Studio Plus.ico'
-    'Icon.SiriusBuilder'    = 'res/Sirius Builder.ico'
-    'Icon.SiriusEdge'       = 'res/Sirius Edge.ico'
+    'Icon.SiriusStudioPlus'  = 'res/Sirius Studio Plus.ico'
+    'Icon.SiriusBuilder'     = 'res/Sirius Builder.ico'
+    'Icon.SiriusEdge'        = 'res/Sirius Edge.ico'
+    'Icon.SiriusImageViewer' = 'res/Sirius Image Viewer.ico'
 }
 
 $stream = [System.IO.File]::OpenRead($logos)
