@@ -24,16 +24,18 @@
 
                 Drawn from the SVG master (res/Sirius Studio Plus.svg,
                 through Themes/Logo.xaml), so it is sharp at any size and on
-                any display scaling - the .ico's frames are bitmaps.
+                any display scaling - the .ico's frames are bitmaps. Sirius
+                Builder's About passes its own.
             -->
-            <Image Width="40"
+            <Image x:Name="LogoImage"
+                   Width="40"
                    Height="40"
                    VerticalAlignment="Top"
                    Margin="0,0,14,0"
                    Source="{StaticResource Icon.SiriusStudioPlus}" />
 
             <StackPanel>
-                <TextBlock Text="Sirius Studio Plus" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock x:Name="ProductText" Text="Sirius Studio Plus" FontSize="18" FontWeight="SemiBold" />
                 <TextBlock x:Name="VersionText"
                            Foreground="{StaticResource Text.Secondary}"
                            FontFamily="Consolas"
@@ -42,7 +44,8 @@
             </StackPanel>
         </StackPanel>
 
-        <TextBlock Text="Node-based machine vision authoring."
+        <TextBlock x:Name="SummaryText"
+                   Text="Node-based machine vision authoring."
                    TextWrapping="Wrap"
                    Margin="0,16,0,0" />
 

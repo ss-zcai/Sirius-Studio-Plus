@@ -480,6 +480,45 @@ public sealed class ScreenDesignerTests : IDisposable
         });
     }
 
+    /// <summary>
+    /// Builder's About is Builder's: its own name, logo and version, 1.0.1,
+    /// not Studio's 1.0.x, which the programs no longer share.
+    /// </summary>
+    [Fact]
+    public void Builder_has_an_about_of_its_own()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var window = new BuilderWindow(new BuilderViewModel { RememberProjects = false }) { KeepsLayout = false };
+            var about = window.About();
+
+            try
+            {
+                Assert.Equal("About Sirius Builder", about.Title);
+                Assert.Equal("Sirius Builder", about.ProductText.Text);
+                Assert.Equal("version 1.0.1", about.VersionText.Text);
+                Assert.Same(System.Windows.Application.Current!.FindResource("Icon.SiriusBuilder"), about.LogoImage.Source);
+
+                // Studio's own is unchanged.
+                var studio = new Sirius.Studio.App.AboutWindow();
+                Assert.Equal("About Sirius Studio Plus", studio.Title);
+                Assert.Equal("Sirius Studio Plus", studio.ProductText.Text);
+                Assert.NotEqual("version 1.0.1", studio.VersionText.Text);
+                studio.Close();
+
+                var menu = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Sirius.Builder", "BuilderWindow.xaml"));
+                Assert.Contains("_About Sirius Builder…", menu, StringComparison.Ordinal);
+            }
+            finally
+            {
+                about.Close();
+                window.Close();
+            }
+        });
+    }
+
     // ---- the property grid ---------------------------------------------------
 
     [Fact]

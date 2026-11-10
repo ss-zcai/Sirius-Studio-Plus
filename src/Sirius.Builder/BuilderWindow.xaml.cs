@@ -114,6 +114,20 @@ public partial class BuilderWindow : Window
             Restore(serializer => serializer.Deserialize(new StringReader(layout)));
     }
 
+    private void OnAboutClick(object sender, RoutedEventArgs e) =>
+        About().ShowDialog();
+
+    /// <summary>Sirius Builder's About: Studio's window, with Builder's name, logo and version.</summary>
+    internal AboutWindow About() =>
+        new(
+            "Sirius Builder",
+            TryFindResource("Icon.SiriusBuilder") as ImageSource,
+            "Builds Sirius projects: stations, line screens and the settings the line may change.",
+            typeof(BuilderWindow).Assembly)
+        {
+            Owner = IsLoaded ? this : null,
+        };
+
     private string Serialize()
     {
         using var writer = new StringWriter();
