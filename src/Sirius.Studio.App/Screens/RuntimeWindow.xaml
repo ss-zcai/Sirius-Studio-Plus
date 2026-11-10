@@ -177,7 +177,12 @@
             </Setter>
         </Style>
 
-        <!-- A setting: changed here within its limits, or only shown -->
+        <!--
+            A setting: changed here within its limits, or only shown. The label
+            beside the control or above it; the control the designer chose for
+            a number - − box +, a slider, a box, or a range on one slider with
+            two handles. A slider updates the setting when it is let go.
+        -->
         <DataTemplate DataType="{x:Type screens:SettingWidgetViewModel}">
             <Border x:Name="Box"
                     CornerRadius="3"
@@ -186,85 +191,191 @@
                     BorderThickness="1"
                     Padding="8,2"
                     ToolTip="{Binding Hint}">
-                <DockPanel VerticalAlignment="Center">
-                    <!-- Only shown -->
-                    <TextBlock DockPanel.Dock="Right"
-                               Text="{Binding DisplayText}"
-                               FontSize="{Binding FontSize}"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"
-                               Foreground="{StaticResource Text.Primary}"
-                               Visibility="{Binding IsDisplayOnly, Converter={StaticResource BoolToVisibility}}" />
-
-                    <!-- A number: − box + -->
-                    <StackPanel DockPanel.Dock="Right"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Stretch"
-                                Visibility="{Binding IsNumberEditor, Converter={StaticResource BoolToVisibility}}">
-                        <Button Content="−"
-                                MinWidth="32"
-                                FontSize="{Binding FontSize}"
-                                Padding="0"
-                                Command="{Binding LowerCommand}"
-                                ToolTip="Lower" />
-                        <TextBox x:Name="NumberBox"
-                                 Width="90"
-                                 Margin="4,0"
-                                 FontSize="{Binding FontSize}"
-                                 FontWeight="SemiBold"
-                                 TextAlignment="Right"
-                                 VerticalContentAlignment="Center"
-                                 Text="{Binding ValueText, UpdateSourceTrigger=LostFocus}"
-                                 KeyDown="OnSettingBoxKeyDown" />
-                        <Button Content="+"
-                                MinWidth="32"
-                                FontSize="{Binding FontSize}"
-                                Padding="0"
-                                Command="{Binding RaiseCommand}"
-                                ToolTip="Raise" />
-                        <TextBlock Text="{Binding Unit}"
-                                   Margin="6,0,0,0"
-                                   VerticalAlignment="Center"
-                                   FontSize="{Binding FontSize}"
-                                   Foreground="{StaticResource Text.Secondary}"
-                                   Visibility="{Binding HasUnit, Converter={StaticResource BoolToVisibility}}" />
-                    </StackPanel>
-
-                    <!-- On or off -->
-                    <ToggleButton DockPanel.Dock="Right"
-                                  Style="{StaticResource SettingSwitch}"
-                                  FontSize="{Binding FontSize}"
-                                  IsChecked="{Binding IsOn}"
-                                  Visibility="{Binding IsToggleEditor, Converter={StaticResource BoolToVisibility}}" />
-
-                    <!-- One of a list -->
-                    <ComboBox DockPanel.Dock="Right"
-                              MinWidth="120"
-                              FontSize="{Binding FontSize}"
-                              ItemsSource="{Binding Choices}"
-                              SelectedItem="{Binding SelectedChoice}"
-                              Visibility="{Binding IsChoiceEditor, Converter={StaticResource BoolToVisibility}}" />
-
-                    <Border DockPanel.Dock="Left"
-                            Margin="0,0,6,0"
-                            Padding="3,0"
-                            CornerRadius="2"
-                            VerticalAlignment="Center"
-                            Background="{StaticResource Published.Background}"
-                            BorderBrush="{StaticResource Published.Border}"
-                            BorderThickness="1"
-                            ToolTip="A setting">
-                        <TextBlock Text="set" FontSize="9" Foreground="{StaticResource Published.Text}" />
-                    </Border>
+                <Grid VerticalAlignment="Center">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="{Binding LabelWidth}" />
+                        <ColumnDefinition Width="{Binding EditorWidth}" />
+                    </Grid.ColumnDefinitions>
 
                     <!-- The label - or, after a refused change, why -->
-                    <TextBlock x:Name="Caption"
-                               Text="{Binding Label}"
-                               FontSize="{Binding FontSize}"
-                               VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"
-                               Foreground="{StaticResource Text.Secondary}" />
-                </DockPanel>
+                    <DockPanel Grid.Row="0"
+                               Grid.Column="0"
+                               Margin="{Binding LabelMargin}"
+                               VerticalAlignment="Center">
+                        <Border DockPanel.Dock="Left"
+                                Margin="0,0,6,0"
+                                Padding="3,0"
+                                CornerRadius="2"
+                                VerticalAlignment="Center"
+                                Background="{StaticResource Published.Background}"
+                                BorderBrush="{StaticResource Published.Border}"
+                                BorderThickness="1"
+                                ToolTip="A setting">
+                            <TextBlock Text="set" FontSize="9" Foreground="{StaticResource Published.Text}" />
+                        </Border>
+                        <TextBlock x:Name="Caption"
+                                   Text="{Binding Label}"
+                                   FontSize="{Binding FontSize}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{StaticResource Text.Secondary}" />
+                    </DockPanel>
+
+                    <Grid x:Name="Editors"
+                          Grid.Row="{Binding EditorRow}"
+                          Grid.Column="{Binding EditorColumn}"
+                          Grid.ColumnSpan="{Binding EditorColumnSpan}"
+                          HorizontalAlignment="{Binding EditorAlignment}"
+                          VerticalAlignment="Center">
+
+                        <!-- Only shown -->
+                        <TextBlock Text="{Binding DisplayText}"
+                                   FontSize="{Binding FontSize}"
+                                   FontWeight="SemiBold"
+                                   TextAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource Text.Primary}"
+                                   Visibility="{Binding IsDisplayOnly, Converter={StaticResource BoolToVisibility}}" />
+
+                        <!-- − box + -->
+                        <DockPanel x:Name="Stepper" Visibility="{Binding IsStepperEditor, Converter={StaticResource BoolToVisibility}}">
+                            <Button DockPanel.Dock="Left"
+                                    Content="−"
+                                    MinWidth="32"
+                                    FontSize="{Binding FontSize}"
+                                    Padding="0"
+                                    Command="{Binding LowerCommand}"
+                                    ToolTip="Lower" />
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding Unit}"
+                                       Margin="6,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding FontSize}"
+                                       Foreground="{StaticResource Text.Secondary}"
+                                       Visibility="{Binding HasUnit, Converter={StaticResource BoolToVisibility}}" />
+                            <Button DockPanel.Dock="Right"
+                                    Content="+"
+                                    MinWidth="32"
+                                    FontSize="{Binding FontSize}"
+                                    Padding="0"
+                                    Command="{Binding RaiseCommand}"
+                                    ToolTip="Raise" />
+                            <TextBox Width="{Binding BoxWidth}"
+                                     Margin="4,0"
+                                     FontSize="{Binding FontSize}"
+                                     FontWeight="SemiBold"
+                                     TextAlignment="Right"
+                                     VerticalContentAlignment="Center"
+                                     Text="{Binding ValueText, UpdateSourceTrigger=LostFocus}"
+                                     KeyDown="OnSettingBoxKeyDown" />
+                        </DockPanel>
+
+                        <!-- A box alone -->
+                        <DockPanel x:Name="BoxOnly" Visibility="{Binding IsBoxEditor, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding Unit}"
+                                       Margin="6,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding FontSize}"
+                                       Foreground="{StaticResource Text.Secondary}"
+                                       Visibility="{Binding HasUnit, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBox MinWidth="90"
+                                     FontSize="{Binding FontSize}"
+                                     FontWeight="SemiBold"
+                                     TextAlignment="Right"
+                                     VerticalContentAlignment="Center"
+                                     Text="{Binding ValueText, UpdateSourceTrigger=LostFocus}"
+                                     KeyDown="OnSettingBoxKeyDown" />
+                        </DockPanel>
+
+                        <!-- A slider, and the number it is at -->
+                        <DockPanel x:Name="Slider" Visibility="{Binding IsSliderEditor, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding Unit}"
+                                       Margin="6,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding FontSize}"
+                                       Foreground="{StaticResource Text.Secondary}"
+                                       Visibility="{Binding HasUnit, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBox DockPanel.Dock="Right"
+                                     Width="80"
+                                     Margin="8,0,0,0"
+                                     FontSize="{Binding FontSize}"
+                                     FontWeight="SemiBold"
+                                     TextAlignment="Right"
+                                     VerticalContentAlignment="Center"
+                                     Text="{Binding ValueText, UpdateSourceTrigger=LostFocus}"
+                                     KeyDown="OnSettingBoxKeyDown" />
+                            <controls:RangeSlider IsSingle="True"
+                                                  MinWidth="80"
+                                                  Height="28"
+                                                  VerticalAlignment="Center"
+                                                  Minimum="{Binding SliderMinimum}"
+                                                  Maximum="{Binding SliderMaximum}"
+                                                  Step="{Binding SliderStep}"
+                                                  High="{Binding SliderValue, UpdateSourceTrigger=Explicit}"
+                                                  ValueCommitted="OnSliderCommitted" />
+                        </DockPanel>
+
+                        <!-- A range: the low end's box, one slider with two handles, the high end's box -->
+                        <DockPanel x:Name="Range" Visibility="{Binding IsRangeEditor, Converter={StaticResource BoolToVisibility}}">
+                            <TextBox DockPanel.Dock="Left"
+                                     Width="80"
+                                     Margin="0,0,8,0"
+                                     FontSize="{Binding FontSize}"
+                                     FontWeight="SemiBold"
+                                     TextAlignment="Right"
+                                     VerticalContentAlignment="Center"
+                                     ToolTip="The low end"
+                                     Text="{Binding ValueText, UpdateSourceTrigger=LostFocus}"
+                                     KeyDown="OnSettingBoxKeyDown" />
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding Unit}"
+                                       Margin="6,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontSize="{Binding FontSize}"
+                                       Foreground="{StaticResource Text.Secondary}"
+                                       Visibility="{Binding HasUnit, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBox DockPanel.Dock="Right"
+                                     Width="80"
+                                     Margin="8,0,0,0"
+                                     FontSize="{Binding FontSize}"
+                                     FontWeight="SemiBold"
+                                     TextAlignment="Right"
+                                     VerticalContentAlignment="Center"
+                                     ToolTip="The high end"
+                                     Text="{Binding HighValueText, UpdateSourceTrigger=LostFocus}"
+                                     KeyDown="OnSettingBoxKeyDown" />
+                            <controls:RangeSlider MinWidth="80"
+                                                  Height="28"
+                                                  VerticalAlignment="Center"
+                                                  Minimum="{Binding SliderMinimum}"
+                                                  Maximum="{Binding SliderMaximum}"
+                                                  Step="{Binding SliderStep}"
+                                                  Low="{Binding SliderValue, UpdateSourceTrigger=Explicit}"
+                                                  High="{Binding HighSliderValue, UpdateSourceTrigger=Explicit}"
+                                                  ValueCommitted="OnSliderCommitted" />
+                        </DockPanel>
+
+                        <!-- On or off -->
+                        <ToggleButton HorizontalAlignment="Right"
+                                      Style="{StaticResource SettingSwitch}"
+                                      FontSize="{Binding FontSize}"
+                                      IsChecked="{Binding IsOn}"
+                                      Visibility="{Binding IsToggleEditor, Converter={StaticResource BoolToVisibility}}" />
+
+                        <!-- One of a list -->
+                        <ComboBox MinWidth="120"
+                                  FontSize="{Binding FontSize}"
+                                  ItemsSource="{Binding Choices}"
+                                  SelectedItem="{Binding SelectedChoice}"
+                                  Visibility="{Binding IsChoiceEditor, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+                </Grid>
             </Border>
             <DataTemplate.Triggers>
                 <DataTrigger Binding="{Binding HasProblem}" Value="True">

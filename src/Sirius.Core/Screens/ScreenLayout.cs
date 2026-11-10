@@ -318,6 +318,16 @@ public static class ScreenLayout
                 problems.Add($"{label}: on '{station.Name}' it is a {item.Kind.ToString().ToLowerInvariant()}, not a setting.");
             else if (widget.Kind == WidgetKind.Image && item.Kind == PublishedKind.Setting)
                 problems.Add($"{label}: on '{station.Name}' it is a setting, not a picture.");
+
+            if (widget.Kind == WidgetKind.Setting && widget.Style == SettingStyle.Range)
+            {
+                if (string.IsNullOrWhiteSpace(widget.HighName))
+                    problems.Add($"{label}: a range has no high setting chosen.");
+                else if (Publishing.Find(station.Recipe, widget.HighName) is not { Found: true } high)
+                    problems.Add($"{label}: station '{station.Name}' publishes no '{widget.HighName}' for the range's high end.");
+                else if (high.Kind != PublishedKind.Setting)
+                    problems.Add($"{label}: '{widget.HighName}' on '{station.Name}' is a {high.Kind.ToString().ToLowerInvariant()}, not a setting.");
+            }
         }
 
         return problems;

@@ -144,6 +144,49 @@ public class RangeSliderTests
         });
 
     /// <summary>
+    /// One handle: an ordinary slider for a running screen's setting. A
+    /// press anywhere takes the high handle - there is no low one to take -
+    /// and the low end is pinned at the start.
+    /// </summary>
+    [Fact]
+    public void A_single_slider_has_only_the_high_handle() =>
+        Laid(
+            slider =>
+            {
+                Assert.False(slider.PrefersLowHandle(slider.PositionOf(0)));
+                Assert.False(slider.PrefersLowHandle(slider.PositionOf(200)));
+
+                slider.High = 90;
+                Assert.Equal(90, slider.High);
+                Assert.Equal(0, slider.Low);
+            },
+            slider => slider.IsSingle = true);
+
+    /// <summary>
+    /// The handles grow with the control, for a finger on a line screen -
+    /// but Studio's 20-pixel slider keeps its 7-pixel handles, so its track,
+    /// and every value along it, is where it was.
+    /// </summary>
+    [Fact]
+    public void A_taller_slider_has_bigger_handles_and_Studios_is_unchanged()
+    {
+        Laid(slider =>
+        {
+            Assert.Equal(7, slider.PositionOf(0), 6);
+            Assert.Equal(Width - 7, slider.PositionOf(255), 6);
+        });
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            var tall = new RangeSlider { Minimum = 0, Maximum = 255, Height = 40 };
+            tall.Measure(new Size(Width, 40));
+            tall.Arrange(new Rect(0, 0, Width, 40));
+
+            Assert.Equal(14, tall.PositionOf(0), 6);
+        });
+    }
+
+    /// <summary>
     /// A zero-width slider is what the first layout pass measures, and
     /// dividing by it would put every value at infinity.
     /// </summary>

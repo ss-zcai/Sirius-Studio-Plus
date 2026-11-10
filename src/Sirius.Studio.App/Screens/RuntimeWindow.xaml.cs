@@ -110,6 +110,22 @@ public partial class RuntimeWindow : Window
         }
     }
 
+    /// <summary>
+    /// A slider let go, or moved by a key: its handles go to the setting now.
+    /// Bound with an explicit update, so a drag is one change to the
+    /// station, not one for every pixel the handle passed.
+    /// </summary>
+    private void OnSliderCommitted(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Controls.RangeSlider slider)
+            return;
+
+        if (!slider.IsSingle)
+            slider.GetBindingExpression(Controls.RangeSlider.LowProperty)?.UpdateSource();
+
+        slider.GetBindingExpression(Controls.RangeSlider.HighProperty)?.UpdateSource();
+    }
+
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape && WindowStyle != WindowStyle.None)

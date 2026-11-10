@@ -414,6 +414,271 @@ public sealed class ScreenTests : IDisposable
         });
     }
 
+    /// <summary><see cref="Recipe"/> with the check's Minimum published too, as "Floor": a low and a high for a range.</summary>
+    private VisionGraph RangeRecipe()
+    {
+        var graph = Recipe();
+        Publishing.Publish(graph, graph.Nodes.OfType<LimitCheckNode>().Single(), PublishedKind.Setting, nameof(LimitCheckNode.Minimum), "Floor");
+        return graph;
+    }
+
+    [Fact]
+    public void A_setting_keeps_its_control_and_label_in_the_screen_file()
+    {
+        var path = Path.Combine(_folder, "styles.screen");
+
+        new Screen
+        {
+            Widgets =
+            {
+                new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Limit" },
+                new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Floor", HighName = "Limit", Style = SettingStyle.Range, LabelPlacement = LabelPlacement.Top },
+            },
+        }.Save(path);
+
+        var text = File.ReadAllText(path);
+        var loaded = Screen.Load(path).Widgets;
+
+        Assert.Equal(SettingStyle.Stepper, loaded[0].Style);
+        Assert.Equal(LabelPlacement.Left, loaded[0].LabelPlacement);
+        Assert.Equal(SettingStyle.Range, loaded[1].Style);
+        Assert.Equal(LabelPlacement.Top, loaded[1].LabelPlacement);
+        Assert.Equal("Limit", loaded[1].HighName);
+
+        // The usual is not written, so older screens and newer ones read the same.
+        Assert.Contains("\"style\": \"Range\"", text, StringComparison.Ordinal);
+        Assert.Contains("\"labelPlacement\": \"Top\"", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stepper", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Left\"", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_range_with_no_high_setting_is_a_problem_on_the_screen()
+    {
+        var recipe = RangeRecipe();
+        var stations = new[] { new StationRecipe("Top", recipe) };
+
+        var screen = new Screen
+        {
+            Widgets =
+            {
+                new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Floor", Style = SettingStyle.Range },
+                new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Floor", Style = SettingStyle.Range, HighName = "Nothing" },
+                new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Floor", Style = SettingStyle.Range, HighName = "Brightness" },
+                new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Floor", Style = SettingStyle.Range, HighName = "Limit" },
+            },
+        };
+
+        var problems = ScreenLayout.Problems(screen, stations);
+
+        Assert.Equal(3, problems.Count);
+        Assert.Contains("no high setting chosen", problems[0], StringComparison.Ordinal);
+        Assert.Contains("publishes no 'Nothing'", problems[1], StringComparison.Ordinal);
+        Assert.Contains("not a setting", problems[2], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A slider needs both ends. Without them it is − and +, and says why;
+    /// with them a value let go is held to them.
+    /// </summary>
+    [Fact]
+    public void A_slider_needs_both_ends_and_holds_to_them()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            var screen = new Screen { Widgets = { new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Limit", Style = SettingStyle.Slider, Width = 300, Height = 30 } } };
+
+            using (var runtime = new ProjectRuntime(project))
+            using (var view = new ScreenViewModel(screen, runtime, project.Folder))
+            {
+                var open = (SettingWidgetViewModel)view.Widgets[0];
+
+                Assert.True(open.IsStepperEditor);
+                Assert.False(open.IsSliderEditor);
+                Assert.Contains("a slider needs a lowest and a highest", open.Hint, StringComparison.Ordinal);
+            }
+
+            project.SetLimit(project.Stations[0], "Limit", 100, 150);
+
+            using (var runtime = new ProjectRuntime(project))
+            using (var view = new ScreenViewModel(screen, runtime, project.Folder))
+            {
+                var limit = (SettingWidgetViewModel)view.Widgets[0];
+
+                Assert.True(limit.IsSliderEditor);
+                Assert.False(limit.IsStepperEditor);
+                Assert.Equal(SettingStyle.Slider, limit.Style);
+                Assert.Equal(100, limit.SliderMinimum);
+                Assert.Equal(150, limit.SliderMaximum);
+
+                limit.SliderValue = 140;
+                Assert.Equal(140.0, runtime.Stations[0].SettingValue("Limit"));
+                Assert.Equal("140", limit.ValueText);
+
+                // Dragged past the end: held there, not refused.
+                limit.SliderValue = 500;
+                Assert.Equal(150.0, runtime.Stations[0].SettingValue("Limit"));
+                Assert.False(limit.HasProblem);
+            }
+        });
+    }
+
+    [Fact]
+    public void A_range_is_two_settings_on_one_slider()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", RangeRecipe(), "Top");
+            project.SetLimit(project.Stations[0], "Floor", 0, null);
+            project.SetLimit(project.Stations[0], "Limit", null, 200);
+
+            using var runtime = new ProjectRuntime(project);
+            var screen = new Screen
+            {
+                Widgets =
+                {
+                    new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Floor", HighName = "Limit", Style = SettingStyle.Range, Width = 400, Height = 60 },
+                    new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Floor", HighName = "Nothing", Style = SettingStyle.Range, Width = 400, Height = 60 },
+                    new Widget { Kind = WidgetKind.Button, Station = "Top", Action = WidgetAction.Trigger, Width = 100, Height = 30 },
+                },
+            };
+
+            using var view = new ScreenViewModel(screen, runtime, project.Folder);
+            var range = (SettingWidgetViewModel)view.Widgets[0];
+            var half = (SettingWidgetViewModel)view.Widgets[1];
+            var trigger = (ButtonWidgetViewModel)view.Widgets[2];
+
+            Assert.True(range.IsRangeEditor);
+            Assert.Equal("Floor – Limit", range.Label);
+            Assert.Equal(0, range.SliderMinimum);
+            Assert.Equal(200, range.SliderMaximum);
+            Assert.Equal(0, range.SliderValue);
+            Assert.Equal(128, range.HighSliderValue);
+            Assert.Equal("0 – 128", range.DisplayText);
+
+            range.HighSliderValue = 150;
+            range.SliderValue = 20;
+            Assert.Equal(150.0, runtime.Stations[0].SettingValue("Limit"));
+            Assert.Equal(20.0, runtime.Stations[0].SettingValue("Floor"));
+            Assert.Equal("20", range.ValueText);
+            Assert.Equal("150", range.HighValueText);
+
+            // The high end typed in its own box, refused beyond its highest.
+            range.HighValueText = "300";
+            Assert.True(range.HasProblem);
+            Assert.Equal("150", range.HighValueText);
+
+            // No high setting: the low one alone, with − and +, and why.
+            Assert.True(half.IsStepperEditor);
+            Assert.Contains("publishes no setting 'Nothing'", half.Hint, StringComparison.Ordinal);
+
+            // An inspection that changes nothing puts nothing back: a box
+            // being typed in, a handle being dragged, are left alone.
+            var raised = new List<string?>();
+            range.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+            WpfTestHost.Wait(trigger.Command.ExecuteAsync(null));
+
+            Assert.DoesNotContain(nameof(SettingWidgetViewModel.ValueText), raised);
+            Assert.DoesNotContain(nameof(SettingWidgetViewModel.SliderValue), raised);
+        });
+    }
+
+    [Fact]
+    public void A_label_on_top_has_the_control_under_it_across_the_widget()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            using var runtime = new ProjectRuntime(project);
+
+            var screen = new Screen
+            {
+                Widgets =
+                {
+                    new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Limit", LabelPlacement = LabelPlacement.Top, Width = 300, Height = 60 },
+                    new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Limit", Width = 300, Height = 30 },
+                },
+            };
+
+            using var view = new ScreenViewModel(screen, runtime, project.Folder);
+            var top = (SettingWidgetViewModel)view.Widgets[0];
+            var left = (SettingWidgetViewModel)view.Widgets[1];
+
+            Assert.True(top.IsLabelOnTop);
+            Assert.Equal(1, top.EditorRow);
+            Assert.Equal(2, top.EditorColumnSpan);
+            Assert.Equal(System.Windows.HorizontalAlignment.Stretch, top.EditorAlignment);
+            Assert.True(double.IsNaN(top.BoxWidth));
+
+            Assert.False(left.IsLabelOnTop);
+            Assert.Equal(0, left.EditorRow);
+            Assert.Equal(1, left.EditorColumn);
+            Assert.Equal(System.Windows.HorizontalAlignment.Right, left.EditorAlignment);
+            Assert.Equal(90, left.BoxWidth);
+        });
+    }
+
+    /// <summary>The running window draws each control: a one-handle slider, a two-handle range, − and + under a label above.</summary>
+    [Fact]
+    public void A_running_screen_draws_sliders_and_ranges()
+    {
+        var project = Project.Create(_folder, "Line", RangeRecipe(), "Top");
+        project.SetLimit(project.Stations[0], "Floor", 0, 200);
+        project.SetLimit(project.Stations[0], "Limit", 0, 200);
+
+        new Screen
+        {
+            Widgets =
+            {
+                new Widget { Kind = WidgetKind.Setting, X = 0, Y = 0, Width = 400, Height = 40, Station = "Top", Name = "Limit", Style = SettingStyle.Slider },
+                new Widget { Kind = WidgetKind.Setting, X = 0, Y = 50, Width = 400, Height = 60, Station = "Top", Name = "Floor", HighName = "Limit", Style = SettingStyle.Range, LabelPlacement = LabelPlacement.Top },
+                new Widget { Kind = WidgetKind.Setting, X = 0, Y = 120, Width = 400, Height = 60, Station = "Top", Name = "Limit", LabelPlacement = LabelPlacement.Top },
+            },
+        }.Save(ScreenLayout.MainScreenPath(project));
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var window = RuntimeWindow.Create(project, fullScreen: false);
+            window.ShowActivated = false;
+            window.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+            window.Left = -20000;
+            window.Top = -20000;
+
+            try
+            {
+                window.Show();
+                WpfTestHost.Settle(window.Dispatcher);
+
+                var sliders = Descendants(window).OfType<Sirius.Studio.App.Controls.RangeSlider>().Where(slider => slider.IsVisible).ToArray();
+
+                Assert.Equal(2, sliders.Length);
+                Assert.True(sliders[0].IsSingle);
+                Assert.Equal(128, sliders[0].High);
+                Assert.False(sliders[1].IsSingle);
+                Assert.Equal(0, sliders[1].Low);
+                Assert.Equal(128, sliders[1].High);
+                Assert.Equal(200, sliders[1].Maximum);
+
+                // Let go: the setting takes the handle's value.
+                sliders[0].High = 60;
+                sliders[0].RaiseEvent(new System.Windows.RoutedEventArgs(Sirius.Studio.App.Controls.RangeSlider.ValueCommittedEvent, sliders[0]));
+                WpfTestHost.Settle(window.Dispatcher);
+
+                var model = (ScreenViewModel)window.DataContext;
+                Assert.Equal(60.0, model.Widgets.OfType<SettingWidgetViewModel>().First().SliderValue);
+            }
+            finally
+            {
+                window.Close();
+                WpfTestHost.Settle(window.Dispatcher);
+            }
+        });
+    }
+
     [Fact]
     public void A_run_button_says_stop_while_running()
     {

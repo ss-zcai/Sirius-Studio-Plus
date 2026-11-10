@@ -342,6 +342,22 @@ PASS/FAIL, counters, a results table, a tunables page behind a level -
 whose slots the SI fills from the published lists. Enough to put a station
 in front of an operator before the designer exists.
 
+**Built (10 November 2026): the setting widget's controls.** For a number
+the SI chooses one of four controls in Builder's property grid:
+- **− value +**, the default.
+- **Slider**, which needs a lowest and a highest. Until both are set, the
+  line shows − and + and says why.
+- **Box**, a box to type in and nothing else.
+- **Range**, which pairs this setting (the low end) with a second published
+  setting (the high end) on one slider with two handles. The track runs from
+  the low setting's lowest to the high setting's highest.
+
+The label goes beside the control or above it. Above makes the widget two
+lines tall, on the grid. A slider changes the setting when it is let go,
+not on every pixel, so a running station takes one change per drag. An
+inspection that changes nothing leaves a box being typed in, or a handle
+being dragged, alone.
+
 **Proposed:** the image view holds the last failed part on screen until
 the next failure or a tap (decision 55 left this to the runtime), with
 the history strip showing the last N parts, failures marked.

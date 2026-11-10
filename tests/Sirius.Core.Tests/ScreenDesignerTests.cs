@@ -603,6 +603,109 @@ public sealed class ScreenDesignerTests : IDisposable
         });
     }
 
+    /// <summary>
+    /// A setting's control - − and +, slider, box, range - and its label's
+    /// place are chosen in the property grid. A range takes a second setting
+    /// for its high end, and its limits are the slider's two ends.
+    /// </summary>
+    [Fact]
+    public void A_setting_chooses_its_control_and_where_its_label_goes()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var recipe = PublishedRecipe();
+            Publishing.Publish(recipe, recipe.Nodes.OfType<ThresholdNode>().Single(), PublishedKind.Setting, nameof(ThresholdNode.MaxValue), "Ceiling");
+
+            var project = Project.Create(_folder, "Line", recipe, "Top");
+            var designer = new ScreenDesignerViewModel(new StationRecipes(project));
+
+            var widget = designer.Add(WidgetKind.Setting);
+            widget.StationValue = "Top";
+            widget.Choice = widget.Choices.Single(c => c.Name == "Level");
+
+            Row Find(string category, string name) =>
+                new(widget.Categories.Single(c => c.Name == category).Rows.Where(row => row.Name == name && row.IsVisible).ToArray());
+
+            var control = Find("Setting", "Control").Single;
+            Assert.Equal(
+                ["− value +", "Slider", "Box", "Range"],
+                control.Options!.Cast<PropertyOption>().Select(option => option.Label));
+
+            control.Value = SettingStyle.Slider;
+            Assert.Equal(SettingStyle.Slider, widget.Widget.Style);
+            Assert.Equal("Setting · Slider", widget.KindLabel);
+
+            // Threshold's own 0 - 255 are both ends already: nothing to warn of.
+            Assert.Empty(Find("On the line", "Control").Rows);
+
+            // A range: the high setting is any other one the station publishes.
+            control.Value = SettingStyle.Range;
+            var high = Find("Setting", "High setting").Single;
+            Assert.Equal(["Ceiling"], high.Options!.Cast<PropertyOption>().Select(option => (string)option.Value!));
+            Assert.Contains("Choose the setting", widget.HighNameProblem, StringComparison.Ordinal);
+
+            high.Value = "Ceiling";
+            Assert.Equal("Ceiling", widget.Widget.HighName);
+            Assert.Null(widget.HighNameProblem);
+            Assert.Equal("Top › Level – Ceiling", widget.Caption);
+
+            // Its ends: the low setting's lowest, the high setting's highest.
+            var highest = Find("On the line", "Highest").Single;
+            highest.Value = "200";
+            Assert.Equal(new SettingLimit(null, 200), project.Stations[0].LimitFor("Ceiling"));
+            Assert.Null(project.Stations[0].LimitFor("Level"));
+
+            Find("On the line", "Lowest").Single.Value = "10";
+            Assert.Equal(new SettingLimit(10, null), project.Stations[0].LimitFor("Level"));
+
+            // The label above: the widget grows to two lines, on the grid.
+            Assert.Equal(30, widget.Height);
+            Find("Setting", "Label").Single.Value = LabelPlacement.Top;
+            Assert.Equal(LabelPlacement.Top, widget.Widget.LabelPlacement);
+            Assert.Equal(DesignWidgetViewModel.TwoLineHeight(widget.Widget.FontSize), widget.Height);
+            Assert.Equal(0, widget.Height % ScreenLayout.Grid);
+
+            // One undo puts both back.
+            designer.UndoCommand.Execute(null);
+            var undone = designer.Widgets.Last();
+            Assert.Equal(LabelPlacement.Left, undone.Widget.LabelPlacement);
+            Assert.Equal(30, undone.Height);
+        });
+    }
+
+    /// <summary>A slider whose setting has no ends says so in the grid, and what to set.</summary>
+    [Fact]
+    public void A_slider_without_ends_says_what_to_set()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var recipe = PublishedRecipe();
+            var check = new LimitCheckNode();
+            recipe.Add(check);
+            Publishing.Publish(recipe, check, PublishedKind.Setting, nameof(LimitCheckNode.Maximum), "Limit");
+
+            var project = Project.Create(_folder, "Line", recipe, "Top");
+            var designer = new ScreenDesignerViewModel(new StationRecipes(project));
+
+            var widget = designer.Add(WidgetKind.Setting);
+            widget.StationValue = "Top";
+            widget.Choice = widget.Choices.Single(c => c.Name == "Limit");
+            widget.Style = SettingStyle.Slider;
+
+            Assert.Contains("A slider needs both ends", widget.StyleNote, StringComparison.Ordinal);
+
+            widget.LowestText = "0";
+            widget.HighestText = "500";
+            Assert.Null(widget.StyleNote);
+        });
+    }
+
+    /// <summary>The visible rows of one name in a category: one expected, or none.</summary>
+    private sealed record Row(PropertyRow[] Rows)
+    {
+        public PropertyRow Single => Assert.Single(Rows);
+    }
+
     [Fact]
     public void Property_rows_read_and_write_the_widget_undoably()
     {

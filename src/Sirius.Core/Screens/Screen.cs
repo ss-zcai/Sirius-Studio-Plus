@@ -44,6 +44,35 @@ public enum WidgetAction
     ResetCounts,
 }
 
+/// <summary>How a Setting widget lets a number be changed.</summary>
+public enum SettingStyle
+{
+    /// <summary>− and + either side of a box to type in.</summary>
+    Stepper,
+
+    /// <summary>A slider and a box: the setting needs a lowest and a highest.</summary>
+    Slider,
+
+    /// <summary>A box to type in, nothing else.</summary>
+    Box,
+
+    /// <summary>
+    /// Two settings, a low and a high (<see cref="Widget.Name"/> and
+    /// <see cref="Widget.HighName"/>), on one slider with two handles.
+    /// </summary>
+    Range,
+}
+
+/// <summary>Where a Setting widget's label goes.</summary>
+public enum LabelPlacement
+{
+    /// <summary>Beside the control, on one line.</summary>
+    Left,
+
+    /// <summary>Above the control, so a long name and a wide control both fit.</summary>
+    Top,
+}
+
 /// <summary>
 /// One thing on a screen, where it sits and what it shows.
 /// </summary>
@@ -110,6 +139,20 @@ public sealed class Widget
     [JsonPropertyName("readOnly")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool ReadOnly { get; set; }
+
+    /// <summary>A Setting's control for a number. Only a number has one; on / off and a choice keep theirs.</summary>
+    [JsonPropertyName("style")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public SettingStyle Style { get; set; }
+
+    /// <summary>A Setting's label: beside the control, or above it.</summary>
+    [JsonPropertyName("labelPlacement")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public LabelPlacement LabelPlacement { get; set; }
+
+    /// <summary>A <see cref="SettingStyle.Range"/>'s high end: a second published setting on the same station.</summary>
+    [JsonPropertyName("highName")]
+    public string? HighName { get; set; }
 }
 
 /// <summary>

@@ -81,8 +81,30 @@ public sealed class RangeSlider : FrameworkElement
         typeof(RangeSlider),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    private const double HandleRadius = 7;
-    private const double TrackThickness = 4;
+    /// <summary>
+    /// One handle, the high one: an ordinary slider from <see cref="Minimum"/>
+    /// to <see cref="High"/>, drawn as the range slider is so the two look alike.
+    /// </summary>
+    public static readonly DependencyProperty IsSingleProperty = DependencyProperty.Register(
+        nameof(IsSingle),
+        typeof(bool),
+        typeof(RangeSlider),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    /// <summary>
+    /// Raised when a drag ends and after each key press: the value is
+    /// settled. A binding with <c>UpdateSourceTrigger=Explicit</c> updates
+    /// here, so a running station takes one change, not one per pixel.
+    /// </summary>
+    public static readonly RoutedEvent ValueCommittedEvent = EventManager.RegisterRoutedEvent(
+        nameof(ValueCommitted),
+        RoutingStrategy.Bubble,
+        typeof(RoutedEventHandler),
+        typeof(RangeSlider));
+
+    /// <summary>The smallest a handle is drawn; a taller control draws them bigger, for a finger.</summary>
+    private const double SmallestHandleRadius = 7;
+    private const double ThinnestTrack = 4;
 
     private static readonly Brush TrackBrush = Frozen(Color.FromRgb(0x3A, 0x3D, 0x44));
     private static readonly Brush SpanBrush = Frozen(Color.FromRgb(0x60, 0xA5, 0xFA));
@@ -134,6 +156,22 @@ public sealed class RangeSlider : FrameworkElement
         set => SetValue(IsLogarithmicProperty, value);
     }
 
+    public bool IsSingle
+    {
+        get => (bool)GetValue(IsSingleProperty);
+        set => SetValue(IsSingleProperty, value);
+    }
+
+    public event RoutedEventHandler ValueCommitted
+    {
+        add => AddHandler(ValueCommittedEvent, value);
+        remove => RemoveHandler(ValueCommittedEvent, value);
+    }
+
+    private double HandleRadius => Math.Max(SmallestHandleRadius, ActualHeight * 0.35);
+
+    private double TrackThickness => Math.Max(ThinnestTrack, ActualHeight * 0.2);
+
     /// <summary>
     /// Holds the ends inside the bounds and the right way round.
     /// </summary>
@@ -179,7 +217,7 @@ public sealed class RangeSlider : FrameworkElement
 
         context.DrawRoundedRectangle(TrackBrush, null, track, TrackThickness / 2, TrackThickness / 2);
 
-        var low = PositionOf(Low);
+        var low = IsSingle ? track.Left : PositionOf(Low);
         var high = PositionOf(High);
 
         context.DrawRoundedRectangle(
@@ -189,11 +227,13 @@ public sealed class RangeSlider : FrameworkElement
             TrackThickness / 2,
             TrackThickness / 2);
 
-        DrawHandle(context, low, track);
+        if (!IsSingle)
+            DrawHandle(context, low, track);
+
         DrawHandle(context, high, track);
     }
 
-    private static void DrawHandle(DrawingContext context, double x, Rect track)
+    private void DrawHandle(DrawingContext context, double x, Rect track)
     {
         var centre = new Point(x, track.Top + (track.Height / 2));
 
@@ -226,9 +266,25 @@ public sealed class RangeSlider : FrameworkElement
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
-        _draggingLow = null;
         ReleaseMouseCapture();
+        EndDrag();
         e.Handled = true;
+    }
+
+    /// <summary>Capture lost some other way - a window coming up, Alt+Tab - still ends the drag where it was.</summary>
+    protected override void OnLostMouseCapture(MouseEventArgs e)
+    {
+        base.OnLostMouseCapture(e);
+        EndDrag();
+    }
+
+    private void EndDrag()
+    {
+        if (_draggingLow is null)
+            return;
+
+        _draggingLow = null;
+        RaiseEvent(new RoutedEventArgs(ValueCommittedEvent, this));
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -247,12 +303,13 @@ public sealed class RangeSlider : FrameworkElement
 
         // Shift moves the upper end, so both are reachable from the keyboard
         // without a focus concept for each handle.
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        if (IsSingle || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
             High += delta;
         else
             Low += delta;
 
         e.Handled = true;
+        RaiseEvent(new RoutedEventArgs(ValueCommittedEvent, this));
     }
 
     /// <summary>
@@ -263,7 +320,7 @@ public sealed class RangeSlider : FrameworkElement
     /// collapsed to a point could only ever be widened upwards.
     /// </remarks>
     internal bool PrefersLowHandle(double x) =>
-        Math.Abs(x - PositionOf(Low)) <= Math.Abs(x - PositionOf(High));
+        !IsSingle && Math.Abs(x - PositionOf(Low)) <= Math.Abs(x - PositionOf(High));
 
     /// <summary>Moves the handle being dragged to a position on the control.</summary>
     private void MoveTo(double x)

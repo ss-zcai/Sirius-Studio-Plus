@@ -117,6 +117,32 @@ public sealed class Tunable
     /// <summary>Whether both ends are known, so it can be shown as a slider.</summary>
     public bool IsBounded => IsNumeric && double.IsFinite(Minimum) && double.IsFinite(Maximum);
 
+    /// <summary>
+    /// The track a low and a high setting share on one slider with two
+    /// handles: from the low's lowest to the high's highest, widened where
+    /// the other one's own end goes further. NaN at an end that has no limit -
+    /// the low with no lowest, the high with no highest - as a slider needs both.
+    /// </summary>
+    /// <remarks>
+    /// The low setting's highest and the high's lowest are not needed: each
+    /// handle stops at the other.
+    /// </remarks>
+    public static (double Minimum, double Maximum) Track(Tunable low, Tunable high)
+    {
+        ArgumentNullException.ThrowIfNull(low);
+        ArgumentNullException.ThrowIfNull(high);
+
+        var minimum = double.IsFinite(low.Minimum)
+            ? Math.Min(low.Minimum, double.IsFinite(high.Minimum) ? high.Minimum : low.Minimum)
+            : double.NaN;
+
+        var maximum = double.IsFinite(high.Maximum)
+            ? Math.Max(high.Maximum, double.IsFinite(low.Maximum) ? low.Maximum : high.Maximum)
+            : double.NaN;
+
+        return (minimum, maximum);
+    }
+
     /// <summary>One press of + or −.</summary>
     public double Step
     {

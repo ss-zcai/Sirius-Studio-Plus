@@ -62,7 +62,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         WidgetKind.Verdict => "PASS / FAIL",
         WidgetKind.Counter => "Total · Pass · Fail · Yield",
         WidgetKind.Button => "Button",
-        WidgetKind.Setting => "Setting",
+        WidgetKind.Setting => Widget.Style == SettingStyle.Stepper ? "Setting" : $"Setting · {StyleLabel(Widget.Style)}",
         WidgetKind.Logo => "Logo",
         WidgetKind.Value => "Value",
         _ => "Text",
@@ -74,6 +74,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         WidgetKind.Text => Widget.Text ?? string.Empty,
         WidgetKind.Button => $"{ButtonCaption}  ·  {(Widget.Station ?? "all stations")}",
         WidgetKind.Logo => Widget.File ?? "no picture chosen",
+        WidgetKind.Setting when Widget.Style == SettingStyle.Range => $"{Widget.Station ?? "?"} › {Widget.Name ?? "?"} – {Widget.HighName ?? "?"}",
         _ when ScreenLayout.NeedsName(Kind) => $"{Widget.Station ?? "?"} › {Widget.Name ?? "?"}",
         _ => Widget.Station ?? "?",
     };
@@ -275,18 +276,139 @@ public sealed class DesignWidgetViewModel : ObservableObject
     /// <summary>A number the operator may change: its limits on the line can be set.</summary>
     public bool HasLimits => BoundSetting is { IsNumeric: true } && !Widget.ReadOnly;
 
+    /// <summary>A number, or nothing bound yet: it can be shown with − and +, a slider, a box or as a range.</summary>
+    public bool HasStyle => HasSettingOptions && BoundSetting is not { IsNumeric: false };
+
+    public SettingStyle Style
+    {
+        get => Widget.Style;
+        set => Set(() => Widget.Style = value, Widget.Style, value);
+    }
+
+    public bool IsRange => HasSettingOptions && Widget.Style == SettingStyle.Range;
+
+    /// <summary>A range's high end: another setting the station publishes.</summary>
+    public string? HighName
+    {
+        get => Widget.HighName;
+        set
+        {
+            var name = string.IsNullOrWhiteSpace(value) ? null : value;
+
+            if (string.Equals(name, Widget.HighName, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            _owner.Edit(() => Widget.HighName = name);
+            Raise();
+        }
+    }
+
+    /// <summary>The range's high setting, with the station's limit for it - or null.</summary>
+    private Tunable? BoundHighSetting =>
+        IsRange && _choicesFrom is { } recipe && !string.IsNullOrWhiteSpace(Widget.HighName)
+            ? Tunable.Find(recipe, Widget.HighName!, _owner.Recipes.Station(Widget.Station)?.LimitFor(Widget.HighName!))
+            : null;
+
+    /// <summary>What the range's high end can be: the other settings the station publishes.</summary>
+    private IEnumerable<BindingChoice> HighChoices =>
+        _choices.Where(choice => !string.Equals(choice.Name, Widget.Name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Said under the high setting when it is missing or not published.</summary>
+    public string? HighNameProblem
+    {
+        get
+        {
+            if (!IsRange || _choicesFrom is null)
+                return null;
+
+            if (string.IsNullOrWhiteSpace(Widget.HighName))
+                return "Choose the setting for the range's high end.";
+
+            if (!HighChoices.Any(choice => string.Equals(choice.Name, Widget.HighName, StringComparison.OrdinalIgnoreCase)))
+                return $"'{Widget.HighName}' is not published by {Widget.Station}. Publish it in Studio, or choose another.";
+
+            return null;
+        }
+    }
+
+    public LabelPlacement LabelPlacement
+    {
+        get => Widget.LabelPlacement;
+        set
+        {
+            if (value == Widget.LabelPlacement)
+                return;
+
+            // Above the control takes two lines: grown to fit, to the grid.
+            _owner.Edit(() =>
+            {
+                Widget.LabelPlacement = value;
+
+                var needed = TwoLineHeight(Widget.FontSize);
+
+                if (value == LabelPlacement.Top && Widget.Height < needed)
+                    Place(X, Y, Width, needed);
+            });
+
+            Raise();
+        }
+    }
+
+    /// <summary>A label above a control: two lines of the font, the control's frame, the widget's edge - on the grid.</summary>
+    internal static double TwoLineHeight(double fontSize) =>
+        Math.Ceiling(((fontSize * 3) + 14) / ScreenLayout.Grid) * ScreenLayout.Grid;
+
     /// <summary>The lowest it may be set to on the line; blank for as low as the node allows.</summary>
     public string LowestText
     {
         get => LimitText(BoundSetting?.Limit?.Lowest);
-        set => SetLimit(value, lowest: true);
+        set => SetLimit(BoundSetting, value, lowest: true);
     }
 
     public string HighestText
     {
         get => LimitText(BoundSetting?.Limit?.Highest);
-        set => SetLimit(value, lowest: false);
+        set => SetLimit(BoundSetting, value, lowest: false);
     }
+
+    /// <summary>A range's right end: the high setting's highest.</summary>
+    public string HighHighestText
+    {
+        get => LimitText(BoundHighSetting?.Limit?.Highest);
+        set => SetLimit(BoundHighSetting, value, lowest: false);
+    }
+
+    /// <summary>The range's high setting can have its highest set.</summary>
+    public bool HasHighLimits => BoundHighSetting is { IsNumeric: true } && !Widget.ReadOnly;
+
+    /// <summary>A slider, or a range, that cannot be one yet - and what to set so it can.</summary>
+    public string? StyleNote
+    {
+        get
+        {
+            if (Widget.ReadOnly || BoundSetting is not { IsNumeric: true, IsChangeable: true } setting)
+                return null;
+
+            if (Widget.Style == SettingStyle.Slider && !setting.IsBounded)
+                return "A slider needs both ends: set Lowest and Highest. Until then the line shows − and +.";
+
+            if (Widget.Style == SettingStyle.Range && BoundHighSetting is { } high &&
+                Tunable.Track(setting, high) is var (low, top) && (!double.IsFinite(low) || !double.IsFinite(top)))
+            {
+                return $"The slider runs from {setting.Name}'s lowest to {high.Name}'s highest: set both. Until then the line only shows them.";
+            }
+
+            return null;
+        }
+    }
+
+    internal static string StyleLabel(SettingStyle style) => style switch
+    {
+        SettingStyle.Slider => "Slider",
+        SettingStyle.Box => "Box",
+        SettingStyle.Range => "Range",
+        _ => "− value +",
+    };
 
     /// <summary>What the node itself allows, and anything else worth knowing about the setting.</summary>
     public string? SettingNote
@@ -330,9 +452,9 @@ public sealed class DesignWidgetViewModel : ObservableObject
     /// in the project, written at once. Every screen showing the setting,
     /// and later a PLC writing it, is held to the same.
     /// </summary>
-    private void SetLimit(string? text, bool lowest)
+    private void SetLimit(Tunable? bound, string? text, bool lowest)
     {
-        if (BoundSetting is not { } setting || _owner.Recipes.Station(Widget.Station) is not { } station)
+        if (bound is not { } setting || _owner.Recipes.Station(Widget.Station) is not { } station)
             return;
 
         double? limit = null;
@@ -372,7 +494,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
             return;
         }
 
-        var range = BoundSetting?.RangeText ?? string.Empty;
+        var range = (ReferenceEquals(bound, BoundSetting) ? BoundSetting : BoundHighSetting)?.RangeText ?? string.Empty;
         _owner.StatusText = $"{station.Name} › {setting.Name} may be set to {range} on the line.";
 
         _owner.Changed();
@@ -628,6 +750,38 @@ public sealed class DesignWidgetViewModel : ObservableObject
         if (HasSettingOptions)
         {
             yield return new PropertyRow(
+                "Setting", "Control", PropertyEditor.Choice,
+                () => Style,
+                value => { if (value is SettingStyle style) Style = style; },
+                "How the operator changes a number: − and + either side of a box; a slider (needs Lowest and Highest); a box to type in; or a range - this setting and a second one, low and high, on one slider with two handles.",
+                options: () => Enum.GetValues<SettingStyle>().Select(style => new PropertyOption(StyleLabel(style), style)).ToArray(),
+                visible: () => HasStyle);
+
+            yield return new PropertyRow(
+                "Setting", "High setting", PropertyEditor.Choice,
+                () => HighName,
+                value => HighName = value as string,
+                "The range's high end: another setting the station publishes. This widget's Setting is the low end.",
+                options: () => HighChoices.Select(choice => new PropertyOption($"{choice.Display}   ({choice.Source})", choice.Name)).ToArray(),
+                visible: () => IsRange);
+
+            yield return new PropertyRow(
+                "Setting", "Problem", PropertyEditor.ReadOnly,
+                () => HighNameProblem,
+                visible: () => HighNameProblem is not null);
+
+            yield return new PropertyRow(
+                "Setting", "Label", PropertyEditor.Choice,
+                () => LabelPlacement,
+                value => { if (value is LabelPlacement placement) LabelPlacement = placement; },
+                "Beside the control, on one line; or above it, so a long name and a wide control both fit. Above makes the widget taller if it needs to be.",
+                options: () => new[]
+                {
+                    new PropertyOption("Left", LabelPlacement.Left),
+                    new PropertyOption("Top", LabelPlacement.Top),
+                });
+
+            yield return new PropertyRow(
                 "On the line", "Operator may change", PropertyEditor.Check,
                 () => OperatorMayChange,
                 value => { if (value is bool may) OperatorMayChange = may; },
@@ -638,7 +792,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 "On the line", "Lowest", PropertyEditor.Text,
                 () => LowestText,
                 value => LowestText = value as string ?? string.Empty,
-                "The lowest the operator may set it to. Blank for as low as the node allows. Kept in the project, for this station.",
+                "The lowest the operator may set it to - for a range, the low setting's, where the slider starts. Blank for as low as the node allows. Kept in the project, for this station.",
                 visible: () => HasLimits);
 
             yield return new PropertyRow(
@@ -646,7 +800,19 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 () => HighestText,
                 value => HighestText = value as string ?? string.Empty,
                 "The highest the operator may set it to. Blank for as high as the node allows.",
-                visible: () => HasLimits);
+                visible: () => HasLimits && !IsRange);
+
+            yield return new PropertyRow(
+                "On the line", "Highest", PropertyEditor.Text,
+                () => HighHighestText,
+                value => HighHighestText = value as string ?? string.Empty,
+                "The highest the high setting may be set to, where the slider ends. Blank for as high as its node allows.",
+                visible: () => HasHighLimits);
+
+            yield return new PropertyRow(
+                "On the line", "Control", PropertyEditor.ReadOnly,
+                () => StyleNote,
+                visible: () => StyleNote is not null);
 
             yield return new PropertyRow(
                 "On the line", "Note", PropertyEditor.ReadOnly,
