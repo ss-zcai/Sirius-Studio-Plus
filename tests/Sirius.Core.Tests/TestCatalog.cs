@@ -17,6 +17,9 @@ public static class TestCatalog
         NodeCatalog.Register(typeof(TestCatalog).Assembly);
         NodeCatalog.Register(typeof(Sirius.Core.Graph.SubGraphNode).Assembly);
         NodeCatalog.Register(Assembly.Load("Sirius.Vision"));
+
+        // As VisionNodeLibrary.Register does: a running station saves its pictures through it.
+        Sirius.Core.Runtime.InspectionRecorders.Factory = Sirius.Vision.Runtime.ImageRecorder.For;
         return true;
     }, LazyThreadSafetyMode.ExecutionAndPublication);
 

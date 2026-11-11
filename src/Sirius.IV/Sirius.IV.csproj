@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sirius IV (Image Viewer): browses a folder of pictures - those a station
+    saved, with the annotations found on them (F20) - one at a time or
+    several side by side.
+
+    The theme and the image viewer are Studio's assembly's, as Builder's and
+    Edge's are, so a picture and its shapes look exactly as they did in
+    Studio. Published into the same folder as Studio.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Sirius.IV</RootNamespace>
+    <AssemblyName>SiriusIV</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>..\..\res\Sirius Image Viewer.ico</ApplicationIcon>
+
+    <!-- Versioned on its own, as Builder is. -->
+    <Product>Sirius IV</Product>
+    <Version>1.0.0</Version>
+
+    <!-- Studio is an executable too; all are published self-contained, together. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sirius.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sirius.Studio.App\Sirius.Studio.App.csproj" />
+  </ItemGroup>
+
+</Project>

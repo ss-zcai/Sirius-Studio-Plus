@@ -115,6 +115,19 @@ dotnet publish src/Sirius.Edge/Sirius.Edge.csproj `
     --verbosity quiet `
     -p:DebugType=none
 if ($LASTEXITCODE -ne 0) { throw 'Sirius Edge did not publish.' }
+
+# Sirius IV, the image viewer: the pictures a station saved, and their
+# annotations. Into the same folder, on Studio's viewer and theme.
+Write-Host 'Publishing Sirius IV...'
+dotnet publish src/Sirius.IV/Sirius.IV.csproj `
+    --configuration Release `
+    --runtime win-x64 `
+    --self-contained true `
+    --output $staging `
+    --nologo `
+    --verbosity quiet `
+    -p:DebugType=none
+if ($LASTEXITCODE -ne 0) { throw 'Sirius IV did not publish.' }
 # ---- sample custom node library --------------------------------------------
 
 # Beside the application rather than in its plugins folder, so a tester
@@ -174,6 +187,7 @@ $required = @(
     'sirius-run.exe'
     'SiriusBuilder.exe'
     'SiriusEdge.exe'
+    'SiriusIV.exe'
     'THIRD-PARTY-NOTICES.txt'
     'LICENSE-phosphor.txt'
     'LICENSE-apache-2.0.txt'

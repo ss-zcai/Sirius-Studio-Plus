@@ -99,24 +99,31 @@ from you before they start.
   - typical line speed and image size;
   - what happens today when the Server cannot be reached.
 
-  Also in scope: **Sirius ICB** as the runtime's image browser - the
-  station's saved images and their annotations (F20), grouped by matching
-  file names and viewed in step.
+  Also in scope: **Sirius IV** (Image Viewer) as the runtime's image
+  browser - the station's saved images and their annotations (F20). Its
+  first version is built (decision 73).
 - **F3. Signal out** (M, after F2). The first PLC step: Modbus TCP, then
   digital I/O. Today a verdict reaches the status line and a CSV, and
   nothing outside the PC.
 - **F4. Counts that survive a restart** (S-M). Counter starts from zero
   each session. Wanted by the runtime anyway.
-- **F20. Annotations saved beside the images in a batch run** (M, an
-  option). Run Folder and `sirius-run.exe` write each result's shapes,
-  labels and measurements as vectors, in layers - one per viewer socket
-  or producing node - in a file beside each image, rather than burnt
-  into a copy. Read by **Sirius ICB** (Image Cloud Browser), your viewer
-  for a folder of images, which matches files by name and shows a group
-  of them in step; it comes in with the runtime (F2), for browsing what a
-  station saw. Needs from you: the annotation format ICB reads (or
-  whether we define it), how its layers are named and switched, and its
-  file-name matching rule, so this writes what ICB already opens.
+- **F20. Saved images and their annotations** - the runtime's half done,
+  11 November 2026 (decision 73, `annotation-format.md`): a station keeps
+  none, failed or all of its pictures, as PNG, JPEG or BMP, in a day
+  folder, with a `.sann` file beside each - shapes in layers, one per
+  viewer, the verdict and the published results - chosen per station in
+  Builder; and **Sirius IV** (`SiriusIV.exe`) browses them. Left:
+  - **F20a. The batch half** (S-M): Run Folder and `sirius-run.exe`
+    writing the same `.sann` beside each image they run.
+  - **F20b. Sirius IV, next panels** (M each): the annotations as a
+    table (shapes and their measurements, results); layers switched on
+    and off; matching pictures across folders - two stations' views of
+    one part - and stepping them together, which needs a part ID from the
+    line (F3) to match on rather than a time.
+  - **F20c. A disk quota** (S-M), beside Keep for: when a size is reached,
+    oldest passes go first, then oldest failures (runtime design §8).
+  - **F20d. Failed and one pass in N** (S), the policy the runtime design
+    proposed beside none, failed and all.
 
 ### Sub-graphs
 

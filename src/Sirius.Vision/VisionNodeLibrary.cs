@@ -19,5 +19,8 @@ public static class VisionNodeLibrary
     {
         NodeCatalog.Register(typeof(Sirius.Core.Graph.SubGraphNode).Assembly);
         NodeCatalog.Register(typeof(VisionNodeLibrary).Assembly);
+
+        // A running station saves its pictures through OpenCV, which the core does not reference.
+        Sirius.Core.Runtime.InspectionRecorders.Factory = Runtime.ImageRecorder.For;
     }
 }

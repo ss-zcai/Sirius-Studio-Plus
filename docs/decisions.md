@@ -2820,3 +2820,63 @@ process, for speed, "but better with some good error handling".
   DLL, and the sample. The compiler was added to the development PC for
   this. OpenCV is not on it: `to_mat` and `from_mat` are compiled against
   a stand-in for its header.
+
+## 73. Saved images, the .sann file, and Sirius IV
+
+Asked for on 11 November 2026: image saving at runtime - sometimes failed
+images only - with annotations beside them (F20), and a viewer app called
+**Sirius IV** (Image Viewer) in place of "Sirius ICB": a panel listing the
+folder's files, and one or several viewers. "We used to use the same file
+name with a json extension; you might use our own."
+
+- **Per station, in the project file**, set in Builder (Station ▸ Image
+  Saving…): Save none / failed only / all; PNG, JPEG or BMP; annotations
+  on or off; a folder; days kept. Not in the recipe: what a line keeps is
+  a deployment choice, as line limits are (decision 71). Failed only
+  includes inspections a node went wrong in - those are what someone
+  wants to look at.
+- **The picture the camera took**, as taken - the recipe's Camera node,
+  else its Image Sequence or Image File, else its first viewer's picture
+  - not a picture with shapes burnt in. It can be inspected again and
+  give the same answer; the shapes travel as vectors beside it.
+- **Our own extension, `.sann`**, JSON inside: the same name as the
+  picture, so the pair stays together however files are copied, and an
+  extension no other tool claims - a `.json` beside a picture could be
+  anyone's. Format `sirius-annotations` version 1; readers ignore what
+  they do not know. Shapes in the words the Python and C++ interfaces
+  already use. Layers are the recipe's image viewers, by name, plus
+  published sets of shapes; shapes measured on a picture of another size
+  are left out rather than drawn in the wrong place. Results are every
+  published number, yes/no, text and grade.
+- **Names and folders**: `<station>/<yyyy-MM-dd>/<yyyyMMdd-HHmmss-fff>_<serial>_<PASS|FAIL|ERROR|NONE>`.
+  Sorted by name they are in the order taken; the verdict is readable
+  without opening anything, so Sirius IV filters thousands of files at
+  once; a day folder is the unit "keep for" deletes.
+- **Never slows the line.** The station copies the picture (a memory
+  copy) inside its inspection, while its buffers are alive, and a thread
+  of the recorder's own encodes and writes. Sixteen waiting, the next is
+  skipped and counted, not queued without end. Below 1 GB free it stops.
+  Every problem is the station's `SavingProblem`, shown along the bottom
+  of the running screen; none stops an inspection. Closing a station
+  writes what is queued, for up to half a minute.
+- **A deep picture is never cut to 8 bits**: JPEG or BMP chosen, a 10- to
+  16-bit frame is written as PNG.
+- **Where the code is**: the settings, names and the annotation file in
+  Core (`Projects/ImageSaving`, `Annotations/AnnotationFile`); the station
+  gathers the picture and each viewer's shapes (`InspectionRecord`) and
+  hands them to an `IInspectionRecorder`; the recorder that writes through
+  OpenCV is in Vision (`Runtime/ImageRecorder`), put in
+  `InspectionRecorders.Factory` when the node library registers, since
+  Core does not reference OpenCV.
+- **Sirius IV** (`src/Sirius.IV`, `SiriusIV.exe`, versioned on its own
+  from 1.0.0, Builder's way) is a program of its own on Studio's
+  assembly, as Builder and Edge are, so a picture and its shapes look as
+  they did in Studio, and its viewer is Studio's - zoom, pixel values,
+  12-bit display. Docking panels from the start, so the table of
+  annotations and the rest can be added beside the file list. The folder
+  is read on a worker and each picture decoded on one, the latest asked
+  for winning. Builder's Station ▸ Browse Saved Images starts it on a
+  station's folder.
+- **Left** (backlog F20a-d): the batch half - Run Folder and `sirius-run`
+  writing `.sann` too; the table panel, layers on and off, and matching
+  across folders; a disk quota; failed and one pass in N.

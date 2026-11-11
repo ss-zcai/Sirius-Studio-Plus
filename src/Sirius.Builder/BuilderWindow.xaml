@@ -128,6 +128,12 @@
                 <MenuItem Header="_Line Settings…"
                           Command="{Binding LineSettingsCommand}"
                           CommandParameter="{Binding SelectedStation}" />
+                <MenuItem Header="_Image Saving…"
+                          Command="{Binding ImageSavingCommand}"
+                          CommandParameter="{Binding SelectedStation}" />
+                <MenuItem Header="_Browse Saved Images"
+                          Command="{Binding BrowseImagesCommand}"
+                          CommandParameter="{Binding SelectedStation}" />
             </MenuItem>
             <MenuItem Header="_Run">
                 <MenuItem Header="_Test Run" InputGestureText="F5" Command="{Binding TestRunCommand}" />
@@ -329,6 +335,11 @@
                                                                    Foreground="#D9A33A"
                                                                    ToolTip="Settings changed from a screen, used over the recipe's own - right-click for Line Settings"
                                                                    Visibility="{Binding HasLineChanges, Converter={StaticResource BoolToVisibility}}" />
+                                                        <TextBlock Text="{Binding SavingText}"
+                                                                   FontSize="10"
+                                                                   Foreground="#4FA3D9"
+                                                                   ToolTip="{Binding ImagesFolder}"
+                                                                   Visibility="{Binding SavesImages, Converter={StaticResource BoolToVisibility}}" />
                                                         <StackPanel.ContextMenu>
                                                             <ContextMenu>
                                                                 <MenuItem Header="Open in _Studio"
@@ -336,6 +347,12 @@
                                                                           CommandParameter="{Binding}" />
                                                                 <MenuItem Header="_Line Settings…"
                                                                           Command="{Binding PlacementTarget.Tag.LineSettingsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <MenuItem Header="_Image Saving…"
+                                                                          Command="{Binding PlacementTarget.Tag.ImageSavingCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <MenuItem Header="_Browse Saved Images"
+                                                                          Command="{Binding PlacementTarget.Tag.BrowseImagesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                           CommandParameter="{Binding}" />
                                                                 <MenuItem Header="_Rename…"
                                                                           Command="{Binding PlacementTarget.Tag.RenameStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"

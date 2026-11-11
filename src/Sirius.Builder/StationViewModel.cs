@@ -21,6 +21,12 @@ public sealed class StationViewModel : ObservableObject
         {
             if (e.PropertyName == nameof(Station.Name))
                 OnPropertyChanged(nameof(Name));
+
+            if (e.PropertyName == nameof(Station.Saving))
+            {
+                OnPropertyChanged(nameof(SavesImages));
+                OnPropertyChanged(nameof(SavingText));
+            }
         };
     }
 
@@ -35,6 +41,15 @@ public sealed class StationViewModel : ObservableObject
     public string RecipeFile => Path.GetFileName(RecipePath);
 
     public bool RecipeMissing => !File.Exists(RecipePath);
+
+    /// <summary>Whether it keeps any pictures when it runs.</summary>
+    public bool SavesImages => Station.Saving.IsOn;
+
+    /// <summary>"Saves failed images, PNG, 30 days".</summary>
+    public string SavingText => Station.Saving.Summary;
+
+    /// <summary>Where its pictures go.</summary>
+    public string ImagesFolder => Station.Saving.FolderFor(_project, Station);
 
     /// <summary>How many of its settings were changed on the line, over the recipe's own.</summary>
     public int LineChanges

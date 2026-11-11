@@ -58,12 +58,20 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
 
     public IReadOnlyList<WidgetViewModel> Widgets { get; }
 
-    /// <summary>Stations that would not load, names the screen cannot find - shown along the bottom.</summary>
-    public IReadOnlyList<string> Problems => _problems;
+    /// <summary>
+    /// Stations that would not load, names the screen cannot find, and
+    /// pictures not being saved - shown along the bottom.
+    /// </summary>
+    public IReadOnlyList<string> Problems =>
+    [
+        .. _problems,
+        .. _runtime.Stations.Where(station => station.SavingProblem is not null)
+            .Select(station => $"{station.Name}: {station.SavingProblem}"),
+    ];
 
-    public bool HasProblems => _problems.Count > 0;
+    public bool HasProblems => Problems.Count > 0;
 
-    public string ProblemText => string.Join("   ·   ", _problems);
+    public string ProblemText => string.Join("   ·   ", Problems);
 
     private WidgetViewModel Create(Widget widget, string projectFolder) => widget.Kind switch
     {
@@ -111,6 +119,13 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
             return;
 
         Refresh(station);
+
+        if (e.PropertyName == nameof(StationRunner.SavingProblem))
+        {
+            OnPropertyChanged(nameof(Problems));
+            OnPropertyChanged(nameof(HasProblems));
+            OnPropertyChanged(nameof(ProblemText));
+        }
 
         // Stopped on a frame that was not drawn: draw it now. It is still
         // the station's latest, so still alive.

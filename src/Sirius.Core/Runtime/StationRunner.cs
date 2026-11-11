@@ -136,6 +136,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
     private InspectionSnapshot? _last;
     private string? _lastError;
     private long _serial;
+    private string? _savingProblem;
     private CancellationTokenSource? _run;
     private Task _loop = Task.CompletedTask;
     private bool _disposed;
@@ -203,12 +204,25 @@ public sealed class StationRunner : ObservableObject, IDisposable
             var loaded = GraphSerializer.Load(path);
             var line = LineSettings.ForRecipe(path, out var lineProblem);
 
-            return new StationRunner(
+            var runner = new StationRunner(
                 station.Name,
                 loaded.Graph,
                 lineProblem is null ? loaded.Warnings : [.. loaded.Warnings, lineProblem],
                 line,
-                station.Limits);
+                station.Limits)
+            {
+                RecipeName = Path.GetFileName(path),
+            };
+
+            if (station.Saving.IsOn)
+            {
+                if (InspectionRecorders.Factory?.Invoke(project, station) is { } recorder)
+                    runner.Recorder = recorder;
+                else
+                    runner._problems.Add("Images are not saved: this program has nothing that writes pictures.");
+            }
+
+            return runner;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
         {
@@ -219,6 +233,22 @@ public sealed class StationRunner : ObservableObject, IDisposable
     public string Name { get; }
 
     public VisionGraph Recipe { get; }
+
+    /// <summary>The recipe's file name, for what is saved: "cap.sgraph". Null for a recipe from nowhere.</summary>
+    public string? RecipeName { get; init; }
+
+    /// <summary>
+    /// Keeps the inspections the station's image saving asks for; null to
+    /// keep none. Disposed with the station.
+    /// </summary>
+    public IInspectionRecorder? Recorder { get; set; }
+
+    /// <summary>What is stopping pictures being saved, or making it skip some; null while all is well.</summary>
+    public string? SavingProblem
+    {
+        get => _savingProblem;
+        private set => SetProperty(ref _savingProblem, value);
+    }
 
     public StationState State
     {
@@ -570,10 +600,81 @@ public sealed class StationRunner : ObservableObject, IDisposable
         LastError = result.Failed > 0 ? FailureText() : null;
         Last = snapshot;
 
+        Keep(scheduler, snapshot);
+
         if (Inspected is { } inspected)
             await inspected(snapshot).ConfigureAwait(true);
 
         return snapshot;
+    }
+
+    /// <summary>
+    /// Hands the inspection to the recorder when it wants it - while the
+    /// pictures are still the station's, before anything else can run.
+    /// Nothing it does can stop the line: a recorder that throws is reported
+    /// and the inspection carries on.
+    /// </summary>
+    private void Keep(GraphScheduler scheduler, InspectionSnapshot snapshot)
+    {
+        if (Recorder is not { } recorder)
+            return;
+
+        try
+        {
+            if (recorder.Wants(snapshot.Verdict, snapshot.NodeErrors))
+                recorder.Record(new InspectionRecord(snapshot, RecipeName, Acquired(scheduler), Viewers(scheduler)));
+
+            SavingProblem = recorder.Problem;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            SavingProblem = $"Images could not be saved: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// The picture the recipe took: its camera's, else its image sequence's,
+    /// else any source node's - the first output carrying pixels.
+    /// </summary>
+    private object? Acquired(GraphScheduler scheduler)
+    {
+        var nodes = Recipe.Nodes.Where(node => node.Enabled).ToArray();
+
+        var sources = nodes.Where(node => node is IInspectionNode)
+            .Concat(nodes.Where(node => node is ISequenceNode))
+            .Concat(nodes.Where(node => node.Descriptor.Category == NodeCategory.Source));
+
+        foreach (var node in sources)
+        {
+            foreach (var output in node.Outputs)
+            {
+                if (scheduler.GetOutput(output) is IPixelValues picture)
+                    return picture;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Each image viewer in the recipe: its picture and what is drawn on it.</summary>
+    private List<ViewerRecord> Viewers(GraphScheduler scheduler)
+    {
+        var viewers = new List<ViewerRecord>();
+
+        foreach (var node in Recipe.Nodes.Where(node => node.Enabled && node.Descriptor.TypeKey == "output.viewer"))
+        {
+            var inputs = node.Inputs.Where(input => !node.IsParameterPort(input)).ToArray();
+
+            if (inputs.Length == 0)
+                continue;
+
+            viewers.Add(new ViewerRecord(
+                node.Name,
+                scheduler.GetInput(inputs[0]),
+                inputs.Skip(1).Select(scheduler.GetInput).OfType<Shapes.ShapeSet>().ToArray()));
+        }
+
+        return viewers;
     }
 
     /// <summary>Every published name's value, as the inspection just left it.</summary>
@@ -629,5 +730,8 @@ public sealed class StationRunner : ObservableObject, IDisposable
         _disposed = true;
         _run?.Cancel();
         _scheduler?.Dispose();
+
+        // Last: it writes out what it was given, which no longer needs the station.
+        Recorder?.Dispose();
     }
 }

@@ -57,6 +57,8 @@ public sealed partial class BuilderViewModel : ObservableObject
         MoveDownCommand = new RelayCommand<StationViewModel>(station => Move(station, 1));
         OpenInStudioCommand = new RelayCommand<StationViewModel>(station => OpenInStudio(station));
         LineSettingsCommand = new RelayCommand<StationViewModel>(ShowLineSettings);
+        ImageSavingCommand = new RelayCommand<StationViewModel>(ShowImageSaving);
+        BrowseImagesCommand = new RelayCommand<StationViewModel>(station => BrowseImages(station));
         TestRunCommand = new RelayCommand(() => TestRun(), () => HasProject);
     }
 
@@ -105,6 +107,10 @@ public sealed partial class BuilderViewModel : ObservableObject
     public IRelayCommand<StationViewModel> OpenInStudioCommand { get; }
 
     public IRelayCommand<StationViewModel> LineSettingsCommand { get; }
+
+    public IRelayCommand<StationViewModel> ImageSavingCommand { get; }
+
+    public IRelayCommand<StationViewModel> BrowseImagesCommand { get; }
 
     public IRelayCommand TestRunCommand { get; }
 
@@ -448,6 +454,53 @@ public sealed partial class BuilderViewModel : ObservableObject
         LineSettingsWindow.Show(Application.Current?.MainWindow, new LineSettingsViewModel(project, station.Station));
         station.RefreshLine();
         _designer?.Refresh();
+    }
+
+    private void ShowImageSaving(StationViewModel? station)
+    {
+        if (station is null || _project is not { } project)
+            return;
+
+        if (ImageSavingWindow.Show(Application.Current?.MainWindow, new ImageSavingViewModel(project, station.Station)))
+            StatusText = $"{station.Name}: {station.SavingText.ToLowerInvariant()}.";
+    }
+
+    /// <summary>
+    /// Opens a station's saved pictures in Sirius IV - the folder it saves
+    /// into, or the project's images folder when it has saved none yet.
+    /// </summary>
+    /// <returns>Whether Sirius IV was started.</returns>
+    internal bool BrowseImages(StationViewModel? station)
+    {
+        if (station is null || _project is not { } project)
+            return false;
+
+        var folder = Directory.Exists(station.ImagesFolder) ? station.ImagesFolder : station.Station.Saving.RootFor(project);
+
+        if (!Directory.Exists(folder))
+        {
+            Dialog.Inform(
+                $"{station.Name} has saved no pictures yet. Choose which it keeps in Image Saving, then run it.",
+                "Browse Saved Images");
+            return false;
+        }
+
+        var viewer = Path.Combine(AppContext.BaseDirectory, "SiriusIV.exe");
+
+        if (!File.Exists(viewer))
+        {
+            Dialog.Warn($"Sirius IV is not beside Sirius Builder ({viewer}). Open {folder} in it yourself.", "Browse Saved Images");
+            return false;
+        }
+
+        if (!Launch(viewer, folder))
+        {
+            Dialog.Error("Sirius IV could not be started.", "Browse Saved Images");
+            return false;
+        }
+
+        StatusText = $"Opened {station.Name}'s pictures in Sirius IV.";
+        return true;
     }
 
     /// <summary>

@@ -122,7 +122,7 @@ The runtime is that missing half:
 **Agreed:** decide at the edge, analyse in the cloud. The station inspects
 and answers the PLC locally, with the Studio Plus engine. Results and
 images go to the Sirius suite afterwards, through a local queue, for
-Image Cloud (IC), Data Insight (DI) and Sirius ICB. A station keeps
+Image Cloud (IC), Data Insight (DI) and Sirius IV. A station keeps
 working when the Server cannot be reached.
 
 **Agreed:** one architecture, two sizes. A small project runs everything
@@ -381,8 +381,11 @@ wants a spreadsheet.
 - **Saved images** - policy per station: none, failures, all, failures and
   one pass in N. A disk quota; when it is reached, oldest passes go first,
   then oldest failures. File names carry station, time, serial and
-  verdict, so ICB can match them (section 11). Annotations beside them as
-  vectors when F20 is on.
+  verdict, so Sirius IV can match them (section 11). Annotations beside
+  them as vectors when F20 is on. **Built (11 November 2026):** none,
+  failed or all, in day folders, with Keep for in days and a stop below
+  1 GB free; `annotation-format.md`. The quota and one pass in N are
+  backlog F20c and F20d.
 - **Audit trail** - log-ins, tunable changes (from, to, who), recipe
   switches, count resets, restarts, faults.
 
@@ -464,15 +467,19 @@ interfaces honest.
 
 ---
 
-## 11. Sirius ICB
+## 11. Sirius IV
 
-**Agreed:** Sirius ICB is the station's image browser - the saved images
-and their annotations (F20), grouped by matching file names and viewed in
-step. Comes in with the runtime.
+**Agreed:** Sirius IV (Image Viewer; it was to be "Sirius ICB") is the
+station's image browser - the saved images and their annotations (F20),
+grouped by matching file names and viewed in step. Comes in with the
+runtime.
 
-**Proposed:** the runtime's file names are designed with ICB's matching
-rule (open), and F20's annotation files in ICB's format (open), so ICB
-opens what a station saves with no conversion.
+**Built (11 November 2026), decision 73:** `SiriusIV.exe`, on Studio's
+viewer. A folder's pictures in a Files panel, its day folders with it;
+one, two, four or nine viewers; the shapes from each picture's `.sann`
+drawn over it. The annotation format is ours (`annotation-format.md`).
+Next: the annotations as a table, layers on and off, and matching
+pictures across folders.
 
 ---
 
@@ -499,10 +506,10 @@ opens what a station saves with no conversion.
 7. Which PLC brand do the first customers have? That driver goes after
    Modbus TCP.
 
-### About ICB
+### About Sirius IV
 
-8. ICB's annotation format (or do we define one), how its layers are
-   named, its file-name matching rule, and what it is written in.
+8. ~~ICB's annotation format~~ - ours, `.sann` (decision 73). Still
+   open: the rule that matches two stations' pictures of one part.
 
 ### Decisions for you
 
@@ -532,7 +539,7 @@ A proposal; each phase usable on its own.
    fake PLC panel; recipe change by product code; audit trail; F4
    persistent counts made visible everywhere.
 3. **The suite.** Upload queue to IC and DI in the Server's format; F20
-   annotations and ICB; the first-customer PLC brand; several stations on
+   annotations and Sirius IV; the first-customer PLC brand; several stations on
    one PC; the screen designer with templates and slots.
 4. **Larger lines.** The free-form screen canvas; several images per
    trigger into one inspection; several cameras per station; engines

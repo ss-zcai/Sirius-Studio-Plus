@@ -132,6 +132,14 @@ regions shows the one whose pick button was pressed, in its own colour.
   Interest and Polar to Linear map shapes with their pixels (`ShapeMap`).
 - **Rotate and Mirror** (11 November 2026): quarter turns and mirrors,
   exact, for an image that arrives the wrong way round.
+
+### Saved images and Sirius IV
+
+- **A station keeps its pictures** (11 November 2026, F20): none, failed
+  or all, set per station in Builder, in day folders, each with a `.sann`
+  annotation file - shapes, verdict, results. `annotation-format.md`.
+- **Sirius IV** (`SiriusIV.exe`, 1.0.0): a folder's pictures, one to
+  nine at once, with their annotations drawn on them. Decision 73.
 - **Measure** reads a distance or angle between two shapes, or one
   shape's size; **Calibrate** turns pixels into units; **Lens
   Calibration** and **Undistort** take out lens distortion.

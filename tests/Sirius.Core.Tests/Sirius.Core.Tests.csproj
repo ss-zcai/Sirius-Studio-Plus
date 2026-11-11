@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\Sirius.Vision\Sirius.Vision.csproj" />
     <ProjectReference Include="..\..\src\Sirius.Studio.App\Sirius.Studio.App.csproj" />
     <ProjectReference Include="..\..\src\Sirius.Builder\Sirius.Builder.csproj" />
+    <ProjectReference Include="..\..\src\Sirius.IV\Sirius.IV.csproj" />
     <ProjectReference Include="..\..\src\Sirius.Runner\Sirius.Runner.csproj" />
 
     <!--

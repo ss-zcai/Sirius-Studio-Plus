@@ -19,6 +19,7 @@ public sealed class Station : ObservableObject
 {
     private readonly Dictionary<string, SettingLimit> _limits = new(StringComparer.OrdinalIgnoreCase);
     private string _name;
+    private ImageSaving _saving = ImageSaving.Off;
 
     public Station(string name, string recipe)
     {
@@ -42,6 +43,13 @@ public sealed class Station : ObservableObject
             _limits.Remove(setting);
         else
             _limits[setting] = limit;
+    }
+
+    /// <summary>Which pictures the station keeps when it runs, and where. Off until chosen in Builder.</summary>
+    public ImageSaving Saving
+    {
+        get => _saving;
+        internal set => SetProperty(ref _saving, value ?? ImageSaving.Off);
     }
 
     /// <summary>What screens and the operator call it: "Camera 1", "Top".</summary>
@@ -214,6 +222,21 @@ public sealed class Project
                     station.SetLimit(setting.Trim(), new SettingLimit(limit.Lowest, limit.Highest));
             }
 
+            if (record.Images is { } images)
+            {
+                var saving = new ImageSaving(
+                    ParseEnum(images.Save, ImageSavePolicy.None),
+                    ParseEnum(images.Format, ImageFileFormat.Png),
+                    string.IsNullOrWhiteSpace(images.Folder) ? null : images.Folder,
+                    images.KeepDays ?? 0,
+                    images.Annotations ?? true);
+
+                if (saving.Problem() is { } problem)
+                    warnings.Add($"Station '{name}': its image saving could not be used ({problem}); it saves nothing.");
+                else
+                    station.Saving = saving;
+            }
+
             project._stations.Add(station);
         }
 
@@ -234,6 +257,14 @@ public sealed class Project
                         : station.Limits.ToDictionary(
                             pair => pair.Key,
                             pair => (LimitRecord?)new LimitRecord { Lowest = pair.Value.Lowest, Highest = pair.Value.Highest }),
+                    Images = station.Saving == ImageSaving.Off ? null : new ImagesRecord
+                    {
+                        Save = station.Saving.Policy.ToString().ToLowerInvariant(),
+                        Format = station.Saving.Format.ToString().ToLowerInvariant(),
+                        Folder = station.Saving.Folder,
+                        KeepDays = station.Saving.KeepDays == 0 ? null : station.Saving.KeepDays,
+                        Annotations = station.Saving.Annotations ? null : false,
+                    },
                 })
                 .ToList(),
         };
@@ -364,6 +395,28 @@ public sealed class Project
         return true;
     }
 
+    /// <summary>
+    /// Sets which pictures a station keeps when it runs. Written at once, as
+    /// every change is.
+    /// </summary>
+    /// <returns>Whether anything changed.</returns>
+    public bool SetSaving(Station station, ImageSaving saving)
+    {
+        ArgumentNullException.ThrowIfNull(station);
+        ArgumentNullException.ThrowIfNull(saving);
+
+        if (saving.Problem() is { } problem)
+            throw new ArgumentException(problem, nameof(saving));
+
+        if (station.Saving == saving)
+            return false;
+
+        station.Saving = saving;
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     public void RemoveStation(Station station)
     {
         if (!_stations.Remove(station))
@@ -437,6 +490,10 @@ public sealed class Project
 
     private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
+    private static T ParseEnum<T>(string? text, T fallback)
+        where T : struct, Enum =>
+        Enum.TryParse<T>(text, ignoreCase: true, out var value) && Enum.IsDefined(value) ? value : fallback;
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
@@ -465,6 +522,30 @@ public sealed class Project
         /// <summary>Published setting name to its limits on the line.</summary>
         [JsonPropertyName("limits")]
         public Dictionary<string, LimitRecord?>? Limits { get; set; }
+
+        /// <summary>Which pictures it keeps; absent for none.</summary>
+        [JsonPropertyName("images")]
+        public ImagesRecord? Images { get; set; }
+    }
+
+    private sealed class ImagesRecord
+    {
+        /// <summary>none, failed or all.</summary>
+        [JsonPropertyName("save")]
+        public string? Save { get; set; }
+
+        /// <summary>png, jpeg or bmp.</summary>
+        [JsonPropertyName("format")]
+        public string? Format { get; set; }
+
+        [JsonPropertyName("folder")]
+        public string? Folder { get; set; }
+
+        [JsonPropertyName("keepDays")]
+        public int? KeepDays { get; set; }
+
+        [JsonPropertyName("annotations")]
+        public bool? Annotations { get; set; }
     }
 
     private sealed class LimitRecord
