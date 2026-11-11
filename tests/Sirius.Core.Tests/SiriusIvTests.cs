@@ -259,6 +259,182 @@ public sealed class SiriusIvTests : IDisposable
         });
     }
 
+    // ---- measurements drawn by hand ------------------------------------------------
+
+    /// <summary>
+    /// A real viewer, its template applied, bound to a tile as the window
+    /// binds it - since what went wrong was between the two: a measurement
+    /// drawn on one picture stayed on screen when the list moved on.
+    /// </summary>
+    private static Sirius.Studio.App.Controls.ImageViewer Viewer(TileViewModel tile)
+    {
+        WpfTestHost.EnsureApplicationResources();
+        var viewer = new Sirius.Studio.App.Controls.ImageViewer { DataContext = tile };
+
+        System.Windows.Data.BindingOperations.SetBinding(
+            viewer, Sirius.Studio.App.Controls.ImageViewer.ImageSourceProperty, new System.Windows.Data.Binding(nameof(TileViewModel.Picture)));
+        System.Windows.Data.BindingOperations.SetBinding(
+            viewer, Sirius.Studio.App.Controls.ImageViewer.ShapesProperty, new System.Windows.Data.Binding(nameof(TileViewModel.Shapes)));
+        System.Windows.Data.BindingOperations.SetBinding(
+            viewer,
+            Sirius.Studio.App.Controls.ImageViewer.MeasurementsProperty,
+            new System.Windows.Data.Binding(nameof(TileViewModel.Measurements)) { Mode = System.Windows.Data.BindingMode.TwoWay });
+
+        viewer.Measure(new System.Windows.Size(900, 700));
+        viewer.Arrange(new System.Windows.Rect(0, 0, 900, 700));
+        viewer.UpdateLayout();
+        return viewer;
+    }
+
+    /// <summary>A measurement as the viewer writes back one drawn by hand.</summary>
+    private static void Draw(Sirius.Studio.App.Controls.ImageViewer viewer, double x) =>
+        viewer.SetCurrentValue(
+            Sirius.Studio.App.Controls.ImageViewer.MeasurementsProperty,
+            (IReadOnlyList<MeasurementRecord>)[.. viewer.Measurements ?? [], new MeasurementRecord("PointToPoint", [new Point2(x, 2), new Point2(x + 10, 20)], "#F59E0B", null)]);
+
+    [Fact]
+    public void Each_picture_keeps_its_own_measurements_as_the_list_moves_on_and_back()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            // One picture of another size, which makes the viewer clear its own.
+            var folder = StationFolder();
+
+            using (var big = new Mat(60, 80, DepthType.Cv8U, 1))
+            {
+                big.SetTo(new MCvScalar(30));
+                CvInvoke.Imwrite(Path.Combine(folder, "zz-big.png"), big);
+            }
+
+            var model = Open(folder);
+            var tile = Assert.Single(model.Tiles);
+            var viewer = Viewer(tile);
+            var (first, second, third) = (model.Files[0], model.Files[1], model.Files.Single(file => file.Name == "zz-big.png"));
+
+            model.Choose([first]);
+            WpfTestHost.PumpUntil(() => tile.Picture is not null && tile.File == first && !tile.IsLoading);
+            Draw(viewer, 1);
+
+            Assert.True(first.IsModified);
+            Assert.True(model.HasUnsavedChanges);
+            Assert.StartsWith("*", model.Title);
+
+            // Another picture: none of the first one's measurements on it.
+            model.Choose([second]);
+            WpfTestHost.PumpUntil(() => !tile.IsLoading && tile.File == second);
+            Assert.Empty(tile.Measurements);
+            Assert.Empty(viewer.Measurements ?? []);
+            Assert.False(second.IsModified);
+
+            // One of another size: still none, and the first one's still kept.
+            model.Choose([third]);
+            WpfTestHost.PumpUntil(() => !tile.IsLoading && tile.File == third);
+            Assert.Empty(viewer.Measurements ?? []);
+
+            // And back: the first picture's measurement is still there.
+            model.Choose([first]);
+            WpfTestHost.PumpUntil(() => !tile.IsLoading && tile.File == first);
+            Assert.Equal(1, Assert.Single(tile.Measurements).Points[0].X);
+            Assert.Single(viewer.Measurements!);
+            Assert.Equal(1, model.UnsavedCount);
+        });
+    }
+
+    [Fact]
+    public void Saving_writes_measurements_into_the_annotation_file_keeping_what_the_station_wrote()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = Open(StationFolder());
+            var tile = Assert.Single(model.Tiles);
+            var viewer = Viewer(tile);
+            var (plain, annotated) = (model.Files[0], model.Files[1]);
+
+            model.Choose([plain]);
+            WpfTestHost.PumpUntil(() => tile.Picture is not null && tile.File == plain && !tile.IsLoading);
+            Draw(viewer, 3);
+
+            model.Choose([annotated]);
+            WpfTestHost.PumpUntil(() => !tile.IsLoading && tile.File == annotated);
+            Draw(viewer, 5);
+
+            Assert.True(model.SaveCommand.CanExecute(null));
+            Assert.True(model.Save());
+
+            Assert.False(model.HasUnsavedChanges);
+            Assert.False(plain.IsModified || annotated.IsModified);
+            Assert.False(model.SaveCommand.CanExecute(null));
+
+            // A picture with no annotation file has one now, holding its measurement.
+            var made = AnnotationFile.TryLoad(plain.AnnotationPath, out _)!;
+            Assert.Equal((plain.Name, 40, 30), (made.Image, made.Width, made.Height));
+            Assert.Equal(3, Assert.Single(made.Measurements).Points[0].X);
+
+            // One the station wrote keeps its shapes and results beside the measurement.
+            var kept = AnnotationFile.TryLoad(annotated.AnnotationPath, out _)!;
+            Assert.Equal(5, Assert.Single(kept.Measurements).Points[0].X);
+            Assert.Equal("Main View", Assert.Single(kept.Layers).Name);
+            Assert.Equal("Brightness", Assert.Single(kept.Results).Key);
+            Assert.False(kept.Passed);
+
+            // Read again, it is the picture's own.
+            model.Choose([plain]);
+            WpfTestHost.PumpUntil(() => !tile.IsLoading && tile.File == plain);
+            Assert.Single(viewer.Measurements!);
+            Assert.False(model.HasUnsavedChanges);
+        });
+    }
+
+    [Fact]
+    public void Leaving_with_measurements_not_saved_asks_first()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var station = StationFolder();
+            var model = Open(station);
+            var tile = Assert.Single(model.Tiles);
+            var viewer = Viewer(tile);
+
+            WpfTestHost.PumpUntil(() => tile.Picture is not null && !tile.IsLoading);
+            Draw(viewer, 7);
+
+            string? asked = null;
+            model.Ask = (message, _) =>
+            {
+                asked = message;
+                return System.Windows.MessageBoxResult.Cancel;
+            };
+
+            // Cancel: stay, nothing lost.
+            Assert.False(model.ConfirmLeaving());
+            Assert.Equal(
+                "Measurements on 1 picture are not saved. Save them in the pictures' annotation files before closing?",
+                asked);
+
+            var opening = model.OpenAsync(_folder);
+            WpfTestHost.Wait(opening);
+            Assert.False(opening.Result);
+            Assert.Equal(station, model.Folder);
+            Assert.True(model.HasUnsavedChanges);
+
+            // Yes: saved, then on.
+            model.Ask = (_, _) => System.Windows.MessageBoxResult.Yes;
+            Assert.True(model.ConfirmLeaving());
+            Assert.False(model.HasUnsavedChanges);
+            Assert.Single(AnnotationFile.TryLoad(model.Files[0].AnnotationPath, out _)!.Measurements);
+
+            // No: let go.
+            Draw(viewer, 9);
+            Assert.True(model.HasUnsavedChanges);
+            model.Ask = (_, _) => System.Windows.MessageBoxResult.No;
+
+            opening = model.OpenAsync(_folder);
+            WpfTestHost.Wait(opening);
+            Assert.True(opening.Result);
+            Assert.False(model.HasUnsavedChanges);
+        });
+    }
+
     // ---- Builder's Image Saving dialog --------------------------------------------
 
     [Fact]

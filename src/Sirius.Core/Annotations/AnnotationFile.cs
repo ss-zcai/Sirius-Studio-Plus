@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Sirius.Core.Graph;
+using Sirius.Core.Serialization;
 using Sirius.Core.Shapes;
 
 namespace Sirius.Core.Annotations;
@@ -79,6 +81,12 @@ public sealed class AnnotationFile
     public IReadOnlyList<KeyValuePair<string, object?>> Results { get; init; } = [];
 
     public IReadOnlyList<AnnotationLayer> Layers { get; init; } = [];
+
+    /// <summary>
+    /// Measurements drawn on the picture by hand, afterwards - in Sirius IV -
+    /// as Studio's viewer draws them, and written as a recipe keeps them.
+    /// </summary>
+    public IReadOnlyList<MeasurementRecord> Measurements { get; init; } = [];
 
     /// <summary>"PASS", "FAIL", "ERROR" or "NONE", as the picture's name says.</summary>
     public string VerdictWord => NodeErrors > 0 && Passed != false ? "ERROR"
@@ -189,6 +197,13 @@ public sealed class AnnotationFile
         }
 
         json["layers"] = layers;
+
+        if (Measurements.Count > 0)
+        {
+            json["measurements"] = JsonSerializer.SerializeToNode(
+                Measurements.Select(MeasurementDocument.From).ToList());
+        }
+
         return json;
     }
 
@@ -245,8 +260,16 @@ public sealed class AnnotationFile
             layers.Add(new AnnotationLayer(Text(layer, "name") ?? $"Layer {layers.Count + 1}", shapes));
         }
 
+        var measurements = (json["measurements"] as JsonArray ?? [])
+            .OfType<JsonObject>()
+            .Select(item => item.Deserialize<MeasurementDocument>())
+            .OfType<MeasurementDocument>()
+            .Select(document => document.ToRecord())
+            .ToArray();
+
         return new AnnotationFile
         {
+            Measurements = measurements,
             Image = Text(json, "image"),
             Width = Int(json, "width"),
             Height = Int(json, "height"),

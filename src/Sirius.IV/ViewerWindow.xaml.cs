@@ -93,6 +93,13 @@ public partial class ViewerWindow : Window
 
     private void OnExit(object sender, RoutedEventArgs e) => Close();
 
+    /// <summary>Measurements not saved are asked about before they are lost.</summary>
+    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_model.ConfirmLeaving())
+            e.Cancel = true;
+    }
+
     private void OnAboutClick(object sender, RoutedEventArgs e) =>
         new AboutWindow(
             BrowserViewModel.AppTitle,

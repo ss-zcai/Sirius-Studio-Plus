@@ -95,6 +95,7 @@ in UTF-8:
 | `station`, `recipe`, `serial`, `time` | Which station, running which recipe, which inspection, when. |
 | `verdict`, `passed`, `grade`, `nodeErrors` | How it went. `passed` is `null` when nothing judges. |
 | `results` | Every number, yes/no, text and grade the recipe publishes, by published name, in the recipe's order. |
+| `measurements` | Measurements drawn on the picture by hand afterwards, in Sirius IV - absent until there are some. Written as a recipe keeps a viewer's: `{ "tool": "PointToPoint", "points": [x, y, x, y], "colour": "#F59E0B" }`. |
 | `layers` | One for each image viewer in the recipe, named as the viewer is, holding the shapes drawn on this picture; and one for each set of shapes the recipe publishes as a result. Shapes measured on a picture of another size - a cut-out region's - are left out: they would not sit where they belong. |
 
 **Shapes**, in the picture's pixels and degrees - the same words the
@@ -135,6 +136,13 @@ Builder opens a station's folder in it; so does
 - Each viewer is Studio's: zoom, pan, pixel values, 12-bit display, save.
   The shapes from the annotation file are drawn over the picture; the
   header's tooltip lists the station, time, results and layers.
+- **Measurements belong to their picture.** Drawn with the viewer's
+  measuring tools, they stay with the picture they were drawn on when the
+  list moves on, and come back with it. A picture measured and not saved
+  has an amber dot in the list, and the title a `*`. **Save** (Ctrl+S)
+  writes each one's measurements into its `.sann` - beside what a station
+  wrote there, or in a new one for a picture that had none. Closing, or
+  opening another folder, with measurements not saved asks first.
 
 **To come:** a panel listing the annotations as a table; switching layers
 on and off; matching pictures across folders - two stations' views of one

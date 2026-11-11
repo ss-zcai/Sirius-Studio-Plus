@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Sirius.Core.Annotations;
+using Sirius.Core.Graph;
 using Sirius.Core.Shapes;
 using Sirius.Studio.App.Imaging;
 using Sirius.Vision;
@@ -23,13 +24,53 @@ namespace Sirius.IV;
 /// </remarks>
 public sealed class TileViewModel : ObservableObject
 {
+    private readonly BrowserViewModel? _owner;
     private ImageFileItem? _file;
+    private IReadOnlyList<MeasurementRecord> _measurements = [];
+    private IReadOnlyList<MeasurementRecord> _saved = [];
+    private bool _applying;
     private BitmapSource? _picture;
     private ShapeSet? _shapes;
     private AnnotationFile? _annotations;
     private string? _problem;
     private bool _loading;
     private int _showing;
+
+    /// <param name="owner">The window it is in, which keeps every picture's measurements; null for a viewer on its own.</param>
+    public TileViewModel(BrowserViewModel? owner = null)
+    {
+        _owner = owner;
+    }
+
+    /// <summary>
+    /// The measurements on the picture shown: what its annotation file has,
+    /// or what was drawn since and not yet saved. Bound both ways to the
+    /// viewer, which writes back what is drawn.
+    /// </summary>
+    public IReadOnlyList<MeasurementRecord> Measurements
+    {
+        get => _measurements;
+        set
+        {
+            value ??= [];
+
+            if (ReferenceEquals(value, _measurements))
+                return;
+
+            _measurements = value;
+            OnPropertyChanged();
+
+            // The viewer clears its measurements when a picture of another
+            // size arrives: that is the picture changing, not a hand.
+            if (_applying || _file is null || _picture is null)
+                return;
+
+            _owner?.Measured(_file, value, _saved, _picture.PixelWidth, _picture.PixelHeight);
+        }
+    }
+
+    /// <summary>After a save: what is shown is what the file now says.</summary>
+    internal void Saved() => _saved = _measurements;
 
     /// <summary>The picture this viewer is showing, or null for an empty place.</summary>
     public ImageFileItem? File
@@ -138,9 +179,15 @@ public sealed class TileViewModel : ObservableObject
 
         if (file is null)
         {
-            Picture = null;
-            Shapes = null;
-            Annotations = null;
+            Apply(() =>
+            {
+                Picture = null;
+                Shapes = null;
+                Annotations = null;
+                _saved = [];
+                Measurements = [];
+            });
+
             IsLoading = false;
             return Task.CompletedTask;
         }
@@ -168,12 +215,36 @@ public sealed class TileViewModel : ObservableObject
             return;
 
         IsLoading = false;
-        Picture = loaded.Picture;
-        Annotations = loaded.Annotations;
-        Shapes = loaded.Annotations is { } annotations && loaded.Picture is { } picture
-            ? Frame(annotations, picture.PixelWidth, picture.PixelHeight)
-            : null;
+
+        Apply(() =>
+        {
+            Picture = loaded.Picture;
+            Annotations = loaded.Annotations;
+            Shapes = loaded.Annotations is { } annotations && loaded.Picture is { } picture
+                ? Frame(annotations, picture.PixelWidth, picture.PixelHeight)
+                : null;
+
+            // The picture's own measurements: drawn and not saved, or saved.
+            _saved = loaded.Annotations?.Measurements ?? [];
+            Measurements = _owner?.UnsavedFor(file) ?? _saved;
+        });
+
         Problem = loaded.Problem;
+    }
+
+    /// <summary>Changes what is shown without it counting as anything drawn by hand.</summary>
+    private void Apply(Action change)
+    {
+        _applying = true;
+
+        try
+        {
+            change();
+        }
+        finally
+        {
+            _applying = false;
+        }
     }
 
     /// <summary>The picture, decoded as it was saved - 12 bits as 12 - and its annotation file.</summary>

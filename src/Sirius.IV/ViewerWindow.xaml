@@ -14,7 +14,8 @@
         Background="{StaticResource Surface.Background}"
         AllowDrop="True"
         Drop="OnDrop"
-        Loaded="OnLoaded">
+        Loaded="OnLoaded"
+        Closing="OnClosing">
 
     <!--
         Sirius IV: the pictures of a folder in a panel on the left, and one
@@ -61,6 +62,7 @@
     <Window.InputBindings>
         <KeyBinding Key="O" Modifiers="Control" Command="{x:Static local:ViewerWindow.OpenFolderCommand}" />
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
         <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SetLayoutCommand}" CommandParameter="{x:Static local:ViewerLayout.Single}" />
         <KeyBinding Key="D2" Modifiers="Control" Command="{Binding SetLayoutCommand}" CommandParameter="{x:Static local:ViewerLayout.Two}" />
         <KeyBinding Key="D4" Modifiers="Control" Command="{Binding SetLayoutCommand}" CommandParameter="{x:Static local:ViewerLayout.Four}" />
@@ -83,6 +85,7 @@
             <MenuItem Header="_File">
                 <MenuItem Header="_Open Folder…" InputGestureText="Ctrl+O" Command="{x:Static local:ViewerWindow.OpenFolderCommand}" />
                 <MenuItem Header="_Refresh" InputGestureText="F5" Command="{Binding RefreshCommand}" />
+                <MenuItem Header="_Save Measurements" InputGestureText="Ctrl+S" Command="{Binding SaveCommand}" />
                 <Separator />
                 <MenuItem Header="E_xit" Click="OnExit" />
             </MenuItem>
@@ -119,6 +122,12 @@
                         <StackPanel Orientation="Horizontal">
                             <Image Source="{StaticResource Icon.ph_open}" Width="18" Height="18" />
                             <TextBlock Text="Open Folder" Style="{StaticResource ToolbarLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Save the measurements drawn on the pictures, each in its annotation file (Ctrl+S)" Command="{Binding SaveCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Source="{StaticResource Icon.ph_save}" Width="18" Height="18" />
+                            <TextBlock Text="Save" Style="{StaticResource ToolbarLabel}" />
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Read the folder again, for pictures saved since (F5)" Command="{Binding RefreshCommand}">
@@ -210,6 +219,13 @@
                                                     <Border DockPanel.Dock="Right" Style="{StaticResource VerdictBadge}">
                                                         <TextBlock Text="{Binding Verdict}" FontSize="10" FontWeight="SemiBold" Foreground="White" />
                                                     </Border>
+                                                    <TextBlock DockPanel.Dock="Left"
+                                                               Text="●"
+                                                               FontSize="9"
+                                                               Margin="0,3,5,0"
+                                                               Foreground="#D9A33A"
+                                                               ToolTip="Measured, and not saved yet (Ctrl+S)"
+                                                               Visibility="{Binding IsModified, Converter={StaticResource BoolToVisibility}}" />
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                                                         <TextBlock Text="{Binding Subfolder}"
@@ -266,6 +282,7 @@
                                                 <Grid>
                                                     <controls:ImageViewer ImageSource="{Binding Picture}"
                                                                           Shapes="{Binding Shapes}"
+                                                                          Measurements="{Binding Measurements, Mode=TwoWay}"
                                                                           SaveName="{Binding File.Name}" />
                                                     <TextBlock Text="Choose a picture in the list"
                                                                HorizontalAlignment="Center"

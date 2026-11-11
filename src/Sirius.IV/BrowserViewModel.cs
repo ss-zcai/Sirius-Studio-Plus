@@ -3,8 +3,11 @@ using System.ComponentModel;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Sirius.Core.Annotations;
+using Sirius.Core.Graph;
 
 namespace Sirius.IV;
 
@@ -65,6 +68,7 @@ public sealed class BrowserViewModel : ObservableObject
     };
 
     private readonly string _settingsPath;
+    private readonly Dictionary<string, Unsaved> _unsaved = new(StringComparer.OrdinalIgnoreCase);
     private List<ImageFileItem> _all = [];
     private IReadOnlyList<ImageFileItem> _chosen = [];
     private string? _folder;
@@ -81,6 +85,7 @@ public sealed class BrowserViewModel : ObservableObject
         _settingsPath = settingsPath ?? string.Empty;
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, () => HasFolder);
         SetLayoutCommand = new RelayCommand<ViewerLayout>(layout => Layout = layout);
+        SaveCommand = new RelayCommand(() => Save(), () => HasUnsavedChanges);
         ReadSettings();
         ArrangeTiles();
     }
@@ -104,7 +109,9 @@ public sealed class BrowserViewModel : ObservableObject
 
     public bool HasFolder => _folder is not null;
 
-    public string Title => _folder is null ? AppTitle : $"{Path.GetFileName(_folder.TrimEnd(Path.DirectorySeparatorChar))} - {AppTitle}";
+    public string Title =>
+        (HasUnsavedChanges ? "*" : string.Empty) +
+        (_folder is null ? AppTitle : $"{Path.GetFileName(_folder.TrimEnd(Path.DirectorySeparatorChar))} - {AppTitle}");
 
     /// <summary>Lists the pictures in sub-folders too: a station saves a folder for each day.</summary>
     public bool IncludeSubfolders
@@ -139,10 +146,17 @@ public sealed class BrowserViewModel : ObservableObject
     /// <summary>The folder opened last time, if it is still there.</summary>
     public string? LastFolder { get; private set; }
 
-    /// <summary>Opens a folder - or a picture, opening its folder with it chosen.</summary>
-    public async Task OpenAsync(string path)
+    /// <summary>
+    /// Opens a folder - or a picture, opening its folder with it chosen -
+    /// once any measurements not yet saved have been saved or let go.
+    /// </summary>
+    /// <returns>False when the operator chose to stay where they were.</returns>
+    public async Task<bool> OpenAsync(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (!ConfirmLeaving("opening another folder"))
+            return false;
 
         var full = Path.GetFullPath(path);
         var picture = File.Exists(full) ? full : null;
@@ -151,14 +165,16 @@ public sealed class BrowserViewModel : ObservableObject
         if (!Directory.Exists(folder))
         {
             Problem = $"{folder} does not exist.";
-            return;
+            return true;
         }
 
+        Forget();
         Folder = folder;
         LastFolder = folder;
         SaveSettings();
 
         await ListAsync(picture is null ? null : [picture]).ConfigureAwait(true);
+        return true;
     }
 
     /// <summary>Reads the folder again - pictures a station has saved since - keeping what was chosen.</summary>
@@ -195,6 +211,10 @@ public sealed class BrowserViewModel : ObservableObject
         // A later listing - another folder opened meanwhile - wins.
         if (listing != _listing)
             return;
+
+        // Measured and not saved: still measured, though the list is new.
+        foreach (var item in found)
+            item.IsModified = _unsaved.ContainsKey(item.Path);
 
         _all = found;
         ApplyFilter(keep);
@@ -373,10 +393,189 @@ public sealed class BrowserViewModel : ObservableObject
         }
 
         while (Tiles.Count < places)
-            Tiles.Add(new TileViewModel());
+            Tiles.Add(new TileViewModel(this));
 
         OnPropertyChanged(nameof(Columns));
         OnPropertyChanged(nameof(Rows));
+    }
+
+    // ---- measurements drawn by hand ----------------------------------------------------
+
+    /// <summary>
+    /// Measurements drawn on pictures and not saved yet, by picture - each
+    /// picture keeps its own, whichever viewer shows it and however often
+    /// the list moves on and back.
+    /// </summary>
+    public bool HasUnsavedChanges => _unsaved.Count > 0;
+
+    /// <summary>How many pictures have measurements not saved.</summary>
+    public int UnsavedCount => _unsaved.Count;
+
+    /// <summary>Ctrl+S: writes every picture's measurements into its annotation file.</summary>
+    public IRelayCommand SaveCommand { get; }
+
+    /// <summary>Asks a Yes / No / Cancel question; replaced in tests.</summary>
+    internal Func<string, string, MessageBoxResult> Ask { get; set; } =
+        (message, title) => Sirius.Studio.App.Dialog.Ask(message, title, Application.Current?.MainWindow);
+
+    /// <summary>The measurements a picture has now, saved or not; null for what its file says.</summary>
+    internal IReadOnlyList<MeasurementRecord>? UnsavedFor(ImageFileItem file) =>
+        _unsaved.TryGetValue(file.Path, out var unsaved) ? unsaved.Measurements : null;
+
+    /// <summary>A viewer's measurements changed, by hand, on the picture it shows.</summary>
+    internal void Measured(ImageFileItem file, IReadOnlyList<MeasurementRecord> measurements, IReadOnlyList<MeasurementRecord> saved, int width, int height)
+    {
+        if (measurements.SequenceEqual(saved, MeasurementComparer.Instance))
+            _unsaved.Remove(file.Path);
+        else
+            _unsaved[file.Path] = new Unsaved(file, measurements, width, height);
+
+        // The same picture is a different item after a refresh: mark both.
+        file.IsModified = _unsaved.ContainsKey(file.Path);
+
+        foreach (var item in _all.Where(item => string.Equals(item.Path, file.Path, StringComparison.OrdinalIgnoreCase)))
+            item.IsModified = file.IsModified;
+
+        Announce();
+    }
+
+    /// <summary>
+    /// Writes each picture's measurements into its annotation file - adding
+    /// them to what a station wrote there, or making one for a picture that
+    /// has none.
+    /// </summary>
+    /// <returns>Whether everything was saved; <see cref="Problem"/> says what was not.</returns>
+    public bool Save()
+    {
+        var problems = new List<string>();
+
+        foreach (var unsaved in _unsaved.Values.ToArray())
+        {
+            if (Write(unsaved) is { } problem)
+            {
+                problems.Add(problem);
+                continue;
+            }
+
+            _unsaved.Remove(unsaved.File.Path);
+
+            foreach (var item in _all.Where(item => string.Equals(item.Path, unsaved.File.Path, StringComparison.OrdinalIgnoreCase)))
+                item.IsModified = false;
+
+            unsaved.File.IsModified = false;
+        }
+
+        // What a viewer shows is now what its file says.
+        foreach (var tile in Tiles)
+            tile.Saved();
+
+        Problem = problems.Count == 0 ? null : string.Join(" ", problems);
+        Announce();
+        return problems.Count == 0;
+    }
+
+    private static string? Write(Unsaved unsaved)
+    {
+        var path = unsaved.File.AnnotationPath;
+        AnnotationFile annotations;
+
+        if (File.Exists(path))
+        {
+            // A file that cannot be read is left as it is, not replaced.
+            if (AnnotationFile.TryLoad(path, out var problem) is not { } existing)
+                return $"The measurements on {unsaved.File.Name} were not saved: {problem}";
+
+            annotations = existing;
+        }
+        else
+        {
+            annotations = new AnnotationFile { Image = unsaved.File.Name, Width = unsaved.Width, Height = unsaved.Height };
+        }
+
+        try
+        {
+            new AnnotationFile
+            {
+                Image = annotations.Image ?? unsaved.File.Name,
+                Width = annotations.Width > 0 ? annotations.Width : unsaved.Width,
+                Height = annotations.Height > 0 ? annotations.Height : unsaved.Height,
+                Bits = annotations.Bits,
+                Station = annotations.Station,
+                Recipe = annotations.Recipe,
+                Serial = annotations.Serial,
+                Time = annotations.Time,
+                Passed = annotations.Passed,
+                Grade = annotations.Grade,
+                NodeErrors = annotations.NodeErrors,
+                Results = annotations.Results,
+                Layers = annotations.Layers,
+                Measurements = unsaved.Measurements,
+            }.Save(path);
+
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"The measurements on {unsaved.File.Name} could not be saved: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Before leaving the pictures - closing, opening another folder - asks
+    /// whether to save measurements not yet saved.
+    /// </summary>
+    /// <returns>True to go on; false to stay.</returns>
+    public bool ConfirmLeaving(string doing = "closing")
+    {
+        if (!HasUnsavedChanges)
+            return true;
+
+        var count = _unsaved.Count;
+        var answer = Ask(
+            $"Measurements on {count} picture{(count == 1 ? " are" : "s are")} not saved. Save them in the pictures' " +
+            $"annotation files before {doing}?",
+            AppTitle);
+
+        return answer switch
+        {
+            MessageBoxResult.Yes => Save(),
+            MessageBoxResult.No => true,
+            _ => false,
+        };
+    }
+
+    /// <summary>Lets every unsaved measurement go - after the operator said not to save them.</summary>
+    private void Forget()
+    {
+        _unsaved.Clear();
+        Announce();
+    }
+
+    private void Announce()
+    {
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(UnsavedCount));
+        OnPropertyChanged(nameof(Title));
+        SaveCommand.NotifyCanExecuteChanged();
+    }
+
+    private sealed record Unsaved(ImageFileItem File, IReadOnlyList<MeasurementRecord> Measurements, int Width, int Height);
+
+    /// <summary>Two measurements are the same when drawn the same: tool, points, colour and name.</summary>
+    internal sealed class MeasurementComparer : IEqualityComparer<MeasurementRecord>
+    {
+        public static readonly MeasurementComparer Instance = new();
+
+        public bool Equals(MeasurementRecord? a, MeasurementRecord? b) =>
+            ReferenceEquals(a, b) ||
+            (a is not null && b is not null &&
+             a.Tool == b.Tool &&
+             string.Equals(a.Colour, b.Colour, StringComparison.OrdinalIgnoreCase) &&
+             (a.Name ?? string.Empty) == (b.Name ?? string.Empty) &&
+             a.Points.Count == b.Points.Count &&
+             a.Points.Zip(b.Points).All(pair => Math.Abs(pair.First.X - pair.Second.X) < 1e-3 && Math.Abs(pair.First.Y - pair.Second.Y) < 1e-3));
+
+        public int GetHashCode(MeasurementRecord record) => record.Tool.GetHashCode(StringComparison.Ordinal);
     }
 
     // ---- remembered between sessions -----------------------------------------------
@@ -453,8 +652,10 @@ public sealed record Choice(string Label, object Value)
 }
 
 /// <summary>A picture in the list.</summary>
-public sealed class ImageFileItem
+public sealed class ImageFileItem : ObservableObject
 {
+    private bool _modified;
+
     public ImageFileItem(string path, string folder)
     {
         Path = path;
@@ -484,6 +685,13 @@ public sealed class ImageFileItem
 
     /// <summary>FAIL, ERROR, PASS or NONE from a station's file name; null for any other picture.</summary>
     public string? Verdict { get; }
+
+    /// <summary>Has measurements drawn on it that are not saved yet.</summary>
+    public bool IsModified
+    {
+        get => _modified;
+        set => SetProperty(ref _modified, value);
+    }
 
     public bool Failed => Verdict is "FAIL" or "ERROR";
 

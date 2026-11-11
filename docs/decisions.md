@@ -2877,6 +2877,14 @@ name with a json extension; you might use our own."
   is read on a worker and each picture decoded on one, the latest asked
   for winning. Builder's Station ▸ Browse Saved Images starts it on a
   station's folder.
+- **Measurements drawn in Sirius IV belong to their picture** (asked for
+  the same day, after one drawn on a picture stayed on screen when the
+  list moved on): each picture keeps its own until saved, whichever viewer
+  shows it; Save writes them into its `.sann` (`measurements`, as a
+  recipe keeps a viewer's), keeping what a station wrote; closing or
+  opening another folder asks first. The viewer clearing its own
+  measurements when a picture of another size arrives is the picture
+  changing, and is not counted as an edit.
 - **Left** (backlog F20a-d): the batch half - Run Folder and `sirius-run`
   writing `.sann` too; the table panel, layers on and off, and matching
   across folders; a disk quota; failed and one pass in N.
