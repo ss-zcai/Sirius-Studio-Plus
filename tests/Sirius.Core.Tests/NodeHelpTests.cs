@@ -97,7 +97,11 @@ public class NodeHelpTests
         var shipped = typeof(VisionNodeLibrary).Assembly;
         var undescribed = new List<string>();
 
-        foreach (var descriptor in NodeCatalog.All.Where(d => d.NodeType.Assembly == shipped))
+        // The nodes the application ships. A custom node another test has
+        // installed lives in the same assembly - its host does - and what
+        // it says about itself is its author's business.
+        foreach (var descriptor in NodeCatalog.All.Where(
+                     d => d.NodeType.Assembly == shipped && !Sirius.Vision.Plugins.PluginLoader.IsCustomKey(d.TypeKey)))
         {
             var help = new NodeHelpViewModel(descriptor.CreateInstance());
 

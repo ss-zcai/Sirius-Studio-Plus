@@ -217,16 +217,37 @@ public sealed class BrightnessContrastNode : ImageFilterNode
     }
 }
 
+/// <summary>How Resize is told what size to make.</summary>
+public enum ResizeBy
+{
+    /// <summary>By a factor along each axis.</summary>
+    Scale,
+
+    /// <summary>To a width and a height in pixels.</summary>
+    [System.ComponentModel.Description("Size in pixels")]
+    Size,
+}
+
 [VisionNode(
     "Resize",
     TypeKey = "basic.resize",
     Category = NodeCategory.Basic,
     Icon = "ph_resize",
-    Description = "Scales the image. Shapes wired into Overlay come out scaled with it.")]
+    Description = "Scales the image, by a factor or to a width and height in pixels. Shapes wired into Overlay come " +
+                  "out scaled with it.")]
 public sealed class ResizeNode : ImageFilterNode
 {
+    /// <summary>
+    /// The largest image made to a size, in pixels. A width and a height
+    /// typed with a nought too many would otherwise ask for gigabytes.
+    /// </summary>
+    internal const long MaximumPixels = 500_000_000;
+
+    private ResizeBy _resizeBy = ResizeBy.Scale;
     private double _scaleX = 1;
     private double _scaleY = 1;
+    private int _width;
+    private int _height;
     private Inter _interpolation = Inter.Linear;
 
     public ResizeNode()
@@ -241,18 +262,47 @@ public sealed class ResizeNode : ImageFilterNode
     /// <summary>The same shapes, scaled with the image.</summary>
     public OutputPort OverlayOut { get; }
 
-    [Param("Scale X", Min = 0.01, Max = 10, Step = 0.01, Connectable = true)]
+    [Param("Resize By",
+        Description = "Scale multiplies the image's size by Scale X and Scale Y. Size in pixels makes it Width by " +
+                      "Height, whatever size it arrives.")]
+    public ResizeBy ResizeBy
+    {
+        get => _resizeBy;
+        set => SetParam(ref _resizeBy, value);
+    }
+
+    [Param("Scale X", Group = "By scale", Min = 0.01, Max = 10, Step = 0.01, Connectable = true,
+        Description = "Used when Resize By is Scale.")]
     public double ScaleX
     {
         get => _scaleX;
         set => SetParam(ref _scaleX, value);
     }
 
-    [Param("Scale Y", Min = 0.01, Max = 10, Step = 0.01, Connectable = true)]
+    [Param("Scale Y", Group = "By scale", Min = 0.01, Max = 10, Step = 0.01, Connectable = true,
+        Description = "Used when Resize By is Scale.")]
     public double ScaleY
     {
         get => _scaleY;
         set => SetParam(ref _scaleY, value);
+    }
+
+    [Param("Width", Group = "To a size", Min = 0, Max = 30000, Step = 1, Connectable = true,
+        Description = "Used when Resize By is Size in pixels. 0 follows Height, keeping the image's proportions; " +
+                      "with both 0 the image stays the size it is.")]
+    public int Width
+    {
+        get => _width;
+        set => SetParam(ref _width, value);
+    }
+
+    [Param("Height", Group = "To a size", Min = 0, Max = 30000, Step = 1, Connectable = true,
+        Description = "Used when Resize By is Size in pixels. 0 follows Width, keeping the image's proportions; " +
+                      "with both 0 the image stays the size it is.")]
+    public int Height
+    {
+        get => _height;
+        set => SetParam(ref _height, value);
     }
 
     [Param("Interpolation")]
@@ -264,13 +314,32 @@ public sealed class ResizeNode : ImageFilterNode
 
     protected override void Apply(ImageData source, Mat destination, EvalContext context)
     {
-        var scaleX = context.Param(nameof(ScaleX), _scaleX);
-        var scaleY = context.Param(nameof(ScaleY), _scaleY);
+        double scaleX, scaleY;
 
-        if (scaleX <= 0 || scaleY <= 0)
-            throw new InvalidOperationException("Scale must be greater than zero on both axes.");
+        if (_resizeBy == ResizeBy.Size)
+        {
+            var (width, height) = TargetSize(
+                source.Width, source.Height, context.Param(nameof(Width), _width), context.Param(nameof(Height), _height));
 
-        CvInvoke.Resize(source.Mat, destination, Size.Empty, scaleX, scaleY, _interpolation);
+            if ((long)width * height > MaximumPixels)
+                throw new InvalidOperationException($"{width} x {height} pixels is too large an image to make.");
+
+            CvInvoke.Resize(source.Mat, destination, new Size(width, height), 0, 0, _interpolation);
+
+            // The factors it came to, for the shapes that go with it.
+            scaleX = (double)width / source.Width;
+            scaleY = (double)height / source.Height;
+        }
+        else
+        {
+            scaleX = context.Param(nameof(ScaleX), _scaleX);
+            scaleY = context.Param(nameof(ScaleY), _scaleY);
+
+            if (scaleX <= 0 || scaleY <= 0)
+                throw new InvalidOperationException("Scale must be greater than zero on both axes.");
+
+            CvInvoke.Resize(source.Mat, destination, Size.Empty, scaleX, scaleY, _interpolation);
+        }
 
         // Pixel centres, as OpenCV resamples: the centre of source pixel x
         // lands at (x + 0.5) * scale - 0.5.
@@ -282,6 +351,27 @@ public sealed class ResizeNode : ImageFilterNode
             source,
             destination.Width,
             destination.Height);
+    }
+
+    /// <summary>
+    /// The size to make from what was asked for: a side left at nought
+    /// follows the other in the image's own proportions, and with both at
+    /// nought the image stays the size it is.
+    /// </summary>
+    internal static (int Width, int Height) TargetSize(int sourceWidth, int sourceHeight, int width, int height)
+    {
+        if (width < 0 || height < 0)
+            throw new InvalidOperationException("Width and Height cannot be less than zero.");
+
+        if (width == 0 && height == 0)
+            return (sourceWidth, sourceHeight);
+
+        if (width == 0)
+            width = Math.Max(1, (int)Math.Round((double)sourceWidth * height / sourceHeight));
+        else if (height == 0)
+            height = Math.Max(1, (int)Math.Round((double)sourceHeight * width / sourceWidth));
+
+        return (width, height);
     }
 }
 

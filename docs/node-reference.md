@@ -368,7 +368,7 @@ Crops a region out of the image, rotating it upright when it sits at an angle.
 
 `basic.resize`
 
-Scales the image. Shapes wired into Overlay come out scaled with it.
+Scales the image, by a factor or to a width and height in pixels. Shapes wired into Overlay come out scaled with it.
 
 **Inputs**
 
@@ -378,6 +378,8 @@ Scales the image. Shapes wired into Overlay come out scaled with it.
 | Overlay | `Shapes` | circle | optional |
 | Scale X | `Number` | circle | optional |
 | Scale Y | `Number` | circle | optional |
+| Width | `Integer` | circle | optional |
+| Height | `Integer` | circle | optional |
 
 **Outputs**
 
@@ -390,8 +392,11 @@ Scales the image. Shapes wired into Overlay come out scaled with it.
 
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
+| Resize By | `ResizeBy` | ComboBox | - |
 | Scale X | `Number` | Slider | 0.01 to 10 |
 | Scale Y | `Number` | Slider | 0.01 to 10 |
+| Width | `Integer` | Slider | 0 to 30000 |
+| Height | `Integer` | Slider | 0 to 30000 |
 | Interpolation | `Inter` | ComboBox | - |
 
 ### RGB Channel

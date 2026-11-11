@@ -441,30 +441,40 @@ internal sealed unsafe partial class NativeNodeLibrary
     /// <summary>Which DLL an address is in, and how far in - what a map file or a debugger wants.</summary>
     private static string Where(ulong address, string libraryPath)
     {
-        try
+        // Asked of Windows for this one address. Listing every module of
+        // the process to look through fails now and then while another
+        // thread is loading one - and this is read at the worst of times.
+        if (GetModuleHandleEx(FromAddress | UnchangedRefCount, (IntPtr)(long)address, out var module) && module != IntPtr.Zero)
         {
-            foreach (ProcessModule module in Process.GetCurrentProcess().Modules)
+            var buffer = new char[1024];
+            var length = (int)GetModuleFileName(module, buffer, (uint)buffer.Length);
+
+            if (length > 0)
             {
-                var start = (ulong)module.BaseAddress;
+                // A module's handle is the address it was loaded at.
+                var file = new string(buffer, 0, length);
+                var name = System.IO.Path.GetFileName(file);
+                var place = $"{name}+0x{address - (ulong)(long)module:X}";
 
-                if (address < start || address >= start + (ulong)module.ModuleMemorySize)
-                    continue;
-
-                var name = System.IO.Path.GetFileName(module.FileName);
-                var place = $"{name}+0x{address - start:X}";
-
-                return string.Equals(module.FileName, libraryPath, StringComparison.OrdinalIgnoreCase)
+                return string.Equals(file, libraryPath, StringComparison.OrdinalIgnoreCase)
                     ? $"in its own code ({place})"
                     : $"inside {name}, which it uses ({place})";
             }
         }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
-        {
-            // The address alone is still something.
-        }
 
+        // The address alone is still something.
         return $"at 0x{address:X}";
     }
+
+    private const uint UnchangedRefCount = 0x2;
+    private const uint FromAddress = 0x4;
+
+    [DllImport("kernel32", SetLastError = true, EntryPoint = "GetModuleHandleExW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetModuleHandleEx(uint flags, IntPtr address, out IntPtr module);
+
+    [DllImport("kernel32", CharSet = CharSet.Unicode, EntryPoint = "GetModuleFileNameW")]
+    private static extern uint GetModuleFileName(IntPtr module, [Out] char[] name, uint size);
 
     private static bool TryPointer(string text, out ulong value)
     {

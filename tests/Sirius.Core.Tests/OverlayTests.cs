@@ -78,6 +78,72 @@ public class OverlayTests
         Assert.Null(ellipse.Metric(ShapeMetric.Radius));
     }
 
+    // ---- Resize to a size in pixels ----------------------------------------
+
+    /// <summary>
+    /// To a width and a height, whatever size the image arrives - and the
+    /// shapes on it scaled by the factors that came to.
+    /// </summary>
+    [Fact]
+    public void A_resize_to_a_size_makes_that_size_and_scales_the_shapes_to_fit()
+    {
+        var resize = new ResizeNode { ResizeBy = ResizeBy.Size, Width = 200, Height = 100 };
+        var point = new PointShape(new Point2(100.5, 100.5));
+
+        var (carried, image) = RunWithImage(Blank, resize, resize.ImageIn, resize.OverlayIn, resize.OverlayOut, resize.ImageOut, point);
+
+        Assert.Equal((200, 100), (image.Width, image.Height));
+        Assert.Equal((200, 100), (carried.FrameWidth, carried.FrameHeight));
+
+        // Half as wide, a quarter as high.
+        Assert.Equal(new Point2(50, 24.75), Assert.IsType<PointShape>(Assert.Single(carried.Shapes)).At);
+    }
+
+    /// <summary>The scale settings are not used for a size, nor the size for a scale.</summary>
+    [Fact]
+    public void A_resize_uses_the_settings_of_the_way_it_is_resizing_by()
+    {
+        var bySize = new ResizeNode { ResizeBy = ResizeBy.Size, Width = 120, Height = 80, ScaleX = 3, ScaleY = 3 };
+        var byScale = new ResizeNode { ScaleX = 0.5, ScaleY = 0.25, Width = 120, Height = 80 };
+
+        var sized = RunWithImage(Blank, bySize, bySize.ImageIn, bySize.OverlayIn, bySize.OverlayOut, bySize.ImageOut).Image;
+        var scaled = RunWithImage(Blank, byScale, byScale.ImageIn, byScale.OverlayIn, byScale.OverlayOut, byScale.ImageOut).Image;
+
+        Assert.Equal((120, 80), (sized.Width, sized.Height));
+        Assert.Equal((200, 100), (scaled.Width, scaled.Height));
+
+        // A recipe from before there was a choice resizes by scale, as it did.
+        Assert.Equal(ResizeBy.Scale, new ResizeNode().ResizeBy);
+    }
+
+    [Theory]
+    [InlineData(4000, 3000, 800, 0, 800, 600)]
+    [InlineData(4000, 3000, 0, 300, 400, 300)]
+    [InlineData(4000, 3000, 0, 0, 4000, 3000)]
+    [InlineData(4000, 3000, 640, 640, 640, 640)]
+    [InlineData(4000, 10, 100, 0, 100, 1)]
+    public void A_side_left_at_nought_follows_the_other_in_proportion(
+        int sourceWidth, int sourceHeight, int width, int height, int expectedWidth, int expectedHeight) =>
+        Assert.Equal((expectedWidth, expectedHeight), ResizeNode.TargetSize(sourceWidth, sourceHeight, width, height));
+
+    [Fact]
+    public void A_size_too_large_to_make_is_refused_in_words()
+    {
+        var resize = new ResizeNode { ResizeBy = ResizeBy.Size, Width = 30000, Height = 30000 };
+        var graph = new VisionGraph();
+        var source = new PictureNode(Blank);
+
+        graph.Add(source);
+        graph.Add(resize);
+        graph.TryConnect(source.Out, resize.ImageIn);
+
+        using var scheduler = CreateScheduler(graph);
+        scheduler.RunAsync().GetAwaiter().GetResult();
+
+        Assert.Equal(NodeStatus.Error, resize.Status);
+        Assert.Equal("30000 x 30000 pixels is too large an image to make.", resize.StatusMessage);
+    }
+
     /// <summary>
     /// Checked against the pixels: a dot drawn in the source, a turned
     /// region straightened, and the carried point where the dot landed.
