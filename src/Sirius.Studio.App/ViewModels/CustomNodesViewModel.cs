@@ -142,10 +142,10 @@ public sealed class CustomNodesViewModel : ObservableObject
 
         if (Find(fullPath) is { } existing)
         {
-            // A Python library added again after it failed: try it again,
-            // in the same place in the list - its environment may have been
-            // put right since.
-            if (existing.Failed && PythonLibraries.IsPythonFile(fullPath))
+            // A Python or a C++ library added again after it failed: try it
+            // again, in the same place in the list - its environment, or
+            // the DLL it was missing, may have been put right since.
+            if (existing.Failed && (PythonLibraries.IsPythonFile(fullPath) || NativeNodeLibraries.IsLibrary(fullPath)))
             {
                 var retried = new CustomNodeLibraryViewModel(PluginLoader.Install(fullPath), existing.Source);
                 Libraries[Libraries.IndexOf(existing)] = retried;

@@ -178,9 +178,11 @@ backlog N2.
 
 - **Sub-graphs**, first version: a node holding a graph of its own,
   opened in a tab, with Graph Input and Graph Output as its sockets.
-- **Custom nodes in C#** (interface 1.0, SDK 1.0.2) and **in Python**,
-  each Python library in its own process and environment. See
-  `custom-nodes.md` and `python-nodes.md`.
+- **Custom nodes in C#** (interface 1.0, SDK 1.0.2), **in Python**,
+  each Python library in its own process and environment, and **in
+  C++** (11 November 2026), a native DLL in the application's process
+  with its faults caught at the boundary. See `custom-nodes.md`,
+  `python-nodes.md` and `cpp-nodes.md`.
 - **Batch and headless running**: Run Folder in the application, and
   `sirius-run.exe` for scripts.
 - **NodeGraphKit/**: the editor and dark theme on their own, for other

@@ -2,25 +2,25 @@
 
 Interface version **1.0.2**
 
-Write your own tools for Sirius Studio Plus, in **C#** or in **Python**.
+Write your own tools for Sirius Studio Plus, in **C#**, **Python** or **C++**.
 They show up in the toolbox next to the built-in nodes. Their settings
 appear in the properties panel and they are saved in recipes like any other
 node.
 
 ---
 
-## C# or Python?
+## C#, Python or C++?
 
-| | C# | Python |
-|---|---|---|
-| Best for | new code, per-pixel work, nodes that must be fast | code you already have, and libraries only Python has - PyTorch, ONNX Runtime, a vendor's OCR |
-| Runs | inside the application | in its own Python process, one per library |
-| The line PC needs | nothing beyond the application | a Python with the library's packages installed |
-| Cost per image | none | images cross to Python and back: a few milliseconds for a 5 MP frame |
-| A crash | stops the inspection | ends only that library's process; the next run starts a new one |
+| | C# | Python | C++ |
+|---|---|---|---|
+| Best for | new code, per-pixel work, nodes that must be fast | code you already have, and libraries only Python has - PyTorch, a vendor's OCR | C++ you already have, and anything built on OpenCV, HALCON or a C++ deep learning runtime |
+| Runs | inside the application | in its own Python process, one per library | inside the application |
+| The line PC needs | nothing beyond the application | a Python with the library's packages installed | the DLLs the library uses, beside it |
+| Cost per image | none | images cross to Python and back: a few milliseconds for a 5 MP frame | none in; one copy for an image out |
+| When it goes wrong | an exception is the node's error | a crash ends only that library's process; the next run starts a new one | an exception is the node's error; a hardware fault is caught where it can be, and stops the library until restart. What cannot be caught ends the application - see `cpp-nodes.md` §4 |
 
-Both kinds of node look the same to the operator, are saved in recipes the
-same way, and can be mixed in one recipe.
+All three kinds of node look the same to the operator, are saved in recipes
+the same way, and can be mixed in one recipe.
 
 ---
 
@@ -40,6 +40,9 @@ same way, and can be mixed in one recipe.
 | `SampleNodes.Tests/` | unit tests for those nodes, run without the application |
 | `python/sirius_nodes.py` | the Python SDK: `@node`, inputs, outputs, settings, shapes, and `NodeRunner` for tests |
 | `PythonNodes/` | a working Python library of two nodes: **Dark Spots**, **Sharpness**, with its tests |
+| `cpp-nodes.md` | the full C++ guide |
+| `cpp/sirius_node.hpp`, `cpp/sirius_node.h` | the C++ SDK: two headers, nothing to link |
+| `CppNodes/` | a working C++ library of the same two nodes, with `build.cmd` and `CMakeLists.txt` |
 
 ## You need
 
@@ -51,6 +54,9 @@ same way, and can be mixed in one recipe.
 - For Python: **Python 3** from <https://www.python.org>, with the packages
   your library imports. The sample needs `numpy` and `opencv-python`, and
   `pytest` to run its tests.
+- For C++: **Visual Studio 2019 or later with "Desktop development with
+  C++"**, or the Build Tools for Visual Studio with the same workload.
+  Another compiler that makes a 64-bit DLL works too; see `cpp-nodes.md`.
 
 ---
 
@@ -141,10 +147,64 @@ restarted.
 
 ---
 
+## Ten minutes to a working node in C++
+
+**1. Build the sample.** In the `CppNodes` folder:
+
+```
+build.cmd
+```
+
+It finds the Visual C++ compiler and writes `SampleCppNodes.dll` beside
+itself. (`CMakeLists.txt` is there for CMake.)
+
+**2. Try it in the application.** Choose **Tools ▸ Custom Nodes ▸ Add
+Library…** and pick `CppNodes\SampleCppNodes.dll`. **Dark Spots (C++)**
+appears under **Blob** and **Sharpness (C++)** under **Analysis**. Wire
+*Image File → Dark Spots (C++) → Image Viewer*.
+
+**3. Make it yours.** A node is a class:
+
+```cpp
+#include "sirius_node.hpp"
+
+class Name : public sirius::Node
+{
+public:
+    static void declare(sirius::Declaration& d)
+    {
+        d.name("Name").key("yourteam.name").group("Analysis")
+            .description("One sentence an operator understands.");
+        d.input_image("image", "Image");
+        d.output_number("score", "Score");
+        d.setting_integer("level", "Level", 60).range(0, 255);
+    }
+
+    void run(sirius::Run& run) override
+    {
+        sirius::Image image = run.image("image");
+        ...
+        run.set_number("score", score);
+    }
+};
+
+SIRIUS_NODES(Name)
+```
+
+With OpenCV, include it before `sirius_node.hpp` and
+`sirius::to_mat(image)` is a `cv::Mat` over the same pixels.
+
+**4. Close the application, rebuild, start it again.** It holds the DLL
+open while it runs. The DLLs your library uses - OpenCV's, a runtime's -
+go beside it, or their folder goes in a `sirius.json` beside it;
+`cpp-nodes.md` §3 has the details.
+
+---
+
 ## Rules that will bite if skipped
 
 - **The key never changes once a recipe uses the node** - `TypeKey` in C#,
-  `key=` in Python. Recipes find a node by its key. Write it as
+  `key=` in Python, `.key(...)` in C++. Recipes find a node by its key. Write it as
   `yourteam.name`, with your team's name before the dot, so it cannot
   collide with anyone else's.
 - **Setting names are saved in recipes.** Renaming one loses the values
@@ -158,8 +218,16 @@ restarted.
   you write to or keep.
 - **Handle every sample type you accept.** A frame can be 8-bit, 16-bit or
   float, in either language. Handle it, or warn and pass the image through.
-- **Python: load models in `load()`, not in `run()`.** `load()` runs once;
-  `run()` runs for every image.
+- **Python and C++: load models in `load()`, not in `run()`.** `load()`
+  runs once; `run()` runs for every image.
+- **C++: an input image is read-only, and stops being valid when `run()`
+  returns.** It is the application's own memory. `clone()` it to change it
+  or to keep it. Writing to it corrupts what other nodes are reading.
+- **C++: use the image's stride.** A region of a larger image has rows that
+  are not adjacent. `sirius::to_mat` and `image.row<T>(y)` honour it;
+  `data + y * width` does not.
+- **C++: build Release with `/MD`, for x64, and keep the `.pdb`.** A crash
+  is reported as `YourNodes.dll+0x1A2B`; the `.pdb` turns that into a line.
 - **C#: bump `Version` in the project file** with every build you give to
   anyone. The Custom Nodes window shows it, which is how you tell two builds
   apart.
@@ -205,5 +273,6 @@ quietly wrong.
 
 Open **Tools ▸ Custom Nodes**. Every library is listed with its path, the
 nodes it added, and anything that went wrong, one sentence per problem -
-for Python, which Python it tried and what it said. That sentence is what
-to send back to whoever wrote the library.
+for Python, which Python it tried and what it said; for C++, which DLL it
+needs that Windows could not find. That sentence is what to send back to
+whoever wrote the library.

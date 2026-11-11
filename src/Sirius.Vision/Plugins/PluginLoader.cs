@@ -88,11 +88,13 @@ public static class PluginLoader
     /// Every custom node library under <paramref name="folder"/>, at any depth.
     /// </summary>
     /// <remarks>
-    /// A library is a DLL that references <c>Sirius.Plugins</c>, found by
-    /// reading its metadata rather than loading it. Everything else - the
-    /// libraries' own dependencies, native DLLs - is passed over, so a
-    /// library can sit in a folder with whatever it needs. Python libraries
-    /// are found alongside, as <see cref="PythonLibraries.Find"/> describes.
+    /// A C# library is a DLL that references <c>Sirius.Plugins</c>; a C++
+    /// one is a native DLL that exports <c>sirius_node_library</c>. Both are
+    /// found by reading the file's headers rather than loading it.
+    /// Everything else - the libraries' own dependencies, OpenCV's DLLs - is
+    /// passed over, so a library can sit in a folder with whatever it needs.
+    /// Python libraries are found alongside, as
+    /// <see cref="PythonLibraries.Find"/> describes.
     /// </remarks>
     public static IReadOnlyList<string> FindLibraries(string folder)
     {
@@ -101,7 +103,7 @@ public static class PluginLoader
 
         return Directory
             .EnumerateFiles(folder, "*.dll", SearchOption.AllDirectories)
-            .Where(path => Probe(path).ReferencesSdk)
+            .Where(path => Probe(path).ReferencesSdk || NativeNodeLibraries.IsLibrary(path))
             .Concat(PythonLibraries.Find(folder))
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -109,11 +111,11 @@ public static class PluginLoader
 
     /// <summary>
     /// Loads a library and adds its nodes to the catalogue. Installing the
-    /// same file twice returns the first result - unless it is a Python
-    /// library that added no nodes, when it is tried again: what stopped
-    /// it, a missing package or a wrong path in sirius.json, is fixed
-    /// outside the application. A DLL that failed stays failed until
-    /// restart; the version it was is the one loaded.
+    /// same file twice returns the first result - unless it is a Python or
+    /// a C++ library that added no nodes, when it is tried again: what
+    /// stopped it, a missing package or DLL or a wrong path in sirius.json,
+    /// is fixed outside the application. A C# DLL that failed stays failed
+    /// until restart; the version it was is the one loaded.
     /// </summary>
     public static PluginLibrary Install(string path)
     {
@@ -125,8 +127,11 @@ public static class PluginLoader
         {
             if (Installed.TryGetValue(fullPath, out var existing))
             {
-                if (existing.Nodes.Count > 0 || !PythonLibraries.IsPythonFile(fullPath))
+                if (existing.Nodes.Count > 0 ||
+                    !(PythonLibraries.IsPythonFile(fullPath) || NativeNodeLibraries.IsLibrary(fullPath)))
+                {
                     return existing;
+                }
 
                 Order.Remove(existing);
             }
@@ -174,8 +179,15 @@ public static class PluginLoader
 
         var probe = Probe(fullPath);
 
+        if (!probe.IsManaged && NativeNodeLibraries.IsLibrary(fullPath))
+            return NativeNodeLibraries.Load(fullPath);
+
         if (!probe.IsManaged)
-            return Failed(fullPath, fileName, null, "This is not a .NET library.");
+        {
+            return Failed(fullPath, fileName, null,
+                "This is neither a .NET library nor a C++ node library: it does not export " +
+                $"{NativeNodeLibrary.EntryPoint}.");
+        }
 
         var name = probe.Name ?? fileName;
 

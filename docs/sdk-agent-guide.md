@@ -2,13 +2,17 @@
 
 Instructions for a coding agent (Codex, Claude Code, or similar) working in
 this SDK folder. The usual jobs are **migrating a Python algorithm into a C#
-custom node** and **wrapping Python code as a Python node**. Humans should
-start with `README.md`. These rules apply to you as well.
+custom node**, **wrapping Python code as a Python node** and **wrapping C++
+code as a C++ node**. Humans should start with `README.md`. These rules
+apply to you as well.
 
-## C# or Python
+## C#, Python or C++
 
 Do what the user asked for. If they did not say:
 
+- **C++ node** when the code is C++ already, or depends on a C++ library
+  (OpenCV's C++ API, HALCON, TensorRT, libtorch). Never port working C++
+  to C# unasked.
 - **Python node** when the code depends on a Python-only library (PyTorch,
   ONNX Runtime, TensorFlow, a vendor SDK), or the user wants the original
   code kept as it is.
@@ -16,7 +20,8 @@ Do what the user asked for. If they did not say:
   must be fast, or the line PC should not need Python.
 
 Say which you chose and why. The C# rules follow; the Python ones are in
-**Writing a Python node** below.
+**Writing a Python node** below, and the C++ ones in **Writing a C++
+node** after it.
 
 ## Read first (C#)
 
@@ -210,6 +215,58 @@ python -m pytest
 in the library's folder, and report the node(s), their keys, the
 packages needed, and the built-in nodes to wire ahead of them.
 
+## Writing a C++ node
+
+Read `cpp-nodes.md` first, and `cpp/sirius_node.hpp`: it is short, and it
+is the whole API. `CppNodes/sample_nodes.cpp` is the reference pattern;
+`CppNodes/build.cmd` builds it.
+
+- **The two C# rules that hold here too:** never reimplement a step the
+  application has as a built-in node, and the `.key(...)` is permanent.
+- **Include `sirius_node.hpp`; never edit it or `sirius_node.h`**, and
+  write nothing against `sirius_node.h` directly. The guard that turns a
+  crash into the node's error is in the `.hpp`.
+- **`SIRIUS_NODES(...)` once, in one source file,** naming every node
+  class.
+- **The library runs inside the application. A bug in it can end the
+  application.** So:
+  - **Never write to an input image**, and never keep its pointer or a
+    `cv::Mat` over it after `run()` returns. `clone()` first.
+  - **Index pixels through the stride**: `sirius::to_mat`, or
+    `image.row<T>(y)`. Never `data + y * width * channels`.
+  - **Check sizes before indexing.** An empty image, a kernel larger than
+    the image, a region outside it: throw `sirius::error` with a sentence
+    an operator can act on.
+  - **Check `image.pixels` and `image.channels`** and throw
+    `sirius::error` for a type the node does not handle. Do not cast and
+    hope.
+  - **No `abort()`, `exit()`, `assert()` or `std::terminate()`**, nothing
+    thrown from a destructor or a `noexcept` function, and no detached
+    threads that outlive `run()`. None of those can be caught.
+  - Throw for failures - `sirius::error`, or let `std::exception` and
+    `cv::Exception` through; do not catch and swallow them.
+- **Load models and open files in `load()`**, not in `run()` and not in a
+  global object's constructor. Mark the settings `load()` reads with
+  `.reload()`.
+- **Detections, words and features are shapes** with `.with_metric(...)`,
+  so Filter Shapes and Shape Table can use them. Do not return them as
+  text.
+- **`run.warn(...)` for "produced a result, but look at this".**
+- **Every setting gets a default and a `.description(...)`.** Numbers the
+  operator tunes get `.range(...)` and `.step(...)`.
+- **Build for x64, Release, `/MD`, with a `.pdb`.** Say which DLLs the
+  library needs beside it; if they live elsewhere, write a `sirius.json`
+  beside it with `dllFolders`. Do not download or install libraries unless
+  the user asks.
+
+There is no test runner for C++ nodes outside the application. Keep the
+algorithm in a function of its own, taking plain pointers or a `cv::Mat`,
+so it can be tested with whatever the project already uses; keep the node
+class a thin wrapper around it. Build with `build.cmd` (or the project's
+own build) and report the node(s), their keys, the DLLs needed, the
+built-in nodes to wire ahead of them, and that the build succeeded - and
+say plainly that it has not been run in the application.
+
 ## Do not
 
 - Add a `Version=` to `Sirius.Plugins` other than the one already in the
@@ -221,4 +278,4 @@ packages needed, and the built-in nodes to wire ahead of them.
 - Reach for reflection, `unsafe` code or `Marshal` to get at a picture's
   memory. `Row<T>` and `Samples<T>` are spans and already fast.
 - Report success without having run `dotnet test`, or `pytest` for a
-  Python node.
+  Python node, or the build for a C++ one.

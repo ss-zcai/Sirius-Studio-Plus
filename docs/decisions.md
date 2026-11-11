@@ -2733,3 +2733,90 @@ the project and screen work a program of its own. Names chosen then.
   (measurements, profiles), so a shared UI library is left until the
   programs need to ship or be licensed apart. All three publish into one
   folder.
+
+## 72. Custom nodes in C++
+
+Asked for on 11 November 2026, for OpenCV code and custom deep learning
+code, with HALCON and other libraries not ruled out: in the application's
+process, for speed, "but better with some good error handling".
+
+- **A plain C interface**, `sirius_node.h`: one exported function,
+  `sirius_node_library`, returning a table of five entry points, and a
+  table of functions the application hands a node while it runs. No C++
+  types cross it, so a library's compiler, its C++ runtime and its OpenCV
+  are its own business, and HALCON, TensorRT or a library in C fit as well
+  as OpenCV does. `SIRIUS_API_VERSION` is checked when a library loads.
+- **Not C++/CLI.** The loader reads a C# library into memory so its file
+  is not locked; a mixed assembly cannot be loaded that way, and would tie
+  a library to .NET.
+- **Declared as a Python library declares**: the same JSON, the same port
+  and setting types, read by the same code (`PythonNodeType.Ports` and
+  `.Setting`), so the three kinds of custom node look alike.
+- **Values by name, pulled.** A node asks for `"level"` or `"image"` when
+  it wants it, rather than being handed a structure of everything. A
+  setting and an input are asked for the same way, so a connectable
+  setting needs nothing special; a name the node did not declare, or one
+  asked for as the wrong type, is an error that lists the names it has.
+- **Images are not copied in.** A node gets the matrix's own pointer and
+  stride - so a slice of a larger image goes as it is - with its sample
+  type under OpenCV's numbers, its colour layout and its bits. An output
+  image is copied once, when it is set. Seven sample types, not the three
+  a C# or Python node sees: C++ code already speaks them.
+- **`sirius_node.hpp`** is the convenience over it, header-only, C++14:
+  `Node`, `Declaration`, `Run`, `Image`, `Shape`, and `SIRIUS_NODES(...)`.
+  It is also where the error handling lives, compiled into the library:
+  1. every C++ exception is caught at the boundary and is the node's
+     error - `SIRIUS_EXTRA_CATCH` for a library whose exceptions are not
+     `std::exception`s, as HALCON's are not;
+  2. a hardware fault - access violation, integer divide by zero, stack
+     overflow, illegal instruction - is caught with structured exception
+     handling (`__try`), reported with its code and address, and comes
+     back as `SIRIUS_CRASHED`.
+  The guard has to be on the library's side: .NET cannot catch a fault in
+  native code, and the application carries no native code of its own to
+  put one in. A library built without the `.hpp` has no guard.
+- **After a fault the library is stopped** until restart: every node of
+  it fails, saying so. The fault was caught; what the code wrote before it
+  is not known, and an inspection that gives a wrong answer from damaged
+  memory is worse than one that stops. The application stays up so work
+  can be saved. The message names what happened and where -
+  `MyNodes.dll+0x1A2B`, or "inside opencv_world4100.dll, which it uses" -
+  from the address and the process's modules.
+- **The application's callbacks never throw into the library.** Each
+  catches everything and answers -1 with a reason; the `.hpp` turns that
+  into a `sirius::error`. An output image is copied through a guarded copy
+  the library provides, because a fault in managed code called back from
+  native code cannot be caught by either side: a stale pointer is then the
+  node's error.
+- **One call at a time into a library.** Two stations running one node
+  take turns, so a node needs no locks and a model no thread safety.
+- **Never unloaded**, so the DLL is locked while the application runs and
+  the application must be closed to rebuild it. Unlike a C# library, a
+  native one may hold threads and GPU memory that cannot be asked back.
+  A node's object is freed when nothing refers to the node, the next time
+  the library is called - never from the finaliser thread.
+- **Found by its export**, read from the file's headers without loading
+  it, so OpenCV's DLLs beside a library are passed over. Loaded by full
+  path, so Windows looks beside it first, then along PATH; `dllFolders` in
+  the library's `sirius.json` adds folders to this process's PATH.
+- **A missing DLL is named.** Windows says only that a module could not
+  be found; the loader reads the import tables, through the DLLs that are
+  found, and says which is not. A 32-bit DLL and a library built for
+  another interface version are each refused by name. A library that
+  failed to load is tried again when it is added again.
+- **A caution for newer tools than the runtime.** A process has one C++
+  runtime, the first loaded, and the application brings 14.44. A library
+  built with later tools loads, with a caution saying both versions: that
+  mismatch faults in ordinary code and is very hard to find afterwards.
+- **What is not caught, and is said so** in the guide: a fault on a thread
+  the library started, `abort()` and `std::terminate()`, memory overwritten
+  without a fault, a fault while the DLL loads. A separate process, as
+  Python has, is the answer to those and is left until it is asked for
+  (backlog F22).
+- **Tested by building real DLLs** with the Visual C++ compiler where
+  there is one (the tests pass without checking anything where there is
+  not, as the Python tests do): every part of the interface, each kind of
+  failure including the three faults, a library in plain C, a missing
+  DLL, and the sample. The compiler was added to the development PC for
+  this. OpenCV is not on it: `to_mat` and `from_mat` are compiled against
+  a stand-in for its header.

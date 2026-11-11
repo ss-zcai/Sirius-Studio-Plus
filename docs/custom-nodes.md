@@ -9,8 +9,9 @@ Companion to `decisions.md`, which records what was settled and why, and
 > **Interface version 1.0.** Built and tested. The SDK is
 > `dist/Sirius.Plugins-SDK-1.0.2.zip`, made by `tools/pack-sdk.ps1`: the
 > `Sirius.Plugins` package, this guide, a sample library that builds from
-> the package alone, and the Python SDK with its sample
-> ([python-nodes.md](python-nodes.md)).
+> the package alone, the Python SDK with its sample
+> ([python-nodes.md](python-nodes.md)) and the C++ SDK with its sample
+> ([cpp-nodes.md](cpp-nodes.md)).
 
 ---
 
@@ -511,6 +512,23 @@ recipe, and a crash in an extension ends that process rather than the
 application. The process stays up between images, so models load once.
 Pixels cross as raw buffers over a pipe and arrive as NumPy arrays: the
 contract is still a pixel buffer, as §2 intended.
+
+---
+
+## 8b. C++
+
+Built, as **native DLLs in the application's process** - see
+[cpp-nodes.md](cpp-nodes.md). A DLL that exports `sirius_node_library` is a
+library like any other: found in the same plugins folders, added in the
+same window, its nodes filed under the same `custom/` keys and saved in
+recipes the same way. It declares its nodes in the words a Python library
+uses, so the two are read by the same code.
+
+The contract is again a pixel buffer, as §2 intended - here literally: a
+node is handed the image's own pointer and stride, with no copy. Because
+the library shares the process, its C++ exceptions and its hardware faults
+are caught at the boundary, by the header it is built with, and a library
+that has faulted is stopped until restart. Decision 72 has the reasons.
 
 ---
 

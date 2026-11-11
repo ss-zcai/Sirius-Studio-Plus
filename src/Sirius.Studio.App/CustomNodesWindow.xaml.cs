@@ -47,7 +47,7 @@ public partial class CustomNodesWindow : Window
         var dialog = new OpenFileDialog
         {
             Title = "Add Custom Node Library",
-            Filter = "Custom node library (*.dll;*.py)|*.dll;*.py|.NET library (*.dll)|*.dll|" +
+            Filter = "Custom node library (*.dll;*.py)|*.dll;*.py|.NET or C++ library (*.dll)|*.dll|" +
                      "Python library (*.py)|*.py|All files (*.*)|*.*",
             CheckFileExists = true,
         };

@@ -41,4 +41,18 @@
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!--
+    C++ node libraries, as source: built by the tests with the Visual C++
+    compiler where there is one, against the headers the application ships
+    in its cpp folder.
+  -->
+  <ItemGroup>
+    <None Update="Native/**"
+          Link="cpp-tests/%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/CppNodes/sample_nodes.cpp"
+          Link="cpp-tests/Native/sample_nodes.cpp"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

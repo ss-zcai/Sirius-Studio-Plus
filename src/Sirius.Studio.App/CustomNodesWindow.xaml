@@ -20,7 +20,7 @@
 
         <TextBlock TextWrapping="Wrap"
                    Foreground="{StaticResource Text.Secondary}"
-                   Text="Libraries of tools built outside Sirius Studio Plus - .NET (.dll) or Python (.py). Libraries in a plugins folder load when the application starts; others are added here and remembered. A Python library runs in its own Python: the one named in sirius.json beside it, a .venv beside it, or the one on PATH." />
+                   Text="Libraries of tools built outside Sirius Studio Plus - .NET or C++ (.dll), or Python (.py). Libraries in a plugins folder load when the application starts; others are added here and remembered. A Python library runs in its own Python: the one named in sirius.json beside it, a .venv beside it, or the one on PATH. A C++ library runs inside the application, and needs the DLLs it uses beside it or on PATH." />
 
         <Border Grid.Row="1"
                 Margin="0,12,0,0"

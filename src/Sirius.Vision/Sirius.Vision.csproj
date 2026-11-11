@@ -46,6 +46,17 @@
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!--
+    The C++ custom node SDK: two headers, in a cpp folder beside the
+    executable. A library includes sirius_node.hpp from there, or copies
+    both.
+  -->
+  <ItemGroup>
+    <Content Include="Cpp/sirius_node.h;Cpp/sirius_node.hpp"
+             Link="cpp/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Sirius.Core\Sirius.Core.csproj" />
     <ProjectReference Include="..\Sirius.Plugins\Sirius.Plugins.csproj" />

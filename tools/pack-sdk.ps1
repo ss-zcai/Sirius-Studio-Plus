@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
     Packs the custom node SDK: the Sirius.Plugins package, the guides, a C#
-    sample library that builds against the package, and the Python SDK with
-    a sample library of its own.
+    sample library that builds against the package, and the Python and C++
+    SDKs, each with a sample library of its own.
 
 .DESCRIPTION
     What a team writing custom nodes is handed. Unzip it anywhere, and
@@ -24,6 +24,10 @@
     sirius_nodes.py, when SIRIUS_SDK_PYTHON names a python.exe with numpy
     and opencv-python. Without it they are skipped, with a warning: Python
     is not something every PC that packs the SDK has.
+
+    The C++ sample is built the same way, with its own build.cmd against
+    the packaged headers, when Visual Studio's C++ compiler is installed.
+    Without one it is skipped, with a warning.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools/pack-sdk.ps1
@@ -210,6 +214,17 @@ with Codex and other tools so every agent follows the same rules.
     Copy-Item 'samples/PythonNodes/sirius.json.example' $pythonSample
     Copy-Item 'docs/python-nodes.md' $staging
 
+    # ---- the C++ SDK and its sample ------------------------------------------
+
+    # The same two headers the application ships in its cpp folder.
+    $cpp = Join-Path $staging 'cpp'
+    $cppSample = Join-Path $staging 'CppNodes'
+    New-Item -ItemType Directory -Force $cpp, $cppSample | Out-Null
+
+    Copy-Item 'src/Sirius.Vision/Cpp/sirius_node.h', 'src/Sirius.Vision/Cpp/sirius_node.hpp' $cpp
+    Copy-Item 'samples/CppNodes/sample_nodes.cpp', 'samples/CppNodes/build.cmd', 'samples/CppNodes/CMakeLists.txt' $cppSample
+    Copy-Item 'docs/cpp-nodes.md' $staging
+
     # ---- prove it builds from the package alone -----------------------------
 
     Write-Host 'Building and testing the sample against the package, outside the repository...'
@@ -258,6 +273,34 @@ print(f'{len(tests)} Python sample tests passed')
     }
     else {
         Write-Warning 'The Python sample was not tested: set SIRIUS_SDK_PYTHON to a python.exe with numpy and opencv-python.'
+    }
+
+    # ---- and the C++ sample against the packaged headers ----------------------
+
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    $compiler = if (Test-Path $vswhere) {
+        & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    }
+
+    if ($compiler) {
+        Write-Host 'Building the C++ sample against the packaged headers...'
+
+        # With no folder named, build.cmd takes the cpp folder beside
+        # CppNodes - the one in the package, as a team would have it.
+        & cmd /c "`"$(Join-Path $cppSample 'build.cmd')`""
+        if ($LASTEXITCODE -ne 0) { throw 'The C++ sample does not build against the packaged headers; nothing was zipped.' }
+
+        if (-not (Test-Path (Join-Path $cppSample 'SampleCppNodes.dll'))) {
+            throw 'The C++ sample built, but SampleCppNodes.dll is not beside it.'
+        }
+
+        # Sources only in the zip, as a team would check them out.
+        Get-ChildItem $cppSample -File |
+            Where-Object { $_.Extension -in '.dll', '.obj', '.exp', '.lib', '.pdb', '.ilk' } |
+            Remove-Item -Force
+    }
+    else {
+        Write-Warning 'The C++ sample was not built: install Visual Studio with "Desktop development with C++".'
     }
 
     $built = Get-ChildItem -Path $sample -Recurse -Filter 'Sirius.SampleNodes.dll' |

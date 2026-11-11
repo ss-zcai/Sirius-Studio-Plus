@@ -7,10 +7,10 @@ using Sirius.Plugins;
 
 namespace Sirius.Vision.Plugins;
 
-/// <summary>An input or output a Python node declared.</summary>
+/// <summary>An input or output a Python node declared - or a C++ one, which declares the same way.</summary>
 internal sealed record PythonPort(string Name, string Label, string Kind, bool Required);
 
-/// <summary>A setting a Python node declared.</summary>
+/// <summary>A setting a Python node declared - or a C++ one.</summary>
 internal sealed record PythonSetting(
     string Name, string Kind, object Default, bool Connectable, IReadOnlyList<string> Choices, ParamAttribute Attribute)
 {
@@ -127,7 +127,7 @@ internal sealed class PythonNodeType
         return type;
     }
 
-    private static List<PythonPort> Ports(JsonNode? list, ICollection<string> problems)
+    internal static List<PythonPort> Ports(JsonNode? list, ICollection<string> problems)
     {
         var ports = new List<PythonPort>();
 
@@ -148,7 +148,7 @@ internal sealed class PythonNodeType
         return ports;
     }
 
-    private static PythonSetting? Setting(JsonObject setting, ICollection<string> problems)
+    internal static PythonSetting? Setting(JsonObject setting, ICollection<string> problems)
     {
         var name = Text(setting, "name") ?? "";
         var kind = Text(setting, "type") ?? "";
@@ -217,7 +217,7 @@ internal sealed class PythonNodeType
         : value.TryGetValue<string>(out var text) ? text
         : value.ToJsonString();
 
-    private static string? Text(JsonObject source, string name) =>
+    internal static string? Text(JsonObject source, string name) =>
         source[name] is JsonValue value && value.TryGetValue<string>(out var text) && !string.IsNullOrWhiteSpace(text)
             ? text
             : null;

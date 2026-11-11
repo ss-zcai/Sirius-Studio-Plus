@@ -156,19 +156,23 @@ from you before they start.
 - **F16. C# custom nodes** (S-M each): reloading a library without a
   restart, icons a library supplies, IntelliSense for the `Sirius.Core`
   types in the SDK package.
-- **F21. C++ custom nodes** (M-L). Proposed: a plain C interface - a
-  small `sirius_node.h` - so a C++ library is a native DLL with no C#
-  in it. It describes its nodes the way a Python library does (ports,
-  settings, the same description the application already reads) and is
-  handed each image as a pointer, width, height, stride and type, with
-  no copy; its own OpenCV wraps that in a `cv::Mat`. Runs in the
-  application's process, so it is as fast as a built-in tool - and a
-  crash in it is a crash of the application, unlike Python's separate
-  process. Not a C++/CLI wrapper: the loader reads a C# library into
-  memory so its file is not locked while it is rebuilt, which a mixed
-  C++/.NET assembly cannot be loaded from. Needs from you: what the C++
-  code is (OpenCV, HALCON, GPU?) and whether a crash must not take the
-  application down - which would mean a separate process, as Python has.
+- ~~**F21. C++ custom nodes**~~ - done, 11 November 2026: a native DLL
+  through a plain C interface (`sirius_node.h`, with `sirius_node.hpp`
+  over it), in the application's process, with exceptions and hardware
+  faults caught at the boundary. See `cpp-nodes.md` and decision 72.
+- **F22. C++ nodes: what is left** (S-M each):
+  - **built against real OpenCV and HALCON.** The OpenCV glue
+    (`to_mat` / `from_mat`) is compiled and tested against a stand-in
+    for OpenCV's header, and the HALCON lines in the guide are from its
+    documentation: neither library is on the development PC. Needs a
+    library of yours built against each;
+  - **a process of its own, as an option** for a library that cannot be
+    trusted not to crash in the ways that cannot be caught (its own
+    threads, `abort()`), at the cost of a copy of each image;
+  - **saying, at the next start, what closed the application** when one
+    of those did - Windows records the faulting DLL;
+  - a way to test a node without the application, as `NodeRunner` is for
+    Python.
 
 ### Editing
 

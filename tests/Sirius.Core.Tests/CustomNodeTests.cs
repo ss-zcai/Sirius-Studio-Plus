@@ -638,7 +638,7 @@ public class CustomNodeTests
         var path = Path.Combine(Scratch(), "native.dll");
         File.WriteAllBytes(path, [0x4D, 0x5A, 1, 2, 3, 4, 5, 6]);
 
-        Assert.Contains("not a .NET library", Assert.Single(PluginLoader.Load(path).Problems));
+        Assert.Contains("neither a .NET library nor a C++ node library", Assert.Single(PluginLoader.Load(path).Problems));
     }
 
     /// <summary>

@@ -145,6 +145,27 @@ Copy-Item 'samples/PythonNodes/*.py' $pythonSample
 Copy-Item 'samples/PythonNodes/sirius.json.example' $pythonSample
 Copy-Item 'docs/python-nodes.md' (Join-Path $staging 'docs')
 
+# ---- sample C++ node library -------------------------------------------------
+
+# Its source, and the DLL built from it against the headers this package
+# carries - so a tester can add a C++ node by hand without a compiler, and
+# so a package whose headers do not compile never leaves here.
+Write-Host 'Building the sample C++ node library...'
+$cppSample = Join-Path $staging 'samples/CppNodes'
+New-Item -ItemType Directory -Force $cppSample | Out-Null
+Copy-Item 'samples/CppNodes/sample_nodes.cpp', 'samples/CppNodes/build.cmd', 'samples/CppNodes/CMakeLists.txt' $cppSample
+Copy-Item 'docs/cpp-nodes.md' (Join-Path $staging 'docs')
+
+& cmd /c "`"$(Join-Path $cppSample 'build.cmd')`" `"$(Join-Path $staging 'cpp')`""
+if ($LASTEXITCODE -ne 0) {
+    throw 'The sample C++ node library did not build. It needs Visual Studio with "Desktop development with C++".'
+}
+
+# The DLL and its .pdb stay; the rest is what the compiler left behind.
+Get-ChildItem $cppSample -File |
+    Where-Object { $_.Extension -in '.obj', '.exp', '.lib', '.ilk' -or $_.Name -like 'vc*.pdb' } |
+    Remove-Item -Force
+
 # ---- check -----------------------------------------------------------------
 
 $required = @(
@@ -168,6 +189,11 @@ $required = @(
     'python/sirius_worker.py'
     'samples/PythonNodes/dark_spots.py'
     'docs/python-nodes.md'
+    'cpp/sirius_node.h'
+    'cpp/sirius_node.hpp'
+    'samples/CppNodes/sample_nodes.cpp'
+    'samples/CppNodes/SampleCppNodes.dll'
+    'docs/cpp-nodes.md'
 
     # The camera makers' .NET APIs. Without them the drivers build empty and
     # the package lists no Basler or Hikrobot cameras, which nothing else
