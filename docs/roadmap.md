@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands. **1.0.10** is the latest package (6 November
+Where the product stands. **1.0.11** is the latest package (11 November
 2026). What could come next, in a proposed
 order, is in **`backlog.md`** - this page is what is done, and the one
 thing that blocks shipping.
@@ -25,21 +25,17 @@ time: backlog items L1-L4.
 
 ---
 
-## New in 1.0.10
+## New in 1.0.11
 
-- **Crop folded into Region of Interest.** Recipes with a Crop open with
-  an ROI cutting the same pixels. ROI has no shape output repeating its
-  region any more; a region placed by a wired shape shows where it was
-  placed. Decision 61.
-- **Offset Shapes and Transform Shapes** (below, under Shapes).
-  Decision 62.
-- **The Camera node says why a camera make is missing** - pylon older
-  than 26.10, not installed, not on the PATH - under its Device list.
-  Decision 63.
-- **Selection follows through Filter Shapes and Select Shape**, so a
-  table on a finder and a viewer drawing what a filter kept share it.
-- **A + at the centre of circles and ellipses**, clickable to pick them,
-  and a round number badge for them beside a blob's square one.
+- **Three programs.** Sirius Studio builds recipes; **Sirius Builder**
+  builds a project - stations and the line's screen; **Sirius Edge** runs
+  it on the machine. Decisions 68 to 71, and `runtime-design.md`.
+- **Real bit depth.** Images carry how many bits they use, and level
+  settings run to the image's own top - 4095 for 12-bit. Decision 64.
+- **Custom nodes in C++**, in the application's process, with their
+  faults caught. Decision 72 and `cpp-nodes.md`. SDK 1.0.3.
+- **Rotate and Mirror**, and **Resize to a size in pixels**.
+- **Label** has no mark at its point, and a choice of anchor.
 
 ---
 
@@ -53,7 +49,7 @@ ownership, `.sgraph` serialisation with legacy migrations, and partial
 evaluation: a recipe slower than 60 ms runs the edited node and its
 ancestors at once and the rest when the edits pause.
 
-**71 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
+**72 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis, Calibration, Text and Code Reading,
 Judging, Output and Sub Graph. `node-reference.md` lists every one.
 
@@ -92,7 +88,7 @@ earlier designs, including `Sirius Stu`, are no longer used.
 tests, regenerates the node reference, checks the licence notices,
 camera APIs and other required files are in it, and refuses to write one
 whose stamped version disagrees with its name. `tools/pack-sdk.ps1` packs
-the custom node SDK (1.0.2) and proves its sample builds from the package
+the custom node SDK (1.0.3) and proves its sample builds from the package
 alone.
 
 ### The viewer
@@ -180,7 +176,7 @@ backlog N2.
 
 - **Sub-graphs**, first version: a node holding a graph of its own,
   opened in a tab, with Graph Input and Graph Output as its sockets.
-- **Custom nodes in C#** (interface 1.0, SDK 1.0.2), **in Python**,
+- **Custom nodes in C#** (interface 1.0, SDK 1.0.3), **in Python**,
   each Python library in its own process and environment, and **in
   C++** (11 November 2026), a native DLL in the application's process
   with its faults caught at the boundary. See `custom-nodes.md`,

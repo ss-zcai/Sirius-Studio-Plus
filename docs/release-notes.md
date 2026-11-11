@@ -5,6 +5,160 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.11 — 11 November 2026
+
+Three programs instead of one - Studio for recipes, **Builder** for a
+line's stations and screen, **Edge** to run it - real 10- and 12-bit
+images through the tools, custom nodes in C++, and Rotate and Mirror, on
+top of everything in 1.0.10 below. Recipes saved in 1.0.10 open
+unchanged. 72 nodes. The custom node SDK is **1.0.3**.
+
+### What is in the folder now
+
+| | |
+|---|---|
+| `SiriusStudioPlus.exe` | **Sirius Studio**: builds and tunes recipes, as before |
+| `SiriusBuilder.exe` | **Sirius Builder** (1.0.1): puts recipes into a project, as stations, and lays out the screen the line sees |
+| `SiriusEdge.exe` | **Sirius Edge**: runs a project full screen on the machine, editing nothing. `--windowed` for a desk |
+| `sirius-run.exe` | recipes over a folder of images, from a script, as before |
+
+### What to try first
+
+> A 12-bit image (Image File, **Read Mode: Unchanged**) → Threshold, Find Blobs, Normalise, Canny
+
+The level settings now run to 4095 on a 12-bit image, in the image's own
+values, and the tools keep the 12 bits through. Before, a 12-bit image
+was treated as 16-bit and every level was sixteen times too high.
+
+> Studio: right-click a node → **Publish** an output, a setting and a viewer. Save.
+> Builder: **New Project**, **Add from Recipe**, then **Test Run** (F5).
+
+Builder makes a standard screen from what the recipe publishes: the
+picture, PASS / FAIL, counts, Trigger and Run, the results and the
+settings. Drag widgets about, add more from the Widgets panel, and Test
+Run again. Then open the same `.sproj` in Edge.
+
+> Builder: a **Setting** widget → Properties → **Control**: Slider, or Range
+
+A setting on the line can be a − value + stepper, a slider, a box, or -
+for a low and a high setting together - one slider with two handles. Set
+**Lowest** and **Highest** under "On the line" first: a slider needs
+both. **Label position: Top** puts a long name above its control.
+
+> Tools ▸ Custom Nodes ▸ Add Library → `samples\CppNodes\SampleCppNodes.dll`
+
+Two nodes written in C++: **Dark Spots (C++)** under Blob and
+**Sharpness (C++)** under Analysis. Its source is beside it;
+`docs\cpp-nodes.md` says how to write one, and the SDK has the headers.
+
+> Polar to Linear → **Rotate and Mirror**
+
+For a strip that comes out upside down or reading backwards.
+
+### New: Builder and Edge
+
+- **A project** (`.sproj`) is a folder of stations, each running one
+  recipe, and a screen. Builder adds a station empty or from a recipe
+  file, which it copies in; renames, reorders and removes them; and opens
+  a station's recipe in Studio (double-click).
+- **Publishing, in Studio.** A screen can show or change only what a
+  recipe publishes: right-click a node for **Publish**, or a setting's
+  name in the properties panel for **Publish as Setting**. Published
+  ports and settings are tagged on the canvas, and **Published Names**
+  lists them. Only Studio writes recipes.
+- **The screen designer.** Widgets: Text, Image Viewer, PASS / FAIL,
+  Value, Counts, Button (Trigger, Run / Stop, Reset Counts - for one
+  station or all), Setting, Logo. Drag from the Widgets panel, move and
+  resize on a 10-unit grid, set the rest in the property grid. Cut, copy,
+  paste, duplicate, bring forward and send back, undo and redo. A widget
+  bound to a name the recipe no longer publishes is listed along the
+  bottom. **Screen ▸ Reset to Standard** makes the generated screen
+  again, and asks first.
+- **Settings changed on the line.** A Setting widget changes its setting
+  within **Lowest** and **Highest**, set per station in Builder, never
+  wider than the node's own range. The value is kept beside the recipe,
+  not in it; **Station ▸ Line Settings** compares the two and takes the
+  line's values into the recipe or forgets them. Studio says, when it
+  opens a recipe, which of its settings a line has changed.
+- **Image Viewer widgets** take a background colour.
+- **Edge** runs every station: the camera grabs for each inspection, or
+  an Image Sequence steps through its images in a camera's place.
+  Stopping finishes the inspection in hand. Closing asks first.
+- **Each program has its own icon**, and Builder its own Help ▸ About.
+
+### New: bit depth
+
+- **Images carry their bits**: 8, 10, 12, 14 or 16. A Mono12 camera says
+  12; Image File and Image Sequence have a **Bits** setting, where Auto
+  takes the file's. **Read Mode is Unchanged for new nodes**, so a 12-bit
+  file stays 12-bit; nodes in saved recipes keep what they had.
+- **Level settings follow the image**: Threshold, Adaptive Threshold,
+  Brightness, Find Blobs, Canny, the edge finders' Min Contrast and
+  Normalise's Scale run to the image's top value, and mean its own
+  values. On a 12-bit image
+  Normalise's default Scale of 128 is dark - about 2048 is mid-grey.
+- **Read Code and Read Text work on 12-bit images**, as do Find Blobs'
+  automatic threshold, Histogram and Blend. A viewer's **Display: Auto**
+  shows an image at its own bits.
+- **Python nodes see it too**: `image.bits`, `image.max_value`, and
+  `with_bits()` for a result.
+
+### New: custom nodes in C++
+
+- **A C++ DLL can add nodes**, beside C# and Python ones, and looks the
+  same in the toolbox and in a recipe. It runs inside the application:
+  an image reaches it as a pointer, with no copy, so it is as fast as a
+  built-in tool. Two headers are the whole interface, so it can be built
+  with any OpenCV, HALCON or deep learning runtime.
+- **What goes wrong in one is caught.** A C++ exception is the node's
+  error. A crash - a null or stale pointer, a divide by zero, the stack
+  run out - is caught too: the node says what happened and where
+  (`MyNodes.dll+0x1A2B`), that library is stopped until the application
+  is restarted, and the application stays up so work can be saved.
+- **A DLL the library needs and cannot find is named** in Tools ▸ Custom
+  Nodes, where Windows says only that "a module" is missing. Put it
+  beside the library and add the library again - no restart.
+- The headers are in the application's `cpp` folder and in the SDK, with
+  `CppNodes`, a sample that builds with `build.cmd` or CMake.
+
+### New and changed: tools
+
+- **Rotate and Mirror** (Basic): turns an image 90°, 180° or 270°
+  clockwise, then mirrors it left to right or top to bottom. Exact - no
+  resampling. Rotated 180° and mirrored left to right is the same as
+  mirrored top to bottom alone.
+- **Resize has Resize By**: Scale, as before, or **Size in pixels** with
+  a Width and a Height. Leave one at 0 and it follows the other, keeping
+  the image's proportions.
+- **Shapes stay shapes through a mirror or a quarter turn**: a circle is
+  still a circle and a rectangle a rectangle on the Overlay output, where
+  they would have become outlines of points.
+- **Label** draws no cross at its point, and has an **Anchor**: which
+  corner or side of the text sits on the point. Clearing its colour box
+  means the default colour, without a warning.
+- **The cursors on a turned region** turn with it.
+
+### Known issues, in addition to those below
+
+- **C++ nodes have not been built against real OpenCV or HALCON here.**
+  The two functions that wrap an image as a `cv::Mat` are compiled only
+  against a stand-in for OpenCV's header, and the HALCON lines in the
+  guide are from its documentation. A library built against either is
+  the test most wanted - `sirius::to_mat` and `sirius::from_mat` first.
+- **Some crashes in a C++ node cannot be caught** and close the
+  application: one on a thread the library started itself, `abort()`,
+  and memory overwritten without a fault. `cpp-nodes.md` §4 lists them.
+- **Close the application before rebuilding a C++ library**: it holds
+  the DLL open.
+- **Resize shows all four of its numbers** whichever way it is resizing;
+  each one's tooltip says when it is used.
+- **Counts start from zero** each time Edge starts, and there are no
+  user levels or PLC signals yet.
+- **Builder is new.** Its screen files and project files may still
+  change; keep the recipes, which will not.
+
+---
+
 ## 1.0.10 — 6 November 2026
 
 Shapes you can grow, shrink, move and turn; Crop folded into Region of

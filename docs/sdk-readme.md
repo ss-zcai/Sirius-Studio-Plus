@@ -1,6 +1,6 @@
 # Sirius Studio Plus — Custom Node SDK
 
-Interface version **1.0.2**
+Interface version **1.0.3**
 
 Write your own tools for Sirius Studio Plus, in **C#**, **Python** or **C++**.
 They show up in the toolbox next to the built-in nodes. Their settings

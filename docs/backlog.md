@@ -2,7 +2,7 @@
 
 What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
-7 November 2026, with 1.0.10 released.
+11 November 2026, with 1.0.11 and SDK 1.0.3 released.
 
 Each item has an ID to refer to it by, a rough size, and where it came
 from when that matters. The order is a proposal: change it, strike things
@@ -47,6 +47,7 @@ Settled, for the record: AvalonDock (Ms-PL, notices fixed), Clipper2
 
 - ~~**N1. Pack 1.0.10**~~ - done, 6 November 2026.
 - ~~**N2. Test with real cameras**~~ - done, 7 November 2026.
+- ~~**N6. Pack 1.0.11 and SDK 1.0.3**~~ - done, 11 November 2026.
 - **N3. Icons** - mostly settled, 7 November 2026: you are happy with
   most, and will draw a few better ones later. Still true meanwhile:
   `ph_find_curve`, `ph_lens_calibration`, `ph_line_defects` and
@@ -74,8 +75,7 @@ from you before they start.
   (decision 64), with the histogram (F1a) and Read Mode: Unchanged for
   new nodes.
 - ~~**F1b. Bits for Python nodes**~~ - done, 7 November 2026: `image.bits`,
-  `image.max_value`, `with_bits()`; SDK file 1.1, so the SDK zip wants
-  repacking with the next release.
+  `image.max_value`, `with_bits()`; SDK file 1.1, packed in SDK 1.0.3.
 
 ### The runtime, HMI and PLC
 
