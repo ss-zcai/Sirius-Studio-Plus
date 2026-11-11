@@ -11,10 +11,10 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**71 nodes** across 14 categories.
+**72 nodes** across 14 categories.
 
 - **Source** — Blank Image, Camera, Image File, Image Sequence, Matrix, Number, Text
-- **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Invert, Region of Interest, Resize, RGB Channel, Threshold
+- **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Invert, Region of Interest, Resize, RGB Channel, Rotate and Mirror, Threshold
 - **Combine** — Blend, Logic, Mask
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
 - **Morphology** — Advanced Morphology, Dilate, Erode
@@ -417,6 +417,33 @@ Extracts a single colour channel.
 | Name | Type | Editor | Range |
 | --- | --- | --- | --- |
 | Channel | `ColourChannel` | ComboBox | - |
+
+### Rotate and Mirror
+
+`basic.rotateMirror`
+
+Turns the image 90°, 180° or 270° and mirrors it left to right or top to bottom - exactly, moving pixels without resampling. Shapes wired into Overlay come out turned with it.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Overlay | `Shapes` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Out | `Image` | square | - |
+| Overlay | `Shapes` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Rotate | `QuarterTurn` | ComboBox | - |
+| Mirror | `MirrorSides` | ComboBox | - |
 
 ### Threshold
 

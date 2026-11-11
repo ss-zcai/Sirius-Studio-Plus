@@ -284,3 +284,153 @@ public sealed class ResizeNode : ImageFilterNode
             destination.Height);
     }
 }
+
+/// <summary>How far Rotate and Mirror turns an image, clockwise.</summary>
+public enum QuarterTurn
+{
+    None = 0,
+
+    [System.ComponentModel.Description("90\u00B0")]
+    Quarter = 90,
+
+    [System.ComponentModel.Description("180\u00B0")]
+    Half = 180,
+
+    [System.ComponentModel.Description("270\u00B0")]
+    ThreeQuarters = 270,
+}
+
+/// <summary>Which sides of an image Rotate and Mirror swaps.</summary>
+public enum MirrorSides
+{
+    None,
+
+    [System.ComponentModel.Description("Left \u2194 Right")]
+    LeftRight,
+
+    [System.ComponentModel.Description("Top \u2194 Bottom")]
+    TopBottom,
+}
+
+/// <summary>
+/// Turns an image by quarter turns and mirrors it.
+/// </summary>
+/// <remarks>
+/// <para>
+/// For an image that arrives the wrong way round - a camera mounted on its
+/// side, a strip from Polar to Linear that reads backwards - and for
+/// nothing subtler: every pixel is moved, none is resampled, so the result
+/// is exact and costs almost nothing. A turn by any other angle is a
+/// resampling, and another tool.
+/// </para>
+/// <para>
+/// The turn is made first and the mirror after. Between them the two
+/// settings reach all eight ways a rectangle can be laid on itself, so no
+/// third setting is needed: mirrored both ways is a turn of 180 degrees.
+/// </para>
+/// </remarks>
+[VisionNode(
+    "Rotate and Mirror",
+    TypeKey = "basic.rotateMirror",
+    Category = NodeCategory.Basic,
+    Icon = "ph_rotate",
+    Description = "Turns the image 90\u00B0, 180\u00B0 or 270\u00B0 and mirrors it left to right or top to bottom - exactly, " +
+                  "moving pixels without resampling. Shapes wired into Overlay come out turned with it.")]
+public sealed class RotateMirrorNode : ImageFilterNode
+{
+    private QuarterTurn _rotate = QuarterTurn.None;
+    private MirrorSides _mirror = MirrorSides.None;
+
+    public RotateMirrorNode()
+    {
+        OverlayIn = AddInput<ShapeSet>("Overlay", isRequired: false);
+        OverlayOut = AddOutput<ShapeSet>("Overlay");
+    }
+
+    /// <summary>Shapes found on the input image, to be placed on the turned one.</summary>
+    public InputPort OverlayIn { get; }
+
+    /// <summary>The same shapes, turned and mirrored with the image.</summary>
+    public OutputPort OverlayOut { get; }
+
+    [Param("Rotate", Description = "Clockwise. 90\u00B0 and 270\u00B0 swap the image's width and height.")]
+    public QuarterTurn Rotate
+    {
+        get => _rotate;
+        set => SetParam(ref _rotate, value);
+    }
+
+    [Param("Mirror",
+        Description = "After the rotation. Left \u2194 Right swaps the left and right sides, as a mirror on the wall does; " +
+                      "Top \u2194 Bottom the top and bottom. Both at once is Rotate 180\u00B0.")]
+    public MirrorSides Mirror
+    {
+        get => _mirror;
+        set => SetParam(ref _mirror, value);
+    }
+
+    protected override void Apply(ImageData source, Mat destination, EvalContext context)
+    {
+        var turned = _rotate is QuarterTurn.Quarter or QuarterTurn.ThreeQuarters;
+        var (width, height) = turned ? (source.Height, source.Width) : (source.Width, source.Height);
+
+        if (_rotate == QuarterTurn.None && _mirror == MirrorSides.None)
+        {
+            source.Mat.CopyTo(destination);
+        }
+        else if (_mirror == MirrorSides.None)
+        {
+            CvInvoke.Rotate(source.Mat, destination, RotationOf(_rotate));
+        }
+        else if (_rotate == QuarterTurn.None)
+        {
+            CvInvoke.Flip(source.Mat, destination, FlipOf(_mirror));
+        }
+        else
+        {
+            using var rotated = new Mat();
+            CvInvoke.Rotate(source.Mat, rotated, RotationOf(_rotate));
+            CvInvoke.Flip(rotated, destination, FlipOf(_mirror));
+        }
+
+        Overlays.Carry(context, OverlayIn, OverlayOut, Map(_rotate, _mirror, source.Width, source.Height), source, width, height);
+    }
+
+    private static RotateFlags RotationOf(QuarterTurn turn) => turn switch
+    {
+        QuarterTurn.Quarter => RotateFlags.Rotate90Clockwise,
+        QuarterTurn.Half => RotateFlags.Rotate180,
+        _ => RotateFlags.Rotate90CounterClockwise,
+    };
+
+    private static FlipType FlipOf(MirrorSides mirror) =>
+        mirror == MirrorSides.LeftRight ? FlipType.Horizontal : FlipType.Vertical;
+
+    /// <summary>
+    /// Where a point of a <paramref name="width"/> by <paramref name="height"/>
+    /// image is afterwards. Exact: pixel (x, y) of the input is one pixel of
+    /// the output, and this says which.
+    /// </summary>
+    internal static ShapeMap Map(QuarterTurn rotate, MirrorSides mirror, int width, int height)
+    {
+        // x' = a x + b y + tx,  y' = c x + d y + ty - the turn first.
+        var (a, b, tx, c, d, ty) = rotate switch
+        {
+            QuarterTurn.Quarter => (0.0, -1.0, height - 1.0, 1.0, 0.0, 0.0),
+            QuarterTurn.Half => (-1.0, 0.0, width - 1.0, 0.0, -1.0, height - 1.0),
+            QuarterTurn.ThreeQuarters => (0.0, 1.0, 0.0, -1.0, 0.0, width - 1.0),
+            _ => (1.0, 0.0, 0.0, 0.0, 1.0, 0.0),
+        };
+
+        var turned = rotate is QuarterTurn.Quarter or QuarterTurn.ThreeQuarters;
+        var (turnedWidth, turnedHeight) = turned ? (height, width) : (width, height);
+
+        // Then the mirror, across the image as it now is.
+        if (mirror == MirrorSides.LeftRight)
+            (a, b, tx) = (-a, -b, turnedWidth - 1 - tx);
+        else if (mirror == MirrorSides.TopBottom)
+            (c, d, ty) = (-c, -d, turnedHeight - 1 - ty);
+
+        return ShapeMap.Affine(a, b, tx, c, d, ty);
+    }
+}

@@ -127,9 +127,51 @@ public sealed class ShapeMap
         return sx > 0 && sy > 0;
     }
 
+    /// <summary>
+    /// A turn and an even scale seen in a mirror: [s cos, s sin; s sin, -s cos].
+    /// Circles stay circles and right angles stay right, as under a
+    /// similarity, but what ran clockwise now runs the other way.
+    /// </summary>
+    private bool IsMirroredSimilarity(out double scale)
+    {
+        scale = 0;
+
+        if (_linear is not { } m || Math.Abs(m.A + m.D) > 1e-9 || Math.Abs(m.B - m.C) > 1e-9)
+            return false;
+
+        scale = Math.Sqrt((m.A * m.A) + (m.C * m.C));
+        return scale > 0;
+    }
+
+    /// <summary>
+    /// Whether what is level stays level or stands upright, and what is
+    /// upright likewise: quarter turns, mirrors, and scales along the axes.
+    /// A rectangle with level sides then still has level sides.
+    /// </summary>
+    private bool KeepsAxes()
+    {
+        if (_linear is not { } m)
+            return false;
+
+        var straight = Math.Abs(m.B) <= 1e-12 && Math.Abs(m.C) <= 1e-12 && m.A != 0 && m.D != 0;
+        var swapped = Math.Abs(m.A) <= 1e-12 && Math.Abs(m.D) <= 1e-12 && m.B != 0 && m.C != 0;
+        return straight || swapped;
+    }
+
+    /// <summary>Which way a direction given in degrees points afterwards.</summary>
+    private double Turned(double degrees)
+    {
+        var m = _linear!.Value;
+        var radians = degrees * Math.PI / 180;
+        var (x, y) = (Math.Cos(radians), Math.Sin(radians));
+
+        return Math.Atan2((m.C * x) + (m.D * y), (m.A * x) + (m.B * y)) * 180 / Math.PI;
+    }
+
     private IEnumerable<Shape> Geometry(Shape shape)
     {
         var similar = IsSimilarity(out var scale, out var turn);
+        var mirrored = IsMirroredSimilarity(out var mirroredScale);
         var axis = IsAxisScale(out var sx, out var sy);
 
         switch (shape)
@@ -142,6 +184,9 @@ public sealed class ShapeMap
 
             case CircleShape circle when similar:
                 return [circle with { Centre = _point(circle.Centre)!.Value, Radius = circle.Radius * scale }];
+
+            case CircleShape circle when mirrored:
+                return [circle with { Centre = _point(circle.Centre)!.Value, Radius = circle.Radius * mirroredScale }];
 
             case CircleShape circle when axis:
                 return
@@ -182,10 +227,53 @@ public sealed class ShapeMap
                     },
                 ];
 
+            // In a mirror the same shapes, leaning the other way.
+            case EllipseShape ellipse when mirrored:
+                return
+                [
+                    ellipse with
+                    {
+                        Centre = _point(ellipse.Centre)!.Value,
+                        MajorAxis = ellipse.MajorAxis * mirroredScale,
+                        MinorAxis = ellipse.MinorAxis * mirroredScale,
+                        Angle = Turned(ellipse.Angle),
+                    },
+                ];
+
+            case OrientedRectShape rect when mirrored:
+                return
+                [
+                    rect with
+                    {
+                        Centre = _point(rect.Centre)!.Value,
+                        Width = rect.Width * mirroredScale,
+                        Height = rect.Height * mirroredScale,
+                        AngleDegrees = Turned(rect.AngleDegrees),
+                    },
+                ];
+
             case RectShape rect when axis:
             {
                 var corner = _point(new Point2(rect.Rect.X, rect.Rect.Y))!.Value;
                 return [rect with { Rect = new Bounds(corner.X, corner.Y, rect.Rect.Width * sx, rect.Rect.Height * sy) }];
+            }
+
+            // A quarter turn or a mirror: still a rectangle with level
+            // sides, between where two opposite corners went.
+            case RectShape rect when KeepsAxes():
+            {
+                var one = _point(new Point2(rect.Rect.X, rect.Rect.Y))!.Value;
+                var other = _point(new Point2(rect.Rect.Right, rect.Rect.Bottom))!.Value;
+
+                return
+                [
+                    rect with
+                    {
+                        Rect = new Bounds(
+                            Math.Min(one.X, other.X), Math.Min(one.Y, other.Y),
+                            Math.Abs(other.X - one.X), Math.Abs(other.Y - one.Y)),
+                    },
+                ];
             }
 
             case RectShape rect when similar:

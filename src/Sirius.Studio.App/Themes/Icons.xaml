@@ -4211,6 +4211,34 @@
     </DrawingImage.Drawing>
   </DrawingImage>
 
+  <DrawingImage x:Key="Icon.ph_rotate">
+    <DrawingImage.Drawing>
+      <DrawingGroup>
+        <GeometryDrawing Brush="#00000000" Geometry="F1 M0,0L256,0L256,256L0,256Z" />
+        <GeometryDrawing Geometry="F1 M176,100L224,100L224,52">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="F1 M190.2,190.2a88,88,0,1,1,0-124.4L224,100">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="F1 M176,100L224,100L224,52">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="F1 M190.2,190.2a88,88,0,1,1,0-124.4L224,100">
+          <GeometryDrawing.Pen>
+            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+          </GeometryDrawing.Pen>
+        </GeometryDrawing>
+      </DrawingGroup>
+    </DrawingImage.Drawing>
+  </DrawingImage>
+
   <DrawingImage x:Key="Icon.ph_run">
     <DrawingImage.Drawing>
       <DrawingGroup>

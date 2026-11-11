@@ -132,8 +132,10 @@ regions shows the one whose pick button was pressed, in its own colour.
 
 - **Filtering, selecting, styling**: Filter Shapes on any measurement,
   Select Shape, Shape Style.
-- **Carried through image changes**: Resize, Region of Interest and Polar
-  to Linear map shapes with their pixels (`ShapeMap`).
+- **Carried through image changes**: Resize, Rotate and Mirror, Region of
+  Interest and Polar to Linear map shapes with their pixels (`ShapeMap`).
+- **Rotate and Mirror** (11 November 2026): quarter turns and mirrors,
+  exact, for an image that arrives the wrong way round.
 - **Measure** reads a distance or angle between two shapes, or one
   shape's size; **Calibrate** turns pixels into units; **Lens
   Calibration** and **Undistort** take out lens distortion.
