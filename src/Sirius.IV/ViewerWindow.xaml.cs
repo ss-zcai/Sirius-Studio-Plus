@@ -15,6 +15,7 @@ public partial class ViewerWindow : Window
 {
     public static readonly RoutedUICommand OpenFolderCommand = new("Open Folder", nameof(OpenFolderCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand SearchCommand = new("Search", nameof(SearchCommand), typeof(ViewerWindow));
+    public static readonly RoutedUICommand MatchCommand = new("Match Pictures", nameof(MatchCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand CopyNameCommand = new("Copy Name", nameof(CopyNameCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand CopyPathCommand = new("Copy Full Path", nameof(CopyPathCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand ShowInExplorerCommand = new("Show in Explorer", nameof(ShowInExplorerCommand), typeof(ViewerWindow));
@@ -32,10 +33,14 @@ public partial class ViewerWindow : Window
 
         // A heading for each sub-folder - a station's days - when sorted by name.
         GroupByFolder();
+        Sync.IsOn = model.SyncViews;
+
         model.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(BrowserViewModel.IsGroupedByFolder))
                 GroupByFolder();
+            else if (e.PropertyName == nameof(BrowserViewModel.SyncViews))
+                Sync.IsOn = model.SyncViews;
         };
 
         if (TryFindResource("Icon.SiriusImageViewer") is ImageSource icon)
@@ -177,6 +182,29 @@ public partial class ViewerWindow : Window
             container.Focus();
         else
             FileList.Focus();
+    }
+
+    // ---- matching, and the viewers in step -------------------------------------------------
+
+    /// <summary>The viewers on screen, kept in step while Sync View is on.</summary>
+    internal ViewSync Sync { get; } = new();
+
+    private void OnMatch(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (MatchingWindow.Ask(this, _model) is { } rule)
+            _model.Match = rule;
+    }
+
+    private void OnViewerLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Sirius.Studio.App.Controls.ImageViewer viewer)
+            Sync.Add(viewer);
+    }
+
+    private void OnViewerUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Sirius.Studio.App.Controls.ImageViewer viewer)
+            Sync.Remove(viewer);
     }
 
     // ---- sorting ---------------------------------------------------------------------------

@@ -145,9 +145,35 @@ Builder opens a station's folder in it; so does
   Right-click, or Ctrl+C and Ctrl+Shift+C, copies the names or full
   paths of those chosen; **Show in Explorer** opens their folder. The
   count along the top adds up their size. **F5** reads the folder again.
-- **Viewers**: one, two side by side, 2 × 2 or 3 × 3 (Ctrl+1, 2, 4, 9).
-  Choose several pictures in the list to see those; choose one to see it
-  and the ones after it, so stepping down the list steps them all along.
+- **Viewers**: one, two or three side by side, 2 × 2 or 3 × 3 (Ctrl+1,
+  2, 3, 4, 9). Choose several pictures in the list to see those; choose
+  one to see it and the ones after it, so stepping down the list steps
+  them all along.
+- **Match** (Ctrl+M) makes pictures that belong together - two cameras'
+  views of one part, a part lit three ways - into sets, by one of:
+  - **in groups of N** (2 to 9) down the list, as it is sorted - for
+    names that already sort a part's pictures together;
+  - **names alike in their first N characters** - as the old ICB matched,
+    on 20;
+  - **names alike in the part a pattern finds** - a regular expression on
+    the name without its folder or extension, ignoring case. The part in
+    brackets must be alike (a group named `key` wins over the others);
+    without brackets, all it finds. `^(.+)_cam\d+$` matches
+    `part0042_cam1` with `part0042_cam2`. A name it does not find is a
+    set of its own.
+
+  Names are compared without their folders, so `cam1\0042.png` and
+  `cam2\0042.png` - cameras saving into folders of their own - are alike.
+  The dialog shows what a rule makes of the pictures listed before it is
+  used. Matched, the list has a line for each set, by its first picture,
+  with **+N** for the rest and the worst verdict among them; choosing it
+  shows the set, a picture to a viewer, each camera in the same place
+  every time (folder-and-name order), and enough viewers are laid out for
+  the largest set. Sets are made before the filter and search, so
+  **Failed** shows each set with a failure in it whole.
+- **Sync** (Ctrl+L, on by default): the viewers zoomed and scrolled as one
+  - the same pixel in the same place in each - and the pointer's place on
+  one marked with a small cross on the others.
 - Each viewer is Studio's: zoom, pan, pixel values, 12-bit display, save.
   The shapes from the annotation file are drawn over the picture; the
   header's tooltip lists the station, time, results and layers.
@@ -160,7 +186,5 @@ Builder opens a station's folder in it; so does
   opening another folder, with measurements not saved asks first.
 
 **To come:** a panel listing the annotations as a table, exported as CSV;
-switching layers on and off; matching pictures - by part of their names,
-or in groups of N - shown and stepped together, with their viewers zoomed
-and scrolled as one (Sync View); annotations from Run Folder and
+switching layers on and off; annotations from Run Folder and
 `sirius-run.exe` (F20's batch half).

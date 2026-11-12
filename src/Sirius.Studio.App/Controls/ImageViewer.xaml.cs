@@ -805,6 +805,79 @@ public partial class ImageViewer : UserControl
         UpdatePathVisual();
         RedrawMeasurements();
         RedrawShapes();
+        PlaceLinkedCursor();
+
+        if (!_settingView)
+            ViewChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // ---- shown in step with other viewers ----------------------------------------
+
+    private bool _settingView;
+    private Point? _linkedCursor;
+
+    /// <summary>
+    /// The view moved - zoomed, panned, fitted - other than by
+    /// <see cref="SetView"/>: for viewers kept in step (Sirius IV's Sync View).
+    /// </summary>
+    public event EventHandler? ViewChanged;
+
+    /// <summary>
+    /// The pointer moved over the picture, at this point in its pixels; null
+    /// when it left. For viewers kept in step, to show where it is on theirs.
+    /// </summary>
+    public event EventHandler<Point?>? PointerMovedOverImage;
+
+    /// <summary>The view: image pixels to the viewer's surface - zoom and pan.</summary>
+    public Matrix View => SceneTransform.Matrix;
+
+    /// <summary>Shows the picture as another viewer does, without telling <see cref="ViewChanged"/>.</summary>
+    public void SetView(Matrix view)
+    {
+        if (!view.HasInverse || SceneTransform.Matrix == view)
+            return;
+
+        _settingView = true;
+
+        try
+        {
+            SceneTransform.Matrix = view;
+            OnTransformChanged();
+        }
+        finally
+        {
+            _settingView = false;
+        }
+    }
+
+    /// <summary>
+    /// Where another viewer's pointer is, in this picture's pixels, marked
+    /// with a small cross; null for none.
+    /// </summary>
+    public Point? LinkedCursor
+    {
+        get => _linkedCursor;
+        set
+        {
+            _linkedCursor = value;
+            PlaceLinkedCursor();
+        }
+    }
+
+    private void PlaceLinkedCursor()
+    {
+        if (_linkedCursor is not { } point || ImageSource is null)
+        {
+            LinkedCursorLayer.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var screen = SceneTransform.Matrix.Transform(point);
+        Canvas.SetLeft(LinkedCursorShadow, screen.X);
+        Canvas.SetTop(LinkedCursorShadow, screen.Y);
+        Canvas.SetLeft(LinkedCursorMark, screen.X);
+        Canvas.SetTop(LinkedCursorMark, screen.Y);
+        LinkedCursorLayer.Visibility = Visibility.Visible;
     }
 
     // ---- graph geometry --------------------------------------------------
@@ -3593,6 +3666,8 @@ public partial class ImageViewer : UserControl
 
     private void UpdateReadout(Point? image)
     {
+        PointerMovedOverImage?.Invoke(this, ImageSource is null ? null : image);
+
         if (ImageSource is not { } source || image is not { } point)
         {
             PositionText.Text = string.Empty;

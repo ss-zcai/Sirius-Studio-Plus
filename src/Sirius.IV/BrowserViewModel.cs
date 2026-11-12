@@ -51,6 +51,9 @@ public enum ViewerLayout
     [Description("Two side by side")]
     Two = 2,
 
+    [Description("Three side by side")]
+    Three = 3,
+
     [Description("2 × 2")]
     Four = 4,
 
@@ -95,6 +98,10 @@ public sealed class BrowserViewModel : ObservableObject
     private FileSort _sort;
     private bool _descending;
     private string? _sortProgress;
+    private MatchRule _match = MatchRule.Off;
+    private bool _syncViews = true;
+    private int _setCount;
+    private int _largestSet;
     private ViewerLayout _layout = ViewerLayout.Single;
     private bool _includeSubfolders = true;
     private bool _busy;
@@ -107,6 +114,7 @@ public sealed class BrowserViewModel : ObservableObject
         _settingsPath = settingsPath ?? string.Empty;
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, () => HasFolder);
         ReverseSortCommand = new RelayCommand(() => SortDescending = !SortDescending);
+        ToggleSyncViewsCommand = new RelayCommand(() => SyncViews = !SyncViews);
         SetLayoutCommand = new RelayCommand<ViewerLayout>(layout => Layout = layout);
         SaveCommand = new RelayCommand(() => Save(), () => HasUnsavedChanges);
         ReadSettings();
@@ -244,6 +252,7 @@ public sealed class BrowserViewModel : ObservableObject
 
         _all = found;
         ApplyFilter(keep);
+        FitLayoutToSets();
 
         // Sorted by dimensions: shown at once, in order once every size is read.
         if (_sort == FileSort.Dimensions)
@@ -487,10 +496,15 @@ public sealed class BrowserViewModel : ObservableObject
                 return string.Empty;
 
             var failed = _all.Count(item => item.Failed);
-            var shown = Files.Count == _all.Count ? string.Empty : $"{Files.Count} shown of ";
             var size = _all.Count == 0 ? string.Empty : " · " + ImageFileItem.FormatSize(_all.Sum(item => item.Size));
+            var pictures = $"{_all.Count} picture{(_all.Count == 1 ? string.Empty : "s")}";
 
-            return $"{shown}{_all.Count} picture{(_all.Count == 1 ? string.Empty : "s")}" + (failed > 0 ? $", {failed} failed" : string.Empty) + size;
+            // Matched: the list has a line for each set.
+            var count = _match.IsOn
+                ? (Files.Count == _setCount ? string.Empty : $"{Files.Count} shown of ") + $"{_setCount} set{(_setCount == 1 ? string.Empty : "s")} of {pictures}"
+                : (Files.Count == _all.Count ? string.Empty : $"{Files.Count} shown of ") + pictures;
+
+            return count + (failed > 0 ? $", {failed} failed" : string.Empty) + size;
         }
     }
 
@@ -500,26 +514,47 @@ public sealed class BrowserViewModel : ObservableObject
     /// </summary>
     public event EventHandler<IReadOnlyList<ImageFileItem>>? ChooseRequested;
 
+    /// <summary>
+    /// Makes the list again: sorted, matched into sets, then filtered. Sets
+    /// are made from every picture, before the filter - so "Failed" shows
+    /// each set with a failure in it whole, rather than pairing failures
+    /// that do not belong together - and a set is listed when any picture
+    /// in it passes the filter and search, by its first picture.
+    /// </summary>
     private void ApplyFilter(IReadOnlyCollection<string>? keep)
     {
         var search = _search.Trim();
 
-        var shown = _all.Where(item => _filter switch
+        bool Passes(ImageFileItem item) => _filter switch
         {
             FileFilter.Failed => item.Failed,
             FileFilter.Passed => item.Passed,
             _ => true,
-        } && (search.Length == 0 || item.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase)));
+        } && (search.Length == 0 || item.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+        var sets = _match.Sets(Sorted(_all).ToList(), _all);
+
+        foreach (var set in sets)
+        {
+            foreach (var item in set)
+                item.Set = set;
+        }
+
+        _setCount = sets.Count;
+        _largestSet = sets.Count == 0 ? 0 : sets.Max(set => set.Count);
 
         // In one go: a station's folder can hold tens of thousands.
-        Files.ReplaceAll(Sorted(shown));
+        Files.ReplaceAll(sets.Where(set => set.Any(Passes)).Select(set => set[0]));
 
         OnPropertyChanged(nameof(CountText));
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(EmptyText));
 
-        var kept = keep is { Count: > 0 }
-            ? Files.Where(item => keep.Contains(item.Path, StringComparer.OrdinalIgnoreCase)).ToArray()
+        // What was chosen, or the set it is now in.
+        var keeping = keep is { Count: > 0 } ? new HashSet<string>(keep, StringComparer.OrdinalIgnoreCase) : null;
+
+        var kept = keeping is not null
+            ? Files.Where(item => item.Set.Any(member => keeping.Contains(member.Path))).ToArray()
             : [];
 
         IReadOnlyList<ImageFileItem> chosen = kept.Length > 0 ? kept : Files.Take(1).ToArray();
@@ -533,6 +568,66 @@ public sealed class BrowserViewModel : ObservableObject
     /// <summary>What an empty list says: nothing there, or nothing that matches.</summary>
     public string EmptyText =>
         _all.Count > 0 ? "No pictures match." + (IsSearching ? " Esc clears the search." : string.Empty) : "No pictures here to show.";
+
+    // ---- matching pictures into sets ----------------------------------------------------
+
+    /// <summary>
+    /// How pictures that belong together are found: off, every N down the
+    /// list, or names alike. Matched, the list has a line for each set - its
+    /// first picture - and choosing it shows the set, a picture to a viewer.
+    /// </summary>
+    public MatchRule Match
+    {
+        get => _match;
+        set
+        {
+            value ??= MatchRule.Off;
+
+            if (value.Problem() is not null || !SetProperty(ref _match, value))
+                return;
+
+            OnPropertyChanged(nameof(IsMatching));
+            OnPropertyChanged(nameof(MatchText));
+            SaveSettings();
+            ApplyFilter(_chosen.SelectMany(item => item.Set).Select(item => item.Path).ToArray());
+            FitLayoutToSets();
+        }
+    }
+
+    public bool IsMatching => _match.IsOn;
+
+    /// <summary>The Match button's tooltip: the rule in use.</summary>
+    public string MatchText => _match.IsOn ? $"Matching: {_match.Summary}" : "Match pictures that belong together, and show them side by side";
+
+    /// <summary>
+    /// The sets a rule would make of the pictures now listed, as the list is
+    /// sorted - for the Match dialog to show before it is used.
+    /// </summary>
+    public List<IReadOnlyList<ImageFileItem>> SetsFor(MatchRule rule) => rule.Sets(Sorted(_all).ToList(), _all);
+
+    /// <summary>Matched, enough viewers for the largest set - up to 3 × 3.</summary>
+    private void FitLayoutToSets()
+    {
+        if (_match.IsOn && _largestSet > (int)_layout)
+            Layout = MatchRule.LayoutFor(Math.Min(_largestSet, MatchRule.MaxGroupSize));
+    }
+
+    /// <summary>
+    /// The viewers in step: zoomed and scrolled as one, and the pointer's
+    /// place on one marked on the others.
+    /// </summary>
+    public bool SyncViews
+    {
+        get => _syncViews;
+        set
+        {
+            if (SetProperty(ref _syncViews, value))
+                SaveSettings();
+        }
+    }
+
+    /// <summary>Ctrl+L.</summary>
+    public IRelayCommand ToggleSyncViewsCommand { get; }
 
     // ---- the viewers ------------------------------------------------------------
 
@@ -561,7 +656,7 @@ public sealed class BrowserViewModel : ObservableObject
     public int Columns => _layout switch
     {
         ViewerLayout.Two or ViewerLayout.Four => 2,
-        ViewerLayout.Nine => 3,
+        ViewerLayout.Three or ViewerLayout.Nine => 3,
         _ => 1,
     };
 
@@ -591,11 +686,15 @@ public sealed class BrowserViewModel : ObservableObject
     {
         var places = (int)_layout;
 
-        if (_chosen.Count > 1)
-            return _chosen.Take(places).ToArray();
-
         if (_chosen.Count == 0)
             return [];
+
+        // Matched: the set chosen - or the sets - a picture to a viewer.
+        if (_match.IsOn)
+            return _chosen.SelectMany(item => item.Set).Take(places).ToArray();
+
+        if (_chosen.Count > 1)
+            return _chosen.Take(places).ToArray();
 
         var start = Files.IndexOf(_chosen[0]);
         return start < 0 ? _chosen : Files.Skip(start).Take(places).ToArray();
@@ -823,6 +922,8 @@ public sealed class BrowserViewModel : ObservableObject
             _filter = Enum.IsDefined(settings.Filter) ? settings.Filter : FileFilter.All;
             _sort = Enum.IsDefined(settings.Sort) ? settings.Sort : FileSort.Name;
             _descending = settings.Descending;
+            _match = settings.Match is { } match && Enum.IsDefined(match.Mode) && match.Problem() is null ? match : MatchRule.Off;
+            _syncViews = settings.SyncViews;
             _includeSubfolders = settings.IncludeSubfolders;
             LastFolder = settings.Folder is { } folder && Directory.Exists(folder) ? folder : null;
         }
@@ -846,6 +947,8 @@ public sealed class BrowserViewModel : ObservableObject
                 Layout = _layout,
                 Filter = _filter,
                 Sort = _sort,
+                Match = _match.IsOn ? _match : null,
+                SyncViews = _syncViews,
                 Descending = _descending,
                 IncludeSubfolders = _includeSubfolders,
             }));
@@ -872,6 +975,12 @@ public sealed class BrowserViewModel : ObservableObject
 
         [JsonPropertyName("descending")]
         public bool Descending { get; set; }
+
+        [JsonPropertyName("match")]
+        public MatchRule? Match { get; set; }
+
+        [JsonPropertyName("syncViews")]
+        public bool SyncViews { get; set; } = true;
 
         [JsonPropertyName("includeSubfolders")]
         public bool IncludeSubfolders { get; set; } = true;
@@ -1038,7 +1147,9 @@ public sealed class ImageFileItem : ObservableObject
                 $"{Kind} picture" + (DimensionsText.Length > 0 ? $", {DimensionsText} pixels" : string.Empty),
                 $"{SizeText} ({Size:N0} bytes)",
                 $"Modified {ModifiedText}",
-            });
+            }.Concat(Set.Count > 1
+                ? ["", $"One of a set of {Set.Count}:", .. Set.Select(item => "  " + item.RelativePath)]
+                : []));
 
     /// <summary>"812 bytes", "12.4 KB", "1.24 MB", "3.1 GB" - as Explorer counts, in 1024s.</summary>
     public static string FormatSize(long bytes)
@@ -1058,6 +1169,46 @@ public sealed class ImageFileItem : ObservableObject
 
         var format = value < 10 ? "0.##" : value < 100 ? "0.#" : "0";
         return value.ToString(format, System.Globalization.CultureInfo.InvariantCulture) + " " + units[unit];
+    }
+
+    // ---- the set it is in ----------------------------------------------------------------
+
+    private IReadOnlyList<ImageFileItem>? _set;
+
+    /// <summary>
+    /// The pictures it is matched with, itself among them, in the order the
+    /// viewers show them; only itself when nothing is matched.
+    /// </summary>
+    public IReadOnlyList<ImageFileItem> Set
+    {
+        get => _set ?? [this];
+        internal set
+        {
+            if (_set is not null && _set.SequenceEqual(value))
+                return;
+
+            _set = value;
+            OnPropertyChanged(nameof(Set));
+            OnPropertyChanged(nameof(SetCountText));
+            OnPropertyChanged(nameof(SetVerdict));
+            OnPropertyChanged(nameof(Description));
+        }
+    }
+
+    /// <summary>"+2" beside a set's first picture in the list; null for a picture on its own.</summary>
+    public string? SetCountText => Set.Count > 1 ? $"+{Set.Count - 1}" : null;
+
+    /// <summary>How its set went, the worst of them: ERROR, then FAIL, PASS, NONE.</summary>
+    public string? SetVerdict
+    {
+        get
+        {
+            if (Set.Count == 1)
+                return Verdict;
+
+            string[] worstFirst = ["ERROR", "FAIL", "PASS", "NONE"];
+            return worstFirst.FirstOrDefault(word => Set.Any(item => item.Verdict == word));
+        }
     }
 
     /// <summary>Its width and height have been read - or tried, and it had none to read.</summary>

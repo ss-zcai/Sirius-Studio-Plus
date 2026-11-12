@@ -2900,6 +2900,23 @@ name with a json extension; you might use our own."
   "this one and those after it" follow the sorted order, and the day
   headings show only when sorted by name, since any other sort spreads a
   day through the list. Sorting by dimensions reads every header first.
-- **Left** (backlog F20a-e): the batch half - Run Folder and `sirius-run`
+- **Matching pictures, and Sync View** (12 November 2026): three rules,
+  from simplest to most general - groups of N down the sorted list (when
+  the names already sort a part's pictures together), names alike in
+  their first N characters (what ICB did, on 20), and names alike in the
+  part a regular expression finds (the group in brackets, or one named
+  `key`). A pattern rather than a wildcard syntax of our own: it covers
+  every naming the others do and more, the dialog explains it with
+  examples and previews its sets, and anyone writing patterns already
+  knows it. Names are compared without folder or extension, so cameras
+  saving the same name into folders of their own match too. A set's
+  pictures are in folder-and-name order so each camera keeps its viewer;
+  sets are made before the filter, so Failed shows a failure with its
+  partners rather than pairing failures that do not belong together.
+  The list has a line per set - stepping on is a set at a time. Sync
+  View copies the view matrix as it is, which lines matched pictures of
+  one size up pixel for pixel, and marks the pointer's place on the
+  others; it is on by default.
+- **Left** (backlog F20a-d): the batch half - Run Folder and `sirius-run`
   writing `.sann` too; the table panel and layers on and off; a disk
-  quota; failed and one pass in N; matching pictures, with Sync View.
+  quota; failed and one pass in N.

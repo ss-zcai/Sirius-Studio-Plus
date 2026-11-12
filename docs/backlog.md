@@ -120,14 +120,11 @@ from you before they start.
     zooming to its shape, and exported as one CSV across the pictures
     chosen (the old ICB's Export Features, one `.xlsx` each); layers
     switched on and off.
-  - **F20e. Matching pictures** (M), then **Sync View**: pictures that
-    belong together shown side by side and stepped together, by rules
-    the user picks (12 November 2026) - part of the file name alike (the
-    old ICB matched the first 20 characters), or simply groups of N in
-    list order when the names already sort them together; a part ID from
-    the line (F3) later. Sync View - the viewers zoomed and scrolled
-    together, with the cursor shown at the same pixel in each - comes
-    with it, as it did in ICB.
+  - **F20e. Matching pictures** - done 12 November 2026: groups of N down
+    the sorted list, names alike in their first N characters, or in the
+    part a pattern finds; with Sync View. Left: matching on a part ID
+    from the line (F3), once stations save one - two stations' names
+    share no time or count to match on.
   - **F20c. A disk quota** (S-M), beside Keep for: when a size is reached,
     oldest passes go first, then oldest failures (runtime design §8).
   - **F20d. Failed and one pass in N** (S), the policy the runtime design

@@ -1,0 +1,120 @@
+<Window x:Class="Sirius.IV.MatchingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Sirius.IV"
+        Title="Match Pictures"
+        Width="640"
+        Height="560"
+        MinWidth="480"
+        MinHeight="440"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Surface.Background}">
+
+    <!--
+        How pictures that belong together are found: a rule a radio button
+        each, with what it makes of the pictures listed now underneath.
+    -->
+    <Grid Margin="16,14,16,14" TextElement.Foreground="{StaticResource Text.Primary}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   TextWrapping="Wrap"
+                   FontSize="11"
+                   Margin="0,0,0,12"
+                   Foreground="{StaticResource Text.Secondary}"
+                   Text="Pictures that belong together - two cameras' views of one part, a part lit three ways - are shown side by side, one to a viewer, and stepped through together. The list shows the first picture of each set; choosing it shows them all." />
+
+        <StackPanel Grid.Row="1">
+            <RadioButton GroupName="Rule" IsChecked="{Binding IsOff}" Margin="0,0,0,10">
+                <TextBlock Text="Off - each picture on its own" />
+            </RadioButton>
+
+            <RadioButton x:Name="GroupsChoice" GroupName="Rule" IsChecked="{Binding IsGroups}" Margin="0,0,0,10">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="In groups of" VerticalAlignment="Center" />
+                    <ComboBox ItemsSource="{x:Static local:MatchingViewModel.GroupSizes}"
+                              SelectedItem="{Binding GroupSize}"
+                              Width="56"
+                              Margin="8,0" />
+                    <TextBlock Text="down the list, as it is sorted" VerticalAlignment="Center" />
+                </StackPanel>
+            </RadioButton>
+
+            <RadioButton GroupName="Rule" IsChecked="{Binding IsNameStart}" Margin="0,0,0,10">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Names alike in their first" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding Characters, UpdateSourceTrigger=PropertyChanged}"
+                             Width="48"
+                             Margin="8,0"
+                             HorizontalContentAlignment="Right" />
+                    <TextBlock Text="characters" VerticalAlignment="Center" />
+                </StackPanel>
+            </RadioButton>
+
+            <RadioButton GroupName="Rule" IsChecked="{Binding IsPattern}" Margin="0,0,0,4">
+                <TextBlock Text="Names alike in the part a pattern finds" />
+            </RadioButton>
+            <TextBox x:Name="PatternBox"
+                     Text="{Binding Pattern, UpdateSourceTrigger=PropertyChanged, Delay=200}"
+                     FontFamily="Consolas"
+                     Margin="23,2,0,4"
+                     ToolTip="A regular expression. The part of the name in brackets must be alike; without brackets, all it finds." />
+            <TextBlock Margin="23,0,0,0" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource Text.Secondary}">
+                A regular expression, on the name without its folder or extension, ignoring case.
+                The part in brackets must be alike:
+                <Run FontFamily="Consolas" Foreground="{StaticResource Text.Primary}">^(.+)_cam\d+$</Run>
+                matches part0042_cam1 with part0042_cam2;
+                <Run FontFamily="Consolas" Foreground="{StaticResource Text.Primary}">^(\d{8}-\d{6})</Run>
+                pictures taken in the same second. Pictures in folders of their own with the same name -
+                <Run FontFamily="Consolas" Foreground="{StaticResource Text.Primary}">cam1\0042.png</Run>,
+                <Run FontFamily="Consolas" Foreground="{StaticResource Text.Primary}">cam2\0042.png</Run>
+                - are alike by any name rule.
+            </TextBlock>
+        </StackPanel>
+
+        <!-- What the rule makes of the pictures listed now. -->
+        <Border Grid.Row="2"
+                Margin="0,14,0,0"
+                Padding="10,8"
+                BorderBrush="{StaticResource Surface.Border}"
+                BorderThickness="1"
+                Background="{StaticResource Surface.Panel}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top"
+                           Text="{Binding PreviewText}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,6" />
+                <ItemsControl ItemsSource="{Binding Preview}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"
+                                       FontFamily="Consolas"
+                                       FontSize="11"
+                                       Margin="0,1"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{StaticResource Text.Secondary}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+
+        <TextBlock Grid.Row="3"
+                   Margin="0,8,0,0"
+                   TextWrapping="Wrap"
+                   Foreground="#DB5C5C"
+                   Text="{Binding Problem}" />
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="OK" MinWidth="88" IsDefault="True" Click="OnOk" />
+            <Button Content="Cancel" MinWidth="88" Margin="8,0,0,0" IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -354,6 +354,22 @@
                 <Canvas x:Name="MeasureLayer" />
             </Canvas>
 
+            <!--
+                Where another viewer's pointer is, on viewers shown in step
+                (Sirius IV's Sync View): in screen space over the scene, so it
+                stays one crisp pixel wide at any zoom.
+            -->
+            <Canvas x:Name="LinkedCursorLayer" IsHitTestVisible="False" Visibility="Collapsed">
+                <Path x:Name="LinkedCursorShadow"
+                      Stroke="#C0000000"
+                      StrokeThickness="3"
+                      Data="M-11,0 H-3 M3,0 H11 M0,-11 V-3 M0,3 V11" />
+                <Path x:Name="LinkedCursorMark"
+                      Stroke="#FFF8FAFC"
+                      StrokeThickness="1"
+                      Data="M-11,0 H-3 M3,0 H11 M0,-11 V-3 M0,3 V11" />
+            </Canvas>
+
             <TextBlock x:Name="EmptyHint"
                        Text="Open an image to begin."
                        HorizontalAlignment="Center"
