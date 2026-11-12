@@ -471,6 +471,12 @@ public sealed class SiriusIvTests : IDisposable
                 Assert.Equal(
                     ["Copy _Name", "Copy Full _Path", "Show in _Explorer"],
                     list.ContextMenu.Items.OfType<System.Windows.Controls.MenuItem>().Select(item => (string)item.Header));
+
+                // Sorted any way but by name, a folder's pictures are spread through the list: no headings.
+                model.Sort = FileSort.Size;
+                Assert.Empty(view.GroupDescriptions);
+                model.Sort = FileSort.Name;
+                Assert.Single(view.GroupDescriptions);
             }
             finally
             {
@@ -494,6 +500,127 @@ public sealed class SiriusIvTests : IDisposable
 
         Walk(root);
         return found;
+    }
+
+    // ---- sorting ------------------------------------------------------------------------
+
+    /// <summary>
+    /// Four pictures that sort differently every way: by name a b c d; by
+    /// time b c a d; by dimensions b d c a; by type (BMP JPG PNG TIF) c b a d.
+    /// </summary>
+    private string SortingFolder()
+    {
+        var folder = Path.Combine(_folder, "sorting");
+        Directory.CreateDirectory(folder);
+
+        void Write(string name, int width, int height, int day)
+        {
+            var path = Path.Combine(folder, name);
+
+            using (var mat = new Mat(height, width, DepthType.Cv8U, 1))
+            {
+                CvInvoke.Randu(mat, new MCvScalar(0), new MCvScalar(255));
+                CvInvoke.Imwrite(path, mat);
+            }
+
+            File.SetLastWriteTime(path, new DateTime(2026, 1, day, 9, 0, 0));
+        }
+
+        Write("a.png", 100, 50, 3);
+        Write("b.jpg", 20, 10, 1);
+        Write("c.bmp", 60, 60, 2);
+        Write("d.tif", 300, 10, 4);
+        return folder;
+    }
+
+    private static string[] Names(BrowserViewModel model) => model.Files.Select(file => file.Name).ToArray();
+
+    [Fact]
+    public void The_list_sorts_by_name_date_size_dimensions_or_type_either_way()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = Open(SortingFolder());
+
+            Assert.Equal(FileSort.Name, model.Sort);
+            Assert.True(model.IsGroupedByFolder);
+            Assert.Equal(["a.png", "b.jpg", "c.bmp", "d.tif"], Names(model));
+            Assert.Equal("A to Z", model.SortDirectionText);
+
+            model.SortDescending = true;
+            Assert.Equal(["d.tif", "c.bmp", "b.jpg", "a.png"], Names(model));
+            Assert.Equal(("↓", "Z to A"), (model.SortArrow, model.SortDirectionText));
+
+            model.Sort = FileSort.Modified;
+            Assert.False(model.IsGroupedByFolder);
+            Assert.Equal("Newest first", model.SortDirectionText);
+            Assert.Equal(["d.tif", "a.png", "c.bmp", "b.jpg"], Names(model));
+
+            model.ReverseSortCommand.Execute(null);
+            Assert.Equal(["b.jpg", "c.bmp", "a.png", "d.tif"], Names(model));
+            Assert.Equal("Oldest first", model.SortDirectionText);
+
+            model.Sort = FileSort.Size;
+            Assert.Equal(model.Files.OrderBy(file => file.Size).Select(file => file.Name), Names(model));
+            Assert.Equal("Smallest first", model.SortDirectionText);
+
+            model.Sort = FileSort.Type;
+            Assert.Equal(["c.bmp", "b.jpg", "a.png", "d.tif"], Names(model));
+        });
+    }
+
+    [Fact]
+    public void Sorting_by_dimensions_reads_every_pictures_size_first()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = Open(SortingFolder());
+
+            // None asked for yet: nothing on screen in a test.
+            model.Sort = FileSort.Dimensions;
+            WpfTestHost.PumpUntil(() => model.SortProgress is null && model.Files.All(file => file.HasDimensions));
+
+            Assert.Equal(["b.jpg", "d.tif", "c.bmp", "a.png"], Names(model));
+            Assert.Equal(["20 × 10", "300 × 10", "60 × 60", "100 × 50"], model.Files.Select(file => file.DimensionsText));
+
+            model.SortDescending = true;
+            Assert.Equal(["a.png", "c.bmp", "d.tif", "b.jpg"], Names(model));
+            Assert.Equal("Largest first", model.SortDirectionText);
+        });
+    }
+
+    [Fact]
+    public void The_viewers_step_along_in_the_sorted_order_keeping_what_was_chosen()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = Open(SortingFolder());
+            model.Layout = ViewerLayout.Two;
+
+            var chosen = model.Files.Single(file => file.Name == "c.bmp");
+            model.Choose([chosen]);
+
+            model.Sort = FileSort.Modified;
+
+            // Still chosen; the one after it is the next newer.
+            Assert.Equal([chosen], model.Chosen);
+            Assert.Equal(["c.bmp", "a.png"], model.Shown().Select(file => file.Name));
+        });
+    }
+
+    [Fact]
+    public void The_sort_is_remembered_between_sessions()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var settings = Path.Combine(_folder, "sirius-iv.json");
+
+            _ = new BrowserViewModel(settings) { Sort = FileSort.Size, SortDescending = true };
+            Assert.Contains("\"sort\":2", File.ReadAllText(settings));
+
+            var again = new BrowserViewModel(settings);
+            Assert.Equal((FileSort.Size, true), (again.Sort, again.SortDescending));
+        });
     }
 
     [Fact]

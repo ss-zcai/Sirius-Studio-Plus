@@ -29,8 +29,13 @@ public partial class ViewerWindow : Window
         _model = model;
         DataContext = model;
 
-        // A heading for each sub-folder: a station's days.
-        CollectionViewSource.GetDefaultView(model.Files).GroupDescriptions.Add(new PropertyGroupDescription(nameof(ImageFileItem.Subfolder)));
+        // A heading for each sub-folder - a station's days - when sorted by name.
+        GroupByFolder();
+        model.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(BrowserViewModel.IsGroupedByFolder))
+                GroupByFolder();
+        };
 
         if (TryFindResource("Icon.SiriusImageViewer") is ImageSource icon)
             Icon = icon;
@@ -55,6 +60,15 @@ public partial class ViewerWindow : Window
                 _choosing = false;
             }
         };
+    }
+
+    private void GroupByFolder()
+    {
+        var groups = CollectionViewSource.GetDefaultView(_model.Files).GroupDescriptions;
+        groups.Clear();
+
+        if (_model.IsGroupedByFolder)
+            groups.Add(new PropertyGroupDescription(nameof(ImageFileItem.Subfolder)));
     }
 
     /// <summary>A folder or picture to open as the window appears - from the command line.</summary>

@@ -270,6 +270,38 @@
                                     </Button>
                                 </Grid>
 
+                                <!-- Sort: what by, and which way. The viewers step along in this order. -->
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                                    <TextBlock DockPanel.Dock="Left"
+                                               Text="Sort"
+                                               VerticalAlignment="Center"
+                                               Margin="2,0,8,0"
+                                               Foreground="{StaticResource Text.Secondary}" />
+                                    <Button DockPanel.Dock="Right"
+                                            Style="{StaticResource ToolbarTextButton}"
+                                            Margin="4,0,0,0"
+                                            Command="{Binding ReverseSortCommand}"
+                                            ToolTip="{Binding SortDirectionText}"
+                                            ToolTipService.ShowOnDisabled="True">
+                                        <TextBlock Margin="4,0" VerticalAlignment="Center" Foreground="{StaticResource Text.Primary}">
+                                            <Run Text="{Binding SortArrow, Mode=OneWay}" FontWeight="Bold" />
+                                            <Run Text="{Binding SortDirectionText, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </Button>
+                                    <ComboBox ItemsSource="{x:Static local:BrowserViewModel.Sorts}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              SelectedValue="{Binding Sort}"
+                                              ToolTip="What the list is sorted by. Name keeps a station's pictures in the order taken, under a heading for each day." />
+                                </DockPanel>
+
+                                <TextBlock DockPanel.Dock="Top"
+                                           Text="{Binding SortProgress}"
+                                           FontSize="11"
+                                           Margin="2,0,0,6"
+                                           Foreground="{StaticResource Text.Secondary}"
+                                           Visibility="{Binding SortProgress, Converter={StaticResource NullToVisibility}}" />
+
                                 <TextBlock DockPanel.Dock="Bottom"
                                            Text="{Binding Problem}"
                                            TextWrapping="Wrap"

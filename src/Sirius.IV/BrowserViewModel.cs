@@ -24,6 +24,24 @@ public enum FileFilter
     Passed,
 }
 
+/// <summary>What the file list is sorted by.</summary>
+public enum FileSort
+{
+    /// <summary>Folder by folder, then by name: for a station's pictures, the order taken.</summary>
+    Name,
+
+    [Description("Date modified")]
+    Modified,
+
+    Size,
+
+    /// <summary>Width × height: the number of pixels, then the width.</summary>
+    [Description("Dimensions")]
+    Dimensions,
+
+    Type,
+}
+
 /// <summary>How many pictures are shown at once, and how they are laid out.</summary>
 public enum ViewerLayout
 {
@@ -74,6 +92,9 @@ public sealed class BrowserViewModel : ObservableObject
     private string? _folder;
     private FileFilter _filter;
     private string _search = string.Empty;
+    private FileSort _sort;
+    private bool _descending;
+    private string? _sortProgress;
     private ViewerLayout _layout = ViewerLayout.Single;
     private bool _includeSubfolders = true;
     private bool _busy;
@@ -85,6 +106,7 @@ public sealed class BrowserViewModel : ObservableObject
     {
         _settingsPath = settingsPath ?? string.Empty;
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, () => HasFolder);
+        ReverseSortCommand = new RelayCommand(() => SortDescending = !SortDescending);
         SetLayoutCommand = new RelayCommand<ViewerLayout>(layout => Layout = layout);
         SaveCommand = new RelayCommand(() => Save(), () => HasUnsavedChanges);
         ReadSettings();
@@ -222,6 +244,10 @@ public sealed class BrowserViewModel : ObservableObject
 
         _all = found;
         ApplyFilter(keep);
+
+        // Sorted by dimensions: shown at once, in order once every size is read.
+        if (_sort == FileSort.Dimensions)
+            await SortByDimensionsAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -289,6 +315,158 @@ public sealed class BrowserViewModel : ObservableObject
 
     public bool IsSearching => _search.Length > 0;
 
+    // ---- sorting --------------------------------------------------------------------
+
+    /// <summary>
+    /// What the list is sorted by. The viewers follow it: "the one chosen
+    /// and those after it" are after it in this order.
+    /// </summary>
+    public FileSort Sort
+    {
+        get => _sort;
+        set
+        {
+            if (!Enum.IsDefined(value) || !SetProperty(ref _sort, value))
+                return;
+
+            OnPropertyChanged(nameof(IsGroupedByFolder));
+            OnPropertyChanged(nameof(SortDirectionText));
+            SaveSettings();
+            ApplyFilter(_chosen.Select(item => item.Path).ToArray());
+
+            if (value == FileSort.Dimensions)
+                _ = SortByDimensionsAsync();
+        }
+    }
+
+    /// <summary>The other way round: Z to A, newest, largest first.</summary>
+    public bool SortDescending
+    {
+        get => _descending;
+        set
+        {
+            if (!SetProperty(ref _descending, value))
+                return;
+
+            OnPropertyChanged(nameof(SortDirectionText));
+            OnPropertyChanged(nameof(SortArrow));
+            SaveSettings();
+            ApplyFilter(_chosen.Select(item => item.Path).ToArray());
+        }
+    }
+
+    /// <summary>↑ ascending, ↓ descending.</summary>
+    public string SortArrow => _descending ? "↓" : "↑";
+
+    public IRelayCommand ReverseSortCommand { get; }
+
+    /// <summary>The sort's choices, as the panel lists them.</summary>
+    public static IReadOnlyList<Choice> Sorts { get; } = Choice.Of<FileSort>();
+
+    /// <summary>The direction, as its button's tooltip says it: "A to Z", "Newest first".</summary>
+    public string SortDirectionText => (_sort, _descending) switch
+    {
+        (FileSort.Name or FileSort.Type, false) => "A to Z",
+        (FileSort.Name or FileSort.Type, true) => "Z to A",
+        (FileSort.Modified, false) => "Oldest first",
+        (FileSort.Modified, true) => "Newest first",
+        (_, false) => "Smallest first",
+        (_, true) => "Largest first",
+    };
+
+    /// <summary>
+    /// Headed by sub-folder - a station's days - only when sorted by name:
+    /// sorted any other way, a folder's pictures are spread through the list.
+    /// </summary>
+    public bool IsGroupedByFolder => _sort == FileSort.Name;
+
+    /// <summary>"Reading picture sizes… 1,200 of 30,000" while sorting by dimensions; null otherwise.</summary>
+    public string? SortProgress
+    {
+        get => _sortProgress;
+        private set => SetProperty(ref _sortProgress, value);
+    }
+
+    /// <summary>
+    /// The pictures in the order chosen. Ties keep the folder-and-name
+    /// order, so pictures of one size or one second stay in the order taken.
+    /// </summary>
+    private IEnumerable<ImageFileItem> Sorted(IEnumerable<ImageFileItem> items)
+    {
+        // The listing's own order is the name order, and every tie's.
+        var listed = items.ToList();
+
+        if (_sort == FileSort.Name)
+        {
+            if (_descending)
+                listed.Reverse();
+
+            return listed;
+        }
+
+        IOrderedEnumerable<ImageFileItem> ordered = (_sort, _descending) switch
+        {
+            (FileSort.Modified, false) => listed.OrderBy(item => item.Modified),
+            (FileSort.Modified, true) => listed.OrderByDescending(item => item.Modified),
+            (FileSort.Size, false) => listed.OrderBy(item => item.Size),
+            (FileSort.Size, true) => listed.OrderByDescending(item => item.Size),
+            (FileSort.Dimensions, false) => listed.OrderBy(item => item.PixelCount).ThenBy(item => item.KnownWidth),
+            (FileSort.Dimensions, true) => listed.OrderByDescending(item => item.PixelCount).ThenByDescending(item => item.KnownWidth),
+            (FileSort.Type, false) => listed.OrderBy(item => item.Kind, StringComparer.Ordinal),
+            _ => listed.OrderByDescending(item => item.Kind, StringComparer.Ordinal),
+        };
+
+        // OrderBy is stable: ties stay in the listing's order.
+        return ordered;
+    }
+
+    /// <summary>
+    /// Sorting by dimensions needs every picture's, not only those on
+    /// screen: each header is read - a few bytes of each file - and the list
+    /// sorted again once they all are.
+    /// </summary>
+    internal async Task SortByDimensionsAsync()
+    {
+        var listing = _listing;
+        var missing = _all.Where(item => !item.HasDimensions).ToArray();
+
+        if (missing.Length > 0)
+        {
+            var progress = new Progress<int>(done =>
+            {
+                if (listing == _listing && _sort == FileSort.Dimensions)
+                    SortProgress = $"Reading picture sizes… {done:N0} of {missing.Length:N0}";
+            });
+
+            SortProgress = $"Reading picture sizes… 0 of {missing.Length:N0}";
+            var sizes = await Task.Run(() => ReadSizes(missing, progress)).ConfigureAwait(true);
+
+            for (var i = 0; i < missing.Length; i++)
+                missing[i].SetDimensions(sizes[i]);
+        }
+
+        SortProgress = null;
+
+        // Another folder, or another sort, meanwhile: that has been shown.
+        if (listing == _listing && _sort == FileSort.Dimensions)
+            ApplyFilter(_chosen.Select(item => item.Path).ToArray());
+    }
+
+    private static (int Width, int Height)?[] ReadSizes(IReadOnlyList<ImageFileItem> items, IProgress<int> progress)
+    {
+        var sizes = new (int Width, int Height)?[items.Count];
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            sizes[i] = ImageHeader.TryRead(items[i].Path);
+
+            if (i % 200 == 199)
+                progress.Report(i + 1);
+        }
+
+        return sizes;
+    }
+
     /// <summary>"312 pictures, 12 failed · 1.4 GB".</summary>
     public string CountText
     {
@@ -323,7 +501,7 @@ public sealed class BrowserViewModel : ObservableObject
         } && (search.Length == 0 || item.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase)));
 
         // In one go: a station's folder can hold tens of thousands.
-        Files.ReplaceAll(shown);
+        Files.ReplaceAll(Sorted(shown));
 
         OnPropertyChanged(nameof(CountText));
         OnPropertyChanged(nameof(IsEmpty));
@@ -632,6 +810,8 @@ public sealed class BrowserViewModel : ObservableObject
 
             _layout = Enum.IsDefined(settings.Layout) ? settings.Layout : ViewerLayout.Single;
             _filter = Enum.IsDefined(settings.Filter) ? settings.Filter : FileFilter.All;
+            _sort = Enum.IsDefined(settings.Sort) ? settings.Sort : FileSort.Name;
+            _descending = settings.Descending;
             _includeSubfolders = settings.IncludeSubfolders;
             LastFolder = settings.Folder is { } folder && Directory.Exists(folder) ? folder : null;
         }
@@ -654,6 +834,8 @@ public sealed class BrowserViewModel : ObservableObject
                 Folder = LastFolder,
                 Layout = _layout,
                 Filter = _filter,
+                Sort = _sort,
+                Descending = _descending,
                 IncludeSubfolders = _includeSubfolders,
             }));
         }
@@ -673,6 +855,12 @@ public sealed class BrowserViewModel : ObservableObject
 
         [JsonPropertyName("filter")]
         public FileFilter Filter { get; set; }
+
+        [JsonPropertyName("sort")]
+        public FileSort Sort { get; set; }
+
+        [JsonPropertyName("descending")]
+        public bool Descending { get; set; }
 
         [JsonPropertyName("includeSubfolders")]
         public bool IncludeSubfolders { get; set; } = true;
@@ -860,6 +1048,15 @@ public sealed class ImageFileItem : ObservableObject
         var format = value < 10 ? "0.##" : value < 100 ? "0.#" : "0";
         return value.ToString(format, System.Globalization.CultureInfo.InvariantCulture) + " " + units[unit];
     }
+
+    /// <summary>Its width and height have been read - or tried, and it had none to read.</summary>
+    internal bool HasDimensions => _dimensions == 2;
+
+    /// <summary>Width × height, as known now; 0 until read. Sorting by it asks for nothing.</summary>
+    internal long PixelCount => (long)_width * _height;
+
+    /// <summary>The width as known now; 0 until read.</summary>
+    internal int KnownWidth => _width;
 
     /// <summary>The width and height have been read: shown from now on.</summary>
     internal void SetDimensions((int Width, int Height)? size)

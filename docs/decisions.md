@@ -2894,7 +2894,11 @@ name with a json extension; you might use our own."
   for matching rules (F20e); its Features table and Export Features join
   the table panel (F20b), as one CSV rather than an `.xlsx` each; Copy
   and Move To, its never-finished class folders, and its fixed 46 px/mm
-  measuring are left.
+  measuring are left. Sorting followed the same day: name, date modified,
+  size, dimensions or type, either way, ties in name order; the viewers'
+  "this one and those after it" follow the sorted order, and the day
+  headings show only when sorted by name, since any other sort spreads a
+  day through the list. Sorting by dimensions reads every header first.
 - **Left** (backlog F20a-e): the batch half - Run Folder and `sirius-run`
   writing `.sann` too; the table panel and layers on and off; a disk
   quota; failed and one pass in N; matching pictures, with Sync View.

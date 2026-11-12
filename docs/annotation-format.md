@@ -135,7 +135,12 @@ Builder opens a station's folder in it; so does
   station's pictures show PASS, FAIL or ERROR. **Show** lists every
   picture, or only failed, or only passed; **Search** (Ctrl+F) only those
   whose name or folder holds what is typed - a serial number, `FAIL`, a
-  day. Right-click, or Ctrl+C and Ctrl+Shift+C, copies the names or full
+  day. **Sort** by name - folder by folder, a station's pictures in the
+  order taken, under their day headings - or by date modified, size,
+  dimensions (all the pictures' headers read first, with progress shown)
+  or type, either way round; ties keep the name order, and the viewers
+  step along in the order shown. The sort is remembered.
+  Right-click, or Ctrl+C and Ctrl+Shift+C, copies the names or full
   paths of those chosen; **Show in Explorer** opens their folder. The
   count along the top adds up their size. **F5** reads the folder again.
 - **Viewers**: one, two side by side, 2 × 2 or 3 × 3 (Ctrl+1, 2, 4, 9).
