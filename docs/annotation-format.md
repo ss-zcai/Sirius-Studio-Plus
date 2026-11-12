@@ -127,9 +127,17 @@ Builder opens a station's folder in it; so does
 `SiriusIV.exe "D:\Line 3\images\Top"`, or dropping a folder on it.
 
 - **Files**, on the left: the folder's pictures, with its sub-folders - a
-  station's days - by default, in the order taken. A station's pictures
-  show PASS, FAIL or ERROR. **Show** lists every picture, or only failed,
-  or only passed. **F5** reads the folder again.
+  station's days - by default, in the order taken, under a heading for
+  each sub-folder with its count. Each has an icon saying its type (PNG,
+  JPG, BMP, TIF, each a colour of its own), and under its name when it
+  was written, its size and its width × height - read from the file's
+  header as it comes into view, never by opening the picture. A
+  station's pictures show PASS, FAIL or ERROR. **Show** lists every
+  picture, or only failed, or only passed; **Search** (Ctrl+F) only those
+  whose name or folder holds what is typed - a serial number, `FAIL`, a
+  day. Right-click, or Ctrl+C and Ctrl+Shift+C, copies the names or full
+  paths of those chosen; **Show in Explorer** opens their folder. The
+  count along the top adds up their size. **F5** reads the folder again.
 - **Viewers**: one, two side by side, 2 × 2 or 3 × 3 (Ctrl+1, 2, 4, 9).
   Choose several pictures in the list to see those; choose one to see it
   and the ones after it, so stepping down the list steps them all along.
@@ -144,7 +152,8 @@ Builder opens a station's folder in it; so does
   wrote there, or in a new one for a picture that had none. Closing, or
   opening another folder, with measurements not saved asks first.
 
-**To come:** a panel listing the annotations as a table; switching layers
-on and off; matching pictures across folders - two stations' views of one
-part - and stepping them together; annotations from Run Folder and
+**To come:** a panel listing the annotations as a table, exported as CSV;
+switching layers on and off; matching pictures - by part of their names,
+or in groups of N - shown and stepped together, with their viewers zoomed
+and scrolled as one (Sync View); annotations from Run Folder and
 `sirius-run.exe` (F20's batch half).

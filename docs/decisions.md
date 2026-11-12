@@ -2885,6 +2885,16 @@ name with a json extension; you might use our own."
   opening another folder asks first. The viewer clearing its own
   measurements when a picture of another size arrives is the picture
   changing, and is not counted as an edit.
-- **Left** (backlog F20a-d): the batch half - Run Folder and `sirius-run`
-  writing `.sann` too; the table panel, layers on and off, and matching
-  across folders; a disk quota; failed and one pass in N.
+- **The old ICB, read for what to keep** (12 November 2026): its file
+  grid's type, date and size - and now width × height, read from each
+  file's header only as it comes into view, so a folder of tens of
+  thousands lists as fast as before - shown under each name, beside a
+  file icon coloured by type; its find panel as a search box; Copy
+  Filename and Copy Full Filename. Its matched image and Sync View wait
+  for matching rules (F20e); its Features table and Export Features join
+  the table panel (F20b), as one CSV rather than an `.xlsx` each; Copy
+  and Move To, its never-finished class folders, and its fixed 46 px/mm
+  measuring are left.
+- **Left** (backlog F20a-e): the batch half - Run Folder and `sirius-run`
+  writing `.sann` too; the table panel and layers on and off; a disk
+  quota; failed and one pass in N; matching pictures, with Sync View.

@@ -116,10 +116,18 @@ from you before they start.
   - **F20a. The batch half** (S-M): Run Folder and `sirius-run.exe`
     writing the same `.sann` beside each image they run.
   - **F20b. Sirius IV, next panels** (M each): the annotations as a
-    table (shapes and their measurements, results); layers switched on
-    and off; matching pictures across folders - two stations' views of
-    one part - and stepping them together, which needs a part ID from the
-    line (F3) to match on rather than a time.
+    table (shapes and their measurements, results), a row double-clicked
+    zooming to its shape, and exported as one CSV across the pictures
+    chosen (the old ICB's Export Features, one `.xlsx` each); layers
+    switched on and off.
+  - **F20e. Matching pictures** (M), then **Sync View**: pictures that
+    belong together shown side by side and stepped together, by rules
+    the user picks (12 November 2026) - part of the file name alike (the
+    old ICB matched the first 20 characters), or simply groups of N in
+    list order when the names already sort them together; a part ID from
+    the line (F3) later. Sync View - the viewers zoomed and scrolled
+    together, with the cursor shown at the same pixel in each - comes
+    with it, as it did in ICB.
   - **F20c. A disk quota** (S-M), beside Keep for: when a size is reached,
     oldest passes go first, then oldest failures (runtime design §8).
   - **F20d. Failed and one pass in N** (S), the policy the runtime design

@@ -117,7 +117,7 @@ public sealed class SiriusIvTests : IDisposable
             Assert.Equal(["PASS", "FAIL", "PASS", "ERROR", "PASS", null], model.Files.Select(file => file.Verdict));
             Assert.Equal("2026-11-10", model.Files[0].Subfolder);
             Assert.Null(model.Files[5].Subfolder);
-            Assert.Equal("6 pictures, 2 failed", model.CountText);
+            Assert.Equal($"6 pictures, 2 failed · {ImageFileItem.FormatSize(model.Files.Sum(file => file.Size))}", model.CountText);
             Assert.Equal("Top - Sirius IV", model.Title);
 
             // The first is chosen and shown.
@@ -148,7 +148,7 @@ public sealed class SiriusIvTests : IDisposable
 
             Assert.Equal(["FAIL", "ERROR"], model.Files.Select(file => file.Verdict));
             Assert.Equal([failed], model.Chosen);
-            Assert.Equal("2 shown of 6 pictures, 2 failed", model.CountText);
+            Assert.StartsWith("2 shown of 6 pictures, 2 failed · ", model.CountText);
 
             model.Filter = FileFilter.Passed;
             Assert.Equal(3, model.Files.Count);
@@ -257,6 +257,256 @@ public sealed class SiriusIvTests : IDisposable
             Assert.Equal(FileFilter.Failed, next.Filter);
             Assert.Equal(2, next.Tiles.Count);
         });
+    }
+
+    // ---- the file list's details ----------------------------------------------------
+
+    [Fact]
+    public void Each_picture_is_listed_with_its_type_size_and_time_without_being_opened()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var station = StationFolder();
+            var path = Path.Combine(station, "2026-11-11", "20261111-080002-000_000005_PASS.jpg");
+            var written = new DateTime(2026, 11, 11, 8, 0, 2);
+            File.SetLastWriteTime(path, written);
+
+            var model = Open(station);
+            var jpeg = model.Files.Single(file => file.Path == path);
+
+            Assert.Equal(["PNG", "PNG", "PNG", "PNG", "JPG", "BMP"], model.Files.Select(file => file.Kind));
+            Assert.Equal(new FileInfo(path).Length, jpeg.Size);
+            Assert.Equal(written, jpeg.Modified);
+            Assert.Equal("2026-11-11 08:00:02", jpeg.ModifiedText);
+            Assert.StartsWith("2026-11-11 08:00:02  ·  ", jpeg.DetailsText);
+        });
+    }
+
+    [Fact]
+    public void A_pictures_width_and_height_are_read_when_the_list_asks_for_them()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = Open(StationFolder());
+            var picture = model.Files[0];
+
+            // Asking starts the read; the answer arrives on this thread.
+            _ = picture.DimensionsText;
+            WpfTestHost.PumpUntil(() => picture.DimensionsText.Length > 0);
+
+            Assert.Equal((40, 30), (picture.Width, picture.Height));
+            Assert.Equal("40 × 30", picture.DimensionsText);
+            Assert.EndsWith("  ·  40 × 30", picture.DetailsText);
+            Assert.Contains("PNG picture, 40 × 30 pixels", picture.Description);
+        });
+    }
+
+    [Theory]
+    [InlineData(0, "0 bytes")]
+    [InlineData(1, "1 byte")]
+    [InlineData(1023, "1023 bytes")]
+    [InlineData(1024, "1 KB")]
+    [InlineData(12_700, "12.4 KB")]
+    [InlineData(1_300_000, "1.24 MB")]
+    [InlineData(250L * 1024 * 1024, "250 MB")]
+    [InlineData(3_400_000_000, "3.17 GB")]
+    public void Sizes_read_as_explorer_counts_them(long bytes, string expected) =>
+        Assert.Equal(expected, ImageFileItem.FormatSize(bytes));
+
+    [Theory]
+    [InlineData(".png", DepthType.Cv8U, 1)]
+    [InlineData(".png", DepthType.Cv16U, 1)]
+    [InlineData(".png", DepthType.Cv8U, 3)]
+    [InlineData(".jpg", DepthType.Cv8U, 1)]
+    [InlineData(".jpg", DepthType.Cv8U, 3)]
+    [InlineData(".bmp", DepthType.Cv8U, 1)]
+    [InlineData(".bmp", DepthType.Cv8U, 3)]
+    [InlineData(".tif", DepthType.Cv8U, 1)]
+    [InlineData(".tif", DepthType.Cv16U, 1)]
+    [InlineData(".tiff", DepthType.Cv8U, 3)]
+    public void A_pictures_size_is_read_from_its_header(string extension, DepthType depth, int channels)
+    {
+        var path = Path.Combine(_folder, "size" + extension);
+
+        using (var mat = new Mat(345, 678, depth, channels))
+        {
+            mat.SetTo(new MCvScalar(90, 120, 150));
+            CvInvoke.Imwrite(path, mat);
+        }
+
+        Assert.Equal((678, 345), ImageHeader.TryRead(path));
+    }
+
+    [Fact]
+    public void A_jpeg_with_an_exif_block_before_its_frame_is_still_read()
+    {
+        // An APP1 segment of 5000 bytes ahead of the frame header, as a camera writes.
+        using var mat = new Mat(64, 96, DepthType.Cv8U, 1);
+        mat.SetTo(new MCvScalar(77));
+
+        using var encoded = new Emgu.CV.Util.VectorOfByte();
+        CvInvoke.Imencode(".jpg", mat, encoded);
+        var jpeg = encoded.ToArray();
+
+        var exif = new byte[5000];
+        exif[0] = 0xFF;
+        exif[1] = 0xE1;
+        exif[2] = (5000 - 2) >> 8;
+        exif[3] = (5000 - 2) & 0xFF;
+
+        var withExif = jpeg[..2].Concat(exif).Concat(jpeg[2..]).ToArray();
+
+        Assert.Equal((96, 64), ImageHeader.Read(new MemoryStream(withExif)));
+    }
+
+    [Fact]
+    public void Files_that_are_not_pictures_or_are_cut_short_have_no_size()
+    {
+        Assert.Null(ImageHeader.Read(new MemoryStream("not a picture at all"u8.ToArray())));
+        Assert.Null(ImageHeader.Read(new MemoryStream([])));
+        Assert.Null(ImageHeader.Read(new MemoryStream([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0])));
+        Assert.Null(ImageHeader.Read(new MemoryStream([0xFF, 0xD8, 0xFF, 0xE0, 0x00])));
+        Assert.Null(ImageHeader.Read(new MemoryStream([(byte)'I', (byte)'I', 42, 0, 200, 0, 0, 0])));
+        Assert.Null(ImageHeader.TryRead(Path.Combine(_folder, "missing.png")));
+    }
+
+    [Fact]
+    public void A_sub_folders_pictures_are_kept_together_under_its_heading()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            // By path alone, "a\b\c.png" would sort between "a\b.png" and "a\c.png",
+            // splitting folder a's pictures in two.
+            Picture(Path.Combine(_folder, "a", "b.png"));
+            Picture(Path.Combine(_folder, "a", "b", "c.png"));
+            Picture(Path.Combine(_folder, "a", "c.png"));
+            Picture(Path.Combine(_folder, "top.png"));
+
+            var model = Open(_folder);
+
+            Assert.Equal([@"a\b.png", @"a\c.png", @"a\b\c.png", "top.png"], model.Files.Select(file => file.RelativePath));
+            Assert.Equal(["a", "a", @"a\b", null], model.Files.Select(file => file.Subfolder));
+        });
+    }
+
+    [Fact]
+    public void Searching_lists_the_pictures_whose_name_or_folder_holds_the_text()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = Open(StationFolder());
+            var chosen = model.Files[3];
+            model.Choose([chosen]);
+
+            model.SearchText = "000004";
+            Assert.True(model.IsSearching);
+            Assert.Equal([chosen], model.Files);
+            Assert.Equal([chosen], model.Chosen);
+
+            // Ignoring case, and the day folder counts.
+            model.SearchText = "2026-11-10";
+            Assert.Equal(2, model.Files.Count);
+            model.SearchText = "_pass";
+            Assert.Equal(3, model.Files.Count);
+
+            // With the filter too: passed, and found.
+            model.Filter = FileFilter.Failed;
+            Assert.Empty(model.Files);
+            Assert.True(model.IsEmpty);
+            Assert.Equal("No pictures match. Esc clears the search.", model.EmptyText);
+
+            model.Filter = FileFilter.All;
+            model.SearchText = string.Empty;
+            Assert.False(model.IsSearching);
+            Assert.Equal(6, model.Files.Count);
+        });
+    }
+
+    /// <summary>
+    /// The window itself, not shown: its list grouped by day, and its
+    /// templates - the file icon, the details line, the day headings - made
+    /// for real, so a resource they name that is not there fails here and
+    /// not in front of someone.
+    /// </summary>
+    [Fact]
+    public void The_window_lists_pictures_under_their_days_with_icons_and_details()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+            var model = Open(StationFolder());
+            var window = new ViewerWindow(model);
+
+            try
+            {
+                var list = (System.Windows.Controls.ListBox)window.FindName("FileList");
+                var view = System.Windows.Data.CollectionViewSource.GetDefaultView(model.Files);
+
+                Assert.Equal(
+                    ["2026-11-10", "2026-11-11", null],
+                    view.Groups!.Cast<System.Windows.Data.CollectionViewGroup>().Select(group => group.Name as string));
+                Assert.Equal([2, 3, 1], view.Groups!.Cast<System.Windows.Data.CollectionViewGroup>().Select(group => group.ItemCount));
+
+                // An entry, made as the list makes it.
+                var entry = (System.Windows.FrameworkElement)list.ItemTemplate.LoadContent();
+                entry.DataContext = model.Files[4];
+                entry.Measure(new System.Windows.Size(300, 60));
+                entry.Arrange(new System.Windows.Rect(0, 0, 300, 60));
+                WpfTestHost.Settle(window.Dispatcher);
+
+                var texts = Texts(entry);
+                Assert.Contains("JPG", texts);
+                Assert.Contains("PASS", texts);
+                Assert.Contains(model.Files[4].Name, texts);
+                Assert.Contains(texts, text => text.StartsWith(model.Files[4].ModifiedText, StringComparison.Ordinal));
+
+                // A day's heading.
+                var heading = (System.Windows.FrameworkElement)list.GroupStyle[0].HeaderTemplate.LoadContent();
+                heading.DataContext = view.Groups![1];
+                heading.Measure(new System.Windows.Size(300, 30));
+                WpfTestHost.Settle(window.Dispatcher);
+                Assert.Contains("2026-11-11", Texts(heading));
+
+                // The right-click menu.
+                Assert.Equal(
+                    ["Copy _Name", "Copy Full _Path", "Show in _Explorer"],
+                    list.ContextMenu.Items.OfType<System.Windows.Controls.MenuItem>().Select(item => (string)item.Header));
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    private static List<string> Texts(System.Windows.DependencyObject root)
+    {
+        var found = new List<string>();
+
+        void Walk(System.Windows.DependencyObject node)
+        {
+            if (node is System.Windows.Controls.TextBlock { Text: { Length: > 0 } text })
+                found.Add(text);
+
+            foreach (var child in System.Windows.LogicalTreeHelper.GetChildren(node).OfType<System.Windows.DependencyObject>())
+                Walk(child);
+        }
+
+        Walk(root);
+        return found;
+    }
+
+    [Fact]
+    public void The_list_is_replaced_in_one_go()
+    {
+        var files = new FileCollection();
+        var notices = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
+        files.CollectionChanged += (_, e) => notices.Add(e.Action);
+
+        files.ReplaceAll(Enumerable.Range(0, 1000).Select(i => new ImageFileItem(Path.Combine(_folder, $"{i}.png"), _folder)));
+
+        Assert.Equal(1000, files.Count);
+        Assert.Equal([System.Collections.Specialized.NotifyCollectionChangedAction.Reset], notices);
     }
 
     // ---- measurements drawn by hand ------------------------------------------------

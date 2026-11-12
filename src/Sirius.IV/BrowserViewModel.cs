@@ -73,6 +73,7 @@ public sealed class BrowserViewModel : ObservableObject
     private IReadOnlyList<ImageFileItem> _chosen = [];
     private string? _folder;
     private FileFilter _filter;
+    private string _search = string.Empty;
     private ViewerLayout _layout = ViewerLayout.Single;
     private bool _includeSubfolders = true;
     private bool _busy;
@@ -212,6 +213,9 @@ public sealed class BrowserViewModel : ObservableObject
         if (listing != _listing)
             return;
 
+        // Sizes still to read for the old list's pictures are not wanted now.
+        ImageFileItem.ForgetPendingReads();
+
         // Measured and not saved: still measured, though the list is new.
         foreach (var item in found)
             item.IsModified = _unsaved.ContainsKey(item.Path);
@@ -220,7 +224,12 @@ public sealed class BrowserViewModel : ObservableObject
         ApplyFilter(keep);
     }
 
-    /// <summary>The pictures under a folder, sorted by path - for a station's, the order they were taken.</summary>
+    /// <summary>
+    /// The pictures under a folder: sub-folder by sub-folder, then the
+    /// folder's own, each by name - for a station's, its days in the order
+    /// they were taken. A sub-folder's pictures are kept together, as the
+    /// list groups them under its name.
+    /// </summary>
     internal static List<ImageFileItem> List(string folder, bool subfolders)
     {
         var options = new EnumerationOptions
@@ -230,17 +239,20 @@ public sealed class BrowserViewModel : ObservableObject
             AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
         };
 
-        return Directory.EnumerateFiles(folder, "*", options)
-            .Where(path => Extensions.Contains(Path.GetExtension(path)) && !path.Contains(".saving.", StringComparison.OrdinalIgnoreCase))
-            .Select(path => new ImageFileItem(path, folder))
-            .OrderBy(item => item.RelativePath, StringComparer.OrdinalIgnoreCase)
+        // The listing carries each file's size and time: no file is opened here.
+        return new DirectoryInfo(folder).EnumerateFiles("*", options)
+            .Where(file => Extensions.Contains(file.Extension) && !file.Name.Contains(".saving.", StringComparison.OrdinalIgnoreCase))
+            .Select(file => new ImageFileItem(file.FullName, folder, file.Length, file.LastWriteTime))
+            .OrderBy(item => item.Subfolder is null)
+            .ThenBy(item => item.Subfolder, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
     // ---- the list --------------------------------------------------------------
 
-    /// <summary>The pictures the filter lets through, in order.</summary>
-    public ObservableCollection<ImageFileItem> Files { get; } = [];
+    /// <summary>The pictures the filter and search let through, in order.</summary>
+    public FileCollection Files { get; } = [];
 
     public FileFilter Filter
     {
@@ -258,7 +270,26 @@ public sealed class BrowserViewModel : ObservableObject
     /// <summary>The filter's choices, as the toolbar lists them.</summary>
     public static IReadOnlyList<Choice> Filters { get; } = Choice.Of<FileFilter>();
 
-    /// <summary>"312 pictures, 12 failed".</summary>
+    /// <summary>
+    /// Only the pictures whose name - or sub-folder - holds this, ignoring
+    /// case: "000042", "_FAIL", "2026-11-11", "cam2". Blank lists them all.
+    /// </summary>
+    public string SearchText
+    {
+        get => _search;
+        set
+        {
+            if (SetProperty(ref _search, value ?? string.Empty))
+            {
+                OnPropertyChanged(nameof(IsSearching));
+                ApplyFilter(_chosen.Select(item => item.Path).ToArray());
+            }
+        }
+    }
+
+    public bool IsSearching => _search.Length > 0;
+
+    /// <summary>"312 pictures, 12 failed · 1.4 GB".</summary>
     public string CountText
     {
         get
@@ -268,7 +299,9 @@ public sealed class BrowserViewModel : ObservableObject
 
             var failed = _all.Count(item => item.Failed);
             var shown = Files.Count == _all.Count ? string.Empty : $"{Files.Count} shown of ";
-            return $"{shown}{_all.Count} picture{(_all.Count == 1 ? string.Empty : "s")}" + (failed > 0 ? $", {failed} failed" : string.Empty);
+            var size = _all.Count == 0 ? string.Empty : " · " + ImageFileItem.FormatSize(_all.Sum(item => item.Size));
+
+            return $"{shown}{_all.Count} picture{(_all.Count == 1 ? string.Empty : "s")}" + (failed > 0 ? $", {failed} failed" : string.Empty) + size;
         }
     }
 
@@ -280,20 +313,21 @@ public sealed class BrowserViewModel : ObservableObject
 
     private void ApplyFilter(IReadOnlyCollection<string>? keep)
     {
+        var search = _search.Trim();
+
         var shown = _all.Where(item => _filter switch
         {
             FileFilter.Failed => item.Failed,
             FileFilter.Passed => item.Passed,
             _ => true,
-        });
+        } && (search.Length == 0 || item.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase)));
 
-        Files.Clear();
-
-        foreach (var item in shown)
-            Files.Add(item);
+        // In one go: a station's folder can hold tens of thousands.
+        Files.ReplaceAll(shown);
 
         OnPropertyChanged(nameof(CountText));
         OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(EmptyText));
 
         var kept = keep is { Count: > 0 }
             ? Files.Where(item => keep.Contains(item.Path, StringComparer.OrdinalIgnoreCase)).ToArray()
@@ -306,6 +340,10 @@ public sealed class BrowserViewModel : ObservableObject
 
     /// <summary>A folder open with no pictures to show.</summary>
     public bool IsEmpty => HasFolder && Files.Count == 0 && !IsBusy;
+
+    /// <summary>What an empty list says: nothing there, or nothing that matches.</summary>
+    public string EmptyText =>
+        _all.Count > 0 ? "No pictures match." + (IsSearching ? " Esc clears the search." : string.Empty) : "No pictures here to show.";
 
     // ---- the viewers ------------------------------------------------------------
 
@@ -651,16 +689,56 @@ public sealed record Choice(string Label, object Value)
     public override string ToString() => Label;
 }
 
+/// <summary>
+/// The file list's pictures: replaced all at once, with one notice, rather
+/// than one by one - tens of thousands of pictures, grouped by folder, would
+/// otherwise be re-laid out as each arrived.
+/// </summary>
+public sealed class FileCollection : ObservableCollection<ImageFileItem>
+{
+    public void ReplaceAll(IEnumerable<ImageFileItem> items)
+    {
+        CheckReentrancy();
+        Items.Clear();
+
+        foreach (var item in items)
+            Items.Add(item);
+
+        OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
+        OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+        OnCollectionChanged(new System.Collections.Specialized.NotifyCollectionChangedEventArgs(System.Collections.Specialized.NotifyCollectionChangedAction.Reset));
+    }
+}
+
 /// <summary>A picture in the list.</summary>
+/// <remarks>
+/// Its size on disk and when it was last written come with the folder's
+/// listing. Its width and height mean reading the file's header, so they
+/// are read only when asked for - when the list shows the picture - on a
+/// thread of their own, the most recently asked first: what is on screen
+/// fills in, however long the folder.
+/// </remarks>
 public sealed class ImageFileItem : ObservableObject
 {
     private bool _modified;
+    private int _width;
+    private int _height;
+    private int _dimensions; // 0 not asked, 1 being read, 2 read
 
-    public ImageFileItem(string path, string folder)
+    public ImageFileItem(string path, string folder, long size = 0, DateTime modified = default)
     {
         Path = path;
         Name = System.IO.Path.GetFileName(path);
         RelativePath = System.IO.Path.GetRelativePath(folder, path);
+        Size = size;
+        Modified = modified;
+
+        Kind = System.IO.Path.GetExtension(path).TrimStart('.').ToUpperInvariant() switch
+        {
+            "JPEG" => "JPG",
+            "TIFF" => "TIF",
+            var other => other,
+        };
 
         var sub = System.IO.Path.GetDirectoryName(RelativePath);
         Subfolder = string.IsNullOrEmpty(sub) ? null : sub;
@@ -699,6 +777,179 @@ public sealed class ImageFileItem : ObservableObject
 
     /// <summary>The annotation file beside it, by name.</summary>
     public string AnnotationPath => Sirius.Core.Annotations.AnnotationFile.PathFor(Path);
+
+    // ---- the file ----------------------------------------------------------------------
+
+    /// <summary>PNG, JPG, BMP or TIF - what its icon says.</summary>
+    public string Kind { get; }
+
+    /// <summary>Its size on disk, in bytes.</summary>
+    public long Size { get; }
+
+    /// <summary>When it was last written, local time.</summary>
+    public DateTime Modified { get; }
+
+    /// <summary>"1.24 MB".</summary>
+    public string SizeText => FormatSize(Size);
+
+    /// <summary>"2026-11-11 14:23:05".</summary>
+    public string ModifiedText => Modified == default ? string.Empty : Modified.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>Its width in pixels; 0 until read, or when it cannot be.</summary>
+    public int Width
+    {
+        get
+        {
+            RequestDimensions();
+            return _width;
+        }
+    }
+
+    /// <summary>Its height in pixels; 0 until read, or when it cannot be.</summary>
+    public int Height
+    {
+        get
+        {
+            RequestDimensions();
+            return _height;
+        }
+    }
+
+    /// <summary>"2448 × 2048", once read; empty before.</summary>
+    public string DimensionsText
+    {
+        get
+        {
+            RequestDimensions();
+            return _width > 0 ? $"{_width} × {_height}" : string.Empty;
+        }
+    }
+
+    /// <summary>The list's second line: "2026-11-11 14:23:05 · 1.24 MB · 2448 × 2048".</summary>
+    public string DetailsText =>
+        string.Join("  ·  ", new[] { ModifiedText, SizeText, DimensionsText }.Where(part => part.Length > 0));
+
+    /// <summary>Everything, for the list's tooltip.</summary>
+    public string Description =>
+        string.Join(
+            Environment.NewLine,
+            new[]
+            {
+                Path,
+                $"{Kind} picture" + (DimensionsText.Length > 0 ? $", {DimensionsText} pixels" : string.Empty),
+                $"{SizeText} ({Size:N0} bytes)",
+                $"Modified {ModifiedText}",
+            });
+
+    /// <summary>"812 bytes", "12.4 KB", "1.24 MB", "3.1 GB" - as Explorer counts, in 1024s.</summary>
+    public static string FormatSize(long bytes)
+    {
+        if (bytes < 1024)
+            return bytes == 1 ? "1 byte" : $"{bytes} bytes";
+
+        string[] units = ["KB", "MB", "GB", "TB"];
+        var value = bytes / 1024.0;
+        var unit = 0;
+
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+
+        var format = value < 10 ? "0.##" : value < 100 ? "0.#" : "0";
+        return value.ToString(format, System.Globalization.CultureInfo.InvariantCulture) + " " + units[unit];
+    }
+
+    /// <summary>The width and height have been read: shown from now on.</summary>
+    internal void SetDimensions((int Width, int Height)? size)
+    {
+        _dimensions = 2;
+
+        if (size is not { } known)
+            return;
+
+        _width = known.Width;
+        _height = known.Height;
+        OnPropertyChanged(nameof(Width));
+        OnPropertyChanged(nameof(Height));
+        OnPropertyChanged(nameof(DimensionsText));
+        OnPropertyChanged(nameof(DetailsText));
+        OnPropertyChanged(nameof(Description));
+    }
+
+    private void RequestDimensions()
+    {
+        if (_dimensions != 0)
+            return;
+
+        _dimensions = 1;
+        HeaderReader.Request(this);
+    }
+
+    /// <summary>Widths and heights asked for and not read yet are let go - another folder is open.</summary>
+    internal static void ForgetPendingReads() => HeaderReader.Forget();
+
+    /// <summary>
+    /// Reads pictures' headers one at a time, the most recently asked first,
+    /// and hands each size back on the thread that asked - the window's.
+    /// </summary>
+    private static class HeaderReader
+    {
+        private static readonly object Gate = new();
+        private static readonly Stack<(ImageFileItem Item, SynchronizationContext? Context)> Waiting = new();
+        private static bool _reading;
+
+        public static void Request(ImageFileItem item)
+        {
+            lock (Gate)
+            {
+                Waiting.Push((item, SynchronizationContext.Current));
+
+                if (_reading)
+                    return;
+
+                _reading = true;
+            }
+
+            _ = Task.Run(Read);
+        }
+
+        public static void Forget()
+        {
+            lock (Gate)
+            {
+                foreach (var (item, _) in Waiting)
+                    item._dimensions = 0;
+
+                Waiting.Clear();
+            }
+        }
+
+        private static void Read()
+        {
+            while (true)
+            {
+                (ImageFileItem Item, SynchronizationContext? Context) next;
+
+                lock (Gate)
+                {
+                    if (!Waiting.TryPop(out next))
+                    {
+                        _reading = false;
+                        return;
+                    }
+                }
+
+                var size = ImageHeader.TryRead(next.Item.Path);
+
+                if (next.Context is { } context)
+                    context.Post(_ => next.Item.SetDimensions(size), null);
+                else
+                    next.Item.SetDimensions(size);
+            }
+        }
+    }
 
     public override string ToString() => RelativePath;
 }

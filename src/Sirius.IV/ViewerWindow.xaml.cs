@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.Win32;
@@ -11,6 +13,10 @@ namespace Sirius.IV;
 public partial class ViewerWindow : Window
 {
     public static readonly RoutedUICommand OpenFolderCommand = new("Open Folder", nameof(OpenFolderCommand), typeof(ViewerWindow));
+    public static readonly RoutedUICommand SearchCommand = new("Search", nameof(SearchCommand), typeof(ViewerWindow));
+    public static readonly RoutedUICommand CopyNameCommand = new("Copy Name", nameof(CopyNameCommand), typeof(ViewerWindow));
+    public static readonly RoutedUICommand CopyPathCommand = new("Copy Full Path", nameof(CopyPathCommand), typeof(ViewerWindow));
+    public static readonly RoutedUICommand ShowInExplorerCommand = new("Show in Explorer", nameof(ShowInExplorerCommand), typeof(ViewerWindow));
 
     private readonly BrowserViewModel _model;
     private bool _choosing;
@@ -22,6 +28,9 @@ public partial class ViewerWindow : Window
 
         _model = model;
         DataContext = model;
+
+        // A heading for each sub-folder: a station's days.
+        CollectionViewSource.GetDefaultView(model.Files).GroupDescriptions.Add(new PropertyGroupDescription(nameof(ImageFileItem.Subfolder)));
 
         if (TryFindResource("Icon.SiriusImageViewer") is ImageSource icon)
             Icon = icon;
@@ -89,6 +98,115 @@ public partial class ViewerWindow : Window
     {
         FilesPanel.Show();
         FilesPanel.IsActive = true;
+    }
+
+    // ---- searching the names ------------------------------------------------------------
+
+    private void OnSearch(object sender, ExecutedRoutedEventArgs e)
+    {
+        FilesPanel.Show();
+        SearchBox.Focus();
+        SearchBox.SelectAll();
+    }
+
+    private void OnSearchKeyDown(object sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            // Esc clears; a second Esc, with nothing to clear, goes back to the list.
+            case Key.Escape:
+                if (SearchBox.Text.Length > 0)
+                    ClearSearch();
+                else
+                    FocusList();
+
+                e.Handled = true;
+                break;
+
+            // Down, or Enter: on to the pictures found.
+            case Key.Down or Key.Enter:
+                _model.SearchText = SearchBox.Text;
+                FocusList();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void OnClearSearch(object sender, RoutedEventArgs e)
+    {
+        ClearSearch();
+        SearchBox.Focus();
+    }
+
+    private void ClearSearch()
+    {
+        SearchBox.Clear();
+        _model.SearchText = string.Empty;
+    }
+
+    /// <summary>To the list, on the picture chosen - so the arrow keys step on from it.</summary>
+    private void FocusList()
+    {
+        var item = FileList.SelectedItem ?? (FileList.Items.Count > 0 ? FileList.Items[0] : null);
+
+        if (item is null)
+        {
+            FileList.Focus();
+            return;
+        }
+
+        FileList.ScrollIntoView(item);
+        FileList.UpdateLayout();
+
+        if (FileList.ItemContainerGenerator.ContainerFromItem(item) is UIElement container)
+            container.Focus();
+        else
+            FileList.Focus();
+    }
+
+    // ---- the pictures chosen, as files ---------------------------------------------------
+
+    /// <summary>The pictures chosen in the list, in list order.</summary>
+    private IReadOnlyList<ImageFileItem> ChosenFiles => _model.Chosen;
+
+    private void OnCanUseChosen(object sender, CanExecuteRoutedEventArgs e)
+    {
+        e.CanExecute = ChosenFiles.Count > 0;
+        e.Handled = true;
+    }
+
+    private void OnCopyName(object sender, ExecutedRoutedEventArgs e) =>
+        Copy(string.Join(Environment.NewLine, ChosenFiles.Select(file => file.Name)));
+
+    private void OnCopyPath(object sender, ExecutedRoutedEventArgs e) =>
+        Copy(string.Join(Environment.NewLine, ChosenFiles.Select(file => file.Path)));
+
+    private static void Copy(string text)
+    {
+        // The clipboard can be held a moment by another program; not worth an error.
+        try
+        {
+            Clipboard.SetText(text);
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+        }
+    }
+
+    /// <summary>Opens Explorer on the first picture chosen's folder, with it selected.</summary>
+    private void OnShowInExplorer(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (ChosenFiles.FirstOrDefault() is not { } file)
+            return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{file.Path}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            Dialog.Error($"Explorer could not be opened: {ex.Message}", BrowserViewModel.AppTitle, this);
+        }
     }
 
     private void OnExit(object sender, RoutedEventArgs e) => Close();

@@ -57,10 +57,42 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <!-- A file's type on its icon: each kind a colour of its own. -->
+        <Style x:Key="FileKindBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="Padding" Value="2,0,2,1" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+            <Setter Property="Margin" Value="0,0,0,3" />
+            <Setter Property="Background" Value="#5A606B" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Kind}" Value="PNG">
+                    <Setter Property="Background" Value="#2F74B5" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="JPG">
+                    <Setter Property="Background" Value="#B7791F" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="BMP">
+                    <Setter Property="Background" Value="#7A52B3" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="TIF">
+                    <Setter Property="Background" Value="#23897A" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <ContextMenu x:Key="FileMenu">
+            <MenuItem Header="Copy _Name" InputGestureText="Ctrl+C" Command="{x:Static local:ViewerWindow.CopyNameCommand}" />
+            <MenuItem Header="Copy Full _Path" InputGestureText="Ctrl+Shift+C" Command="{x:Static local:ViewerWindow.CopyPathCommand}" />
+            <Separator />
+            <MenuItem Header="Show in _Explorer" Command="{x:Static local:ViewerWindow.ShowInExplorerCommand}" />
+        </ContextMenu>
     </Window.Resources>
 
     <Window.InputBindings>
         <KeyBinding Key="O" Modifiers="Control" Command="{x:Static local:ViewerWindow.OpenFolderCommand}" />
+        <KeyBinding Key="F" Modifiers="Control" Command="{x:Static local:ViewerWindow.SearchCommand}" />
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
         <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SetLayoutCommand}" CommandParameter="{x:Static local:ViewerLayout.Single}" />
@@ -71,6 +103,10 @@
 
     <Window.CommandBindings>
         <CommandBinding Command="{x:Static local:ViewerWindow.OpenFolderCommand}" Executed="OnOpenFolder" />
+        <CommandBinding Command="{x:Static local:ViewerWindow.SearchCommand}" Executed="OnSearch" />
+        <CommandBinding Command="{x:Static local:ViewerWindow.CopyNameCommand}" Executed="OnCopyName" CanExecute="OnCanUseChosen" />
+        <CommandBinding Command="{x:Static local:ViewerWindow.CopyPathCommand}" Executed="OnCopyPath" CanExecute="OnCanUseChosen" />
+        <CommandBinding Command="{x:Static local:ViewerWindow.ShowInExplorerCommand}" Executed="OnShowInExplorer" CanExecute="OnCanUseChosen" />
     </Window.CommandBindings>
 
     <Grid>
@@ -86,6 +122,10 @@
                 <MenuItem Header="_Open Folder…" InputGestureText="Ctrl+O" Command="{x:Static local:ViewerWindow.OpenFolderCommand}" />
                 <MenuItem Header="_Refresh" InputGestureText="F5" Command="{Binding RefreshCommand}" />
                 <MenuItem Header="_Save Measurements" InputGestureText="Ctrl+S" Command="{Binding SaveCommand}" />
+                <Separator />
+                <MenuItem Header="Copy _Name" InputGestureText="Ctrl+C" Command="{x:Static local:ViewerWindow.CopyNameCommand}" />
+                <MenuItem Header="Copy Full _Path" InputGestureText="Ctrl+Shift+C" Command="{x:Static local:ViewerWindow.CopyPathCommand}" />
+                <MenuItem Header="Show in _Explorer" Command="{x:Static local:ViewerWindow.ShowInExplorerCommand}" />
                 <Separator />
                 <MenuItem Header="E_xit" Click="OnExit" />
             </MenuItem>
@@ -181,6 +221,55 @@
                                            TextTrimming="CharacterEllipsis"
                                            Foreground="{StaticResource Text.Secondary}" />
 
+                                <!-- Search the names: as Studio's toolbox search. -->
+                                <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+                                    <TextBox x:Name="SearchBox"
+                                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
+                                             Padding="22,3,24,3"
+                                             VerticalContentAlignment="Center"
+                                             PreviewKeyDown="OnSearchKeyDown"
+                                             ToolTip="Only the pictures whose name or folder holds this - a serial number, FAIL, a day (Ctrl+F). Down goes to the list; Esc clears." />
+
+                                    <Image Source="{StaticResource Icon.ph_search}"
+                                           Width="13"
+                                           Height="13"
+                                           Margin="6,0,0,0"
+                                           HorizontalAlignment="Left"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False" />
+
+                                    <TextBlock Text="Search names"
+                                               Margin="24,0,0,0"
+                                               VerticalAlignment="Center"
+                                               Foreground="{StaticResource Text.Secondary}"
+                                               FontStyle="Italic"
+                                               IsHitTestVisible="False">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <Button Style="{StaticResource ToolbarButton}"
+                                            Width="18"
+                                            Height="18"
+                                            Padding="0"
+                                            Margin="0,0,3,0"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            ToolTip="Clear the search (Esc)"
+                                            Click="OnClearSearch"
+                                            Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibility}}">
+                                        <Image Source="{StaticResource Icon.ph_clear}" Width="10" Height="10" />
+                                    </Button>
+                                </Grid>
+
                                 <TextBlock DockPanel.Dock="Bottom"
                                            Text="{Binding Problem}"
                                            TextWrapping="Wrap"
@@ -199,9 +288,13 @@
                                     <TextBlock TextWrapping="Wrap"
                                                FontSize="11"
                                                Foreground="{StaticResource Text.Secondary}"
-                                               Text="No pictures here to show."
+                                               Text="{Binding EmptyText}"
                                                Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
 
+                                    <!--
+                                        Grouped by sub-folder - a station's days - under a heading
+                                        each; the folder's own pictures, last, have none.
+                                    -->
                                     <ListBox x:Name="FileList"
                                              ItemsSource="{Binding Files}"
                                              SelectionMode="Extended"
@@ -210,12 +303,64 @@
                                              Foreground="{StaticResource Text.Primary}"
                                              ItemContainerStyle="{StaticResource DarkListBoxItem}"
                                              VirtualizingPanel.IsVirtualizing="True"
+                                             VirtualizingPanel.IsVirtualizingWhenGrouping="True"
                                              VirtualizingPanel.VirtualizationMode="Recycling"
                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             ContextMenu="{StaticResource FileMenu}"
                                              SelectionChanged="OnFilesSelectionChanged">
+                                        <ListBox.InputBindings>
+                                            <KeyBinding Key="C" Modifiers="Control" Command="{x:Static local:ViewerWindow.CopyNameCommand}" />
+                                            <KeyBinding Key="C" Modifiers="Control+Shift" Command="{x:Static local:ViewerWindow.CopyPathCommand}" />
+                                        </ListBox.InputBindings>
+                                        <ListBox.GroupStyle>
+                                            <GroupStyle>
+                                                <GroupStyle.HeaderTemplate>
+                                                    <DataTemplate>
+                                                        <DockPanel Margin="2,8,4,3">
+                                                            <DockPanel.Style>
+                                                                <Style TargetType="DockPanel">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Name}" Value="{x:Null}">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </DockPanel.Style>
+                                                            <TextBlock DockPanel.Dock="Right"
+                                                                       Text="{Binding ItemCount}"
+                                                                       FontSize="11"
+                                                                       Foreground="{StaticResource Text.Secondary}" />
+                                                            <Image Source="{StaticResource Icon.ph_open}" Width="13" Height="13" Margin="0,0,5,0" />
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       Foreground="{StaticResource Text.Secondary}" />
+                                                        </DockPanel>
+                                                    </DataTemplate>
+                                                </GroupStyle.HeaderTemplate>
+                                            </GroupStyle>
+                                        </ListBox.GroupStyle>
                                         <ListBox.ItemTemplate>
                                             <DataTemplate DataType="{x:Type local:ImageFileItem}">
-                                                <DockPanel ToolTip="{Binding Path}" Background="Transparent">
+                                                <DockPanel ToolTip="{Binding Description}" Background="Transparent">
+                                                    <!-- The file's icon: a page with a picture on it, and its type. -->
+                                                    <Grid DockPanel.Dock="Left" Width="24" Height="28" Margin="0,0,7,0" VerticalAlignment="Center">
+                                                        <Path Data="M4,1.5 H15 L20.5,7 V26.5 H4 Z"
+                                                              Fill="#24262B"
+                                                              Stroke="#9AA0AA"
+                                                              StrokeThickness="1.2"
+                                                              StrokeLineJoin="Round" />
+                                                        <Path Data="M15,1.5 V7 H20.5"
+                                                              Stroke="#9AA0AA"
+                                                              StrokeThickness="1.2"
+                                                              StrokeLineJoin="Round" />
+                                                        <Path Data="M7,15 L10,11 L12.2,13.6 L14,11.8 L17.5,15 Z"
+                                                              Fill="#9AA0AA" />
+                                                        <Border Style="{StaticResource FileKindBadge}">
+                                                            <TextBlock Text="{Binding Kind}" FontSize="7.5" FontWeight="Bold" Foreground="White" />
+                                                        </Border>
+                                                    </Grid>
                                                     <Border DockPanel.Dock="Right" Style="{StaticResource VerdictBadge}">
                                                         <TextBlock Text="{Binding Verdict}" FontSize="10" FontWeight="SemiBold" Foreground="White" />
                                                     </Border>
@@ -223,15 +368,17 @@
                                                                Text="●"
                                                                FontSize="9"
                                                                Margin="0,3,5,0"
+                                                               VerticalAlignment="Top"
                                                                Foreground="#D9A33A"
                                                                ToolTip="Measured, and not saved yet (Ctrl+S)"
                                                                Visibility="{Binding IsModified, Converter={StaticResource BoolToVisibility}}" />
-                                                    <StackPanel>
+                                                    <StackPanel VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Text="{Binding Subfolder}"
+                                                        <TextBlock Text="{Binding DetailsText}"
                                                                    FontSize="10"
-                                                                   Foreground="{StaticResource Text.Secondary}"
-                                                                   Visibility="{Binding Subfolder, Converter={StaticResource NullToVisibility}}" />
+                                                                   Margin="0,1,0,0"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{StaticResource Text.Secondary}" />
                                                     </StackPanel>
                                                 </DockPanel>
                                             </DataTemplate>
