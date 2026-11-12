@@ -331,6 +331,8 @@ public sealed class BrowserViewModel : ObservableObject
 
             OnPropertyChanged(nameof(IsGroupedByFolder));
             OnPropertyChanged(nameof(SortDirectionText));
+            OnPropertyChanged(nameof(SortDirectionTip));
+            OnPropertyChanged(nameof(SortByText));
             SaveSettings();
             ApplyFilter(_chosen.Select(item => item.Path).ToArray());
 
@@ -349,22 +351,31 @@ public sealed class BrowserViewModel : ObservableObject
                 return;
 
             OnPropertyChanged(nameof(SortDirectionText));
-            OnPropertyChanged(nameof(SortArrow));
+            OnPropertyChanged(nameof(SortDirectionTip));
+            OnPropertyChanged(nameof(SortByText));
             SaveSettings();
             ApplyFilter(_chosen.Select(item => item.Path).ToArray());
         }
     }
 
-    /// <summary>↑ ascending, ↓ descending.</summary>
-    public string SortArrow => _descending ? "↓" : "↑";
-
     public IRelayCommand ReverseSortCommand { get; }
 
-    /// <summary>The sort's choices, as the panel lists them.</summary>
+    /// <summary>The sort's choices, as the Sort By menu lists them.</summary>
     public static IReadOnlyList<Choice> Sorts { get; } = Choice.Of<FileSort>();
 
-    /// <summary>The direction, as its button's tooltip says it: "A to Z", "Newest first".</summary>
-    public string SortDirectionText => (_sort, _descending) switch
+    /// <summary>"Sort by: Date modified, newest first" - the Sort By button's tooltip.</summary>
+    public string SortByText =>
+        $"Sort by: {Sorts.First(choice => (FileSort)choice.Value == _sort).Label}, {SortDirectionText.ToLowerInvariant()}";
+
+    /// <summary>The direction: "A to Z", "Newest first".</summary>
+    public string SortDirectionText => DirectionText(_sort, _descending);
+
+    /// <summary>"Newest first - click for oldest first": the direction button's tooltip.</summary>
+    public string SortDirectionTip =>
+        $"{SortDirectionText} - click for {DirectionText(_sort, !_descending).ToLowerInvariant()}";
+
+    /// <summary>A direction in words, for a sort: what comes first.</summary>
+    public static string DirectionText(FileSort sort, bool descending) => (sort, descending) switch
     {
         (FileSort.Name or FileSort.Type, false) => "A to Z",
         (FileSort.Name or FileSort.Type, true) => "Z to A",

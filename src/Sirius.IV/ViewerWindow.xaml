@@ -58,26 +58,18 @@
             </Style.Triggers>
         </Style>
 
-        <!-- A file's type on its icon: each kind a colour of its own. -->
-        <Style x:Key="FileKindBadge" TargetType="Border">
-            <Setter Property="CornerRadius" Value="2" />
-            <Setter Property="Padding" Value="2,0,2,1" />
-            <Setter Property="HorizontalAlignment" Value="Left" />
-            <Setter Property="VerticalAlignment" Value="Bottom" />
-            <Setter Property="Margin" Value="0,0,0,3" />
-            <Setter Property="Background" Value="#5A606B" />
+        <!--
+            A file's icon, by its type: Phosphor's file-png and file-jpg; any
+            other picture, file-image - until BMP and TIF have their own.
+        -->
+        <Style x:Key="FileKindIcon" TargetType="Image">
+            <Setter Property="Source" Value="{StaticResource Icon.ph_image_file}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Kind}" Value="PNG">
-                    <Setter Property="Background" Value="#2F74B5" />
+                    <Setter Property="Source" Value="{StaticResource Icon.ph_file_png}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Kind}" Value="JPG">
-                    <Setter Property="Background" Value="#B7791F" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="BMP">
-                    <Setter Property="Background" Value="#7A52B3" />
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Kind}" Value="TIF">
-                    <Setter Property="Background" Value="#23897A" />
+                    <Setter Property="Source" Value="{StaticResource Icon.ph_file_jpg}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -221,78 +213,121 @@
                                            TextTrimming="CharacterEllipsis"
                                            Foreground="{StaticResource Text.Secondary}" />
 
-                                <!-- Search the names: as Studio's toolbox search. -->
-                                <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
-                                    <TextBox x:Name="SearchBox"
-                                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
-                                             Padding="22,3,24,3"
-                                             VerticalContentAlignment="Center"
-                                             PreviewKeyDown="OnSearchKeyDown"
-                                             ToolTip="Only the pictures whose name or folder holds this - a serial number, FAIL, a day (Ctrl+F). Down goes to the list; Esc clears." />
-
-                                    <Image Source="{StaticResource Icon.ph_search}"
-                                           Width="13"
-                                           Height="13"
-                                           Margin="6,0,0,0"
-                                           HorizontalAlignment="Left"
-                                           VerticalAlignment="Center"
-                                           IsHitTestVisible="False" />
-
-                                    <TextBlock Text="Search names"
-                                               Margin="24,0,0,0"
-                                               VerticalAlignment="Center"
-                                               Foreground="{StaticResource Text.Secondary}"
-                                               FontStyle="Italic"
-                                               IsHitTestVisible="False">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                                <Setter Property="Visibility" Value="Collapsed" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
-                                                        <Setter Property="Visibility" Value="Visible" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-
-                                    <Button Style="{StaticResource ToolbarButton}"
-                                            Width="18"
-                                            Height="18"
-                                            Padding="0"
-                                            Margin="0,0,3,0"
-                                            HorizontalAlignment="Right"
-                                            VerticalAlignment="Center"
-                                            ToolTip="Clear the search (Esc)"
-                                            Click="OnClearSearch"
-                                            Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibility}}">
-                                        <Image Source="{StaticResource Icon.ph_clear}" Width="10" Height="10" />
-                                    </Button>
-                                </Grid>
-
-                                <!-- Sort: what by, and which way. The viewers step along in this order. -->
+                                <!--
+                                    Search the names, and sort: one row. Which way, then
+                                    what by - a menu. The viewers step along in this order.
+                                -->
                                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                                    <TextBlock DockPanel.Dock="Left"
-                                               Text="Sort"
-                                               VerticalAlignment="Center"
-                                               Margin="2,0,8,0"
-                                               Foreground="{StaticResource Text.Secondary}" />
+                                    <Button x:Name="SortByButton"
+                                            DockPanel.Dock="Right"
+                                            Style="{StaticResource ToolbarButton}"
+                                            Width="34"
+                                            Height="24"
+                                            Margin="1,0,0,0"
+                                            ToolTip="{Binding SortByText}"
+                                            Click="OnSortByClick">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="M1,2.5 H12 M1,6.5 H12 M1,10.5 H12"
+                                                  Width="13"
+                                                  Height="13"
+                                                  Stroke="{StaticResource Text.Primary}"
+                                                  StrokeThickness="1.4"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round" />
+                                            <Path Data="M0,0 L3,3 L6,0"
+                                                  Margin="3,1,0,0"
+                                                  VerticalAlignment="Center"
+                                                  Stroke="{StaticResource Text.Secondary}"
+                                                  StrokeThickness="1.3"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <!-- An arrow beside bars growing along it; turned over for the other way. -->
                                     <Button DockPanel.Dock="Right"
-                                            Style="{StaticResource ToolbarTextButton}"
+                                            Style="{StaticResource ToolbarButton}"
+                                            Width="26"
+                                            Height="24"
                                             Margin="4,0,0,0"
                                             Command="{Binding ReverseSortCommand}"
-                                            ToolTip="{Binding SortDirectionText}"
-                                            ToolTipService.ShowOnDisabled="True">
-                                        <TextBlock Margin="4,0" VerticalAlignment="Center" Foreground="{StaticResource Text.Primary}">
-                                            <Run Text="{Binding SortArrow, Mode=OneWay}" FontWeight="Bold" />
-                                            <Run Text="{Binding SortDirectionText, Mode=OneWay}" />
-                                        </TextBlock>
+                                            ToolTip="{Binding SortDirectionTip}">
+                                        <Canvas Width="14" Height="14" RenderTransformOrigin="0.5,0.5">
+                                            <Canvas.Style>
+                                                <Style TargetType="Canvas">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SortDescending}" Value="True">
+                                                            <Setter Property="RenderTransform">
+                                                                <Setter.Value>
+                                                                    <ScaleTransform ScaleY="-1" />
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Canvas.Style>
+                                            <Path Data="M3.5,1.5 V12.5 M1,10 L3.5,12.5 L6,10"
+                                                  Stroke="{StaticResource Text.Primary}"
+                                                  StrokeThickness="1.4"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round" />
+                                            <Path Data="M8.5,2.5 H10.5 M8.5,7 H12 M8.5,11.5 H13.5"
+                                                  Stroke="{StaticResource Text.Primary}"
+                                                  StrokeThickness="1.4"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round" />
+                                        </Canvas>
                                     </Button>
-                                    <ComboBox ItemsSource="{x:Static local:BrowserViewModel.Sorts}"
-                                              DisplayMemberPath="Label"
-                                              SelectedValuePath="Value"
-                                              SelectedValue="{Binding Sort}"
-                                              ToolTip="What the list is sorted by. Name keeps a station's pictures in the order taken, under a heading for each day." />
+
+                                    <Grid>
+                                        <TextBox x:Name="SearchBox"
+                                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=250}"
+                                                 Padding="22,3,24,3"
+                                                 VerticalContentAlignment="Center"
+                                                 PreviewKeyDown="OnSearchKeyDown"
+                                                 ToolTip="Only the pictures whose name or folder holds this - a serial number, FAIL, a day (Ctrl+F). Down goes to the list; Esc clears." />
+
+                                        <Image Source="{StaticResource Icon.ph_search}"
+                                               Width="13"
+                                               Height="13"
+                                               Margin="6,0,0,0"
+                                               HorizontalAlignment="Left"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False" />
+
+                                        <TextBlock Text="Search names"
+                                                   Margin="24,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource Text.Secondary}"
+                                                   FontStyle="Italic"
+                                                   IsHitTestVisible="False">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <Button Style="{StaticResource ToolbarButton}"
+                                                Width="18"
+                                                Height="18"
+                                                Padding="0"
+                                                Margin="0,0,3,0"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center"
+                                                ToolTip="Clear the search (Esc)"
+                                                Click="OnClearSearch"
+                                                Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibility}}">
+                                            <Image Source="{StaticResource Icon.ph_clear}" Width="10" Height="10" />
+                                        </Button>
+                                    </Grid>
                                 </DockPanel>
 
                                 <TextBlock DockPanel.Dock="Top"
@@ -376,23 +411,14 @@
                                         <ListBox.ItemTemplate>
                                             <DataTemplate DataType="{x:Type local:ImageFileItem}">
                                                 <DockPanel ToolTip="{Binding Description}" Background="Transparent">
-                                                    <!-- The file's icon: a page with a picture on it, and its type. -->
-                                                    <Grid DockPanel.Dock="Left" Width="24" Height="28" Margin="0,0,7,0" VerticalAlignment="Center">
-                                                        <Path Data="M4,1.5 H15 L20.5,7 V26.5 H4 Z"
-                                                              Fill="#24262B"
-                                                              Stroke="#9AA0AA"
-                                                              StrokeThickness="1.2"
-                                                              StrokeLineJoin="Round" />
-                                                        <Path Data="M15,1.5 V7 H20.5"
-                                                              Stroke="#9AA0AA"
-                                                              StrokeThickness="1.2"
-                                                              StrokeLineJoin="Round" />
-                                                        <Path Data="M7,15 L10,11 L12.2,13.6 L14,11.8 L17.5,15 Z"
-                                                              Fill="#9AA0AA" />
-                                                        <Border Style="{StaticResource FileKindBadge}">
-                                                            <TextBlock Text="{Binding Kind}" FontSize="7.5" FontWeight="Bold" Foreground="White" />
-                                                        </Border>
-                                                    </Grid>
+                                                    <!-- The file's icon, saying its type. -->
+                                                    <Image DockPanel.Dock="Left"
+                                                           Style="{StaticResource FileKindIcon}"
+                                                           Width="24"
+                                                           Height="24"
+                                                           Margin="0,0,7,0"
+                                                           VerticalAlignment="Center"
+                                                           ToolTip="{Binding Kind, StringFormat='{}{0} picture'}" />
                                                     <Border DockPanel.Dock="Right" Style="{StaticResource VerdictBadge}">
                                                         <TextBlock Text="{Binding Verdict}" FontSize="10" FontWeight="SemiBold" Foreground="White" />
                                                     </Border>

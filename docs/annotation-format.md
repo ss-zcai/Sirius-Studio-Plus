@@ -128,14 +128,16 @@ Builder opens a station's folder in it; so does
 
 - **Files**, on the left: the folder's pictures, with its sub-folders - a
   station's days - by default, in the order taken, under a heading for
-  each sub-folder with its count. Each has an icon saying its type (PNG,
-  JPG, BMP, TIF, each a colour of its own), and under its name when it
+  each sub-folder with its count. Each has an icon saying its type - the
+  icon set's file-png and file-jpg; file-image for BMP and TIF until they
+  have their own - and under its name when it
   was written, its size and its width × height - read from the file's
   header as it comes into view, never by opening the picture. A
   station's pictures show PASS, FAIL or ERROR. **Show** lists every
   picture, or only failed, or only passed; **Search** (Ctrl+F) only those
   whose name or folder holds what is typed - a serial number, `FAIL`, a
-  day. **Sort** by name - folder by folder, a station's pictures in the
+  day. Beside the search box, two buttons: which way round, and **Sort
+  by**, a menu. Sorted by name - folder by folder, a station's pictures in the
   order taken, under their day headings - or by date modified, size,
   dimensions (all the pictures' headers read first, with progress shown)
   or type, either way round; ties keep the name order, and the viewers

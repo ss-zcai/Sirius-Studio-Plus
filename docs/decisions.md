@@ -2889,7 +2889,8 @@ name with a json extension; you might use our own."
   grid's type, date and size - and now width × height, read from each
   file's header only as it comes into view, so a folder of tens of
   thousands lists as fast as before - shown under each name, beside a
-  file icon coloured by type; its find panel as a search box; Copy
+  file icon saying its type (the icon set's file-png and file-jpg,
+  file-image for the rest until BMP and TIF have theirs); its find panel as a search box; Copy
   Filename and Copy Full Filename. Its matched image and Sync View wait
   for matching rules (F20e); its Features table and Export Features join
   the table panel (F20b), as one CSV rather than an `.xlsx` each; Copy

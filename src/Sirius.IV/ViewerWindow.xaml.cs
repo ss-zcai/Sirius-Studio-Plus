@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -176,6 +177,50 @@ public partial class ViewerWindow : Window
             container.Focus();
         else
             FileList.Focus();
+    }
+
+    // ---- sorting ---------------------------------------------------------------------------
+
+    private void OnSortByClick(object sender, RoutedEventArgs e)
+    {
+        var menu = SortByMenu();
+        menu.PlacementTarget = SortByButton;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
+
+    /// <summary>
+    /// What to sort by, the one in use ticked; then the two ways round, in
+    /// words for that sort - "Oldest first", "Newest first".
+    /// </summary>
+    internal ContextMenu SortByMenu()
+    {
+        var menu = new ContextMenu();
+
+        foreach (var choice in BrowserViewModel.Sorts)
+        {
+            var sort = (FileSort)choice.Value;
+            var item = new MenuItem { Header = choice.Label, IsCheckable = true, IsChecked = _model.Sort == sort };
+            item.Click += (_, _) => _model.Sort = sort;
+            menu.Items.Add(item);
+        }
+
+        menu.Items.Add(new Separator());
+
+        foreach (var descending in new[] { false, true })
+        {
+            var item = new MenuItem
+            {
+                Header = BrowserViewModel.DirectionText(_model.Sort, descending),
+                IsCheckable = true,
+                IsChecked = _model.SortDescending == descending,
+            };
+
+            item.Click += (_, _) => _model.SortDescending = descending;
+            menu.Items.Add(item);
+        }
+
+        return menu;
     }
 
     // ---- the pictures chosen, as files ---------------------------------------------------

@@ -455,8 +455,22 @@ public sealed class SiriusIvTests : IDisposable
                 WpfTestHost.Settle(window.Dispatcher);
 
                 var texts = Texts(entry);
-                Assert.Contains("JPG", texts);
                 Assert.Contains("PASS", texts);
+
+                // Its icon says its type: the icon set's file-jpg; file-png; file-image for the rest.
+                var icon = Assert.Single(Images(entry));
+                var resources = System.Windows.Application.Current!;
+                Assert.Same(resources.FindResource("Icon.ph_file_jpg"), icon.Source);
+
+                foreach (var (index, key) in new[] { (0, "Icon.ph_file_png"), (5, "Icon.ph_image_file") })
+                {
+                    entry.DataContext = model.Files[index];
+                    WpfTestHost.Settle(window.Dispatcher);
+                    Assert.Same(resources.FindResource(key), icon.Source);
+                }
+
+                entry.DataContext = model.Files[4];
+                WpfTestHost.Settle(window.Dispatcher);
                 Assert.Contains(model.Files[4].Name, texts);
                 Assert.Contains(texts, text => text.StartsWith(model.Files[4].ModifiedText, StringComparison.Ordinal));
 
@@ -475,6 +489,21 @@ public sealed class SiriusIvTests : IDisposable
                 // Sorted any way but by name, a folder's pictures are spread through the list: no headings.
                 model.Sort = FileSort.Size;
                 Assert.Empty(view.GroupDescriptions);
+
+                // Sort By's menu: the sorts, Size ticked; then the two ways, in Size's words.
+                var menu = window.SortByMenu();
+                var items = menu.Items.OfType<System.Windows.Controls.MenuItem>().ToArray();
+                Assert.Equal(
+                    ["Name", "Date modified", "Size", "Dimensions", "Type", "Smallest first", "Largest first"],
+                    items.Select(item => (string)item.Header));
+                Assert.Equal(["Size", "Smallest first"], items.Where(item => item.IsChecked).Select(item => (string)item.Header));
+
+                items[1].RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                Assert.Equal(FileSort.Modified, model.Sort);
+                window.SortByMenu().Items.OfType<System.Windows.Controls.MenuItem>().Single(item => (string)item.Header == "Newest first")
+                    .RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                Assert.True(model.SortDescending);
+                model.SortDescending = false;
                 model.Sort = FileSort.Name;
                 Assert.Single(view.GroupDescriptions);
             }
@@ -483,6 +512,23 @@ public sealed class SiriusIvTests : IDisposable
                 window.Close();
             }
         });
+    }
+
+    private static List<System.Windows.Controls.Image> Images(System.Windows.DependencyObject root)
+    {
+        var found = new List<System.Windows.Controls.Image>();
+
+        void Walk(System.Windows.DependencyObject node)
+        {
+            if (node is System.Windows.Controls.Image image)
+                found.Add(image);
+
+            foreach (var child in System.Windows.LogicalTreeHelper.GetChildren(node).OfType<System.Windows.DependencyObject>())
+                Walk(child);
+        }
+
+        Walk(root);
+        return found;
     }
 
     private static List<string> Texts(System.Windows.DependencyObject root)
@@ -549,7 +595,8 @@ public sealed class SiriusIvTests : IDisposable
 
             model.SortDescending = true;
             Assert.Equal(["d.tif", "c.bmp", "b.jpg", "a.png"], Names(model));
-            Assert.Equal(("↓", "Z to A"), (model.SortArrow, model.SortDirectionText));
+            Assert.Equal("Z to A - click for a to z", model.SortDirectionTip);
+            Assert.Equal("Sort by: Name, z to a", model.SortByText);
 
             model.Sort = FileSort.Modified;
             Assert.False(model.IsGroupedByFolder);
