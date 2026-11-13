@@ -57,6 +57,13 @@ Basler pylon .NET API  (Basler.Pylon.dll, pylon 26.10)  -  https://www.baslerweb
   installed on the PC, separately. Basler and pylon are trademarks of
   Basler AG.
 
+Hikrobot MVS .NET API  (MvCameraControl.Net.dll 4.9.0.3, from MVS 5.1.1)
+  https://www.hikrobotics.com
+  Copyright (c) Hikrobot Co., Ltd. All rights reserved. Used only to
+  operate Hikrobot cameras; to do so MVS must be installed on the PC,
+  separately. Hikrobot's own terms for redistributing this file are being
+  confirmed with Hikrobot. Hikrobot is a trademark of Hikrobot Co., Ltd.
+
 Phosphor Icons  -  MIT  -  https://phosphoricons.com
   The application's icon set is derived from Phosphor Regular: the artwork
   is restyled, the geometry is theirs. The full licence text ships beside

@@ -26,7 +26,7 @@ is in `licences.md`**; this is the list.
 - **L2. pylon licence conditions 4-6**: our own licence agreement (L6),
   excluding Basler from liability, and indemnifying Basler. Legal review.
 - **L3. Hikrobot MVS**: may `MvCameraControl.Net.dll` ship? Its terms
-  are missing. It is also not in `THIRD-PARTY-NOTICES.txt` yet.
+  are missing. (Now listed in `THIRD-PARTY-NOTICES.txt`.)
 - **L4. YOLO (Ultralytics) is AGPL-3.0**: only if a node library we ship
   uses it.
 - **L5. PLC communication libraries** (with F23): HslCommunication's

@@ -19,7 +19,7 @@ is not, until section 1 is settled.**
 |---|---|---|---|
 | L1 | **Emgu CV** (OpenCV for .NET) | **Blocker** | Buy a commercial licence, and get Emgu's written word on §4 (below). |
 | L2 | **Basler pylon**: our side of its conditions | Open | Our own licence agreement (EULA) with a liability exclusion; legal review. |
-| L3 | **Hikrobot MVS**: may its DLL ship? | Open, unknown | Ask Hikrobot; add it to the notices either way. |
+| L3 | **Hikrobot MVS**: may its DLL ship? | Open, unknown | Ask Hikrobot whether it may ship. (Now in the notices.) |
 | L5 | **HslCommunication** (PLC), once the PLC work ships | **Licence held** (Enterprise) | Check the contract allows shipping it in our product; keep the activation code out of git; add to the notices. |
 | L6 | **Our own EULA** | Missing | Write one. pylon requires it (L2), and every customer build needs one anyway. |
 | L4 | **Ultralytics YOLO** | Only if we ship it | Commercial licence from Ultralytics, or don't ship it. |
@@ -92,8 +92,8 @@ So we do not know whether the DLL may ship beside our application.
   be redistributed.
 - If it may not, stop shipping it: load it from the MVS install on the
   PC, as pylon's runtime is.
-- **Add Hikrobot to `THIRD-PARTY-NOTICES.txt` regardless.** It is shipped
-  today and not listed there - a gap.
+- ~~Add Hikrobot to `THIRD-PARTY-NOTICES.txt`~~ - done 13 November 2026:
+  its copyright, and that its redistribution terms are being confirmed.
 
 ### L5. PLC communication libraries (with backlog F23)
 
