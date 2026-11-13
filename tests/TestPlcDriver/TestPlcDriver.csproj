@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A PLC driver library as the PLC team builds one (docs/plc-drivers.md
+    section 3.1): built against Sirius.Plc without copying it, loaded by
+    PlcDriverLoader in the tests - in a context of its own, as a real one is.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sirius.Plc\Sirius.Plc.csproj" Private="false" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+</Project>

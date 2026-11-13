@@ -311,6 +311,10 @@ public sealed class SimulatedPlc : IPlcDriver
             throw new PlcException(problem);
     }
 
-    private Task Wait(CancellationToken cancellationToken) =>
-        Latency > TimeSpan.Zero ? Task.Delay(Latency, cancellationToken) : Task.CompletedTask;
+    /// <summary>The PLC's answer time; a request already called off stops at once, as a real driver's must.</summary>
+    private Task Wait(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Latency > TimeSpan.Zero ? Task.Delay(Latency, cancellationToken) : Task.CompletedTask;
+    }
 }

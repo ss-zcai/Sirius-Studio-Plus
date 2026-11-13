@@ -94,6 +94,34 @@
                     </TextBlock>
                 </DockPanel>
                 <TextBlock Text="{Binding AddressHint}" Style="{StaticResource Caption}" Margin="0,6,0,0" />
+
+                <!-- The driver's own settings: an S7's CPU, rack and slot; a Modbus unit ID. -->
+                <ItemsControl ItemsSource="{Binding Options}"
+                              Margin="0,8,0,0"
+                              IsEnabled="{Binding CanChangeConnection}"
+                              Visibility="{Binding HasOptions, Converter={StaticResource BoolToVisibility}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:DriverOptionRow}">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,16,4" ToolTip="{Binding Description}">
+                                <TextBlock Text="{Binding Label}" Style="{StaticResource Caption}" />
+                                <ComboBox MinWidth="110"
+                                          ItemsSource="{Binding Choices}"
+                                          SelectedItem="{Binding Value}"
+                                          Visibility="{Binding HasChoices, Converter={StaticResource BoolToVisibility}}" />
+                                <TextBox MinWidth="70"
+                                         VerticalContentAlignment="Center"
+                                         Text="{Binding Value, UpdateSourceTrigger=LostFocus}"
+                                         KeyDown="OnCommitOnEnter"
+                                         Visibility="{Binding HasChoices, Converter={StaticResource InverseBoolToVisibility}}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </Border>
 
@@ -107,7 +135,7 @@
                              Width="130"
                              VerticalContentAlignment="Center"
                              Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
-                             ToolTip="In the PLC's words: M0.0, MW10, MD20, DB34.20.0, 40001" />
+                             ToolTip="{Binding AddressExamples}" />
                     <TextBlock Text="Type" Style="{StaticResource Caption}" Margin="14,0,8,0" />
                     <ComboBox x:Name="TypeBox"
                               Width="140"

@@ -10,7 +10,21 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Sirius.Plc</RootNamespace>
+
+    <!--
+      The PLC driver interface's version, not the application's: a driver
+      library built against another major, or a newer minor, is refused
+      (PlcDriverLoader). Bump the minor for an addition, the major for a
+      change that breaks a driver.
+    -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sirius.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Sirius.Core\Sirius.Core.csproj" />

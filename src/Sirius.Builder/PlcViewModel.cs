@@ -13,6 +13,40 @@ namespace Sirius.Builder;
 /// <summary>One address of the simulated PLC's memory, as the PLC window lists it.</summary>
 public sealed record MemoryRow(string Address, string Value, string Type, bool IsBit);
 
+/// <summary>One of the driver's own settings - an S7's CPU, rack, slot - as the PLC window edits it.</summary>
+public sealed class DriverOptionRow : ObservableObject
+{
+    private readonly Action _changed;
+    private string _value;
+
+    public DriverOptionRow(PlcDriverOption option, string value, Action changed)
+    {
+        Option = option;
+        _value = value;
+        _changed = changed;
+    }
+
+    public PlcDriverOption Option { get; }
+
+    public string Label => Option.Label;
+
+    public string? Description => Option.Description;
+
+    public IReadOnlyList<string>? Choices => Option.Choices;
+
+    public bool HasChoices => Option.Choices is { Count: > 0 };
+
+    public string Value
+    {
+        get => _value;
+        set
+        {
+            if (SetProperty(ref _value, value?.Trim() ?? string.Empty))
+                _changed();
+        }
+    }
+}
+
 /// <summary>A choice of PLC type, with the name a PLC programmer reads.</summary>
 public sealed record PlcTypeChoice(PlcType Type, string Label)
 {
@@ -90,6 +124,10 @@ public sealed partial class PlcViewModel : ObservableObject, IAsyncDisposable
         PlugCommand = new RelayCommand(Plug, () => IsSimulated);
 
         AttachMemory();
+        ShowOptions();
+
+        foreach (var problem in PlcDrivers.Problems)
+            Log(problem);
 
         if (runner is not null)
         {
@@ -148,19 +186,47 @@ public sealed partial class PlcViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The connection can be changed - not while a test run is using it.</summary>
     public bool CanChangeConnection => Runner is null;
 
-    public string AddressHint => IsSimulated
-        ? "Any name: two controllers with one name share one simulated PLC."
-        : "The PLC's IP address.";
+    public string AddressHint => PlcDrivers.Find(_driverKey)?.AddressHint ?? $"No driver called '{_driverKey}' is installed.";
 
     public bool IsSimulated => string.Equals(_driverKey, SimulatedPlcDriver.Key, StringComparison.OrdinalIgnoreCase);
 
     public IAsyncRelayCommand TestConnectionCommand { get; }
 
+    // ---- the driver's own settings ----------------------------------------------------
+
+    /// <summary>The chosen driver's settings beyond the address - none for the simulated PLC.</summary>
+    public ObservableCollection<DriverOptionRow> Options { get; } = [];
+
+    public bool HasOptions => Options.Count > 0;
+
+    /// <summary>Examples of this driver's addresses, for the address boxes' tooltips.</summary>
+    public string AddressExamples => PlcDrivers.Find(_driverKey)?.AddressExamples is { Length: > 0 } examples
+        ? $"In the PLC's words: {examples}"
+        : "In the PLC's words: M0.0, MW10, MD20, DB34.20.0, 40001";
+
+    private void ShowOptions()
+    {
+        Options.Clear();
+
+        foreach (var option in PlcDrivers.Find(_driverKey)?.Options ?? [])
+            Options.Add(new DriverOptionRow(option, Controller.Options.GetValueOrDefault(option.Name) ?? option.Default, SaveConnection));
+
+        OnPropertyChanged(nameof(HasOptions));
+        OnPropertyChanged(nameof(AddressExamples));
+    }
+
     private void SaveConnection()
     {
-        _project.SetConnection(Controller, _driverKey, _plcAddress);
+        var options = Options.ToDictionary(row => row.Option.Name, row => row.Value, StringComparer.OrdinalIgnoreCase);
+        var driverChanged = !string.Equals(Controller.Driver, _driverKey, StringComparison.OrdinalIgnoreCase);
+
+        _project.SetConnection(Controller, _driverKey, _plcAddress, driverChanged ? new Dictionary<string, string>() : options);
         _ = DropConnectionAsync();
         AttachMemory();
+
+        if (driverChanged)
+            ShowOptions();
+
         OnPropertyChanged(nameof(IsSimulated));
         OnPropertyChanged(nameof(AddressHint));
         SetCommand.NotifyCanExecuteChanged();

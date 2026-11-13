@@ -3078,3 +3078,42 @@ sent through the simulator control the vision project.
   start, makes the tabs anew, and the first version, listening to the
   tabs made before that, never heard the screen come back to the front -
   Properties stayed on a workflow's node.
+
+## 77. The PLC driver SDK
+
+Asked for on 13 November 2026: the documents for the PLC team to write
+drivers - Siemens S7 first - and use workflows. Written as
+`docs/plc-drivers.md` and `docs/plc-workflows.md`; and, so that they
+describe what is there rather than what is meant, the pieces they rely on
+built first.
+
+- **A driver is found, not registered in code.** `IPlcDriverFactory` -
+  key, name, address hint and examples, settings, `Create` - in a DLL in
+  `plc-drivers\` beside the program or in the user's settings folder,
+  recognised by its reference to `Sirius.Plc` without loading it, as
+  custom node libraries are. Each library loads in a context of its own,
+  so two may carry two versions of HslCommunication; the program's own
+  assemblies - the contract, and anything else it has loaded - are never
+  loaded twice. Found by a test that loaded a second copy of Studio's
+  assembly and broke WPF's resources for 58 tests after it.
+- **Versioned by `Sirius.Plc`'s own version (1.0.0)**: a library built
+  against another major, or a newer minor, is refused before its code
+  runs, with a sentence saying which to rebuild against.
+- **Keys and settings' names are permanent**, being saved in projects:
+  lower case letters, digits and `-`. A driver declares its settings
+  (an S7's CPU, rack, slot) with defaults and choices; Builder's PLC
+  window shows them, and the project keeps them with the controller. A
+  driver is always given every setting it declared.
+- **A conformance check every driver runs** against a real PLC
+  (`PlcDriverCheck`): connects, knows its addresses, reads back what it
+  wrote as the exact .NET type, reads many, takes several at once, stops
+  when cancelled, refuses a missing address with a `PlcException`,
+  reconnects. It found, on its first run, that the simulated PLC ignored
+  a cancelled request. What a program cannot do - pull a cable - is a
+  bench checklist in the guide.
+- **The S7 driver's design is in the guide**, on HslCommunication: one
+  base class over HSL's shared client interface for every brand, a few
+  lines per brand, TIA Portal's addresses (MW10, DB34.DBW20) translated to
+  HSL's, the activation code from the machine rather than the source.
+  Not built yet: it needs the HslCommunication package, and a PLC to check
+  it against (F23d).

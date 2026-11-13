@@ -17,7 +17,7 @@ public static class PlcNodeLibrary
     public static void Register()
     {
         NodeCatalog.Register(typeof(PlcNodeLibrary).Assembly);
-        PlcDrivers.Register(SimulatedPlcDriver.Key, "Simulated PLC", connection => new SimulatedPlc(SimulatedPlcMemory.Named(connection.Address)));
+        PlcDrivers.Register(new SimulatedPlcDriverFactory());
     }
 
     /// <summary>Whether a node type belongs in a workflow's palette.</summary>
@@ -39,50 +39,124 @@ public sealed record PlcConnection(string Driver, string Address, IReadOnlyDicti
     public string? Option(string name) => Options?.GetValueOrDefault(name);
 }
 
-/// <summary>The kinds of PLC this program can talk to, each a driver made from a <see cref="PlcConnection"/>.</summary>
+/// <summary>
+/// The kinds of PLC this program can talk to - the simulated one, and each
+/// driver library found (<see cref="PlcDriverLoader"/>) - by key.
+/// </summary>
 public static class PlcDrivers
 {
-    private static readonly Dictionary<string, (string Name, Func<PlcConnection, IPlcDriver> Create)> Known =
-        new(StringComparer.OrdinalIgnoreCase);
-
+    private static readonly Dictionary<string, IPlcDriverFactory> Known = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly List<string> LoadProblems = [];
     private static readonly object Gate = new();
 
-    /// <summary>The drivers known: key and the name a person reads.</summary>
+    /// <summary>The drivers known: key and the name a person reads, in the order they were found.</summary>
     public static IReadOnlyList<(string Key, string Name)> All
     {
         get
         {
             lock (Gate)
-                return Known.Select(pair => (pair.Key, pair.Value.Name)).ToArray();
+                return Known.Values.Select(factory => (factory.Key, factory.Name)).ToArray();
         }
     }
 
-    /// <summary>Makes a driver known. A key given again is replaced - a newer driver library loaded over an older.</summary>
-    public static void Register(string key, string name, Func<PlcConnection, IPlcDriver> create)
+    /// <summary>Every driver known.</summary>
+    public static IReadOnlyList<IPlcDriverFactory> Factories
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        ArgumentNullException.ThrowIfNull(create);
+        get
+        {
+            lock (Gate)
+                return Known.Values.ToArray();
+        }
+    }
+
+    /// <summary>What went wrong finding driver libraries - a sentence each.</summary>
+    public static IReadOnlyList<string> Problems
+    {
+        get
+        {
+            lock (Gate)
+                return LoadProblems.ToArray();
+        }
+    }
+
+    /// <summary>The driver of this key, or null.</summary>
+    public static IPlcDriverFactory? Find(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return null;
 
         lock (Gate)
-            Known[key] = (name, create);
+            return Known.GetValueOrDefault(key.Trim());
+    }
+
+    /// <summary>
+    /// Makes a driver known. A key given again is replaced - a newer copy of
+    /// a library loaded over an older.
+    /// </summary>
+    public static void Register(IPlcDriverFactory factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(factory.Key);
+
+        lock (Gate)
+            Known[factory.Key.Trim()] = factory;
+    }
+
+    /// <summary>Makes a driver known from a function - for tests, and a driver built into a program.</summary>
+    public static void Register(string key, string name, Func<PlcConnection, IPlcDriver> create) =>
+        Register(new FunctionFactory(key, name, create));
+
+    internal static void Problem(string problem)
+    {
+        lock (Gate)
+            LoadProblems.Add(problem);
     }
 
     /// <summary>A driver for a connection, not yet connected.</summary>
-    /// <exception cref="PlcException">No driver of that key is known.</exception>
+    /// <exception cref="PlcException">No driver of that key is installed, or its settings cannot work.</exception>
     public static IPlcDriver Create(PlcConnection connection)
     {
         ArgumentNullException.ThrowIfNull(connection);
 
-        Func<PlcConnection, IPlcDriver> create;
+        var factory = Find(connection.Driver)
+                      ?? throw new PlcException($"No driver called '{connection.Driver}' is installed.");
 
-        lock (Gate)
+        // Settings never set take the driver's defaults, so a driver reads
+        // every option it declares without checking for it.
+        var options = factory.Options.ToDictionary(
+            option => option.Name,
+            option => connection.Option(option.Name) ?? option.Default,
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, value) in connection.Options ?? new Dictionary<string, string>())
+            options.TryAdd(name, value);
+
+        try
         {
-            if (!Known.TryGetValue(connection.Driver, out var known))
-                throw new PlcException($"No driver called '{connection.Driver}' is installed.");
-
-            create = known.Create;
+            return factory.Create(connection with { Options = options });
         }
+        catch (PlcException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            throw new PlcException($"The {factory.Name} driver could not be made: {ex.Message}", ex);
+        }
+    }
 
-        return create(connection);
+    private sealed class FunctionFactory(string key, string name, Func<PlcConnection, IPlcDriver> create) : IPlcDriverFactory
+    {
+        public string Key => key;
+
+        public string Name => name;
+
+        public string AddressHint => "Where the PLC is.";
+
+        public string AddressExamples => string.Empty;
+
+        public IReadOnlyList<PlcDriverOption> Options { get; } = [];
+
+        public IPlcDriver Create(PlcConnection connection) => create(connection);
     }
 }

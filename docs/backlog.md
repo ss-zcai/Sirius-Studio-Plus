@@ -202,7 +202,12 @@ from you before they start.
     licence held, L5), which covers most brands, so further drivers are
     thin. Each passes the driver test kit against a real PLC: types and
     byte order, timeouts, a cable pulled and put back.
-  - **F23e. The start kit for the PLC team** (S-M), packed as the
+  - **F23e. The start kit for the PLC team** (S-M) - **partly done 13
+    November 2026** (decision 77): the guides (`plc-drivers.md`,
+    `plc-workflows.md`), driver discovery in `plc-drivers\` folders with
+    the version check, driver settings in Builder, and the conformance
+    check (`PlcDriverCheck`). Left: `Sirius.Plc` as a NuGet package and the
+    zip, as `pack-sdk.ps1` makes the custom-node SDK. Planned, packed as the
     custom-node SDK is:
     - the driver interface;
     - a template driver project;

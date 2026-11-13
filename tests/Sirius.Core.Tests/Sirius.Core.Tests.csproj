@@ -28,6 +28,9 @@
     <ProjectReference Include="..\..\src\Sirius.Runner\Sirius.Runner.csproj" />
     <ProjectReference Include="..\..\src\Sirius.Plc\Sirius.Plc.csproj" />
 
+    <!-- A driver library, built but not referenced: the loader finds it in a folder, as plc-drivers\ holds one. -->
+    <ProjectReference Include="..\TestPlcDriver\TestPlcDriver.csproj" ReferenceOutputAssembly="false" />
+
     <!--
       The sample custom node library: its nodes are exercised directly, and
       its built DLL is copied somewhere of its own and loaded the way the
@@ -56,5 +59,12 @@
           Link="cpp-tests/Native/sample_nodes.cpp"
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <Target Name="CopyTestPlcDriver" AfterTargets="Build">
+    <MSBuild Projects="..\TestPlcDriver\TestPlcDriver.csproj" Targets="GetTargetPath">
+      <Output TaskParameter="TargetOutputs" ItemName="TestPlcDriverAssembly" />
+    </MSBuild>
+    <Copy SourceFiles="@(TestPlcDriverAssembly)" DestinationFolder="$(OutDir)plc-drivers-test\TestPlcDriver" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

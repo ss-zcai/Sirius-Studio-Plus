@@ -46,6 +46,12 @@ public static class SiriusHost
         // in a recipe's palette (NodeCategories.IsWorkflow).
         Sirius.Plc.PlcNodeLibrary.Register();
 
+        // PLC drivers: plc-drivers\ beside the program, for every user, and in
+        // the user's own settings folder.
+        Sirius.Plc.PlcDriverLoader.LoadFolders(
+            Path.Combine(AppContext.BaseDirectory, Sirius.Plc.PlcDriverLoader.FolderName),
+            Path.Combine(SettingsFolder, Sirius.Plc.PlcDriverLoader.FolderName));
+
         CustomNodesForCurrentUser().LoadAll();
         CameraDrivers.LoadInstalled();
     }
