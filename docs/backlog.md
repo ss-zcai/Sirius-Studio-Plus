@@ -2,7 +2,8 @@
 
 What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
-11 November 2026, with 1.0.11 and SDK 1.0.3 released.
+13 November 2026: the PLC is now planned as **controllers** in a project,
+with the PLC team's workflow editor (F23).
 
 Each item has an ID to refer to it by, a rough size, and where it came
 from when that matters. The order is a proposal: change it, strike things
@@ -33,6 +34,10 @@ customer build is not, until these are settled.
   parts; the appendix that should hold Hikrobot's own terms is empty.
   Find out whether `MvCameraControl.Net.dll` may ship beside the
   application.
+- **L5. PLC communication libraries** (with F23f). Before a driver ships,
+  its library's licence: S7.Net Plus (MIT) and NModbus (MIT) are easy;
+  Snap7 and Sharp7 (LGPL) are fine as a separate DLL, not linked in;
+  libplctag (MPL 2.0 / LGPL); HslCommunication is commercial.
 - **L4. YOLO (Ultralytics) is AGPL-3.0.** Only if a Python node library
   we ship uses it: closed distribution needs Ultralytics' commercial
   licence.
@@ -87,8 +92,8 @@ from you before they start.
   runtime program and Run as Runtime, the screen designer, and settings
   changed on the line; then split into Sirius Builder (projects, screens)
   and Sirius Edge (the runtime), Studio keeping recipes (decision 71).
-  Next on it: counts kept over a stop, user levels, then PLC triggers
-  (F3); later a shared UI library so the three can ship apart. The
+  Next on it: counts kept over a stop, user levels, then the PLC as
+  controllers (F23); later a shared UI library so the three can ship apart. The
   fourteen ideas agreed on 1 November - recipe vs project, published
   results and tunables, stations, the HMI designer, the runtime exe, PLC
   handshake and drivers, licensing per machine, edge vs cloud - into
@@ -102,9 +107,104 @@ from you before they start.
   Also in scope: **Sirius IV** (Image Viewer) as the runtime's image
   browser - the station's saved images and their annotations (F20). Its
   first version is built (decision 73).
-- **F3. Signal out** (M, after F2). The first PLC step: Modbus TCP, then
-  digital I/O. Today a verdict reaches the status line and a CSV, and
-  nothing outside the PC.
+- ~~**F3. Signal out**~~ - replaced by F23 below: the PLC comes through
+  the PLC team's workflows, not a Modbus driver of ours. Today a verdict
+  still reaches the status line and a CSV, and nothing outside the PC.
+- **F23. The PLC as controllers in a project, with the PLC team** (L,
+  design first) - proposed 13 November 2026.
+
+  **The idea.** The PLC team is building a PLC workflow editor on the same
+  node graph: a Connector node per PLC (a Siemens S7-1200 already
+  connects), and Monitor, Read, Write and Trigger nodes that watch, read
+  and write addresses such as `DB34.20.0`, saved as `*.workflow.json`.
+  A Builder project would hold **controllers** beside its stations: each
+  is one such workflow, listed in a panel under Stations. Double-clicking
+  one opens the workflow editor, just as a station opens its recipe in
+  Studio. Edge runs the workflows beside the stations.
+
+  **Who does what.** We give the PLC team a small framework (F23b). They
+  write each brand's driver against it, and the nodes once. We do the
+  bridge to the stations, and the Builder and Edge integration. So a new
+  brand is a driver, never new nodes and never a change to Builder.
+
+  **Names, not addresses** (runtime design §9): only the workflow knows
+  `DB34.20.0`. Stations, screens and records see named values - a
+  pallet ID, a position, a verdict.
+
+  - **F23a. Where a workflow meets the stations** (M; agree it with the PLC
+    team before anything else). Two nodes of ours, in their palette:
+    - **Inspect**: a trigger in, a station chosen by name, and named
+      values in (Pallet ID, Position ID, Run Mode - what their PLC
+      Trigger node already gathers). It runs one inspection on that
+      station, and the values go with the picture: into the `.sann`, the
+      Result Log and the screen. This is the **part ID** that matching
+      across two stations (F20e) waits for.
+    - **Station Result**: fires when the station's inspection finishes,
+      with outputs for the verdict, PASS and FAIL, and each published
+      result by name. These are wired to a PLC Write ("Capture Done").
+
+    Later, if wanted: Station Ready and Busy for the handshake (runtime
+    design §9), recipe change by product code, and Reset Counts.
+
+    Underneath is one interface in Edge, a **station bus**: `Inspect`
+    (a station plus values, returning the result), and Ready and
+    Finished events. Builder's Test Run and Studio's Run as Runtime use
+    the same bus.
+  - **F23b. The PLC framework, as an SDK for the PLC team** (M), packed as
+    the custom-node SDK is:
+    - **`IPlcDriver`**: connect and disconnect, connection state, read
+      and write a typed value at an address (the driver parses its own
+      brand's addresses), watch an address for a change or an edge (by
+      polling or the brand's own subscription), and log lines to the
+      Output panel;
+    - **the nodes**, written once against `IPlcDriver`: Connector,
+      Read, Write, Monitor and Trigger;
+    - **a simulated PLC**: a memory map changed by hand in a panel, for
+      the desk, for tests, and for commissioning before the PLC is wired
+      up (§9's "fake PLC");
+    - **a driver test kit**: what every driver must pass, against the
+      simulator or a real PLC. That covers types and byte order, a
+      timeout, a cable pulled and put back (reconnect), and many
+      addresses read in one call;
+    - **discovery**: drivers are DLLs in a `plc-drivers` folder, found
+      as C# custom nodes are. Interface 1.0, kept stable as the node
+      interface is.
+  - **F23c. Controllers in Builder** (S-M): a Controllers panel under
+    Stations, with add, rename and remove. In the `.sproj`:
+    `"controllers": [{ "name": "Line 1 PLC", "workflow": "controllers/Line 1 PLC.workflow.json" }]`.
+    A workflow naming a station or value the project lacks is reported
+    when the project opens, as an unknown published name is today.
+  - **F23d. Opening the editor** (S if their program takes a file on its
+    command line): Builder starts it on the workflow, as it starts Studio
+    on a recipe. Later, if their editor is a control and not only a
+    program, it could open as a tab inside Builder.
+  - **F23e. Workflows running in Edge** (M):
+    - Edge loads each controller's workflow with the PLC team's engine
+      and runs it beside the stations.
+    - A **Controller** widget for screens shows connected or not, the
+      last trigger and the last error. A lost connection is an alarm on
+      the screen; it reconnects by itself.
+    - Builder's Test Run runs the workflows too, against the simulator
+      or the real PLC.
+  - **F23f. Drivers, by the PLC team**, a brand at a time: Siemens S7
+    (begun), then by what customers have - Modbus TCP, Mitsubishi MC,
+    Omron FINS, Rockwell EtherNet/IP, Beckhoff ADS, OPC UA. Each
+    library's licence is checked before use: L5.
+  - **Questions before F23a**, for you and the PLC team:
+    1. Is their editor built on NodeGraphKit, the copy we gave the other
+       team, or its own? And their **engine**: can a workflow run
+       without the editor, as a library Edge could hold?
+    2. Is it .NET 8 too? If so, the workflows run inside Edge, which is
+       simplest. If not, they run in a process of their own beside Edge,
+       talking over a pipe, as Python nodes do.
+    3. Is `*.workflow.json` versioned, and will it stay compatible?
+    4. Which library is under the Siemens connector? (L5)
+    5. One controller is one workflow, which may hold several
+       connectors, so that one workflow can serve a line with two PLCs.
+       Does that match how they think of it?
+    6. Is this Sirius Interface's successor? That answers the runtime
+       design's open question 4: whether Interface's drivers can be
+       reused.
 - **F4. Counts that survive a restart** (S-M). Counter starts from zero
   each session. Wanted by the runtime anyway.
 - **F20. Saved images and their annotations** - the runtime's half done,
@@ -123,7 +223,7 @@ from you before they start.
   - **F20e. Matching pictures** - done 12 November 2026: groups of N down
     the sorted list, names alike in their first N characters, or in the
     part a pattern finds; with Sync View. Left: matching on a part ID
-    from the line (F3), once stations save one - two stations' names
+    from the line (F23a), once stations save one - two stations' names
     share no time or count to match on.
   - **F20c. A disk quota** (S-M), beside Keep for: when a size is reached,
     oldest passes go first, then oldest failures (runtime design §8).

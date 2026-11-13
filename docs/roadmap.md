@@ -204,7 +204,8 @@ The ones a tester will meet; the fixes are in the backlog.
 
 
 - **No signal out.** A verdict reaches the status line and a CSV, not a
-  PLC. Backlog F2-F3.
+  PLC. Planned: PLC controllers in a project, with the PLC team's
+  workflow editor - backlog F23.
 - **Four icons have no SVG source** (`ph_find_curve`,
   `ph_lens_calibration`, `ph_line_defects`, `ph_undistort`): regenerating
   `Themes/Icons.xaml` from `res/ui icons` deletes them. Backlog N3.

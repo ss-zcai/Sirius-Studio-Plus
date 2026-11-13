@@ -396,6 +396,18 @@ rows upload without translation.
 
 ## 9. PLC
 
+**Update, 13 November 2026 - the plan has moved: see backlog F23.** The
+PLC team is building a PLC workflow editor on the same node graph:
+connector, monitor, read, write and trigger nodes, with Siemens S7
+working. A project now holds **controllers** - one workflow each -
+beside its stations. The workflow drives the stations through two of our
+nodes, Inspect and Station Result, over a station bus in Edge. The PLC
+team writes the drivers against a framework we give them (`IPlcDriver`,
+a simulated PLC, a driver test kit). This section's rules still hold:
+named values, never addresses, outside the workflow; the handshake;
+hardware triggers where timing matters; a licence check per library.
+Its driver order and libraries become the PLC team's (F23f, L5).
+
 **Agreed:** a signal layer with one driver per brand; the PLC talks in
 named signals, never addresses inside the engine. Driver order: Modbus
 TCP, then Siemens S7, Rockwell (EtherNet/IP), Omron (FINS, or EtherNet/IP
