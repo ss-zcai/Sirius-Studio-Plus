@@ -21,7 +21,7 @@ Internal testing is fine. A build going to a customer is not, until a
 commercial licence is in place - a procurement lead time, so it wants
 starting well before it is needed. The pylon and MVS terms and, if a
 shipped Python library uses it, YOLO's AGPL want settling at the same
-time: backlog items L1-L4.
+time: backlog items L1-L6, all set out in `licences.md`.
 
 ---
 
