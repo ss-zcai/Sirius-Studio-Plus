@@ -2959,3 +2959,49 @@ and did not scale.
   activation code stays out of the repository. See `licences.md` L5.
 - **Left open**: the handshake
   and recipe change by product code as nodes; digital I/O.
+
+## 75. The workflow engine (F23a)
+
+Built 13 November 2026: `src/Sirius.Plc`, with no window. Builder's editor
+and Edge's running come next (F23b-c).
+
+- **On the recipe's graph, run differently.** A workflow is a
+  `VisionGraph` of `WorkflowNode`s, so it gets the editor, undo, the
+  catalogue, the property panel and the file handling for free. Its
+  nodes' `OnEvaluate` refuses to run in a recipe. Their categories, PLC and
+  Stations, are left out of Studio's palette and the node reference.
+- **A pass starts at an event node** (PLC Monitor, Station Result) and
+  runs what is downstream of it, in wiring order, each node once:
+  - a node with a trigger wired in runs if one of its triggers fired - so
+    branches (Pass and Fail, Done and Timed Out) are just wires;
+  - a node with no trigger wired in - Gather, Result Value - runs once
+    everything in the pass feeding it has run: a join, with no node for
+    it;
+  - a node whose value comes from a node that failed in this pass does
+    not run. The failure is reported once, where it happened, and nothing
+    half-known is written to the PLC.
+- **Failing is throwing.** A driver's `PlcException`, a timeout, any
+  exception: the node gives nothing, its Failed trigger fires, and the log
+  and `LastError` say why. Nodes need no error handling of their own.
+- **One pass at a time per controller**, queued in the order raised.
+  Two Station Results in a millisecond write in order.
+- **Monitor starts from what it first reads.** A bit already on when the
+  controller starts does not fire; neither does one that rose while the
+  connection was down. A change during the pass it started is not seen:
+  a PLC waiting for an answer holds its bit until it has one (the
+  handshake).
+- **Station Result hears every inspection of its station**, whoever
+  started it, so a workflow that both Inspects and listens gets two
+  passes. Inspect's own outputs are the usual way to answer.
+- **Watchers start inside `Start()`.** They have hold of what they watch
+  before it returns, so a station finishing just after is not missed.
+  Found by a test that failed only sometimes.
+- **The station bus** (`IStationBus`, `ProjectStationBus`) takes each call
+  to the stations' thread. A `StationRunner` now takes part values with a
+  trigger, puts them on its snapshot, and raises `Finished` for any number
+  of listeners - `Inspected` stays the screen's.
+- **`.sflow`** wraps the recipe's graph document:
+  `{ "format": "sirius-workflow", "version": 1, "name", "graph" }`.
+- **The simulated PLC** keeps any address as written, converts on read,
+  refuses an address with a space, and can be unplugged and plugged in,
+  which is how reconnection is tested.

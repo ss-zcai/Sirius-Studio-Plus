@@ -194,6 +194,7 @@ public sealed class ImageRecorder : IInspectionRecorder
             Grade = snapshot.Verdict.Grade?.Name,
             NodeErrors = snapshot.NodeErrors,
             Results = results,
+            Part = snapshot.Part?.ToArray() ?? [],
             Layers = layers,
         };
     }
@@ -269,6 +270,7 @@ public sealed class ImageRecorder : IInspectionRecorder
                 Grade = annotations.Grade,
                 NodeErrors = annotations.NodeErrors,
                 Results = annotations.Results,
+                Part = annotations.Part,
                 Layers = annotations.Layers,
             }.Save(AnnotationFile.PathFor(path));
         }

@@ -209,6 +209,7 @@ public sealed class MainViewModel : ObservableObject
 
         var offered = NodeCatalog.All.Where(descriptor =>
             !descriptor.IsRetired &&
+            !descriptor.Category.IsWorkflow() &&
             (insideSubGraph ||
              (descriptor.NodeType != typeof(GraphInputNode) && descriptor.NodeType != typeof(GraphOutputNode))) &&
             MatchesToolboxSearch(descriptor, search));

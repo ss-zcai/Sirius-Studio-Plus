@@ -95,6 +95,7 @@ in UTF-8:
 | `station`, `recipe`, `serial`, `time` | Which station, running which recipe, which inspection, when. |
 | `verdict`, `passed`, `grade`, `nodeErrors` | How it went. `passed` is `null` when nothing judges. |
 | `results` | Every number, yes/no, text and grade the recipe publishes, by published name, in the recipe's order. |
+| `part` | What whatever asked for the inspection knew about the part - a PLC's `{ "PalletId": 12, "PositionId": 3 }`, from a controller's Gather and Inspect nodes - absent when nothing said. The part ID pictures from two stations can be matched on. |
 | `measurements` | Measurements drawn on the picture by hand afterwards, in Sirius IV - absent until there are some. Written as a recipe keeps a viewer's: `{ "tool": "PointToPoint", "points": [x, y, x, y], "colour": "#F59E0B" }`. |
 | `layers` | One for each image viewer in the recipe, named as the viewer is, holding the shapes drawn on this picture; and one for each set of shapes the recipe publishes as a result. Shapes measured on a picture of another size - a cut-out region's - are left out: they would not sit where they belong. |
 

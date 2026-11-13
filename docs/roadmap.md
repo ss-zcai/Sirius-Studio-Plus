@@ -180,6 +180,17 @@ turn through one gate (1.0.9): two at once crashed inside the SDKs.
 Tested so far only on pylon's emulator and MVS's virtual cameras -
 backlog N2.
 
+### PLC (in progress)
+
+- **Controllers' workflows** (backlog F23a, decision 75), no window yet:
+  the PLC driver interface and a simulated PLC; the workflow runner -
+  passes started by a rising bit or a station finishing, branches and
+  joins by wiring, one pass at a time, timeouts, reconnecting; the nodes
+  PLC Monitor, Read, Write, Pulse, Wait For and Gather, and Inspect,
+  Station Result and Result Value. Values gathered from the PLC go with
+  the inspection into its `.sann` as `part`. Next: the editor and
+  Controllers panel in Builder (F23b), then running in Edge (F23c).
+
 ### Platform
 
 - **Sub-graphs**, first version: a node holding a graph of its own,

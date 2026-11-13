@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\Sirius.Builder\Sirius.Builder.csproj" />
     <ProjectReference Include="..\..\src\Sirius.IV\Sirius.IV.csproj" />
     <ProjectReference Include="..\..\src\Sirius.Runner\Sirius.Runner.csproj" />
+    <ProjectReference Include="..\..\src\Sirius.Plc\Sirius.Plc.csproj" />
 
     <!--
       The sample custom node library: its nodes are exercised directly, and

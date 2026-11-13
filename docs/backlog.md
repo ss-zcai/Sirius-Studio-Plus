@@ -158,7 +158,11 @@ from you before they start.
     text.
 
   **The pieces, in order:**
-  - **F23a. The engine and the nodes, with the simulated PLC** (M-L):
+  - ~~**F23a. The engine and the nodes, with the simulated PLC**~~ - **done
+    13 November 2026** (decision 75): `src/Sirius.Plc`, 26 tests, no window
+    yet. The `.sann` key is `"part"`. Left from it: the Result Log node
+    does not yet write the part's values, and screens cannot show them -
+    with F23b-c. What was planned:
     - **`IPlcDriver`**: connect and disconnect, connection state, read
       and write a typed value at an address, read many in one call,
       watch an address by polling (or the brand's own subscription), and

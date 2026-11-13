@@ -80,6 +80,13 @@ public sealed class AnnotationFile
     /// </summary>
     public IReadOnlyList<KeyValuePair<string, object?>> Results { get; init; } = [];
 
+    /// <summary>
+    /// What whatever asked for the inspection knew about the part - a PLC's
+    /// pallet ID and position - by name; empty when nothing said. Written
+    /// as <c>"part"</c>, only when there is some.
+    /// </summary>
+    public IReadOnlyList<KeyValuePair<string, object?>> Part { get; init; } = [];
+
     public IReadOnlyList<AnnotationLayer> Layers { get; init; } = [];
 
     /// <summary>
@@ -162,24 +169,10 @@ public sealed class AnnotationFile
         if (NodeErrors > 0)
             json["nodeErrors"] = NodeErrors;
 
-        var results = new JsonObject();
+        if (Part.Count > 0)
+            json["part"] = Values(Part);
 
-        foreach (var (name, value) in Results)
-        {
-            results[name] = value switch
-            {
-                double number when !double.IsFinite(number) => null,
-                double number => number,
-                float number when !float.IsFinite(number) => null,
-                float number => number,
-                int or long or short or byte => Convert.ToInt64(value, CultureInfo.InvariantCulture),
-                bool flag => flag,
-                null => null,
-                _ => Convert.ToString(value, CultureInfo.InvariantCulture),
-            };
-        }
-
-        json["results"] = results;
+        json["results"] = Values(Results);
 
         var layers = new JsonArray();
 
@@ -202,6 +195,29 @@ public sealed class AnnotationFile
         {
             json["measurements"] = JsonSerializer.SerializeToNode(
                 Measurements.Select(MeasurementDocument.From).ToList());
+        }
+
+        return json;
+    }
+
+    /// <summary>Named values as a JSON object: numbers, yes/no and text; anything else as its text.</summary>
+    private static JsonObject Values(IEnumerable<KeyValuePair<string, object?>> values)
+    {
+        var json = new JsonObject();
+
+        foreach (var (name, value) in values)
+        {
+            json[name] = value switch
+            {
+                double number when !double.IsFinite(number) => null,
+                double number => number,
+                float number when !float.IsFinite(number) => null,
+                float number => number,
+                int or long or short or byte => Convert.ToInt64(value, CultureInfo.InvariantCulture),
+                bool flag => flag,
+                null => null,
+                _ => Convert.ToString(value, CultureInfo.InvariantCulture),
+            };
         }
 
         return json;
@@ -248,6 +264,14 @@ public sealed class AnnotationFile
                 results.Add(new(name, Plain(value)));
         }
 
+        var part = new List<KeyValuePair<string, object?>>();
+
+        if (json["part"] is JsonObject known)
+        {
+            foreach (var (name, value) in known)
+                part.Add(new(name, Plain(value)));
+        }
+
         var layers = new List<AnnotationLayer>();
 
         foreach (var layer in (json["layers"] as JsonArray ?? []).OfType<JsonObject>())
@@ -291,6 +315,7 @@ public sealed class AnnotationFile
             Grade = Text(json, "grade"),
             NodeErrors = Int(json, "nodeErrors"),
             Results = results,
+            Part = part,
             Layers = layers,
         };
     }

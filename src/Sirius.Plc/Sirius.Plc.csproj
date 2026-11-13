@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The PLC side of a project: controllers, each a PLC and a workflow that
+    watches, reads and writes it and has stations inspect (backlog F23,
+    decision 74). The driver interface, a simulated PLC, the workflow runner
+    and its nodes. No window and no vision library: Builder edits these,
+    Edge runs them, and the PLC team's drivers build against them.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Sirius.Plc</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sirius.Core\Sirius.Core.csproj" />
+  </ItemGroup>
+
+</Project>

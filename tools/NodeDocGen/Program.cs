@@ -27,6 +27,7 @@ builder.AppendLine("Socket shapes: square = image, circle = everything else.");
 builder.AppendLine();
 
 var descriptors = NodeCatalog.All
+    .Where(d => !d.Category.IsWorkflow())
     .OrderBy(d => d.Category)
     .ThenBy(d => d.DisplayName, StringComparer.CurrentCulture)
     .ToArray();

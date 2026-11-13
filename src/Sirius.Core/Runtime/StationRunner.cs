@@ -85,6 +85,12 @@ public sealed record InspectionSnapshot(
 {
     /// <summary>The value published under <paramref name="name"/>, ignoring case, or null.</summary>
     public object? this[string name] => Values.TryGetValue(name, out var value) ? value : null;
+
+    /// <summary>
+    /// What whatever asked for the inspection knew about the part - a PLC's
+    /// pallet ID and position - or null when nothing said.
+    /// </summary>
+    public PartValues? Part { get; init; }
 }
 
 /// <summary>
@@ -310,9 +316,26 @@ public sealed class StationRunner : ObservableObject, IDisposable
     /// </remarks>
     public Func<Task>? Breathe { get; set; }
 
+    /// <summary>
+    /// Raised after every inspection - triggered, running or asked for by a
+    /// PLC - once <see cref="Inspected"/> has finished with it, on the
+    /// station's thread. Any number may listen, unlike
+    /// <see cref="Inspected"/>, which is the screen's. The snapshot's
+    /// pictures are valid only during the call.
+    /// </summary>
+    public event EventHandler<InspectionSnapshot>? Finished;
+
     /// <summary>Inspects once.</summary>
     /// <returns>The inspection, or null when the station was busy or faulted and did nothing.</returns>
-    public async Task<InspectionSnapshot?> TriggerAsync(CancellationToken cancellationToken = default)
+    public Task<InspectionSnapshot?> TriggerAsync(CancellationToken cancellationToken = default) =>
+        TriggerAsync(null, cancellationToken);
+
+    /// <summary>
+    /// Inspects once, with what is known about the part - kept with the
+    /// inspection and its picture.
+    /// </summary>
+    /// <returns>The inspection, or null when the station was busy or faulted and did nothing.</returns>
+    public async Task<InspectionSnapshot?> TriggerAsync(PartValues? part, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -323,7 +346,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
 
         try
         {
-            return await InspectOnceAsync(cancellationToken).ConfigureAwait(true);
+            return await InspectOnceAsync(part, cancellationToken).ConfigureAwait(true);
         }
         finally
         {
@@ -496,7 +519,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
                 // hand rather than abandoning it half way - which would also
                 // have freed the last inspection's pictures, with nothing new
                 // in their place.
-                var snapshot = await InspectOnceAsync(CancellationToken.None).ConfigureAwait(true);
+                var snapshot = await InspectOnceAsync(null, CancellationToken.None).ConfigureAwait(true);
 
                 if (snapshot is null || State == StationState.Faulted)
                     break;
@@ -528,7 +551,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
         }
     }
 
-    private async Task<InspectionSnapshot?> InspectOnceAsync(CancellationToken cancellationToken)
+    private async Task<InspectionSnapshot?> InspectOnceAsync(PartValues? part, CancellationToken cancellationToken)
     {
         var scheduler = _scheduler!;
 
@@ -539,7 +562,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
 
         try
         {
-            return await InspectAndPublishAsync(scheduler, cancellationToken).ConfigureAwait(true);
+            return await InspectAndPublishAsync(scheduler, part, cancellationToken).ConfigureAwait(true);
         }
         finally
         {
@@ -550,7 +573,10 @@ public sealed class StationRunner : ObservableObject, IDisposable
         }
     }
 
-    private async Task<InspectionSnapshot?> InspectAndPublishAsync(GraphScheduler scheduler, CancellationToken cancellationToken)
+    private async Task<InspectionSnapshot?> InspectAndPublishAsync(
+        GraphScheduler scheduler,
+        PartValues? part,
+        CancellationToken cancellationToken)
     {
         var clock = Stopwatch.StartNew();
         GraphRunResult result;
@@ -594,7 +620,10 @@ public sealed class StationRunner : ObservableObject, IDisposable
             verdict,
             clock.Elapsed,
             result.Failed,
-            ReadPublished(scheduler));
+            ReadPublished(scheduler))
+        {
+            Part = part is { Count: > 0 } ? part : null,
+        };
 
         Counts = Counts.Add(verdict, result.Failed > 0);
         LastError = result.Failed > 0 ? FailureText() : null;
@@ -605,6 +634,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
         if (Inspected is { } inspected)
             await inspected(snapshot).ConfigureAwait(true);
 
+        Finished?.Invoke(this, snapshot);
         return snapshot;
     }
 

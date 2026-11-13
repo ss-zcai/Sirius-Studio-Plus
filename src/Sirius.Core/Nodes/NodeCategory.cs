@@ -43,4 +43,24 @@ public enum NodeCategory
     /// one of the groups above.
     /// </summary>
     Custom,
+
+    /// <summary>
+    /// A controller's workflow: watching, reading and writing a PLC. Never
+    /// in a recipe's palette.
+    /// </summary>
+    Plc,
+
+    /// <summary>A controller's workflow: having stations inspect, and hearing how it went.</summary>
+    Stations,
+}
+
+public static class NodeCategories
+{
+    /// <summary>
+    /// Whether a category is a controller's workflow's rather than a
+    /// recipe's: never offered in a recipe, never in the recipe nodes'
+    /// reference.
+    /// </summary>
+    public static bool IsWorkflow(this NodeCategory category) =>
+        category is NodeCategory.Plc or NodeCategory.Stations;
 }

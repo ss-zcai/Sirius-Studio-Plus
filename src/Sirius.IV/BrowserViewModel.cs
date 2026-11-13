@@ -859,6 +859,7 @@ public sealed class BrowserViewModel : ObservableObject
                 Grade = annotations.Grade,
                 NodeErrors = annotations.NodeErrors,
                 Results = annotations.Results,
+                Part = annotations.Part,
                 Layers = annotations.Layers,
                 Measurements = unsaved.Measurements,
             }.Save(path);
