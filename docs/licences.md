@@ -22,7 +22,6 @@ is not, until section 1 is settled.**
 | L3 | **Hikrobot MVS**: may its DLL ship? | Open, unknown | Ask Hikrobot whether it may ship. (Now in the notices.) |
 | L5 | **HslCommunication** (PLC), once the PLC work ships | **Licence held** (Enterprise) | Check the contract allows shipping it in our product; keep the activation code out of git; add to the notices. |
 | L6 | **Our own EULA** | Missing | Write one. pylon requires it (L2), and every customer build needs one anyway. |
-| L4 | **Ultralytics YOLO** | Only if we ship it | Commercial licence from Ultralytics, or don't ship it. |
 
 ### L1. Emgu CV - the one real blocker
 
@@ -148,14 +147,6 @@ conditions 4-6). It should cover at least:
 
 A lawyer's job; the facts are on this page.
 
-### L4. Ultralytics YOLO
-
-YOLO is **AGPL-3.0**: using it in a closed product needs Ultralytics'
-commercial licence. It matters only if a Python or C++ node library *we
-ship* uses it. A customer installing YOLO into their own Python
-environment is their own choice. `python-nodes.md` §4 and `cpp-nodes.md`
-§7 warn SDK users.
-
 ---
 
 ## 2. Settled: what ships, and what it asks of us
@@ -193,7 +184,7 @@ between the customer and the maker, but the customer should be told.
 |---|---|---|
 | Basler **pylon Runtime** 26.10 or later | Basler cameras | Free, Basler's agreement (no vTools) |
 | Hikrobot **MVS** | Hikrobot cameras | Hikrobot's (see L3) |
-| **Python** and its libraries | Python nodes | Each library its own; YOLO AGPL (L4) |
+| **Python** and its libraries | Python nodes | Each library its own (see section 4) |
 | **HALCON** runtime | C++ nodes built on HALCON | MVTec runtime licence per PC |
 | **OpenCV** (native) | C++ nodes built on it | Apache 2.0 |
 
@@ -205,6 +196,14 @@ between the customer and the maker, but the customer should be told.
   samples and guide. It carries no third-party code, so nothing to add,
   but Emgu's §4 (L1) is about exactly this kind of "development toolkit":
   include the SDK in the question to Emgu.
+  - **Its users' libraries are their own concern.** A custom node
+    developer chooses what their nodes use, and its licence is theirs to
+    meet. The guides say so (`python-nodes.md` §4, `cpp-nodes.md` §7),
+    naming the case most likely to bite: **Ultralytics YOLO is
+    AGPL-3.0**, so a closed product using it needs Ultralytics'
+    commercial licence. *We do not use YOLO* (13 November 2026). If we
+    ever ship a node library of our own that does, it comes back to
+    section 1.
 - **NodeGraphKit**, given to the PLC team: the editor and theme, with
   their own `THIRD-PARTY-NOTICES.txt` (Nodify MIT, AvalonDock Ms-PL,
   Phosphor MIT). Inside the company, so no issue; the notices travel with

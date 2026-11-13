@@ -19,9 +19,9 @@ ships inside the package, so whoever holds a build can see it.
 
 Internal testing is fine. A build going to a customer is not, until a
 commercial licence is in place - a procurement lead time, so it wants
-starting well before it is needed. The pylon and MVS terms and, if a
-shipped Python library uses it, YOLO's AGPL want settling at the same
-time: backlog items L1-L6, all set out in `licences.md`.
+starting well before it is needed. The pylon and MVS terms, our own
+licence agreement and the PLC library's contract want settling at the
+same time: backlog items L1-L6, all set out in `licences.md`.
 
 ---
 

@@ -27,8 +27,9 @@ is in `licences.md`**; this is the list.
   excluding Basler from liability, and indemnifying Basler. Legal review.
 - **L3. Hikrobot MVS**: may `MvCameraControl.Net.dll` ship? Its terms
   are missing. (Now listed in `THIRD-PARTY-NOTICES.txt`.)
-- **L4. YOLO (Ultralytics) is AGPL-3.0**: only if a node library we ship
-  uses it.
+- ~~**L4. YOLO (Ultralytics) is AGPL-3.0**~~ - not ours: we do not use it.
+  It is a matter for custom node developers, whom the guides warn
+  (`licences.md` section 4).
 - **L5. PLC communication libraries** (with F23): HslCommunication's
   **Enterprise licence is held**. Left: check that the contract's words
   allow shipping it in our product and the start kit; keep the activation
