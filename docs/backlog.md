@@ -36,10 +36,29 @@ customer build is not, until these are settled.
   application.
 - **L5. PLC communication libraries** (with F23d-e). Whatever speaks each
   brand's protocol under a driver - ours or the PLC team's - has its
-  licence checked before it ships. Proposed for ours: **S7.Net Plus**
-  (MIT) for Siemens, **FluentModbus** or NModbus (MIT) for Modbus TCP.
-  Snap7 and Sharp7 are LGPL (a separate DLL, not linked in: workable);
-  libplctag is MPL 2.0 / LGPL; HslCommunication is commercial.
+  licence checked before it ships.
+  - **HslCommunication**, which the PLC team uses (checked 13 November
+    2026 on its GitHub page and hsltechnology.cn): **commercial, not open
+    source**. Without an activation code a program stops after a trial
+    period: the price page says 24 hours, the README 8. Editions, one
+    payment for life:
+    - Personal, ¥240: not for companies;
+    - **Professional, ¥7,800**: for companies, under a contract; any
+      number of activations and PCs; no source code; a year's support;
+    - **Enterprise, ¥11,000**: Professional plus all the source code,
+      with source updates for life.
+
+    Usable once bought. To confirm in the contract before we rely on it:
+    - that the code may be built into a product we sell and installed on
+      customers' machines;
+    - that the start kit may carry it to the PLC team;
+    - whether an activation code is tied to a version.
+
+    Proposed: **Enterprise**. The source is insurance against a library
+    from one author ceasing to be maintained.
+  - **Open alternatives**: S7.Net Plus (MIT) for Siemens; FluentModbus or
+    NModbus (MIT) for Modbus TCP. Snap7 and Sharp7 are LGPL (workable as a
+    separate DLL); libplctag is MPL 2.0 / LGPL.
 - **L4. YOLO (Ultralytics) is AGPL-3.0.** Only if a Python node library
   we ship uses it: closed distribution needs Ultralytics' commercial
   licence.
