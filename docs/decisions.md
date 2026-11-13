@@ -2953,5 +2953,9 @@ and did not scale.
   PLC team the rest.
 - **The file is ours**: `.sflow`, JSON, `"format": "sirius-workflow"`,
   version 1, a reader ignoring what it does not know - as `.sann`.
-- **Left open**: the libraries under S7 and Modbus (L5); the handshake
+- **HslCommunication under the drivers** (same day): the company holds
+  its Enterprise licence, with source, so the drivers - ours and the
+  PLC team's - use it rather than an open library per brand. The
+  activation code stays out of the repository. See `licences.md` L5.
+- **Left open**: the handshake
   and recipe change by product code as nodes; digital I/O.

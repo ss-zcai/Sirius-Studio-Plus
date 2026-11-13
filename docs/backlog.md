@@ -29,9 +29,10 @@ is in `licences.md`**; this is the list.
   are missing. It is also not in `THIRD-PARTY-NOTICES.txt` yet.
 - **L4. YOLO (Ultralytics) is AGPL-3.0**: only if a node library we ship
   uses it.
-- **L5. PLC communication libraries** (with F23): HslCommunication is
-  commercial - Enterprise recommended, redistribution to confirm in the
-  contract; open alternatives per brand.
+- **L5. PLC communication libraries** (with F23): HslCommunication's
+  **Enterprise licence is held**. Left: check that the contract's words
+  allow shipping it in our product and the start kit; keep the activation
+  code out of git; add it to the notices.
 - **L6. Our own licence agreement (EULA)**: none yet. Needed for any
   customer build, and by pylon (L2).
 
@@ -188,9 +189,10 @@ from you before they start.
     lost connection is an alarm, and Edge reconnects by itself.
   - **F23d. The first real drivers** (M each): **Siemens S7** first, as
     the PLC team's prototype talks to one; then **Modbus TCP**, which
-    nearly every brand speaks. Each is built on an open library (L5),
-    with a driver test kit run against a real PLC: types and byte order,
-    timeouts, a cable pulled and put back.
+    nearly every brand speaks. Both on **HslCommunication** (Enterprise
+    licence held, L5), which covers most brands, so further drivers are
+    thin. Each passes the driver test kit against a real PLC: types and
+    byte order, timeouts, a cable pulled and put back.
   - **F23e. The start kit for the PLC team** (S-M), packed as the
     custom-node SDK is:
     - the driver interface;

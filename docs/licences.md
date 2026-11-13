@@ -20,7 +20,7 @@ is not, until section 1 is settled.**
 | L1 | **Emgu CV** (OpenCV for .NET) | **Blocker** | Buy a commercial licence, and get Emgu's written word on §4 (below). |
 | L2 | **Basler pylon**: our side of its conditions | Open | Our own licence agreement (EULA) with a liability exclusion; legal review. |
 | L3 | **Hikrobot MVS**: may its DLL ship? | Open, unknown | Ask Hikrobot; add it to the notices either way. |
-| L5 | **HslCommunication** (PLC), once the PLC work ships | Open | Buy Professional or Enterprise; confirm redistribution in the contract. |
+| L5 | **HslCommunication** (PLC), once the PLC work ships | **Licence held** (Enterprise) | Check the contract allows shipping it in our product; keep the activation code out of git; add to the notices. |
 | L6 | **Our own EULA** | Missing | Write one. pylon requires it (L2), and every customer build needs one anyway. |
 | L4 | **Ultralytics YOLO** | Only if we ship it | Commercial licence from Ultralytics, or don't ship it. |
 
@@ -97,29 +97,40 @@ So we do not know whether the DLL may ship beside our application.
 
 ### L5. PLC communication libraries (with backlog F23)
 
-**HslCommunication**, which the PLC team's prototype uses (checked 13
-November 2026 on its GitHub page and hsltechnology.cn): **commercial,
-not open source.**
-- **Without an activation code a program stops** after a trial: 24
-  hours by the price page, 8 by the README. A line running an
-  unactivated build would stop partway through a shift.
-- Editions, each one payment for life:
-  - Personal, ¥240: **not for companies**;
-  - **Professional, ¥7,800**: for companies, under a contract; any number
-    of activations and PCs; no source; a year's support;
-  - **Enterprise, ¥11,000**: Professional plus all the source code, with
-    source updates for life.
-- **Recommended: Enterprise.** It is essentially one author's library,
-  and the source is insurance against it ceasing to be maintained.
-- **Confirm in the contract:**
-  - that it may be built into a product we sell and installed on
-    customers' machines;
-  - that the PLC start kit may carry it to the PLC team;
-  - whether an activation code is tied to one version.
-- Kept behind `IPlcDriver`, so it can be replaced a brand at a time if
-  the terms turn out badly.
+**HslCommunication: the Enterprise licence is held** (confirmed 13
+November 2026). It is commercial, not open source. Enterprise is the
+edition for companies, under a contract, with any number of activations
+and PCs, all the source code (C#, Java, Python), and source updates for
+life. The other editions, for the record: Personal (¥240, not for
+companies) and Professional (¥7,800, no source); Enterprise is ¥11,000.
 
-**Open alternatives**, per brand:
+So it is the library under our PLC drivers (F23d) and the PLC team's:
+one library for Siemens, Mitsubishi, Omron, Allen-Bradley, Modbus,
+Keyence and Panasonic. Its virtual PLCs can serve the simulator and the
+driver test kit.
+
+What is left:
+- **Check the contract's words**, as only the price page has been read.
+  It should say that HslCommunication may be built into a product we
+  sell and installed on customers' machines, and that the PLC start kit
+  may carry it to the PLC team. Inside the company, the start kit should
+  be fine; a contractor or partner writing drivers would need checking.
+- **Whether the activation code is tied to a version**, so an update of
+  the library does not stop the line.
+- **The activation code is a secret.** Without one, a program stops
+  after a trial (24 hours by the price page, 8 by the README), so every
+  build must carry it. Keep it **out of the repository and the start
+  kit's source**: put it into the build from an environment variable or
+  a file outside git, as the camera SDKs' paths are. A build without it
+  says so loudly, at start and in the Output panel, rather than stopping
+  hours later on a line.
+- **Add it to `THIRD-PARTY-NOTICES.txt`** when the first driver using it
+  ships: "HslCommunication, Copyright (c) Richard Hu, used under a
+  commercial licence".
+- Kept behind `IPlcDriver`, so a brand could still move to another
+  library if ever needed.
+
+**Open alternatives**, per brand, should one be wanted:
 - S7.Net Plus (MIT) for Siemens;
 - FluentModbus or NModbus (MIT) for Modbus TCP;
 - Snap7 and Sharp7 (LGPL): workable as a separate DLL, not merged in;
@@ -199,8 +210,8 @@ between the customer and the maker, but the customer should be told.
   Phosphor MIT). Inside the company, so no issue; the notices travel with
   it.
 - **The PLC start kit** (F23e), when it exists: our code, plus whatever
-  driver library it carries - HslCommunication only if its contract
-  allows it (L5).
+  driver library it carries: HslCommunication (Enterprise, held), as
+  the contract allows, with the activation code kept out of it (L5).
 
 ---
 
