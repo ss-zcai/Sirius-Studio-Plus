@@ -189,7 +189,8 @@ backlog N2.
   PLC Monitor, Read, Write, Pulse, Wait For and Gather, and Inspect,
   Station Result and Result Value. Values gathered from the PLC go with
   the inspection into its `.sann` as `part`.
-- **Controllers in Builder** (F23b, decision 76): a Controllers panel; a
+- **Controllers in Builder** (F23b, decision 76): listed with the
+  stations in one Project panel, a camera's icon or a PLC's; a
   PLC window to test the connection, read and write any address as a bit,
   INT, DINT, REAL or text, and drive a simulated PLC by hand; each
   workflow in a tab on Studio's canvas. A Test Run - and Sirius Edge -

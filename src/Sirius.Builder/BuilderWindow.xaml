@@ -155,8 +155,7 @@
                 <MenuItem Header="_Test Run" InputGestureText="F5" Command="{Binding TestRunCommand}" />
             </MenuItem>
             <MenuItem Header="_View">
-                <MenuItem Header="_Stations" Tag="stations" Click="OnShowPanelClick" />
-                <MenuItem Header="_Controllers" Tag="controllers" Click="OnShowPanelClick" />
+                <MenuItem Header="_Project" Tag="project" Click="OnShowPanelClick" />
                 <MenuItem Header="_Widgets" Tag="widgets" Click="OnShowPanelClick" />
                 <MenuItem Header="_Properties" Tag="properties" Click="OnShowPanelClick" />
                 <Separator />
@@ -286,29 +285,53 @@
                 <avalonDock:LayoutPanel Orientation="Horizontal">
 
                     <avalonDock:LayoutAnchorablePaneGroup Orientation="Vertical" DockWidth="240">
-                        <!-- Stations -->
+                        <!--
+                            The project: its stations, then its controllers, in
+                            one list - each with its icon, its own double-click
+                            and its own right-click menu.
+                        -->
                         <avalonDock:LayoutAnchorablePane DockHeight="2*">
-                            <avalonDock:LayoutAnchorable Title="Stations" ContentId="stations" CanClose="False">
+                            <avalonDock:LayoutAnchorable Title="Project" ContentId="project" CanClose="False">
                                 <DockPanel Margin="6">
                                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
-                                        <Button Style="{StaticResource PanelToolButton}"
-                                                ToolTip="Add a station with an empty recipe, to build in Studio"
-                                                Command="{Binding AddStationCommand}">
-                                            <Path Data="M7,1 L7,13 M1,7 L13,7"
-                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                  StrokeThickness="1.6"
-                                                  Width="14"
-                                                  Height="14" />
+                                        <!-- Add: a station, a station from a recipe, or a controller. -->
+                                        <Button x:Name="AddButton"
+                                                Style="{StaticResource PanelToolButton}"
+                                                ToolTip="Add a station or a controller"
+                                                Click="OnAddClick">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path Data="M7,1 L7,13 M1,7 L13,7"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                      StrokeThickness="1.6"
+                                                      Width="14"
+                                                      Height="14" />
+                                                <Path Data="M0,0 L3,3 L6,0"
+                                                      Margin="3,1,0,0"
+                                                      VerticalAlignment="Center"
+                                                      Stroke="{StaticResource Text.Secondary}"
+                                                      StrokeThickness="1.3"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round" />
+                                            </StackPanel>
+                                            <Button.ContextMenu>
+                                                <ContextMenu x:Name="AddMenu">
+                                                    <MenuItem Header="Add _Station…" Command="{Binding AddStationCommand}">
+                                                        <MenuItem.Icon><Image Source="{StaticResource Icon.ph_camera}" Width="16" Height="16" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="Add Station from _Recipe…" Command="{Binding AddFromRecipeCommand}">
+                                                        <MenuItem.Icon><Image Source="{StaticResource Icon.ph_copy}" Width="16" Height="16" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <Separator />
+                                                    <MenuItem Header="Add _Controller…" Command="{Binding AddControllerCommand}">
+                                                        <MenuItem.Icon><Image Source="{StaticResource Icon.ph_controller}" Width="16" Height="16" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
                                         </Button>
                                         <Button Style="{StaticResource PanelToolButton}"
-                                                ToolTip="Add a station running a copy of a recipe made in Studio…"
-                                                Command="{Binding AddFromRecipeCommand}">
-                                            <Image Source="{StaticResource Icon.ph_copy}" Width="15" Height="15" />
-                                        </Button>
-                                        <Button Style="{StaticResource PanelToolButton}"
-                                                ToolTip="Open the selected station's recipe in Studio"
-                                                Command="{Binding OpenInStudioCommand}"
-                                                CommandParameter="{Binding SelectedStation}">
+                                                ToolTip="Open what is selected: a station's recipe in Studio, a controller's workflow here"
+                                                Command="{Binding OpenSelectedCommand}">
                                             <Image Source="{StaticResource Icon.ph_sub_graph}" Width="15" Height="15" />
                                         </Button>
                                     </StackPanel>
@@ -318,46 +341,55 @@
                                                FontSize="11"
                                                Margin="0,8,0,0"
                                                Foreground="{StaticResource Text.Secondary}"
-                                               Text="Double-click a station to open its recipe in Studio. Publish there what the screen shows; save, and it appears here." />
+                                               Text="Double-click to open: a station in Studio, a controller's workflow here." />
 
                                     <Grid>
                                         <TextBlock TextWrapping="Wrap"
                                                    FontSize="11"
                                                    Foreground="{StaticResource Text.Secondary}"
-                                                   Text="No stations yet. Add one from a recipe made in Studio."
-                                                   Visibility="{Binding HasNoStations, Converter={StaticResource BoolToVisibility}}" />
+                                                   Text="Nothing here yet. Add a station from a recipe made in Studio, then a controller for its PLC."
+                                                   Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
 
-                                        <ListBox x:Name="StationList"
-                                                 ItemsSource="{Binding Stations}"
-                                                 SelectedItem="{Binding SelectedStation}"
+                                        <ListBox x:Name="ProjectList"
+                                                 ItemsSource="{Binding Items}"
+                                                 SelectedItem="{Binding SelectedItem}"
                                                  Background="Transparent"
                                                  BorderThickness="0"
                                                  Foreground="{StaticResource Text.Primary}"
                                                  ItemContainerStyle="{StaticResource DarkListBoxItem}"
-                                                 MouseDoubleClick="OnStationDoubleClick">
-                                            <ListBox.ItemTemplate>
+                                                 MouseDoubleClick="OnProjectItemDoubleClick">
+                                            <ListBox.Resources>
+                                                <!-- A station: a camera and its recipe. -->
                                                 <DataTemplate DataType="{x:Type local:StationViewModel}">
-                                                    <StackPanel Background="Transparent" ToolTip="{Binding RecipePath}">
-                                                        <TextBlock Text="{Binding Name}" />
-                                                        <TextBlock Text="{Binding RecipeFile}"
-                                                                   FontSize="10"
-                                                                   Foreground="{StaticResource Text.Secondary}" />
-                                                        <TextBlock Text="recipe missing"
-                                                                   FontSize="10"
-                                                                   FontStyle="Italic"
-                                                                   Foreground="#DB5C5C"
-                                                                   Visibility="{Binding RecipeMissing, Converter={StaticResource BoolToVisibility}}" />
-                                                        <TextBlock Text="{Binding LineChangesText}"
-                                                                   FontSize="10"
-                                                                   Foreground="#D9A33A"
-                                                                   ToolTip="Settings changed from a screen, used over the recipe's own - right-click for Line Settings"
-                                                                   Visibility="{Binding HasLineChanges, Converter={StaticResource BoolToVisibility}}" />
-                                                        <TextBlock Text="{Binding SavingText}"
-                                                                   FontSize="10"
-                                                                   Foreground="#4FA3D9"
-                                                                   ToolTip="{Binding ImagesFolder}"
-                                                                   Visibility="{Binding SavesImages, Converter={StaticResource BoolToVisibility}}" />
-                                                        <StackPanel.ContextMenu>
+                                                    <DockPanel Background="Transparent" ToolTip="{Binding RecipePath}" Margin="0,2">
+                                                        <Image DockPanel.Dock="Left"
+                                                               Source="{StaticResource Icon.ph_camera}"
+                                                               Width="24"
+                                                               Height="24"
+                                                               Margin="0,0,8,0"
+                                                               VerticalAlignment="Top" />
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Name}" />
+                                                            <TextBlock Text="{Binding RecipeFile}"
+                                                                       FontSize="10"
+                                                                       Foreground="{StaticResource Text.Secondary}" />
+                                                            <TextBlock Text="recipe missing"
+                                                                       FontSize="10"
+                                                                       FontStyle="Italic"
+                                                                       Foreground="#DB5C5C"
+                                                                       Visibility="{Binding RecipeMissing, Converter={StaticResource BoolToVisibility}}" />
+                                                            <TextBlock Text="{Binding LineChangesText}"
+                                                                       FontSize="10"
+                                                                       Foreground="#D9A33A"
+                                                                       ToolTip="Settings changed from a screen, used over the recipe's own - right-click for Line Settings"
+                                                                       Visibility="{Binding HasLineChanges, Converter={StaticResource BoolToVisibility}}" />
+                                                            <TextBlock Text="{Binding SavingText}"
+                                                                       FontSize="10"
+                                                                       Foreground="#4FA3D9"
+                                                                       ToolTip="{Binding ImagesFolder}"
+                                                                       Visibility="{Binding SavesImages, Converter={StaticResource BoolToVisibility}}" />
+                                                        </StackPanel>
+                                                        <DockPanel.ContextMenu>
                                                             <ContextMenu>
                                                                 <MenuItem Header="Open in _Studio"
                                                                           Command="{Binding PlacementTarget.Tag.OpenInStudioCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -386,85 +418,34 @@
                                                                           Command="{Binding PlacementTarget.Tag.RemoveStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                           CommandParameter="{Binding}" />
                                                             </ContextMenu>
-                                                        </StackPanel.ContextMenu>
-                                                        <StackPanel.Tag>
+                                                        </DockPanel.ContextMenu>
+                                                        <DockPanel.Tag>
                                                             <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                                                        </StackPanel.Tag>
-                                                    </StackPanel>
+                                                        </DockPanel.Tag>
+                                                    </DockPanel>
                                                 </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-                                    </Grid>
-                                </DockPanel>
-                            </avalonDock:LayoutAnchorable>
-                        </avalonDock:LayoutAnchorablePane>
 
-                        <!--
-                            Controllers: the project's PLCs, each with the workflow
-                            that watches it and has stations inspect.
-                        -->
-                        <avalonDock:LayoutAnchorablePane DockHeight="1.5*">
-                            <avalonDock:LayoutAnchorable Title="Controllers" ContentId="controllers" CanClose="False">
-                                <DockPanel Margin="6">
-                                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
-                                        <Button Style="{StaticResource PanelToolButton}"
-                                                ToolTip="Add a controller: a PLC - simulated to begin with - and its workflow"
-                                                Command="{Binding AddControllerCommand}">
-                                            <Path Data="M7,1 L7,13 M1,7 L13,7"
-                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                  StrokeThickness="1.6"
-                                                  Width="14"
-                                                  Height="14" />
-                                        </Button>
-                                        <Button Style="{StaticResource PanelToolButton}"
-                                                ToolTip="Open the selected controller's workflow"
-                                                Command="{Binding OpenWorkflowCommand}"
-                                                CommandParameter="{Binding SelectedController}">
-                                            <Image Source="{StaticResource Icon.ph_sub_graph}" Width="15" Height="15" />
-                                        </Button>
-                                        <Button Style="{StaticResource PanelToolButton}"
-                                                ToolTip="The selected controller's PLC: test the connection, read and write, drive the simulator"
-                                                Command="{Binding PlcCommand}"
-                                                CommandParameter="{Binding SelectedController}">
-                                            <Image Source="{StaticResource Icon.ph_run}" Width="15" Height="15" />
-                                        </Button>
-                                    </StackPanel>
-
-                                    <TextBlock DockPanel.Dock="Bottom"
-                                               TextWrapping="Wrap"
-                                               FontSize="11"
-                                               Margin="0,8,0,0"
-                                               Foreground="{StaticResource Text.Secondary}"
-                                               Text="Double-click a controller to open its workflow. Right-click for its PLC: test the connection, read, write, flip a bit." />
-
-                                    <Grid>
-                                        <TextBlock TextWrapping="Wrap"
-                                                   FontSize="11"
-                                                   Foreground="{StaticResource Text.Secondary}"
-                                                   Text="No controllers yet. Add one to have a PLC trigger the stations."
-                                                   Visibility="{Binding HasNoControllers, Converter={StaticResource BoolToVisibility}}" />
-
-                                        <ListBox x:Name="ControllerList"
-                                                 ItemsSource="{Binding Controllers}"
-                                                 SelectedItem="{Binding SelectedController}"
-                                                 Background="Transparent"
-                                                 BorderThickness="0"
-                                                 Foreground="{StaticResource Text.Primary}"
-                                                 ItemContainerStyle="{StaticResource DarkListBoxItem}"
-                                                 MouseDoubleClick="OnControllerDoubleClick">
-                                            <ListBox.ItemTemplate>
+                                                <!-- A controller: a PLC and its workflow. -->
                                                 <DataTemplate DataType="{x:Type local:ControllerViewModel}">
-                                                    <StackPanel Background="Transparent" ToolTip="{Binding WorkflowPath}">
-                                                        <TextBlock Text="{Binding Name}" />
-                                                        <TextBlock Text="{Binding ConnectionText}"
-                                                                   FontSize="10"
-                                                                   Foreground="{StaticResource Text.Secondary}" />
-                                                        <TextBlock Text="workflow missing"
-                                                                   FontSize="10"
-                                                                   FontStyle="Italic"
-                                                                   Foreground="#DB5C5C"
-                                                                   Visibility="{Binding WorkflowMissing, Converter={StaticResource BoolToVisibility}}" />
-                                                        <StackPanel.ContextMenu>
+                                                    <DockPanel Background="Transparent" ToolTip="{Binding WorkflowPath}" Margin="0,2">
+                                                        <Image DockPanel.Dock="Left"
+                                                               Source="{StaticResource Icon.ph_controller}"
+                                                               Width="24"
+                                                               Height="24"
+                                                               Margin="0,0,8,0"
+                                                               VerticalAlignment="Top" />
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Name}" />
+                                                            <TextBlock Text="{Binding ConnectionText}"
+                                                                       FontSize="10"
+                                                                       Foreground="{StaticResource Text.Secondary}" />
+                                                            <TextBlock Text="workflow missing"
+                                                                       FontSize="10"
+                                                                       FontStyle="Italic"
+                                                                       Foreground="#DB5C5C"
+                                                                       Visibility="{Binding WorkflowMissing, Converter={StaticResource BoolToVisibility}}" />
+                                                        </StackPanel>
+                                                        <DockPanel.ContextMenu>
                                                             <ContextMenu>
                                                                 <MenuItem Header="Open _Workflow"
                                                                           Command="{Binding PlacementTarget.Tag.OpenWorkflowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -480,13 +461,13 @@
                                                                           Command="{Binding PlacementTarget.Tag.RemoveControllerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                           CommandParameter="{Binding}" />
                                                             </ContextMenu>
-                                                        </StackPanel.ContextMenu>
-                                                        <StackPanel.Tag>
+                                                        </DockPanel.ContextMenu>
+                                                        <DockPanel.Tag>
                                                             <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                                                        </StackPanel.Tag>
-                                                    </StackPanel>
+                                                        </DockPanel.Tag>
+                                                    </DockPanel>
                                                 </DataTemplate>
-                                            </ListBox.ItemTemplate>
+                                            </ListBox.Resources>
                                         </ListBox>
                                     </Grid>
                                 </DockPanel>

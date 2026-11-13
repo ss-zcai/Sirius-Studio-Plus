@@ -407,7 +407,10 @@ public sealed class PlcWorkflowTests : IDisposable
         Assert.Empty(first.Failed);
 
         plc.Set("M0.0", false);
-        await Task.Delay(40);
+
+        // Until the Monitor has read it off - however busy the machine.
+        var readsSince = plc.Reads;
+        await Until(() => plc.Reads > readsSince + 1);
 
         // The PLC answers part way through the wait.
         var second = await PassAfter(runner, () =>
@@ -499,7 +502,10 @@ public sealed class PlcWorkflowTests : IDisposable
         Assert.Equal(0, runner.Passes);
 
         plc.Set("DB34.20.0", false);
-        await Task.Delay(30);
+
+        // Until the Monitor has read it off - however busy the machine.
+        var readsSince = plc.Reads;
+        await Until(() => plc.Reads > readsSince + 1);
         var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
         Assert.Equal(1, pass.Number);
         Assert.Equal(2, runner.Log.Count(entry => entry.Message.StartsWith("Connected to", StringComparison.Ordinal)));

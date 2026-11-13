@@ -180,33 +180,31 @@ public partial class BuilderWindow : Window
 
     // ---- stations ----------------------------------------------------------
 
-    private void OnStationDoubleClick(object sender, MouseButtonEventArgs e)
+    /// <summary>A station opens in Studio; a controller, its workflow here.</summary>
+    private void OnProjectItemDoubleClick(object sender, MouseButtonEventArgs e)
     {
         for (var current = e.OriginalSource as DependencyObject; current is not null; current = VisualTreeHelper.GetParent(current))
         {
-            if (current is FrameworkElement { DataContext: StationViewModel station })
+            if (current is FrameworkElement { DataContext: StationViewModel or ControllerViewModel } item)
             {
-                _model.OpenInStudioCommand.Execute(station);
+                _model.Open(item.DataContext);
                 return;
             }
         }
+    }
+
+    /// <summary>The + button: a menu of what can be added, under it.</summary>
+    private void OnAddClick(object sender, RoutedEventArgs e)
+    {
+        AddMenu.PlacementTarget = AddButton;
+        AddMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        AddMenu.DataContext = DataContext;
+        AddMenu.IsOpen = true;
     }
 
     // ---- controllers and their workflows -------------------------------------------
 
     private readonly Dictionary<WorkflowDocumentViewModel, LayoutDocument> _workflowTabs = [];
-
-    private void OnControllerDoubleClick(object sender, MouseButtonEventArgs e)
-    {
-        for (var current = e.OriginalSource as DependencyObject; current is not null; current = VisualTreeHelper.GetParent(current))
-        {
-            if (current is FrameworkElement { DataContext: ControllerViewModel controller })
-            {
-                _model.OpenWorkflowCommand.Execute(controller);
-                return;
-            }
-        }
-    }
 
     /// <summary>The workflow's tab, beside the screen's - made the first time, brought forward after.</summary>
     internal LayoutDocument ShowWorkflow(WorkflowDocumentViewModel workflow)

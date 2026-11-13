@@ -3050,3 +3050,11 @@ sent through the simulator control the vision project.
   log.
 - **A workflow is saved by hand**, as a recipe is in Studio; a Test Run
   offers to save changed ones first, since it runs what is on disk.
+- **One Project panel, not two** (the same day, your sketch): stations,
+  then controllers, in one list, told apart by icon - Phosphor's camera
+  and circuitry, drawn as the toolbar's are. Both panels had been mostly
+  empty, and a line is one machine. The + button is a menu (Add Station,
+  Add Station from Recipe, Add Controller); a double-click opens a station
+  in Studio, a controller's workflow here; each keeps its own right-click
+  menu, and one selection drives the Station and Controller menus. Further
+  kinds - I/O, a second screen - become items, not panels.

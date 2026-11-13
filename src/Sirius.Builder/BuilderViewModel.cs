@@ -71,6 +71,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         PlcCommand = new RelayCommand<ControllerViewModel>(controller => ShowPlc(controller));
         RenameControllerCommand = new RelayCommand<ControllerViewModel>(RenameController);
         RemoveControllerCommand = new RelayCommand<ControllerViewModel>(RemoveController);
+        OpenSelectedCommand = new RelayCommand(() => Open(SelectedItem), () => SelectedItem is not null);
     }
 
     /// <summary>The open project, or null.</summary>
@@ -86,6 +87,65 @@ public sealed partial class BuilderViewModel : ObservableObject
     public ObservableCollection<ControllerViewModel> Controllers { get; } = [];
 
     public bool HasNoControllers => _project is not null && Controllers.Count == 0;
+
+    /// <summary>
+    /// What the Project panel lists: the stations, then the controllers -
+    /// one list, as a line is one machine, each told apart by its icon.
+    /// </summary>
+    public ObservableCollection<object> Items { get; } = [];
+
+    /// <summary>A project with neither stations nor controllers.</summary>
+    public bool IsEmpty => _project is not null && Items.Count == 0;
+
+    private object? _selectedItem;
+
+    /// <summary>
+    /// What is selected in the Project panel - a station or a controller.
+    /// The Station and Controller menus act on it.
+    /// </summary>
+    public object? SelectedItem
+    {
+        get => _selectedItem;
+        set
+        {
+            if (!SetProperty(ref _selectedItem, value))
+                return;
+
+            SelectedStation = value as StationViewModel;
+            SelectedController = value as ControllerViewModel;
+            OpenSelectedCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    partial void OnSelectedStationChanged(StationViewModel? value)
+    {
+        if (value is not null)
+            SelectedItem = value;
+    }
+
+    partial void OnSelectedControllerChanged(ControllerViewModel? value)
+    {
+        if (value is not null)
+            SelectedItem = value;
+    }
+
+    /// <summary>Opens a station's recipe in Studio, or a controller's workflow here.</summary>
+    public IRelayCommand OpenSelectedCommand { get; }
+
+    /// <summary>What a double-click does: a station to Studio, a controller to its workflow's tab.</summary>
+    internal void Open(object? item)
+    {
+        switch (item)
+        {
+            case StationViewModel station:
+                OpenInStudioCommand.Execute(station);
+                break;
+
+            case ControllerViewModel controller:
+                OpenWorkflowCommand.Execute(controller);
+                break;
+        }
+    }
 
     /// <summary>The workflows open in tabs.</summary>
     public ObservableCollection<WorkflowDocumentViewModel> Workflows { get; } = [];
@@ -273,9 +333,9 @@ public sealed partial class BuilderViewModel : ObservableObject
         _project = null;
         Designer = null;
         Stations.Clear();
-        SelectedStation = null;
         Controllers.Clear();
-        SelectedController = null;
+        Items.Clear();
+        SelectedItem = null;
         StatusText = "Open a project, or make a new one.";
         Changed();
         return true;
@@ -796,11 +856,17 @@ public sealed partial class BuilderViewModel : ObservableObject
 
     private void Rebuild()
     {
-        var selected = SelectedStation?.Station;
-        var selectedController = SelectedController?.Controller;
+        // What was selected, found again among the new items.
+        var selected = SelectedItem switch
+        {
+            StationViewModel station => (object)station.Station,
+            ControllerViewModel controller => controller.Controller,
+            _ => null,
+        };
 
         Stations.Clear();
         Controllers.Clear();
+        Items.Clear();
 
         if (_project is { } project)
         {
@@ -811,10 +877,19 @@ public sealed partial class BuilderViewModel : ObservableObject
                 Controllers.Add(new ControllerViewModel(project, controller));
         }
 
-        SelectedStation = selected is null ? null : Find(selected);
-        SelectedController = selectedController is null ? null : Find(selectedController);
+        foreach (var item in Stations.Cast<object>().Concat(Controllers))
+            Items.Add(item);
+
+        SelectedItem = selected switch
+        {
+            Station station => Find(station),
+            Controller controller => Find(controller),
+            _ => null,
+        };
+
         OnPropertyChanged(nameof(HasNoStations));
         OnPropertyChanged(nameof(HasNoControllers));
+        OnPropertyChanged(nameof(IsEmpty));
 
         foreach (var workflow in Workflows)
             workflow.ControllerChanged();
@@ -831,6 +906,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         TestRunCommand.NotifyCanExecuteChanged();
         AddControllerCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasNoControllers));
+        OnPropertyChanged(nameof(IsEmpty));
     }
 
     private StationViewModel? Find(Station station) =>

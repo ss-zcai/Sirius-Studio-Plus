@@ -211,6 +211,103 @@ public sealed class BuilderControllerTests : IDisposable
     }
 
     [Fact]
+    public void The_project_panel_lists_stations_then_controllers_with_one_selection()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var project = Project.Create(_root, "Line 8", new VisionGraph(), "Top");
+            var model = Builder(project);
+            var studio = new List<string>();
+            model.Launch = (_, file) =>
+            {
+                studio.Add(file);
+                return true;
+            };
+
+            Assert.Equal(["Top"], model.Items.Select(Name));
+
+            // A controller added goes after the stations, and is selected.
+            model.AddController("PLC 1");
+            project.AddStation("Bottom", new VisionGraph());
+
+            Assert.Equal(["Top", "Bottom", "PLC 1"], model.Items.Select(Name));
+            Assert.IsType<ControllerViewModel>(model.SelectedItem);
+            Assert.Null(model.SelectedStation);
+            Assert.Equal("PLC 1", model.SelectedController?.Name);
+
+            // A station chosen: the Station menu acts on it, the Controller menu on nothing.
+            model.SelectedItem = model.Items[0];
+            Assert.Equal("Top", model.SelectedStation?.Name);
+            Assert.Null(model.SelectedController);
+
+            // Opened by what it is: a station in Studio, a controller here.
+            model.OpenSelectedCommand.Execute(null);
+            Assert.Equal(project.RecipePath(project.Stations[0]), Assert.Single(studio));
+
+            model.Open(model.Items[2]);
+            Assert.Single(model.Workflows);
+            Assert.Single(studio);
+
+            // Renaming keeps what was selected.
+            model.SelectedItem = model.Items[2];
+            project.RenameController(project.Controllers[0], "Press");
+            Assert.Equal("Press", model.SelectedController?.Name);
+
+            // The panel's templates, icons and all, made for real.
+            var window = new BuilderWindow(model) { KeepsLayout = false };
+
+            try
+            {
+                var list = (System.Windows.Controls.ListBox)window.FindName("ProjectList");
+                list.Measure(new Size(240, 600));
+                list.Arrange(new Rect(0, 0, 240, 600));
+                WpfTestHost.Settle(window.Dispatcher);
+
+                var icons = new List<System.Windows.Media.ImageSource>();
+                foreach (var item in model.Items)
+                {
+                    var container = (FrameworkElement)list.ItemContainerGenerator.ContainerFromItem(item);
+                    icons.Add(FindImage(container)!.Source);
+                }
+
+                var resources = Application.Current!;
+                Assert.Equal(
+                    [resources.FindResource("Icon.ph_camera"), resources.FindResource("Icon.ph_camera"), resources.FindResource("Icon.ph_controller")],
+                    icons);
+            }
+            finally
+            {
+                window.Close();
+            }
+
+            static string Name(object item) => item switch
+            {
+                StationViewModel station => station.Name,
+                ControllerViewModel controller => controller.Name,
+                _ => "?",
+            };
+        });
+    }
+
+    private static System.Windows.Controls.Image? FindImage(DependencyObject root)
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+
+            if (child is System.Windows.Controls.Image image)
+                return image;
+
+            if (FindImage(child) is { } found)
+                return found;
+        }
+
+        return null;
+    }
+
+    [Fact]
     public void A_workflow_opens_in_a_tab_is_edited_through_its_settings_and_saved()
     {
         WpfTestHost.OnStaThread(() =>
