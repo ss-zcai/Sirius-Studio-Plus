@@ -422,6 +422,98 @@ public sealed class BuilderControllerTests : IDisposable
     }
 
     [Fact]
+    public void The_toolbar_tools_and_properties_follow_the_tab_in_front()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var project = Project.Create(_root, "Line 9", new VisionGraph(), "Top");
+            var asked = new List<string>();
+            var model = Builder(project);
+            model.Ask = (question, _) =>
+            {
+                asked.Add(question);
+                return MessageBoxResult.Cancel;
+            };
+
+            var window = new BuilderWindow(model) { KeepsLayout = false };
+
+            try
+            {
+                // The screen in front: the designer's commands, its properties, its widgets.
+                Assert.Null(model.ActiveWorkflow);
+                Assert.Same(model.Designer!.SaveCommand, model.SaveCommand.Target);
+                Assert.Same(model.Designer.BringForwardCommand, model.BringForwardCommand.Target);
+                Assert.Equal("Screen", model.PropertyTitle);
+                Assert.Equal("Widgets", model.ToolsTitle);
+
+                // A workflow opened comes to the front: everything follows it.
+                model.AddController("PLC 1");
+                var document = model.OpenWorkflow(model.Controllers[0])!;
+                window.ShowWorkflow(document);
+
+                Assert.Same(document, model.ActiveWorkflow);
+                Assert.Same(document.SaveCommand, model.SaveCommand.Target);
+                Assert.Same(document.UndoCommand, model.UndoCommand.Target);
+                Assert.Same(document.CopyCommand, model.CopyCommand.Target);
+                Assert.Null(model.BringForwardCommand.Target);
+                Assert.False(model.BringForwardCommand.CanExecute(null));
+                Assert.Equal("Nodes", model.ToolsTitle);
+                Assert.Equal("Nodes", ((AvalonDock.Layout.LayoutAnchorable)window.FindName("ToolsPanel")).Title);
+
+                // The node tools, icons and all, made for real.
+                var tools = (System.Windows.Controls.ItemsControl)window.FindName("NodeTools");
+                tools.Measure(new Size(240, 800));
+                tools.Arrange(new Rect(0, 0, 240, 800));
+                WpfTestHost.Settle(window.Dispatcher);
+                Assert.Equal(["PLC", "Stations"], tools.Items.Cast<WorkflowPaletteGroup>().Select(group => group.Name));
+                Assert.All(tools.Items.Cast<WorkflowPaletteGroup>().SelectMany(group => group.Items), item => Assert.NotNull(item.Icon));
+
+                // A node chosen shows in Properties.
+                var inspect = document.Editor.Nodes.Single(node => node.Node is InspectNode);
+                document.Editor.SelectedNode = inspect;
+                Assert.Equal("Inspect", model.PropertyTitle);
+                Assert.Contains(model.PropertyCategories.SelectMany(category => category.Rows), row => row.Name == "Station");
+
+                // Duplicate and Undo, from the main toolbar's commands.
+                inspect.IsSelected = true;
+                var count = document.Editor.Nodes.Count;
+                Assert.True(model.DuplicateCommand.CanExecute(null));
+                model.DuplicateCommand.Execute(null);
+                Assert.Equal(count + 1, document.Editor.Nodes.Count);
+                Assert.Equal("Pasted Inspect.", model.StatusText);
+                Assert.True(model.UndoCommand.CanExecute(null));
+                model.UndoCommand.Execute(null);
+                Assert.Equal(count, document.Editor.Nodes.Count);
+
+                // Changed, the title says so; leaving asks - the screen saved, about the workflow only.
+                Assert.True(model.Designer.Save());
+                Assert.StartsWith("*", model.Title);
+                Assert.False(model.ConfirmLeaving("Sirius Builder"));
+                Assert.Equal("Save PLC 1's workflow first?", Assert.Single(asked));
+
+                // Save from the toolbar saves the workflow in front.
+                model.SaveCommand.Execute(null);
+                Assert.False(document.IsModified);
+                Assert.DoesNotContain("*", model.Title);
+
+                // The screen's tab in front again: back to the screen.
+                window.ScreenTabForTests!.IsActive = true;
+                Assert.Null(model.ActiveWorkflow);
+                Assert.Same(model.Designer.SaveCommand, model.SaveCommand.Target);
+                Assert.Equal("Widgets", model.ToolsTitle);
+                Assert.Equal("Screen", model.PropertyTitle);
+            }
+            finally
+            {
+                model.Ask = (_, _) => MessageBoxResult.No;
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
     public void The_plc_window_tests_the_connection_reads_and_writes_and_sets_the_simulator()
     {
         WpfTestHost.OnStaThread(() =>

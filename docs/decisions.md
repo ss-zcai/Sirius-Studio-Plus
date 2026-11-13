@@ -3058,3 +3058,15 @@ sent through the simulator control the vision project.
   in Studio, a controller's workflow here; each keeps its own right-click
   menu, and one selection drives the Station and Controller menus. Further
   kinds - I/O, a second screen - become items, not panels.
+- **One toolbar, one tools panel, one Properties, following the tab in
+  front** (the same day, asked for): as any program with several documents
+  open, Save, Undo, Redo, Cut, Copy, Paste, Duplicate and Delete act on the
+  screen or on the workflow whose tab is in front (`ActiveCommand`);
+  arranging is the screen's alone and greys out for a workflow. The tools
+  panel shows the widgets, or - titled Nodes - a workflow's nodes, each
+  with its icon; Properties the chosen widget or node. A panel coming to
+  the front does not change which document that is. The workflow tab is
+  left with its canvas and its check. File gains Save All (Ctrl+Shift+S),
+  and closing Builder now asks about unsaved workflows too, which it did
+  not. Copy and paste use Studio's graph clipboard; a recipe's nodes
+  pasted into a workflow are left out.

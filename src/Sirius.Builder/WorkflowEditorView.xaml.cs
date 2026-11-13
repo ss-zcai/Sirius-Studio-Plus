@@ -5,13 +5,11 @@ using Sirius.Core.Nodes;
 
 namespace Sirius.Builder;
 
-/// <summary>A controller's workflow, edited: palette, canvas, settings.</summary>
+/// <summary>A controller's workflow, edited on Studio's canvas, with what its check finds.</summary>
 public partial class WorkflowEditorView : UserControl
 {
-    private const string DragFormat = "Sirius.WorkflowNode";
-
-    private Point _pressedAt;
-    private NodeDescriptor? _pressed;
+    /// <summary>What a node dragged from the tools panel is carried as.</summary>
+    public const string DragFormat = "Sirius.WorkflowNode";
 
     public WorkflowEditorView()
     {
@@ -20,36 +18,9 @@ public partial class WorkflowEditorView : UserControl
 
     private WorkflowDocumentViewModel? Model => DataContext as WorkflowDocumentViewModel;
 
-    /// <summary>A double-click adds the node in view; a press is otherwise the start of a drag.</summary>
-    private void OnPaletteMouseDown(object sender, MouseButtonEventArgs e)
-    {
-        _pressedAt = e.GetPosition(this);
-        _pressed = (sender as FrameworkElement)?.DataContext as NodeDescriptor;
-
-        if (e.ClickCount == 2 && _pressed is { } descriptor && Model is { } model)
-        {
-            model.AddNode(descriptor, InView(new Point(Canvas.ActualWidth / 3, Canvas.ActualHeight / 3)));
-            _pressed = null;
-            e.Handled = true;
-        }
-    }
-
-    private void OnPaletteMouseMove(object sender, MouseEventArgs e)
-    {
-        if (e.LeftButton != MouseButtonState.Pressed || _pressed is not { } descriptor)
-            return;
-
-        var moved = e.GetPosition(this) - _pressedAt;
-
-        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
-            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
-        {
-            return;
-        }
-
-        _pressed = null;
-        DragDrop.DoDragDrop((DependencyObject)sender, new DataObject(DragFormat, descriptor), DragDropEffects.Copy);
-    }
+    /// <summary>Adds a node where the canvas is looking - a double-click in the tools panel.</summary>
+    public void AddInView(NodeDescriptor descriptor) =>
+        Model?.AddNode(descriptor, InView(new Point(Math.Max(Canvas.ActualWidth, 300) / 3, Math.Max(Canvas.ActualHeight, 300) / 3)));
 
     private void OnCanvasDragOver(object sender, DragEventArgs e)
     {

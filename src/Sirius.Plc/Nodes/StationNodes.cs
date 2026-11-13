@@ -49,6 +49,7 @@ public sealed record InspectionResult(
 [VisionNode(
     "Inspect",
     TypeKey = "station.inspect",
+    Icon = "ph_inspect",
     Category = NodeCategory.Stations,
     Description = "Has a station inspect once when triggered, telling it about the part - what Gather put " +
                   "together - which is kept with the picture. Pass or Fail fires by the verdict; Done either way; " +
@@ -150,6 +151,7 @@ public sealed class InspectNode : WorkflowNode
 [VisionNode(
     "Station Result",
     TypeKey = "station.result",
+    Icon = "ph_station_result",
     Category = NodeCategory.Stations,
     Description = "Starts the workflow whenever a station has inspected - by a PLC, a button or running - " +
                   "with how it went, so the result can be written to the PLC.")]
@@ -245,6 +247,7 @@ public sealed class StationResultNode : WorkflowEventNode
 [VisionNode(
     "Result Value",
     TypeKey = "station.resultValue",
+    Icon = "ph_number",
     Category = NodeCategory.Stations,
     Description = "Takes one value from an inspection's result by name - a published Diameter, Count or Code, " +
                   "or a value of the part such as PalletId - to write to the PLC.")]

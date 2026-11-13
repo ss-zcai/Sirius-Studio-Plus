@@ -6,6 +6,7 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Sirius.Core.Graph;
+using Sirius.Core.Graph.Undo;
 using Sirius.Core.Nodes;
 using Sirius.Core.Projects;
 using Sirius.Core.Serialization;
@@ -43,6 +44,7 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
     private IReadOnlyList<PropertyCategory> _properties = [];
     private bool _isModified;
     private string _problemText = string.Empty;
+    private string _statusText = string.Empty;
 
     public WorkflowDocumentViewModel(Project project, Controller controller)
     {
@@ -68,6 +70,11 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
         UndoCommand = new RelayCommand(Undo, () => Document.Undo.CanUndo);
         RedoCommand = new RelayCommand(Redo, () => Document.Undo.CanRedo);
         DeleteCommand = new RelayCommand(() => Editor.DeleteSelectionCommand.Execute(null), () => Editor.DeleteSelectionCommand.CanExecute(null));
+        CopyCommand = new RelayCommand(Copy, HasSelection);
+        CutCommand = new RelayCommand(Cut, HasSelection);
+        PasteCommand = new RelayCommand(Paste);
+        DuplicateCommand = new RelayCommand(Duplicate, HasSelection);
+        Editor.SelectedItems.CollectionChanged += (_, _) => SelectionChanged();
 
         Document.Undo.Changed += OnUndoChanged;
         Graph.StructureChanged += OnStructureChanged;
@@ -126,6 +133,155 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
     public IRelayCommand RedoCommand { get; }
 
     public IRelayCommand DeleteCommand { get; }
+
+    public IRelayCommand CopyCommand { get; }
+
+    public IRelayCommand CutCommand { get; }
+
+    public IRelayCommand PasteCommand { get; }
+
+    public IRelayCommand DuplicateCommand { get; }
+
+    /// <summary>What the last edit did - "Copied 2 nodes." - for Builder's status line.</summary>
+    public string StatusText
+    {
+        get => _statusText;
+        private set => SetProperty(ref _statusText, value);
+    }
+
+    // ---- the clipboard: Studio's own, so a workflow's nodes copy and paste as a recipe's do ----
+
+    private IReadOnlyList<NodeViewModel> Selection => Editor.Nodes.Where(node => node.IsSelected).ToArray();
+
+    private bool HasSelection() => Editor.Nodes.Any(node => node.IsSelected);
+
+    private void SelectionChanged()
+    {
+        CopyCommand.NotifyCanExecuteChanged();
+        CutCommand.NotifyCanExecuteChanged();
+        DuplicateCommand.NotifyCanExecuteChanged();
+        DeleteCommand.NotifyCanExecuteChanged();
+    }
+
+    private void Copy()
+    {
+        var nodes = Selection;
+
+        if (nodes.Count == 0)
+            return;
+
+        var json = GraphClipboard.Copy(Graph, nodes.Select(node => node.Node));
+
+        try
+        {
+            var data = new DataObject();
+            data.SetData(GraphClipboard.Format, json);
+            data.SetData(DataFormats.UnicodeText, json);
+            Clipboard.SetDataObject(data, copy: true);
+
+            StatusText = nodes.Count == 1 ? $"Copied {nodes[0].Title}." : $"Copied {nodes.Count} nodes.";
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
+        {
+            StatusText = $"Could not copy: {ex.Message}";
+        }
+    }
+
+    private void Cut()
+    {
+        var count = Selection.Count;
+
+        if (count == 0)
+            return;
+
+        // Copied first: if the clipboard refuses, nothing has been deleted yet.
+        Copy();
+
+        using (Document.Undo.Begin(count == 1 ? $"Cut {Selection[0].Title}" : $"Cut {count} nodes"))
+            Editor.DeleteSelectionCommand.Execute(null);
+
+        StatusText = count == 1 ? "Cut 1 node." : $"Cut {count} nodes.";
+    }
+
+    private void Paste()
+    {
+        string? json;
+
+        try
+        {
+            json = Clipboard.ContainsData(GraphClipboard.Format) ? Clipboard.GetData(GraphClipboard.Format) as string : null;
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
+        {
+            StatusText = $"Could not read the clipboard: {ex.Message}";
+            return;
+        }
+
+        if (json is null)
+        {
+            StatusText = "There are no nodes on the clipboard to paste.";
+            return;
+        }
+
+        PasteGraph(json, "Paste");
+    }
+
+    /// <summary>Copies the selection and pastes it in one step, leaving the clipboard as it was.</summary>
+    private void Duplicate()
+    {
+        var nodes = Selection;
+
+        if (nodes.Count > 0)
+            PasteGraph(GraphClipboard.Copy(Graph, nodes.Select(node => node.Node)), nodes.Count == 1 ? $"Duplicate {nodes[0].Title}" : $"Duplicate {nodes.Count} nodes");
+    }
+
+    private void PasteGraph(string json, string label)
+    {
+        PasteResult result;
+
+        try
+        {
+            // One step back for the whole paste, not one per property the loader sets.
+            using (Document.Recorder.Pause())
+                result = GraphClipboard.Paste(Graph, json);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidDataException or InvalidOperationException or NotSupportedException)
+        {
+            StatusText = $"Could not paste: {ex.Message}";
+            return;
+        }
+
+        // A recipe's nodes pasted here would never run: taken out again.
+        foreach (var stranger in result.Nodes.Where(node => node is not WorkflowNode).ToArray())
+            Graph.Remove(stranger);
+
+        var pasted = result.Nodes.Where(node => node is WorkflowNode).ToArray();
+
+        if (pasted.Length == 0)
+        {
+            StatusText = result.Nodes.Count > 0 ? "A recipe's nodes cannot go in a workflow." : "There was nothing to paste.";
+            Editor.Resync();
+            return;
+        }
+
+        Document.Undo.Record(new CompositeEdit(
+            label,
+            pasted.Select(node => (IGraphEdit)new AddNodeEdit(node))
+                .Concat(result.Wires
+                    .Where(wire => pasted.Contains(wire.Source.Node) && pasted.Contains(wire.Target.Node))
+                    .Select(wire => (IGraphEdit)new ConnectEdit(wire.Source, wire.Target, null)))));
+
+        Editor.FitPorts();
+        Editor.Resync();
+
+        // Selected, so they can be dragged into place at once.
+        foreach (var node in Editor.Nodes)
+            node.IsSelected = pasted.Any(added => ReferenceEquals(added, node.Node));
+
+        Editor.SelectedNode = Editor.Nodes.FirstOrDefault(node => node.IsSelected);
+        Changed();
+        StatusText = pasted.Length == 1 ? $"Pasted {pasted[0].Name}." : $"Pasted {pasted.Length} nodes.";
+    }
 
     // ---- editing ---------------------------------------------------------------------
 

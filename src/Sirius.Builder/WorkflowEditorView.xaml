@@ -4,104 +4,29 @@
              xmlns:local="clr-namespace:Sirius.Builder"
              xmlns:nodify="https://miroiu.github.io/nodify"
              xmlns:vm="clr-namespace:Sirius.Studio.App.ViewModels;assembly=SiriusStudioPlus"
-             xmlns:core="clr-namespace:Sirius.Core.Nodes;assembly=Sirius.Core"
-             d:DesignHeight="600"
+                      d:DesignHeight="600"
              d:DesignWidth="1000"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
     <!--
-        A controller's workflow: the nodes it can use on the left, the graph
-        on Studio's canvas in the middle, the chosen node's settings on the
-        right, and what the check finds along the bottom.
+        A controller's workflow: the graph on Studio's canvas, and what the
+        check finds along the bottom. Saving, undoing, copying and the rest are Builder's own toolbar and
+        Edit menu, acting on the tab in front; the nodes are in the tools
+        panel and the chosen node's settings in Properties, as the screen's
+        widgets are. Only Delete is caught here, on the canvas, so it never
+        takes a key meant for a box being typed in.
     -->
-    <UserControl.InputBindings>
-        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
-        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
-        <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
-        <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" />
-    </UserControl.InputBindings>
-
     <Grid TextElement.Foreground="{StaticResource Text.Primary}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="190" />
-            <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="300" />
-        </Grid.ColumnDefinitions>
-
-        <!-- The workflow's own toolbar -->
-        <Border Grid.Row="0"
-                Grid.ColumnSpan="5"
-                Background="{StaticResource Surface.Panel}"
-                BorderBrush="{StaticResource Surface.Border}"
-                BorderThickness="0,0,0,1"
-                Padding="6,3">
-            <StackPanel Orientation="Horizontal">
-                <Button Style="{StaticResource PanelToolButton}" ToolTip="Save the workflow (Ctrl+S) - a test run uses the saved file" Command="{Binding SaveCommand}">
-                    <Image Source="{StaticResource Icon.ph_save}" Width="15" Height="15" />
-                </Button>
-                <Button Style="{StaticResource PanelToolButton}" ToolTip="Undo (Ctrl+Z)" Command="{Binding UndoCommand}">
-                    <Image Source="{StaticResource Icon.ph_undo}" Width="15" Height="15" />
-                </Button>
-                <Button Style="{StaticResource PanelToolButton}" ToolTip="Redo (Ctrl+Y)" Command="{Binding RedoCommand}">
-                    <Image Source="{StaticResource Icon.ph_redo}" Width="15" Height="15" />
-                </Button>
-                <Button Style="{StaticResource PanelToolButton}" ToolTip="Delete what is selected (Del)" Command="{Binding DeleteCommand}">
-                    <Image Source="{StaticResource Icon.ph_delete}" Width="15" Height="15" />
-                </Button>
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="11"
-                           Foreground="{StaticResource Text.Secondary}"
-                           Text="Drag nodes in from the left. Wire a trigger to a trigger, a value to a value. A pass starts at a PLC Monitor or Station Result." />
-            </StackPanel>
-        </Border>
-
-        <!-- The nodes a workflow can use -->
-        <ScrollViewer Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Auto" Background="{StaticResource Surface.Panel}">
-            <ItemsControl ItemsSource="{Binding Palette}" Margin="0,6">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate DataType="{x:Type local:WorkflowPaletteGroup}">
-                        <StackPanel Margin="0,0,0,8">
-                            <TextBlock Text="{Binding Name}"
-                                       Margin="10,2,0,4"
-                                       FontSize="11"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource Text.Secondary}" />
-                            <ItemsControl ItemsSource="{Binding Items}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type core:NodeDescriptor}">
-                                        <Border Background="Transparent"
-                                                Padding="14,4,8,4"
-                                                Cursor="Hand"
-                                                ToolTip="{Binding Description}"
-                                                PreviewMouseLeftButtonDown="OnPaletteMouseDown"
-                                                PreviewMouseMove="OnPaletteMouseMove">
-                                            <TextBlock Text="{Binding DisplayName}" />
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-
-        <GridSplitter Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" Background="{StaticResource Surface.Border}" />
 
         <!-- The graph, on Studio's canvas -->
         <nodify:NodifyEditor x:Name="Canvas"
-                             Grid.Row="1"
-                             Grid.Column="2"
+                             Grid.Row="0"
                              DataContext="{Binding Document}"
                              AllowDrop="True"
                              DragOver="OnCanvasDragOver"
@@ -118,6 +43,10 @@
                              DisconnectConnectorCommand="{Binding Editor.DisconnectCommand}"
                              RemoveConnectionCommand="{Binding Editor.RemoveConnectionCommand}"
                              GridCellSize="20">
+
+            <nodify:NodifyEditor.InputBindings>
+                <KeyBinding Key="Delete" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+            </nodify:NodifyEditor.InputBindings>
 
             <nodify:NodifyEditor.ItemContainerStyle>
                 <Style TargetType="nodify:ItemContainer">
@@ -160,9 +89,16 @@
                                  BorderThickness="1"
                                  ToolTip="{Binding ToolTipText}">
                         <nodify:Node.Header>
-                            <StackPanel Margin="2,0">
-                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                <TextBlock Text="{Binding TypeName}" FontSize="10" Opacity="0.7" />
+                            <StackPanel Orientation="Horizontal" Margin="2,0">
+                                <Image Source="{Binding IconKey, Converter={StaticResource IconKeyToImage}}"
+                                       Width="16"
+                                       Height="16"
+                                       Margin="0,0,7,0"
+                                       VerticalAlignment="Center" />
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding TypeName}" FontSize="10" Opacity="0.7" />
+                                </StackPanel>
                             </StackPanel>
                         </nodify:Node.Header>
 
@@ -230,18 +166,8 @@
             </nodify:NodifyEditor.PendingConnectionTemplate>
         </nodify:NodifyEditor>
 
-        <GridSplitter Grid.Row="1" Grid.Column="3" HorizontalAlignment="Stretch" Background="{StaticResource Surface.Border}" />
-
-        <!-- The chosen node's settings -->
-        <Border Grid.Row="1" Grid.Column="4" Background="{StaticResource Surface.Panel}">
-            <local:PropertyGridView Categories="{Binding Properties}"
-                                    Title="{Binding PropertyTitle}"
-                                    Subtitle="{Binding PropertySubtitle}" />
-        </Border>
-
         <!-- What the check finds -->
-        <Border Grid.Row="2"
-                Grid.ColumnSpan="5"
+        <Border Grid.Row="1"
                 Background="{StaticResource Surface.Panel}"
                 BorderBrush="{StaticResource Surface.Border}"
                 BorderThickness="0,1,0,0"

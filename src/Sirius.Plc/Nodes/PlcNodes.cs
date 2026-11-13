@@ -65,6 +65,7 @@ public abstract class PlcAddressNode : WorkflowNode
 [VisionNode(
     "PLC Monitor",
     TypeKey = "plc.monitor",
+    Icon = "ph_plc_monitor",
     Category = NodeCategory.Plc,
     Description = "Watches an address in the PLC and starts the workflow when it changes - a bit rising, " +
                   "falling, or any change of a value. Watches again once what it started has finished.")]
@@ -221,6 +222,7 @@ public sealed class PlcMonitorNode : WorkflowEventNode
 [VisionNode(
     "PLC Read",
     TypeKey = "plc.read",
+    Icon = "ph_plc_read",
     Category = NodeCategory.Plc,
     Description = "Reads an address in the PLC when triggered - a tray number, a position, a mode - " +
                   "and gives its value. Done when read; Failed when the PLC did not answer.")]
@@ -258,6 +260,7 @@ public sealed class PlcReadNode : PlcAddressNode
 [VisionNode(
     "PLC Write",
     TypeKey = "plc.write",
+    Icon = "ph_plc_write",
     Category = NodeCategory.Plc,
     Description = "Writes to an address in the PLC when triggered: the value wired in, or the one set here. " +
                   "Done when written; Failed when the PLC did not take it.")]
@@ -307,6 +310,7 @@ public sealed class PlcWriteNode : PlcAddressNode
 [VisionNode(
     "PLC Pulse",
     TypeKey = "plc.pulse",
+    Icon = "ph_plc_pulse",
     Category = NodeCategory.Plc,
     Description = "Sets a bit in the PLC, waits, and clears it again - a pulse the PLC sees as \"done\".")]
 public sealed class PlcPulseNode : WorkflowNode
@@ -378,6 +382,7 @@ public sealed class PlcPulseNode : WorkflowNode
 [VisionNode(
     "PLC Wait For",
     TypeKey = "plc.waitFor",
+    Icon = "ph_plc_wait",
     Category = NodeCategory.Plc,
     Description = "Waits until an address holds a value - the PLC acknowledging, a part in place. " +
                   "Done when it does; Timed Out when it has not within the time given.")]
@@ -488,6 +493,7 @@ public sealed class PlcWaitForNode : PlcAddressNode
 [VisionNode(
     "Gather",
     TypeKey = "plc.gather",
+    Icon = "ph_gather",
     Category = NodeCategory.Plc,
     Description = "Puts values together under names - PalletId, PositionId, RunMode - as what an inspection " +
                   "is told about its part, kept with its picture. Runs once every value wired in has been read.")]

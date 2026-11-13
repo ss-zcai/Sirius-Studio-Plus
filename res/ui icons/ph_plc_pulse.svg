@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" data-name="PLC Pulse">
+  <g opacity=".5"><polyline points="232 128 232 184 128 184 128 72 24 72 24 128" fill="none" stroke="#333" stroke-linecap="round" stroke-linejoin="round" stroke-width="48"/></g>
+  <polyline points="232 128 232 184 128 184 128 72 24 72 24 128" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/>
+</svg>

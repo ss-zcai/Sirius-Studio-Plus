@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using AvalonDock.Layout;
 using AvalonDock.Layout.Serialization;
+using Sirius.Core.Nodes;
 using Sirius.Studio.App;
 using Sirius.Studio.App.Hosting;
 
@@ -36,6 +37,39 @@ public partial class BuilderWindow : Window
         // A workflow in a tab beside the screen.
         model.WorkflowShown += (_, workflow) => ShowWorkflow(workflow);
         model.Workflows.CollectionChanged += (_, _) => DropClosedWorkflows();
+
+        // The document in front decides what the toolbar, tools and Properties act on.
+        Follow(ScreenTab());
+        model.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(BuilderViewModel.ToolsTitle))
+                ToolsPanel.Title = model.ToolsTitle;
+        };
+    }
+
+    /// <summary>For tests: the screen's tab, to bring to the front.</summary>
+    internal LayoutDocument? ScreenTabForTests => ScreenTab();
+
+    /// <summary>The screen's own tab.</summary>
+    private LayoutDocument? ScreenTab() =>
+        Docking.Layout.Descendents().OfType<LayoutDocument>().FirstOrDefault(document => document.ContentId == "screen");
+
+    /// <summary>
+    /// A document tab coming to the front makes its document the one the
+    /// toolbar acts on. A panel - Properties, Project - coming to the front
+    /// changes nothing: the document behind it is still the one being
+    /// worked on.
+    /// </summary>
+    private void Follow(LayoutDocument? tab)
+    {
+        if (tab is null)
+            return;
+
+        tab.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(LayoutDocument.IsActive) && tab.IsActive)
+                _model.ActiveWorkflow = (tab.Content as WorkflowEditorView)?.DataContext as WorkflowDocumentViewModel;
+        };
     }
 
     internal BuilderViewModel Model => _model;
@@ -69,7 +103,7 @@ public partial class BuilderWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (!_model.ConfirmScreen("Sirius Builder"))
+        if (!_model.ConfirmLeaving("Sirius Builder"))
         {
             e.Cancel = true;
             return;
@@ -234,11 +268,13 @@ public partial class BuilderWindow : Window
 
             tab.Closed += (_, _) => _workflowTabs.Remove(workflow);
 
+            Follow(tab);
             _workflowTabs[workflow] = tab;
             DocumentPane().Children.Add(tab);
         }
 
         tab.IsActive = true;
+        _model.ActiveWorkflow = workflow;
         return tab;
     }
 
@@ -260,6 +296,45 @@ public partial class BuilderWindow : Window
     private LayoutDocumentPane DocumentPane() =>
         Docking.Layout.Descendents().OfType<LayoutDocument>().FirstOrDefault(document => document.ContentId == "screen")?.Parent as LayoutDocumentPane
         ?? Docking.Layout.Descendents().OfType<LayoutDocumentPane>().First();
+
+    // ---- the tools panel: a workflow's nodes ---------------------------------------------
+
+    private NodeDescriptor? _pressedNode;
+
+    /// <summary>The editor of the workflow in front, if its tab has one.</summary>
+    private WorkflowEditorView? ActiveWorkflowView =>
+        _model.ActiveWorkflow is { } workflow && _workflowTabs.TryGetValue(workflow, out var tab) ? tab.Content as WorkflowEditorView : null;
+
+    /// <summary>Double-click adds the node where the canvas is looking; a press is otherwise the start of a drag.</summary>
+    private void OnNodeToolMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _toolDownAt = e.GetPosition(this);
+        _pressedNode = (sender as FrameworkElement)?.DataContext as NodeDescriptor;
+
+        if (e.ClickCount == 2 && _pressedNode is { } descriptor && ActiveWorkflowView is { } view)
+        {
+            view.AddInView(descriptor);
+            _pressedNode = null;
+            e.Handled = true;
+        }
+    }
+
+    private void OnNodeToolMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _pressedNode is not { } descriptor)
+            return;
+
+        var moved = e.GetPosition(this) - _toolDownAt;
+
+        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        _pressedNode = null;
+        DragDrop.DoDragDrop((DependencyObject)sender, new DataObject(WorkflowEditorView.DragFormat, descriptor), DragDropEffects.Copy);
+    }
 
     // ---- the Widgets panel ---------------------------------------------------
 

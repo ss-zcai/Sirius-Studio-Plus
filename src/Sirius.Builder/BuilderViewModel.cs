@@ -72,6 +72,180 @@ public sealed partial class BuilderViewModel : ObservableObject
         RenameControllerCommand = new RelayCommand<ControllerViewModel>(RenameController);
         RemoveControllerCommand = new RelayCommand<ControllerViewModel>(RemoveController);
         OpenSelectedCommand = new RelayCommand(() => Open(SelectedItem), () => SelectedItem is not null);
+
+        // The toolbar's and the Edit menu's: whatever is in front does them.
+        SaveCommand = Active(() => ActiveWorkflow?.SaveCommand ?? Designer?.SaveCommand);
+        SaveAllCommand = new RelayCommand(() => SaveAll(), () => HasProject);
+        UndoCommand = Active(() => ActiveWorkflow?.UndoCommand ?? Designer?.UndoCommand);
+        RedoCommand = Active(() => ActiveWorkflow?.RedoCommand ?? Designer?.RedoCommand);
+        CutCommand = Active(() => ActiveWorkflow?.CutCommand ?? Designer?.CutCommand);
+        CopyCommand = Active(() => ActiveWorkflow?.CopyCommand ?? Designer?.CopyCommand);
+        PasteCommand = Active(() => ActiveWorkflow?.PasteCommand ?? Designer?.PasteCommand);
+        DuplicateCommand = Active(() => ActiveWorkflow?.DuplicateCommand ?? Designer?.DuplicateCommand);
+        DeleteCommand = Active(() => ActiveWorkflow?.DeleteCommand ?? Designer?.DeleteCommand);
+
+        // Arranging what overlaps is the screen's alone.
+        BringForwardCommand = Active(() => ActiveWorkflow is null ? Designer?.BringForwardCommand : null);
+        SendBackwardCommand = Active(() => ActiveWorkflow is null ? Designer?.SendBackwardCommand : null);
+        BringToFrontCommand = Active(() => ActiveWorkflow is null ? Designer?.BringToFrontCommand : null);
+        SendToBackCommand = Active(() => ActiveWorkflow is null ? Designer?.SendToBackCommand : null);
+    }
+
+    // ---- the document in front --------------------------------------------------
+
+    private readonly List<ActiveCommand> _activeCommands = [];
+    private WorkflowDocumentViewModel? _activeWorkflow;
+
+    private ActiveCommand Active(Func<System.Windows.Input.ICommand?> target)
+    {
+        var command = new ActiveCommand(target);
+        _activeCommands.Add(command);
+        return command;
+    }
+
+    /// <summary>
+    /// The workflow whose tab is in front, or null while the screen is - set
+    /// by the window as tabs are chosen. The toolbar, the Edit menu, the
+    /// tools panel and Properties all follow it.
+    /// </summary>
+    public WorkflowDocumentViewModel? ActiveWorkflow
+    {
+        get => _activeWorkflow;
+        set
+        {
+            if (value is not null && !Workflows.Contains(value))
+                value = null;
+
+            if (ReferenceEquals(_activeWorkflow, value))
+                return;
+
+            if (_activeWorkflow is { } old)
+                old.PropertyChanged -= OnActiveWorkflowChanged;
+
+            _activeWorkflow = value;
+
+            if (value is not null)
+                value.PropertyChanged += OnActiveWorkflowChanged;
+
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsWorkflowActive));
+            OnPropertyChanged(nameof(ToolsTitle));
+            ActiveChanged();
+        }
+    }
+
+    public bool IsWorkflowActive => _activeWorkflow is not null;
+
+    /// <summary>The tools panel's title: the screen's widgets, or a workflow's nodes.</summary>
+    public string ToolsTitle => IsWorkflowActive ? "Nodes" : "Widgets";
+
+    public ActiveCommand SaveCommand { get; }
+
+    /// <summary>The screen and every open workflow.</summary>
+    public IRelayCommand SaveAllCommand { get; }
+
+    public ActiveCommand UndoCommand { get; }
+
+    public ActiveCommand RedoCommand { get; }
+
+    public ActiveCommand CutCommand { get; }
+
+    public ActiveCommand CopyCommand { get; }
+
+    public ActiveCommand PasteCommand { get; }
+
+    public ActiveCommand DuplicateCommand { get; }
+
+    public ActiveCommand DeleteCommand { get; }
+
+    public ActiveCommand BringForwardCommand { get; }
+
+    public ActiveCommand SendBackwardCommand { get; }
+
+    public ActiveCommand BringToFrontCommand { get; }
+
+    public ActiveCommand SendToBackCommand { get; }
+
+    /// <summary>The Properties panel: the chosen widget or the screen, or the chosen node of the workflow in front.</summary>
+    public IReadOnlyList<PropertyCategory> PropertyCategories =>
+        ActiveWorkflow?.Properties ?? Designer?.PropertyCategories ?? [];
+
+    public string? PropertyTitle => ActiveWorkflow?.PropertyTitle ?? Designer?.PropertyTitle;
+
+    public string? PropertySubtitle => ActiveWorkflow?.PropertySubtitle ?? Designer?.PropertySubtitle;
+
+    private void ActiveChanged()
+    {
+        foreach (var command in _activeCommands)
+            command.Retarget();
+
+        OnPropertyChanged(nameof(PropertyCategories));
+        OnPropertyChanged(nameof(PropertyTitle));
+        OnPropertyChanged(nameof(PropertySubtitle));
+    }
+
+    private void OnActiveWorkflowChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(WorkflowDocumentViewModel.Properties):
+                OnPropertyChanged(nameof(PropertyCategories));
+                break;
+
+            case nameof(WorkflowDocumentViewModel.PropertyTitle):
+                OnPropertyChanged(nameof(PropertyTitle));
+                break;
+
+            case nameof(WorkflowDocumentViewModel.PropertySubtitle):
+                OnPropertyChanged(nameof(PropertySubtitle));
+                break;
+
+            case nameof(WorkflowDocumentViewModel.StatusText) when sender is WorkflowDocumentViewModel { StatusText.Length: > 0 } workflow:
+                StatusText = workflow.StatusText;
+                break;
+        }
+    }
+
+    private void OnWorkflowModified(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(WorkflowDocumentViewModel.IsModified))
+            OnPropertyChanged(nameof(Title));
+    }
+
+    /// <summary>Saves the screen and every workflow open with changes.</summary>
+    /// <returns>Whether all were saved.</returns>
+    internal bool SaveAll()
+    {
+        var saved = _designer is not { IsModified: true } designer || designer.Save();
+
+        foreach (var workflow in Workflows.Where(workflow => workflow.IsModified))
+            saved &= workflow.Save();
+
+        if (saved)
+            StatusText = "Saved the screen and the workflows.";
+
+        return saved;
+    }
+
+    /// <summary>Asks about everything unsaved - the screen, each workflow - before Builder closes.</summary>
+    /// <returns>False when the operator chose to stay.</returns>
+    internal bool ConfirmLeaving(string title)
+    {
+        if (!ConfirmScreen(title))
+            return false;
+
+        foreach (var workflow in Workflows.Where(workflow => workflow.IsModified).ToArray())
+        {
+            var answer = Ask($"Save {workflow.Controller.Name}'s workflow first?", title);
+
+            if (answer is MessageBoxResult.Cancel or MessageBoxResult.None)
+                return false;
+
+            if (answer == MessageBoxResult.Yes && !workflow.Save())
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>The open project, or null.</summary>
@@ -160,7 +334,9 @@ public sealed partial class BuilderViewModel : ObservableObject
         private set => SetProperty(ref _designer, value);
     }
 
-    public string Title => _project is null ? AppTitle : $"{(_designer?.IsModified == true ? "*" : string.Empty)}{_project.Name} - {AppTitle}";
+    public string Title => _project is null
+        ? AppTitle
+        : $"{(_designer?.IsModified == true || Workflows.Any(workflow => workflow.IsModified) ? "*" : string.Empty)}{_project.Name} - {AppTitle}";
 
     /// <summary>Asks the operator a question; replaced in tests.</summary>
     internal Func<string, string, MessageBoxResult> Ask { get; set; } = (message, title) => Dialog.Ask(message, title, Application.Current?.MainWindow);
@@ -301,12 +477,19 @@ public sealed partial class BuilderViewModel : ObservableObject
             if (e.PropertyName == nameof(ScreenDesignerViewModel.IsModified))
                 OnPropertyChanged(nameof(Title));
 
+            if (ActiveWorkflow is null && e.PropertyName is nameof(ScreenDesignerViewModel.PropertyCategories)
+                    or nameof(ScreenDesignerViewModel.PropertyTitle) or nameof(ScreenDesignerViewModel.PropertySubtitle))
+            {
+                OnPropertyChanged(e.PropertyName);
+            }
+
             // The designer's news - saved, limited, reset - on Builder's status line.
             if (e.PropertyName == nameof(ScreenDesignerViewModel.StatusText) && !string.IsNullOrEmpty(designer.StatusText))
                 StatusText = designer.StatusText;
         };
 
         Designer = designer;
+        ActiveChanged();
         SelectedStation = Stations.FirstOrDefault();
 
         StatusText = $"{project.Name}: {Stations.Count} station{(Stations.Count == 1 ? string.Empty : "s")}, in {project.Folder}.";
@@ -332,6 +515,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         _project.Changed -= OnProjectChanged;
         _project = null;
         Designer = null;
+        ActiveChanged();
         Stations.Clear();
         Controllers.Clear();
         Items.Clear();
@@ -755,6 +939,7 @@ public sealed partial class BuilderViewModel : ObservableObject
             if (open.LoadWarnings.Count > 0)
                 Dialog.Warn(string.Join(Environment.NewLine, open.LoadWarnings), "Workflow opened with warnings");
 
+            open.PropertyChanged += OnWorkflowModified;
             Workflows.Add(open);
         }
 
@@ -778,9 +963,19 @@ public sealed partial class BuilderViewModel : ObservableObject
                 return false;
         }
 
+        Forget(workflow);
+        return true;
+    }
+
+    private void Forget(WorkflowDocumentViewModel workflow)
+    {
+        if (ReferenceEquals(ActiveWorkflow, workflow))
+            ActiveWorkflow = null;
+
+        workflow.PropertyChanged -= OnWorkflowModified;
         Workflows.Remove(workflow);
         workflow.Dispose();
-        return true;
+        OnPropertyChanged(nameof(Title));
     }
 
     /// <summary>The controller's PLC window: try the connection, read and write, drive a simulated PLC.</summary>
@@ -833,10 +1028,7 @@ public sealed partial class BuilderViewModel : ObservableObject
                 return false;
 
             if (Workflows.Contains(open))
-            {
-                Workflows.Remove(open);
-                open.Dispose();
-            }
+                Forget(open);
         }
 
         Guard(() => project.RemoveController(controller.Controller), "Remove Controller");
