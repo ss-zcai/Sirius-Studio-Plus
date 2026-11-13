@@ -2920,3 +2920,38 @@ name with a json extension; you might use our own."
 - **Left** (backlog F20a-d): the batch half - Run Folder and `sirius-run`
   writing `.sann` too; the table panel and layers on and off; a disk
   quota; failed and one pass in N.
+
+## 74. The PLC as controllers, the framework ours
+
+Asked for on 13 November 2026: the PLC team has prototyped a PLC
+workflow editor on NodeGraphKit - Connector, Monitor, Read, Write and
+Trigger nodes, an S7-1200 connected - and Builder should hold PLCs or
+controllers beside stations, each opened in a graph editor. Answers the
+same day: we build the framework and give it to the PLC team as a start
+kit; the file format is ours to decide; start with one PLC per
+controller, several controllers for several PLCs on one machine; it
+succeeds Sirius Interface, which was a bespoke build for each customer
+and did not scale.
+
+- **A controller is one PLC and one workflow.** Its connection is the
+  controller's, set in Builder, not a Connector node. So its status is
+  one thing to show, and a second PLC is a second controller. One
+  workflow spanning two PLCs waits until a line needs it.
+- **A workflow runs on events, not once per picture.** Trigger wires
+  carry "now"; value wires carry what was read. Passes run one at a time
+  per controller, and every wait has a timeout that becomes an alarm. The
+  graph, the editor and the file handling are shared with recipes; only
+  the running is new. A recipe's run-once dataflow cannot wait for a bit
+  to rise.
+- **Two nodes join a workflow to the stations**, Inspect and Station
+  Result, over a station bus. The values given to Inspect - a pallet ID,
+  a position - go with the picture: the part ID that matching across
+  stations needs.
+- **Brands are drivers.** One `IPlcDriver` interface, the nodes written
+  once against it, a simulated PLC and a driver test kit. A new brand is a
+  DLL, not a new build for a customer. We write S7 and Modbus TCP; the
+  PLC team the rest.
+- **The file is ours**: `.sflow`, JSON, `"format": "sirius-workflow"`,
+  version 1, a reader ignoring what it does not know - as `.sann`.
+- **Left open**: the libraries under S7 and Modbus (L5); the handshake
+  and recipe change by product code as nodes; digital I/O.

@@ -396,17 +396,18 @@ rows upload without translation.
 
 ## 9. PLC
 
-**Update, 13 November 2026 - the plan has moved: see backlog F23.** The
-PLC team is building a PLC workflow editor on the same node graph:
-connector, monitor, read, write and trigger nodes, with Siemens S7
-working. A project now holds **controllers** - one workflow each -
-beside its stations. The workflow drives the stations through two of our
-nodes, Inspect and Station Result, over a station bus in Edge. The PLC
-team writes the drivers against a framework we give them (`IPlcDriver`,
-a simulated PLC, a driver test kit). This section's rules still hold:
-named values, never addresses, outside the workflow; the handshake;
-hardware triggers where timing matters; a licence check per library.
-Its driver order and libraries become the PLC team's (F23f, L5).
+**Update, 13 November 2026 - the plan has moved: see backlog F23 and
+decision 74.** A project holds **controllers** beside its stations: each
+is one PLC (its connection) and a workflow - a graph of PLC nodes with
+trigger and value wires - edited in a tab in Builder and run by Edge.
+Two nodes, Inspect and Station Result, join a workflow to the stations
+over a station bus. We build the framework (engine, editor, nodes,
+`IPlcDriver`, a simulated PLC, a driver test kit, the S7 and Modbus TCP
+drivers) and give it to the PLC team as a start kit for other brands;
+it replaces Sirius Interface, which was rebuilt for each customer. This
+section's rules still hold: named values, never addresses, outside the
+workflow; the handshake; hardware triggers where timing matters; a
+licence check per library (L5).
 
 **Agreed:** a signal layer with one driver per brand; the PLC talks in
 named signals, never addresses inside the engine. Driver order: Modbus
@@ -506,7 +507,9 @@ pictures across folders.
    API to post to?
 3. What do Client and Interface do today when the Server cannot be
    reached?
-4. Does Sirius Interface have PLC drivers we could reuse (which brands)?
+4. ~~Does Sirius Interface have PLC drivers we could reuse?~~ No: it
+   was written again for each customer. The framework is new (decision
+   74).
 5. Sirius Client: does the new runtime replace it for small projects, or
    does Client get a local-engine mode? (Agreed to decide, not yet decided.)
 
