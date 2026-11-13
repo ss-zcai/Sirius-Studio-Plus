@@ -114,10 +114,17 @@ public sealed class Project
     /// <summary>The folder recipes are kept in, inside the project's.</summary>
     public const string RecipesFolder = "recipes";
 
-    /// <summary>The longest station name allowed.</summary>
+    /// <summary>The folder controllers' workflows are kept in, inside the project's.</summary>
+    public const string ControllersFolder = "controllers";
+
+    /// <summary>The workflow file's extension, as <c>Sirius.Plc</c> writes it.</summary>
+    public const string WorkflowExtension = ".sflow";
+
+    /// <summary>The longest station or controller name allowed.</summary>
     public const int MaxNameLength = 64;
 
     private readonly List<Station> _stations = [];
+    private readonly List<Controller> _controllers = [];
 
     private Project(string filePath)
     {
@@ -135,7 +142,10 @@ public sealed class Project
 
     public IReadOnlyList<Station> Stations => _stations;
 
-    /// <summary>Raised after stations are added, removed, renamed or reordered.</summary>
+    /// <summary>The PLCs and their workflows.</summary>
+    public IReadOnlyList<Controller> Controllers => _controllers;
+
+    /// <summary>Raised after stations or controllers are added, removed, renamed, reordered or reconnected.</summary>
     public event EventHandler? Changed;
 
     // ---- creating and opening ------------------------------------------
@@ -240,6 +250,43 @@ public sealed class Project
             project._stations.Add(station);
         }
 
+        foreach (var record in document.Controllers ?? [])
+        {
+            var name = record.Name?.Trim() ?? string.Empty;
+
+            if (name.Length == 0 || string.IsNullOrWhiteSpace(record.Workflow))
+            {
+                warnings.Add("A controller with no name or no workflow was skipped.");
+                continue;
+            }
+
+            if (project._controllers.Any(controller => Same(controller.Name, name)))
+            {
+                warnings.Add($"Controller '{name}' is listed twice; the second was skipped.");
+                continue;
+            }
+
+            var controller = new Controller(
+                name,
+                string.IsNullOrWhiteSpace(record.Driver) ? "simulated" : record.Driver.Trim(),
+                record.Address?.Trim() ?? string.Empty,
+                record.Workflow.Replace('\\', '/'),
+                record.Options is { Count: > 0 } options
+                    ? new Dictionary<string, string>(options, StringComparer.OrdinalIgnoreCase)
+                    : null);
+
+            if (!project.IsInside(project.WorkflowPath(controller)))
+            {
+                warnings.Add($"Controller '{name}': its workflow '{record.Workflow}' is outside the project folder; skipped.");
+                continue;
+            }
+
+            if (!File.Exists(project.WorkflowPath(controller)))
+                warnings.Add($"Controller '{name}': its workflow {record.Workflow} is missing.");
+
+            project._controllers.Add(controller);
+        }
+
         return new ProjectLoadResult(project, warnings);
     }
 
@@ -267,6 +314,20 @@ public sealed class Project
                     },
                 })
                 .ToList(),
+
+            // Absent with none, so a project without a PLC is written as before.
+            Controllers = _controllers.Count == 0
+                ? null
+                : _controllers
+                    .Select(controller => new ControllerRecord
+                    {
+                        Name = controller.Name,
+                        Driver = controller.Driver,
+                        Address = controller.Address,
+                        Options = controller.Options.Count == 0 ? null : new Dictionary<string, string>(controller.Options),
+                        Workflow = controller.Workflow,
+                    })
+                    .ToList(),
         };
 
         var temporary = FilePath + ".tmp";
@@ -441,6 +502,143 @@ public sealed class Project
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    // ---- controllers ------------------------------------------------------
+
+    /// <summary>The controller's workflow file, in full.</summary>
+    public string WorkflowPath(Controller controller)
+    {
+        ArgumentNullException.ThrowIfNull(controller);
+
+        return Path.GetFullPath(Path.Combine(Folder, controller.Workflow.Replace('/', Path.DirectorySeparatorChar)));
+    }
+
+    /// <summary>The controller called <paramref name="name"/>, ignoring case, or null.</summary>
+    public Controller? FindController(string name) => _controllers.FirstOrDefault(controller => Same(controller.Name, name));
+
+    /// <summary>Why <paramref name="name"/> cannot name a controller, or null when it can.</summary>
+    /// <param name="except">The controller being renamed, whose own name is no clash.</param>
+    public string? ControllerNameProblem(string? name, Controller? except = null)
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+
+        if (trimmed.Length == 0)
+            return "A name is needed.";
+
+        if (trimmed.Length > MaxNameLength)
+            return $"A name can be at most {MaxNameLength} characters.";
+
+        if (trimmed.Any(char.IsControl) || trimmed.Contains('›'))
+            return "A name cannot contain '›' or control characters.";
+
+        return _controllers.Any(controller => controller != except && Same(controller.Name, trimmed))
+            ? $"There is already a controller called '{trimmed}'."
+            : null;
+    }
+
+    /// <summary>"PLC 1", or the first "PLC n" not taken.</summary>
+    public string SuggestControllerName(string stem = "PLC")
+    {
+        for (var i = _controllers.Count + 1; ; i++)
+        {
+            var candidate = $"{stem} {i}";
+
+            if (FindController(candidate) is null)
+                return candidate;
+        }
+    }
+
+    /// <summary>
+    /// Adds a controller, its workflow written by <paramref name="writeWorkflow"/>
+    /// into the project's controllers folder first - the core does not know
+    /// the workflow format; <c>Sirius.Plc</c> does.
+    /// </summary>
+    /// <param name="writeWorkflow">Writes the new workflow to the full path it is given.</param>
+    public Controller AddController(string name, string driver, string address, Action<string> writeWorkflow)
+    {
+        ArgumentNullException.ThrowIfNull(writeWorkflow);
+        ArgumentException.ThrowIfNullOrWhiteSpace(driver);
+
+        if (ControllerNameProblem(name) is { } problem)
+            throw new ArgumentException(problem, nameof(name));
+
+        var controller = new Controller(name.Trim(), driver.Trim(), address?.Trim() ?? string.Empty, NewWorkflowFile(name.Trim()));
+        writeWorkflow(WorkflowPath(controller));
+
+        _controllers.Add(controller);
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return controller;
+    }
+
+    /// <summary>Renames a controller. Its workflow keeps its file.</summary>
+    public void RenameController(Controller controller, string name)
+    {
+        ArgumentNullException.ThrowIfNull(controller);
+
+        if (ControllerNameProblem(name, controller) is { } problem)
+            throw new ArgumentException(problem, nameof(name));
+
+        controller.Name = name.Trim();
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Changes which driver talks to a controller's PLC, and where it is. Written at once.</summary>
+    /// <returns>Whether anything changed.</returns>
+    public bool SetConnection(Controller controller, string driver, string address, IReadOnlyDictionary<string, string>? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(controller);
+        ArgumentException.ThrowIfNullOrWhiteSpace(driver);
+
+        var given = options ?? controller.Options;
+        address = address?.Trim() ?? string.Empty;
+
+        if (Same(controller.Driver, driver.Trim()) && controller.Address == address &&
+            given.Count == controller.Options.Count && given.All(pair => controller.Options.GetValueOrDefault(pair.Key) == pair.Value))
+        {
+            return false;
+        }
+
+        controller.Driver = driver.Trim();
+        controller.Address = address;
+        controller.Options = new Dictionary<string, string>(given, StringComparer.OrdinalIgnoreCase);
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>
+    /// Takes a controller out of the project. Its workflow file stays in the
+    /// controllers folder, as a removed station's recipe does.
+    /// </summary>
+    public void RemoveController(Controller controller)
+    {
+        if (!_controllers.Remove(controller))
+            return;
+
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>"controllers/Line 1 PLC.sflow", or "Line 1 PLC (2).sflow" if that file exists.</summary>
+    private string NewWorkflowFile(string stem)
+    {
+        var safe = new string(stem.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray()).Trim();
+
+        if (safe.Length == 0)
+            safe = "controller";
+
+        var folder = Path.Combine(Folder, ControllersFolder);
+        Directory.CreateDirectory(folder);
+
+        var file = safe + WorkflowExtension;
+
+        for (var i = 2; File.Exists(Path.Combine(folder, file)); i++)
+            file = $"{safe} ({i}){WorkflowExtension}";
+
+        return $"{ControllersFolder}/{file}";
+    }
+
     private Station Added(Station station)
     {
         _stations.Add(station);
@@ -509,6 +707,28 @@ public sealed class Project
 
         [JsonPropertyName("stations")]
         public List<StationRecord> Stations { get; set; } = [];
+
+        [JsonPropertyName("controllers")]
+        public List<ControllerRecord>? Controllers { get; set; }
+    }
+
+    private sealed class ControllerRecord
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        /// <summary>The driver's key: simulated, siemens-s7.</summary>
+        [JsonPropertyName("driver")]
+        public string? Driver { get; set; }
+
+        [JsonPropertyName("address")]
+        public string? Address { get; set; }
+
+        [JsonPropertyName("options")]
+        public Dictionary<string, string>? Options { get; set; }
+
+        [JsonPropertyName("workflow")]
+        public string? Workflow { get; set; }
     }
 
     private sealed class StationRecord

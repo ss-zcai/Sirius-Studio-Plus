@@ -32,6 +32,10 @@ public partial class BuilderWindow : Window
 
         _model = model;
         DataContext = model;
+
+        // A workflow in a tab beside the screen.
+        model.WorkflowShown += (_, workflow) => ShowWorkflow(workflow);
+        model.Workflows.CollectionChanged += (_, _) => DropClosedWorkflows();
     }
 
     internal BuilderViewModel Model => _model;
@@ -167,6 +171,7 @@ public partial class BuilderWindow : Window
 
     private void OnRestoring(object? sender, LayoutSerializationCallbackEventArgs args)
     {
+        // Workflow tabs are opened from the project, not the saved layout.
         if (args.Model.ContentId is { } id && _panels.TryGetValue(id, out var content))
             args.Content = content;
         else
@@ -186,6 +191,77 @@ public partial class BuilderWindow : Window
             }
         }
     }
+
+    // ---- controllers and their workflows -------------------------------------------
+
+    private readonly Dictionary<WorkflowDocumentViewModel, LayoutDocument> _workflowTabs = [];
+
+    private void OnControllerDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        for (var current = e.OriginalSource as DependencyObject; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is FrameworkElement { DataContext: ControllerViewModel controller })
+            {
+                _model.OpenWorkflowCommand.Execute(controller);
+                return;
+            }
+        }
+    }
+
+    /// <summary>The workflow's tab, beside the screen's - made the first time, brought forward after.</summary>
+    internal LayoutDocument ShowWorkflow(WorkflowDocumentViewModel workflow)
+    {
+        if (!_workflowTabs.TryGetValue(workflow, out var tab))
+        {
+            tab = new LayoutDocument
+            {
+                Title = workflow.Title,
+                ContentId = workflow.ContentId,
+                CanClose = true,
+                Content = new WorkflowEditorView { DataContext = workflow },
+            };
+
+            workflow.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(WorkflowDocumentViewModel.Title))
+                    tab.Title = workflow.Title;
+            };
+
+            // Closing the tab asks to save first, and may be called off.
+            tab.Closing += (_, e) =>
+            {
+                if (_workflowTabs.ContainsKey(workflow) && !_model.CloseWorkflow(workflow))
+                    e.Cancel = true;
+            };
+
+            tab.Closed += (_, _) => _workflowTabs.Remove(workflow);
+
+            _workflowTabs[workflow] = tab;
+            DocumentPane().Children.Add(tab);
+        }
+
+        tab.IsActive = true;
+        return tab;
+    }
+
+    /// <summary>Tabs whose workflow was closed elsewhere - the project closed, the controller removed.</summary>
+    private void DropClosedWorkflows()
+    {
+        foreach (var (workflow, tab) in _workflowTabs.ToArray())
+        {
+            if (_model.Workflows.Contains(workflow))
+                continue;
+
+            // Forgotten first, so the close below is not taken for the operator closing it.
+            _workflowTabs.Remove(workflow);
+            tab.Parent?.RemoveChild(tab);
+        }
+    }
+
+    /// <summary>The pane the screen's tab is in, where workflows open beside it.</summary>
+    private LayoutDocumentPane DocumentPane() =>
+        Docking.Layout.Descendents().OfType<LayoutDocument>().FirstOrDefault(document => document.ContentId == "screen")?.Parent as LayoutDocumentPane
+        ?? Docking.Layout.Descendents().OfType<LayoutDocumentPane>().First();
 
     // ---- the Widgets panel ---------------------------------------------------
 

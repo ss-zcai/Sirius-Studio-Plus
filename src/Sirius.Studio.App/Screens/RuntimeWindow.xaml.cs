@@ -4,6 +4,7 @@ using System.Windows.Input;
 using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
+using Sirius.Plc;
 
 namespace Sirius.Studio.App.Screens;
 
@@ -23,10 +24,20 @@ namespace Sirius.Studio.App.Screens;
 /// hand, and asks before it does: an operator should not end inspection by
 /// brushing Alt+F4. A PIN for it comes with user levels.
 /// </para>
+/// <para>
+/// <b>Controllers</b> - the project's PLCs and their workflows - start once
+/// the window is shown, talk to the stations through a station bus on this
+/// window's thread, and are stopped before the stations when it closes, so
+/// a workflow is never left asking a station that has gone. Their state is
+/// along the bottom.
+/// </para>
 /// </remarks>
 public partial class RuntimeWindow : Window
 {
     private readonly ProjectRuntime _runtime;
+    private readonly ProjectStationBus _bus;
+    private readonly ProjectControllers _controllers;
+    private readonly System.Windows.Threading.DispatcherTimer _controllerClock;
     private readonly ScreenViewModel _screen;
     private bool _closing;
     private bool _closed;
@@ -38,8 +49,21 @@ public partial class RuntimeWindow : Window
 
         _runtime = new ProjectRuntime(project);
 
+        // The stations are driven from this window's thread; a workflow asks
+        // from its own, and the bus brings each request here.
+        _bus = new ProjectStationBus(_runtime, new System.Windows.Threading.DispatcherSynchronizationContext(Dispatcher));
+        _controllers = ProjectControllers.Open(project, _bus);
+
         var screen = ScreenLayout.ScreenFor(project, _runtime.Stations, out var problem);
-        _screen = new ScreenViewModel(screen, _runtime, project.Folder, [.. problems ?? [], .. problem is null ? [] : new[] { problem }]);
+        _screen = new ScreenViewModel(
+            screen,
+            _runtime,
+            project.Folder,
+            [.. problems ?? [], .. problem is null ? [] : new[] { problem }, .. _controllers.Problems]);
+
+        _controllerClock = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _controllerClock.Tick += (_, _) => ShowControllers();
+        Loaded += (_, _) => StartControllers();
 
         DataContext = _screen;
         Title = $"{project.Name} - Sirius Edge";
@@ -56,13 +80,21 @@ public partial class RuntimeWindow : Window
 
     internal ProjectRuntime Runtime => _runtime;
 
+    /// <summary>The project's PLCs and their workflows, started once the window is shown.</summary>
+    public ProjectControllers Controllers => _controllers;
+
     internal ScreenViewModel Screen => _screen;
 
     /// <summary>
     /// Shows <paramref name="project"/> running, in a window of its own over
     /// <paramref name="owner"/>, and returns once it is closed.
     /// </summary>
-    public static void ShowWindowed(Window? owner, Project project)
+    /// <param name="shown">
+    /// Called once the window is on screen - for Builder to open the
+    /// simulated PLCs beside it, which a window shown before it, being
+    /// behind a dialog, could not be used.
+    /// </param>
+    public static void ShowWindowed(Window? owner, Project project, Action<RuntimeWindow>? shown = null)
     {
         var window = new RuntimeWindow(project, fullScreen: false)
         {
@@ -72,7 +104,28 @@ public partial class RuntimeWindow : Window
         if (window.Owner is null)
             window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
+        if (shown is not null)
+            window.ContentRendered += (_, _) => shown(window);
+
         window.ShowDialog();
+    }
+
+    // ---- controllers -----------------------------------------------------------------
+
+    internal void StartControllers()
+    {
+        if (_closed || _controllers.Runners.Count == 0)
+            return;
+
+        _controllers.StartAll();
+        ShowControllers();
+        _controllerClock.Start();
+    }
+
+    private void ShowControllers()
+    {
+        ControllerStatus.Text = _controllers.Runners.Count == 0 ? string.Empty : _controllers.StatusText;
+        ControllerStatus.ToolTip = ControllerStatus.Text;
     }
 
     /// <summary>The window the runtime program runs in, full screen or not.</summary>
@@ -174,7 +227,11 @@ public partial class RuntimeWindow : Window
             return;
         }
 
-        if (!running)
+        // A controller is stopped without blocking this thread: its pass
+        // may be waiting on a station, which needs this thread to finish.
+        var controlling = _controllers.Runners.Any(runner => runner.State != Sirius.Plc.Workflows.ControllerState.Stopped);
+
+        if (!running && !controlling)
         {
             ShutDown();
             return;
@@ -189,6 +246,8 @@ public partial class RuntimeWindow : Window
     {
         try
         {
+            _controllerClock.Stop();
+            await _controllers.StopAllAsync().ConfigureAwait(true);
             await _runtime.StopAllAsync().ConfigureAwait(true);
         }
         finally
@@ -204,6 +263,11 @@ public partial class RuntimeWindow : Window
             return;
 
         _closed = true;
+        _controllerClock.Stop();
+
+        // Stopped already, or never started: letting go of their drivers is all that is left.
+        _ = _controllers.DisposeAsync().AsTask();
+        _bus.Dispose();
         _screen.Dispose();
         _runtime.Dispose();
     }

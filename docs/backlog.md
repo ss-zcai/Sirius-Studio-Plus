@@ -182,7 +182,11 @@ from you before they start.
       for.
 
     All of it is tested without a window, against the simulator.
-  - **F23b. Controllers in Builder** (M): a Controllers panel under
+  - ~~**F23b. Controllers in Builder**~~ - **done 13 November 2026**
+    (decision 76), with much of F23c: the runtime window runs the
+    controllers, so Edge does too. Left of F23c: a Controller widget for
+    screens, and alarms beyond the status line. What was planned (M): a
+    Controllers panel under
     Stations, with add, rename and remove; the connection in Properties
     with Test Connection; the workflow editor as a tab; a panel showing
     the simulated PLC's memory, changed by hand; and Test Run running

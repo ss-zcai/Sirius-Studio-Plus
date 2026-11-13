@@ -41,6 +41,11 @@ public static class SiriusHost
     public static void LoadLibraries()
     {
         VisionNodeLibrary.Register();
+
+        // Controllers' workflows: their nodes, and the simulated PLC. Never
+        // in a recipe's palette (NodeCategories.IsWorkflow).
+        Sirius.Plc.PlcNodeLibrary.Register();
+
         CustomNodesForCurrentUser().LoadAll();
         CameraDrivers.LoadInstalled();
     }

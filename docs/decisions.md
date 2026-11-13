@@ -3005,3 +3005,48 @@ and Edge's running come next (F23b-c).
 - **The simulated PLC** keeps any address as written, converts on read,
   refuses an address with a space, and can be unplugged and plugged in,
   which is how reconnection is tested.
+
+## 76. Controllers in Builder (F23b)
+
+Built 13 November 2026. Asked for as the MVP: test a PLC connection, read
+an address as a bit, a 16-bit INT or a 32-bit DINT, and have a trigger
+sent through the simulator control the vision project.
+
+- **In the project file**, beside the stations:
+  `"controllers": [{ "name", "driver", "address", "options", "workflow" }]`.
+  The connection is the project's and the workflow a file of its own,
+  `controllers/<name>.sflow`, so a project moved to another line changes
+  an address, not a workflow. Absent with no controllers, so an older
+  project is written as before. Removing a controller keeps its file, as
+  removing a station keeps its recipe.
+- **A new controller is simulated, named as itself, with a starter
+  workflow**: M0.0 rising reads the part number at MW10, the first
+  station inspects, M0.1 gets the result and M0.2 a "done" pulse; M0.3 if
+  the station could not inspect. Siemens-style addresses, so it reads
+  as a real one will.
+- **The simulated PLC is a memory shared by name** within the program
+  (`SimulatedPlcMemory.Named`); each driver is a connection to it. The
+  workflow and the PLC window, both on "Line 1", see the same bits - one
+  disconnecting does not disconnect the other, and unplugging the memory
+  drops both.
+- **The PLC window** makes its own connection with the controller's
+  driver, so a Test Connection, Read or Write there is exactly what the
+  workflow will do. Types are shown with their IEC names - Int16 (INT),
+  Int32 (DINT). For a simulated PLC it lists the memory and flips a bit
+  with a click, which is how a trigger is raised at the desk.
+- **The workflow editor is Studio's canvas** - `GraphDocumentViewModel`,
+  its editor, selection and undo - in a view of Builder's, with a palette
+  of the workflow nodes and the chosen node's settings in Builder's
+  property grid: a list for a type or an edge, the project's stations for
+  a station. Studio's own editor template could not be used as it is: its
+  events are its main window's. The workflow is checked as it is edited,
+  the result along the bottom.
+- **The runtime window runs the controllers** - Builder's Test Run and
+  Sirius Edge alike - through a station bus on its own thread, started
+  once it is shown, stopped before the stations when it closes, their
+  state along the bottom. Test Run is modal, so a PLC window opened from
+  Builder before it cannot be used while it runs: Test Run opens each
+  simulated PLC's window itself, after the screen, with the workflow's
+  log.
+- **A workflow is saved by hand**, as a recipe is in Studio; a Test Run
+  offers to save changed ones first, since it runs what is on disk.

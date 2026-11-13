@@ -17,7 +17,7 @@ public static class PlcNodeLibrary
     public static void Register()
     {
         NodeCatalog.Register(typeof(PlcNodeLibrary).Assembly);
-        PlcDrivers.Register(SimulatedPlcDriver.Key, "Simulated PLC", connection => new SimulatedPlc($"Simulated PLC '{connection.Address}'"));
+        PlcDrivers.Register(SimulatedPlcDriver.Key, "Simulated PLC", connection => new SimulatedPlc(SimulatedPlcMemory.Named(connection.Address)));
     }
 
     /// <summary>Whether a node type belongs in a workflow's palette.</summary>

@@ -8,6 +8,8 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Sirius.Core.Graph;
 using Sirius.Core.Projects;
+using Sirius.Plc;
+using Sirius.Plc.Workflows;
 using Sirius.Studio.App;
 using Sirius.Studio.App.Hosting;
 using Sirius.Studio.App.Screens;
@@ -42,6 +44,9 @@ public sealed partial class BuilderViewModel : ObservableObject
     private StationViewModel? _selectedStation;
 
     [ObservableProperty]
+    private ControllerViewModel? _selectedController;
+
+    [ObservableProperty]
     private string _statusText = "Open a project, or make a new one.";
 
     public BuilderViewModel()
@@ -60,6 +65,12 @@ public sealed partial class BuilderViewModel : ObservableObject
         ImageSavingCommand = new RelayCommand<StationViewModel>(ShowImageSaving);
         BrowseImagesCommand = new RelayCommand<StationViewModel>(station => BrowseImages(station));
         TestRunCommand = new RelayCommand(() => TestRun(), () => HasProject);
+
+        AddControllerCommand = new RelayCommand(AddController, () => HasProject);
+        OpenWorkflowCommand = new RelayCommand<ControllerViewModel>(controller => OpenWorkflow(controller));
+        PlcCommand = new RelayCommand<ControllerViewModel>(controller => ShowPlc(controller));
+        RenameControllerCommand = new RelayCommand<ControllerViewModel>(RenameController);
+        RemoveControllerCommand = new RelayCommand<ControllerViewModel>(RemoveController);
     }
 
     /// <summary>The open project, or null.</summary>
@@ -70,6 +81,17 @@ public sealed partial class BuilderViewModel : ObservableObject
     public ObservableCollection<StationViewModel> Stations { get; } = [];
 
     public bool HasNoStations => _project is not null && Stations.Count == 0;
+
+    /// <summary>The project's PLCs, each with its workflow.</summary>
+    public ObservableCollection<ControllerViewModel> Controllers { get; } = [];
+
+    public bool HasNoControllers => _project is not null && Controllers.Count == 0;
+
+    /// <summary>The workflows open in tabs.</summary>
+    public ObservableCollection<WorkflowDocumentViewModel> Workflows { get; } = [];
+
+    /// <summary>A workflow is to be shown - opened, or brought to the front.</summary>
+    public event EventHandler<WorkflowDocumentViewModel>? WorkflowShown;
 
     /// <summary>The project's screen in the designer; null with no project open.</summary>
     public ScreenDesignerViewModel? Designer
@@ -113,6 +135,19 @@ public sealed partial class BuilderViewModel : ObservableObject
     public IRelayCommand<StationViewModel> BrowseImagesCommand { get; }
 
     public IRelayCommand TestRunCommand { get; }
+
+    public IRelayCommand AddControllerCommand { get; }
+
+    public IRelayCommand<ControllerViewModel> OpenWorkflowCommand { get; }
+
+    public IRelayCommand<ControllerViewModel> PlcCommand { get; }
+
+    public IRelayCommand<ControllerViewModel> RenameControllerCommand { get; }
+
+    public IRelayCommand<ControllerViewModel> RemoveControllerCommand { get; }
+
+    /// <summary>Opens a PLC window; replaced in tests.</summary>
+    internal Func<Window?, PlcViewModel, Window?> OpenPlcWindow { get; set; } = (owner, model) => PlcWindow.Open(owner, model);
 
     // ---- the project ------------------------------------------------------
 
@@ -228,11 +263,19 @@ public sealed partial class BuilderViewModel : ObservableObject
         if (!ConfirmScreen("Close Project"))
             return false;
 
+        foreach (var workflow in Workflows.ToArray())
+        {
+            if (!CloseWorkflow(workflow))
+                return false;
+        }
+
         _project.Changed -= OnProjectChanged;
         _project = null;
         Designer = null;
         Stations.Clear();
         SelectedStation = null;
+        Controllers.Clear();
+        SelectedController = null;
         StatusText = "Open a project, or make a new one.";
         Changed();
         return true;
@@ -523,18 +566,225 @@ public sealed partial class BuilderViewModel : ObservableObject
                 return;
         }
 
+        if (Workflows.Where(workflow => workflow.IsModified).ToArray() is { Length: > 0 } changed)
+        {
+            var answer = Ask(
+                $"The test run runs the workflows as saved. Save {string.Join(", ", changed.Select(workflow => workflow.Controller.Name))} first?",
+                "Test Run");
+
+            if (answer is MessageBoxResult.Cancel or MessageBoxResult.None)
+                return;
+
+            if (answer == MessageBoxResult.Yes && !changed.All(workflow => workflow.Save()))
+                return;
+        }
+
         StatusText = $"Running {project.Name}…";
-        RuntimeWindow.ShowWindowed(owner ?? Application.Current?.MainWindow, project);
+        RuntimeWindow.ShowWindowed(owner ?? Application.Current?.MainWindow, project, running => OpenSimulators(running));
 
         foreach (var station in Stations)
             station.RefreshLine();
 
-        var changed = Stations.Where(station => station.HasLineChanges).Select(station => station.Name).ToArray();
+        var lineChanged = Stations.Where(station => station.HasLineChanges).Select(station => station.Name).ToArray();
 
-        StatusText = changed.Length == 0
+        StatusText = lineChanged.Length == 0
             ? "Test run closed."
-            : $"Test run closed. Settings changed on the line for {string.Join(", ", changed)} - right-click a station for Line Settings.";
+            : $"Test run closed. Settings changed on the line for {string.Join(", ", lineChanged)} - right-click a station for Line Settings.";
     }
+
+    /// <summary>
+    /// The running project's simulated PLCs, each in a PLC window beside it
+    /// - shown after the test run's window, so they can be used while it is
+    /// up: flip the trigger bit there, and the station inspects.
+    /// </summary>
+    internal IReadOnlyList<Window> OpenSimulators(RuntimeWindow running)
+    {
+        var opened = new List<Window>();
+
+        if (_project is not { } project)
+            return opened;
+
+        foreach (var runner in running.Controllers.Runners.Where(runner => runner.Driver is SimulatedPlc))
+        {
+            if (project.FindController(runner.Name) is not { } controller)
+                continue;
+
+            if (OpenPlcWindow(running, new PlcViewModel(project, controller, runner)) is { } window)
+            {
+                // Beside the screen rather than over it.
+                window.WindowStartupLocation = WindowStartupLocation.Manual;
+                window.Left = running.Left + Math.Max(0, running.ActualWidth - window.Width) + (opened.Count * 30);
+                window.Top = running.Top + 40 + (opened.Count * 30);
+                opened.Add(window);
+            }
+        }
+
+        return opened;
+    }
+
+    // ---- controllers -------------------------------------------------------
+
+    private void AddController()
+    {
+        if (_project is not { } project)
+            return;
+
+        var name = TextPromptWindow.Ask(
+            Application.Current?.MainWindow,
+            "Add Controller",
+            "A PLC and its workflow - simulated to begin with, so it can be tried at the desk. What is it called?",
+            project.SuggestControllerName(),
+            text => project.ControllerNameProblem(text));
+
+        if (name is null)
+            return;
+
+        if (AddController(name) is { } added)
+            OpenWorkflow(Find(added));
+    }
+
+    /// <summary>
+    /// Adds a controller with a simulated PLC of its own name and the starter
+    /// workflow: M0.0 rising has the first station inspect.
+    /// </summary>
+    internal Controller? AddController(string name)
+    {
+        if (_project is not { } project)
+            return null;
+
+        Controller? added = null;
+        var station = project.Stations.FirstOrDefault()?.Name;
+
+        Guard(() =>
+        {
+            added = project.AddController(
+                name,
+                SimulatedPlcDriver.Key,
+                name.Trim(),
+                path => WorkflowFile.Save(StarterWorkflow.For(station), path, name.Trim()));
+
+            SelectedController = Find(added);
+            StatusText = station is null
+                ? $"Added {added.Name}, a simulated PLC with a starter workflow. Add a station for it to inspect."
+                : $"Added {added.Name}, a simulated PLC: M0.0 rising has {station} inspect. Open its PLC window to try it, or Test Run.";
+        }, "Add Controller");
+
+        return added;
+    }
+
+    /// <summary>Opens a controller's workflow in a tab - or brings its tab to the front.</summary>
+    internal WorkflowDocumentViewModel? OpenWorkflow(ControllerViewModel? controller)
+    {
+        if (controller is null || _project is not { } project)
+            return null;
+
+        var open = Workflows.FirstOrDefault(workflow => ReferenceEquals(workflow.Controller, controller.Controller));
+
+        if (open is null)
+        {
+            try
+            {
+                open = new WorkflowDocumentViewModel(project, controller.Controller);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+            {
+                Dialog.Error($"{controller.WorkflowFile} could not be opened: {ex.Message}", "Open Workflow");
+                return null;
+            }
+
+            if (open.LoadWarnings.Count > 0)
+                Dialog.Warn(string.Join(Environment.NewLine, open.LoadWarnings), "Workflow opened with warnings");
+
+            Workflows.Add(open);
+        }
+
+        WorkflowShown?.Invoke(this, open);
+        StatusText = $"{controller.Name}'s workflow: {open.ProblemText}";
+        return open;
+    }
+
+    /// <summary>Closes a workflow's tab, offering to save it first.</summary>
+    /// <returns>False when the operator chose to keep it open, or saving failed.</returns>
+    internal bool CloseWorkflow(WorkflowDocumentViewModel workflow)
+    {
+        if (workflow.IsModified)
+        {
+            var answer = Ask($"Save {workflow.Controller.Name}'s workflow first?", "Close Workflow");
+
+            if (answer is MessageBoxResult.Cancel or MessageBoxResult.None)
+                return false;
+
+            if (answer == MessageBoxResult.Yes && !workflow.Save())
+                return false;
+        }
+
+        Workflows.Remove(workflow);
+        workflow.Dispose();
+        return true;
+    }
+
+    /// <summary>The controller's PLC window: try the connection, read and write, drive a simulated PLC.</summary>
+    internal Window? ShowPlc(ControllerViewModel? controller)
+    {
+        if (controller is null || _project is not { } project)
+            return null;
+
+        return OpenPlcWindow(Application.Current?.MainWindow, new PlcViewModel(project, controller.Controller));
+    }
+
+    private void RenameController(ControllerViewModel? controller)
+    {
+        if (controller is null || _project is not { } project)
+            return;
+
+        var name = TextPromptWindow.Ask(
+            Application.Current?.MainWindow,
+            "Rename Controller",
+            "What the controller is called. Its workflow keeps its file.",
+            controller.Name,
+            text => project.ControllerNameProblem(text, controller.Controller));
+
+        if (name is not null && name != controller.Name)
+            Guard(() => project.RenameController(controller.Controller, name), "Rename Controller");
+    }
+
+    private void RemoveController(ControllerViewModel? controller)
+    {
+        if (controller is null)
+            return;
+
+        var answer = Dialog.Confirm(
+            $"Remove controller '{controller.Name}' from the project?\n\n" +
+            $"Its workflow file stays in the project's controllers folder ({controller.WorkflowFile}).",
+            "Remove Controller");
+
+        if (answer)
+            RemoveController(controller, ask: true);
+    }
+
+    internal bool RemoveController(ControllerViewModel controller, bool ask)
+    {
+        if (_project is not { } project)
+            return false;
+
+        if (Workflows.FirstOrDefault(workflow => ReferenceEquals(workflow.Controller, controller.Controller)) is { } open)
+        {
+            if (ask && !CloseWorkflow(open))
+                return false;
+
+            if (Workflows.Contains(open))
+            {
+                Workflows.Remove(open);
+                open.Dispose();
+            }
+        }
+
+        Guard(() => project.RemoveController(controller.Controller), "Remove Controller");
+        return true;
+    }
+
+    private ControllerViewModel? Find(Controller controller) =>
+        Controllers.FirstOrDefault(candidate => ReferenceEquals(candidate.Controller, controller));
 
     // ---- housekeeping -----------------------------------------------------
 
@@ -547,17 +797,27 @@ public sealed partial class BuilderViewModel : ObservableObject
     private void Rebuild()
     {
         var selected = SelectedStation?.Station;
+        var selectedController = SelectedController?.Controller;
 
         Stations.Clear();
+        Controllers.Clear();
 
         if (_project is { } project)
         {
             foreach (var station in project.Stations)
                 Stations.Add(new StationViewModel(project, station));
+
+            foreach (var controller in project.Controllers)
+                Controllers.Add(new ControllerViewModel(project, controller));
         }
 
         SelectedStation = selected is null ? null : Find(selected);
+        SelectedController = selectedController is null ? null : Find(selectedController);
         OnPropertyChanged(nameof(HasNoStations));
+        OnPropertyChanged(nameof(HasNoControllers));
+
+        foreach (var workflow in Workflows)
+            workflow.ControllerChanged();
     }
 
     private void Changed()
@@ -569,6 +829,8 @@ public sealed partial class BuilderViewModel : ObservableObject
         AddStationCommand.NotifyCanExecuteChanged();
         AddFromRecipeCommand.NotifyCanExecuteChanged();
         TestRunCommand.NotifyCanExecuteChanged();
+        AddControllerCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(HasNoControllers));
     }
 
     private StationViewModel? Find(Station station) =>

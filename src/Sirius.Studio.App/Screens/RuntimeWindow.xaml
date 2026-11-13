@@ -448,6 +448,15 @@
                         MinWidth="80"
                         ToolTip="Stop every station and close"
                         Click="OnExitClick" />
+                <!-- The PLCs: connected or not, passes run, what last went wrong. -->
+                <TextBlock x:Name="ControllerStatus"
+                           DockPanel.Dock="Right"
+                           Margin="12,0"
+                           MaxWidth="700"
+                           Foreground="{StaticResource Text.Secondary}"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
                 <TextBlock Text="{Binding ProblemText}"
                            Foreground="#D9A33A"
                            FontSize="12"

@@ -188,8 +188,15 @@ backlog N2.
   joins by wiring, one pass at a time, timeouts, reconnecting; the nodes
   PLC Monitor, Read, Write, Pulse, Wait For and Gather, and Inspect,
   Station Result and Result Value. Values gathered from the PLC go with
-  the inspection into its `.sann` as `part`. Next: the editor and
-  Controllers panel in Builder (F23b), then running in Edge (F23c).
+  the inspection into its `.sann` as `part`.
+- **Controllers in Builder** (F23b, decision 76): a Controllers panel; a
+  PLC window to test the connection, read and write any address as a bit,
+  INT, DINT, REAL or text, and drive a simulated PLC by hand; each
+  workflow in a tab on Studio's canvas. A Test Run - and Sirius Edge -
+  runs the controllers beside the stations; Test Run opens each simulated
+  PLC's window beside the screen, so flipping a bit there has a station
+  inspect. Next: the S7 and Modbus drivers on HslCommunication (F23d), a
+  Controller widget for screens, and the start kit (F23e).
 
 ### Platform
 

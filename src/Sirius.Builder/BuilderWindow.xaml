@@ -135,11 +135,28 @@
                           Command="{Binding BrowseImagesCommand}"
                           CommandParameter="{Binding SelectedStation}" />
             </MenuItem>
+            <MenuItem Header="_Controller">
+                <MenuItem Header="_Add Controller…" Command="{Binding AddControllerCommand}" />
+                <Separator />
+                <MenuItem Header="Open _Workflow"
+                          Command="{Binding OpenWorkflowCommand}"
+                          CommandParameter="{Binding SelectedController}" />
+                <MenuItem Header="_PLC…"
+                          Command="{Binding PlcCommand}"
+                          CommandParameter="{Binding SelectedController}" />
+                <MenuItem Header="_Rename…"
+                          Command="{Binding RenameControllerCommand}"
+                          CommandParameter="{Binding SelectedController}" />
+                <MenuItem Header="Re_move from Project…"
+                          Command="{Binding RemoveControllerCommand}"
+                          CommandParameter="{Binding SelectedController}" />
+            </MenuItem>
             <MenuItem Header="_Run">
                 <MenuItem Header="_Test Run" InputGestureText="F5" Command="{Binding TestRunCommand}" />
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Stations" Tag="stations" Click="OnShowPanelClick" />
+                <MenuItem Header="_Controllers" Tag="controllers" Click="OnShowPanelClick" />
                 <MenuItem Header="_Widgets" Tag="widgets" Click="OnShowPanelClick" />
                 <MenuItem Header="_Properties" Tag="properties" Click="OnShowPanelClick" />
                 <Separator />
@@ -367,6 +384,100 @@
                                                                 <Separator />
                                                                 <MenuItem Header="Re_move from Project…"
                                                                           Command="{Binding PlacementTarget.Tag.RemoveStationCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                            </ContextMenu>
+                                                        </StackPanel.ContextMenu>
+                                                        <StackPanel.Tag>
+                                                            <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ListBox}" />
+                                                        </StackPanel.Tag>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </DockPanel>
+                            </avalonDock:LayoutAnchorable>
+                        </avalonDock:LayoutAnchorablePane>
+
+                        <!--
+                            Controllers: the project's PLCs, each with the workflow
+                            that watches it and has stations inspect.
+                        -->
+                        <avalonDock:LayoutAnchorablePane DockHeight="1.5*">
+                            <avalonDock:LayoutAnchorable Title="Controllers" ContentId="controllers" CanClose="False">
+                                <DockPanel Margin="6">
+                                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
+                                        <Button Style="{StaticResource PanelToolButton}"
+                                                ToolTip="Add a controller: a PLC - simulated to begin with - and its workflow"
+                                                Command="{Binding AddControllerCommand}">
+                                            <Path Data="M7,1 L7,13 M1,7 L13,7"
+                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                  StrokeThickness="1.6"
+                                                  Width="14"
+                                                  Height="14" />
+                                        </Button>
+                                        <Button Style="{StaticResource PanelToolButton}"
+                                                ToolTip="Open the selected controller's workflow"
+                                                Command="{Binding OpenWorkflowCommand}"
+                                                CommandParameter="{Binding SelectedController}">
+                                            <Image Source="{StaticResource Icon.ph_sub_graph}" Width="15" Height="15" />
+                                        </Button>
+                                        <Button Style="{StaticResource PanelToolButton}"
+                                                ToolTip="The selected controller's PLC: test the connection, read and write, drive the simulator"
+                                                Command="{Binding PlcCommand}"
+                                                CommandParameter="{Binding SelectedController}">
+                                            <Image Source="{StaticResource Icon.ph_run}" Width="15" Height="15" />
+                                        </Button>
+                                    </StackPanel>
+
+                                    <TextBlock DockPanel.Dock="Bottom"
+                                               TextWrapping="Wrap"
+                                               FontSize="11"
+                                               Margin="0,8,0,0"
+                                               Foreground="{StaticResource Text.Secondary}"
+                                               Text="Double-click a controller to open its workflow. Right-click for its PLC: test the connection, read, write, flip a bit." />
+
+                                    <Grid>
+                                        <TextBlock TextWrapping="Wrap"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource Text.Secondary}"
+                                                   Text="No controllers yet. Add one to have a PLC trigger the stations."
+                                                   Visibility="{Binding HasNoControllers, Converter={StaticResource BoolToVisibility}}" />
+
+                                        <ListBox x:Name="ControllerList"
+                                                 ItemsSource="{Binding Controllers}"
+                                                 SelectedItem="{Binding SelectedController}"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 Foreground="{StaticResource Text.Primary}"
+                                                 ItemContainerStyle="{StaticResource DarkListBoxItem}"
+                                                 MouseDoubleClick="OnControllerDoubleClick">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate DataType="{x:Type local:ControllerViewModel}">
+                                                    <StackPanel Background="Transparent" ToolTip="{Binding WorkflowPath}">
+                                                        <TextBlock Text="{Binding Name}" />
+                                                        <TextBlock Text="{Binding ConnectionText}"
+                                                                   FontSize="10"
+                                                                   Foreground="{StaticResource Text.Secondary}" />
+                                                        <TextBlock Text="workflow missing"
+                                                                   FontSize="10"
+                                                                   FontStyle="Italic"
+                                                                   Foreground="#DB5C5C"
+                                                                   Visibility="{Binding WorkflowMissing, Converter={StaticResource BoolToVisibility}}" />
+                                                        <StackPanel.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem Header="Open _Workflow"
+                                                                          Command="{Binding PlacementTarget.Tag.OpenWorkflowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <MenuItem Header="_PLC…"
+                                                                          Command="{Binding PlacementTarget.Tag.PlcCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <MenuItem Header="_Rename…"
+                                                                          Command="{Binding PlacementTarget.Tag.RenameControllerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <Separator />
+                                                                <MenuItem Header="Re_move from Project…"
+                                                                          Command="{Binding PlacementTarget.Tag.RemoveControllerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                           CommandParameter="{Binding}" />
                                                             </ContextMenu>
                                                         </StackPanel.ContextMenu>
