@@ -349,7 +349,7 @@
                                                FontSize="11"
                                                Margin="0,8,0,0"
                                                Foreground="{StaticResource Text.Secondary}"
-                                               Text="Double-click to open: a station in Studio, a controller's workflow here." />
+                                               Text="Double-click: a station shows the screen, a controller its workflow. Right-click a station to open its recipe in Studio." />
 
                                     <Grid>
                                         <TextBlock TextWrapping="Wrap"

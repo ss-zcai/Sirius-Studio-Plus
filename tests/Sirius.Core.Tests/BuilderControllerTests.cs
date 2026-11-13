@@ -242,10 +242,19 @@ public sealed class BuilderControllerTests : IDisposable
             Assert.Equal("Top", model.SelectedStation?.Name);
             Assert.Null(model.SelectedController);
 
-            // Opened by what it is: a station in Studio, a controller here.
+            // A double-click opens it here: a station, the screen - not Studio.
+            var screens = 0;
+            model.ScreenShown += (_, _) => screens++;
+            model.Open(model.Items[0]);
+            Assert.Equal(1, screens);
+            Assert.Empty(studio);
+            Assert.StartsWith("5 widgets on the screen show Top.", model.StatusText);
+
+            // The panel's open button, and the right-click menu, open a station's recipe in Studio.
             model.OpenSelectedCommand.Execute(null);
             Assert.Equal(project.RecipePath(project.Stations[0]), Assert.Single(studio));
 
+            // A controller, either way, its workflow here.
             model.Open(model.Items[2]);
             Assert.Single(model.Workflows);
             Assert.Single(studio);
@@ -441,6 +450,9 @@ public sealed class BuilderControllerTests : IDisposable
 
             try
             {
+                // As at start: the saved layout read back, which makes the tabs anew.
+                window.ReloadLayoutForTests();
+
                 // The screen in front: the designer's commands, its properties, its widgets.
                 Assert.Null(model.ActiveWorkflow);
                 Assert.Same(model.Designer!.SaveCommand, model.SaveCommand.Target);
@@ -498,12 +510,27 @@ public sealed class BuilderControllerTests : IDisposable
                 Assert.False(document.IsModified);
                 Assert.DoesNotContain("*", model.Title);
 
-                // The screen's tab in front again: back to the screen.
+                // The screen's tab clicked: back to the screen, Properties with it.
                 window.ScreenTabForTests!.IsActive = true;
                 Assert.Null(model.ActiveWorkflow);
                 Assert.Same(model.Designer.SaveCommand, model.SaveCommand.Target);
                 Assert.Equal("Widgets", model.ToolsTitle);
                 Assert.Equal("Screen", model.PropertyTitle);
+
+                // A widget chosen on the screen shows in Properties.
+                model.Designer.Add(Sirius.Core.Screens.WidgetKind.Text);
+                Assert.NotEqual("Screen", model.PropertyTitle);
+                Assert.Same(model.Designer.PropertyCategories, model.PropertyCategories);
+
+                // The workflow's tab clicked again, and a panel after it: still the workflow.
+                window.ShowWorkflow(document);
+                Assert.Same(document, model.ActiveWorkflow);
+                window.ShowPanel("properties");
+                Assert.Same(document, model.ActiveWorkflow);
+
+                // Reset Layout leaves the workflow's tab out; opened again, it comes back.
+                window.ReloadLayoutForTests();
+                Assert.NotNull(window.ShowWorkflow(document).Parent);
             }
             finally
             {

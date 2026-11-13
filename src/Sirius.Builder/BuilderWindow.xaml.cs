@@ -39,7 +39,8 @@ public partial class BuilderWindow : Window
         model.Workflows.CollectionChanged += (_, _) => DropClosedWorkflows();
 
         // The document in front decides what the toolbar, tools and Properties act on.
-        Follow(ScreenTab());
+        Docking.ActiveContentChanged += (_, _) => FollowFront();
+        model.ScreenShown += (_, _) => ShowScreen();
         model.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(BuilderViewModel.ToolsTitle))
@@ -55,21 +56,39 @@ public partial class BuilderWindow : Window
         Docking.Layout.Descendents().OfType<LayoutDocument>().FirstOrDefault(document => document.ContentId == "screen");
 
     /// <summary>
-    /// A document tab coming to the front makes its document the one the
-    /// toolbar acts on. A panel - Properties, Project - coming to the front
-    /// changes nothing: the document behind it is still the one being
-    /// worked on.
+    /// A document coming to the front makes it the one the toolbar, tools
+    /// and Properties act on: the screen's designer, or a workflow's editor.
+    /// A panel - Properties, Project - coming to the front changes nothing:
+    /// the document behind it is still the one being worked on.
     /// </summary>
-    private void Follow(LayoutDocument? tab)
+    /// <remarks>
+    /// Read from what the docking manager has in front, not from each tab:
+    /// restoring the saved layout at start makes the tabs anew, and a tab
+    /// listened to before that was no longer the one on screen - so coming
+    /// back to the screen went unnoticed, and Properties stayed on a
+    /// workflow's node.
+    /// </remarks>
+    internal void FollowFront()
     {
-        if (tab is null)
-            return;
-
-        tab.PropertyChanged += (_, e) =>
+        switch (Docking.ActiveContent)
         {
-            if (e.PropertyName == nameof(LayoutDocument.IsActive) && tab.IsActive)
-                _model.ActiveWorkflow = (tab.Content as WorkflowEditorView)?.DataContext as WorkflowDocumentViewModel;
-        };
+            case WorkflowEditorView { DataContext: WorkflowDocumentViewModel workflow }:
+                _model.ActiveWorkflow = workflow;
+                break;
+
+            case ScreenDesignerView:
+                _model.ActiveWorkflow = null;
+                break;
+        }
+    }
+
+    /// <summary>The screen's tab to the front.</summary>
+    internal void ShowScreen()
+    {
+        if (ScreenTab() is { } screen)
+            screen.IsActive = true;
+
+        _model.ActiveWorkflow = null;
     }
 
     internal BuilderViewModel Model => _model;
@@ -165,6 +184,21 @@ public partial class BuilderWindow : Window
         {
             Owner = IsLoaded ? this : null,
         };
+
+    /// <summary>For tests: the layout written out and read back, as restoring the saved one at start does.</summary>
+    internal void ReloadLayoutForTests()
+    {
+        _panels.Clear();
+
+        foreach (var content in Docking.Layout.Descendents().OfType<LayoutContent>())
+        {
+            if (!string.IsNullOrEmpty(content.ContentId) && content.Content is { } panel)
+                _panels[content.ContentId] = panel;
+        }
+
+        var layout = Serialize();
+        Restore(serializer => serializer.Deserialize(new StringReader(layout)));
+    }
 
     private string Serialize()
     {
@@ -268,10 +302,12 @@ public partial class BuilderWindow : Window
 
             tab.Closed += (_, _) => _workflowTabs.Remove(workflow);
 
-            Follow(tab);
             _workflowTabs[workflow] = tab;
-            DocumentPane().Children.Add(tab);
         }
+
+        // Made before, but left out of a layout restored since - Reset Layout.
+        if (tab.Parent is null)
+            DocumentPane().Children.Add(tab);
 
         tab.IsActive = true;
         _model.ActiveWorkflow = workflow;

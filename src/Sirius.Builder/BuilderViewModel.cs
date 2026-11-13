@@ -71,7 +71,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         PlcCommand = new RelayCommand<ControllerViewModel>(controller => ShowPlc(controller));
         RenameControllerCommand = new RelayCommand<ControllerViewModel>(RenameController);
         RemoveControllerCommand = new RelayCommand<ControllerViewModel>(RemoveController);
-        OpenSelectedCommand = new RelayCommand(() => Open(SelectedItem), () => SelectedItem is not null);
+        OpenSelectedCommand = new RelayCommand(() => OpenSelected(SelectedItem), () => SelectedItem is not null);
 
         // The toolbar's and the Edit menu's: whatever is in front does them.
         SaveCommand = Active(() => ActiveWorkflow?.SaveCommand ?? Designer?.SaveCommand);
@@ -303,11 +303,32 @@ public sealed partial class BuilderViewModel : ObservableObject
             SelectedItem = value;
     }
 
-    /// <summary>Opens a station's recipe in Studio, or a controller's workflow here.</summary>
+    /// <summary>The Project panel's open button: a station's recipe in Studio, a controller's workflow here.</summary>
     public IRelayCommand OpenSelectedCommand { get; }
 
-    /// <summary>What a double-click does: a station to Studio, a controller to its workflow's tab.</summary>
+    /// <summary>The screen is to be brought to the front.</summary>
+    public event EventHandler? ScreenShown;
+
+    /// <summary>
+    /// What a double-click does - open it here, in Builder: a station shows
+    /// the screen, a controller its workflow. A station's recipe opens in
+    /// Studio from its right-click menu, or the panel's open button.
+    /// </summary>
     internal void Open(object? item)
+    {
+        switch (item)
+        {
+            case StationViewModel station:
+                ShowScreen(station);
+                break;
+
+            case ControllerViewModel controller:
+                OpenWorkflowCommand.Execute(controller);
+                break;
+        }
+    }
+
+    private void OpenSelected(object? item)
     {
         switch (item)
         {
@@ -318,6 +339,22 @@ public sealed partial class BuilderViewModel : ObservableObject
             case ControllerViewModel controller:
                 OpenWorkflowCommand.Execute(controller);
                 break;
+        }
+    }
+
+    /// <summary>Brings the screen to the front, saying how much of it shows the station.</summary>
+    internal void ShowScreen(StationViewModel? station = null)
+    {
+        ActiveWorkflow = null;
+        ScreenShown?.Invoke(this, EventArgs.Empty);
+
+        if (station is not null && _designer is { } designer)
+        {
+            var showing = designer.Widgets.Count(widget => string.Equals(widget.Widget.Station, station.Name, StringComparison.OrdinalIgnoreCase));
+
+            StatusText = showing == 0
+                ? $"The screen shows nothing of {station.Name} yet: add widgets for it. Right-click it to open its recipe in Studio."
+                : $"{showing} widget{(showing == 1 ? string.Empty : "s")} on the screen show{(showing == 1 ? "s" : string.Empty)} {station.Name}. Right-click it to open its recipe in Studio.";
         }
     }
 

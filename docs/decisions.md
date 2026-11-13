@@ -3070,3 +3070,11 @@ sent through the simulator control the vision project.
   and closing Builder now asks about unsaved workflows too, which it did
   not. Copy and paste use Studio's graph clipboard; a recipe's nodes
   pasted into a workflow are left out.
+- **A double-click opens it in Builder**: a station brings the screen to
+  the front (saying how many widgets show it), a controller its workflow.
+  A station's recipe opens in Studio from its right-click menu and the
+  panel's open button. Which document is in front is read from the
+  docking manager, not from each tab: the saved layout, restored at
+  start, makes the tabs anew, and the first version, listening to the
+  tabs made before that, never heard the screen come back to the front -
+  Properties stayed on a workflow's node.
