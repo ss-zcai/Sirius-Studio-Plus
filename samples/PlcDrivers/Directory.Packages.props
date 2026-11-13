@@ -1,0 +1,6 @@
+<Project>
+  <!-- Package versions in each project, as a team's own solution has them. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

@@ -159,9 +159,10 @@ Builder, so it is a sentence a commissioning engineer understands:
 
 ### 3.1 The project
 
-Until the start kit's NuGet package exists (backlog F23e), a driver
-library references the two DLLs from an installed Sirius - Builder's
-folder - without copying them:
+A driver library references `Sirius.Plc.dll` and `Sirius.Core.dll`
+without copying them. In the **PLC kit** they are in `sdk\lib\`, and
+`sdk\SampleDriver\SampleDriver.csproj` is a project file ready to copy;
+otherwise take them from an installed Builder's folder:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -798,17 +799,17 @@ in `plc-drivers\` folders with each library isolated, driver settings in
 Builder's PLC window and the project file, the simulated PLC, the
 conformance check, and Builder and Edge running controllers.
 
-The smallest working library is `tests/TestPlcDriver` in the repository:
-a project file as §3.1's, one factory, one driver - loaded by the tests
-from a folder, as a real one is.
+The PLC kit (`tools/pack-plc-kit.ps1`) holds Builder, `sdk\lib`, the
+sample driver - an in-memory register device, a template for a
+Modbus-style driver, with the conformance check in its tests - and these
+guides. The smallest library of all is `tests/TestPlcDriver` in the
+repository.
 
 Not yet (backlog F23d-e):
 
 - the S7 and Modbus drivers themselves, built and checked against real
   PLCs - §4 is their design;
-- the start kit: `Sirius.Plc` as a NuGet package, a template driver
-  project and this guide, zipped as the custom-node SDK is - until then,
-  §3.1's references to an installed Sirius;
+- `Sirius.Plc` as a NuGet package - the kit's `sdk\lib` stands in;
 - reading many addresses in one exchange: the default reads them in
   turn, which is fine for a handful;
 - a PLC's own subscriptions in place of polling.

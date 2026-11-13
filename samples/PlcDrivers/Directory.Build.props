@@ -1,0 +1,7 @@
+<Project>
+  <!--
+    Stops the repository's Directory.Build.props reaching the PLC kit's
+    sample: each project carries its own settings, as in the kit, where
+    there is nothing above it.
+  -->
+</Project>

@@ -18,6 +18,10 @@
       change that breaks a driver.
     -->
     <Version>1.0.0</Version>
+
+    <!-- Its comments, beside the DLL in the PLC kit: IntelliSense for the driver team. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

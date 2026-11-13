@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A PLC driver library: copy this project to start one (docs/plc-drivers.md).
+
+    Sirius.Plc and Sirius.Core are referenced from ..\lib, never copied
+    (Private=false): the program supplies its own, and a copy beside the
+    driver is ignored. Add the brand's library - HslCommunication - as a
+    PackageReference; it is copied beside the driver, as it must be.
+
+    To install: copy bin\Release\net8.0\ - the driver, its dependencies and
+    its .deps.json - to Builder\plc-drivers\<Brand>\, and restart Builder.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AssemblyName>Sample.Drivers</AssemblyName>
+    <RootNamespace>Sample.Drivers</RootNamespace>
+    <Version>1.0.0</Version>
+    <SiriusLib Condition="'$(SiriusLib)' == ''">$(MSBuildThisFileDirectory)..\lib\</SiriusLib>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Sirius.Plc" HintPath="$(SiriusLib)Sirius.Plc.dll" Private="false" />
+    <Reference Include="Sirius.Core" HintPath="$(SiriusLib)Sirius.Core.dll" Private="false" />
+  </ItemGroup>
+
+</Project>

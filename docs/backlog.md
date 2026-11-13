@@ -206,9 +206,10 @@ from you before they start.
     November 2026** (decision 77): the guides (`plc-drivers.md`,
     `plc-workflows.md`), driver discovery in `plc-drivers\` folders with
     the version check, driver settings in Builder, and the conformance
-    check (`PlcDriverCheck`). Left: `Sirius.Plc` as a NuGet package and the
-    zip, as `pack-sdk.ps1` makes the custom-node SDK. Planned, packed as the
-    custom-node SDK is:
+    check (`PlcDriverCheck`); and the **PLC kit** zip
+    (`tools/pack-plc-kit.ps1`): Builder, `sdk\lib`, a sample driver with
+    its conformance tests, the guides. Left: `Sirius.Plc` as a NuGet
+    package. Planned, packed as the custom-node SDK is:
     - the driver interface;
     - a template driver project;
     - the test kit, and the guide;
