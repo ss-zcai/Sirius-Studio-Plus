@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using AvalonDock.Layout;
 using Microsoft.Win32;
 using Sirius.Studio.App;
 
@@ -34,6 +35,10 @@ public partial class ViewerWindow : Window
         // A heading for each sub-folder - a station's days - when sorted by name.
         GroupByFolder();
         Sync.IsOn = model.SyncViews;
+
+        // A tab for each viewer, in the layout's grid.
+        ArrangeViewerTabs();
+        model.TilesArranged += (_, _) => ArrangeViewerTabs();
 
         model.PropertyChanged += (_, e) =>
         {
@@ -205,6 +210,101 @@ public partial class ViewerWindow : Window
     {
         if (sender is Sirius.Studio.App.Controls.ImageViewer viewer)
             Sync.Remove(viewer);
+    }
+
+    // ---- the viewers' tabs -----------------------------------------------------------------
+
+    private readonly Dictionary<TileViewModel, LayoutDocument> _viewerTabs = [];
+
+    /// <summary>Each viewer's tab, in the order of the layout's places.</summary>
+    internal IReadOnlyList<LayoutDocument> ViewerTabs => _model.Tiles.Select(tile => _viewerTabs[tile]).ToArray();
+
+    /// <summary>
+    /// Puts the viewers' tabs in the layout's grid - a pane each, in rows -
+    /// where the viewers were, wherever they had been dragged to.
+    /// </summary>
+    internal void ArrangeViewerTabs()
+    {
+        foreach (var (tile, tab) in _viewerTabs.ToArray())
+        {
+            if (!_model.Tiles.Contains(tile))
+            {
+                _viewerTabs.Remove(tile);
+                tab.Parent?.RemoveChild(tab);
+            }
+        }
+
+        foreach (var tile in _model.Tiles)
+        {
+            if (!_viewerTabs.ContainsKey(tile))
+                _viewerTabs[tile] = ViewerTab(tile);
+        }
+
+        // Where the viewers are - before their tabs are taken out of it.
+        var area = DocumentArea();
+
+        foreach (var tab in _viewerTabs.Values)
+            tab.Parent?.RemoveChild(tab);
+
+        var grid = new LayoutDocumentPaneGroup { Orientation = Orientation.Vertical };
+        var tabs = ViewerTabs;
+
+        for (var row = 0; row < _model.Rows; row++)
+        {
+            var line = new LayoutDocumentPaneGroup { Orientation = Orientation.Horizontal };
+
+            for (var column = 0; column < _model.Columns; column++)
+            {
+                var place = row * _model.Columns + column;
+
+                if (place < tabs.Count)
+                    line.Children.Add(new LayoutDocumentPane(tabs[place]));
+            }
+
+            grid.Children.Add(line);
+        }
+
+        if (area?.Parent is ILayoutContainer parent)
+            parent.ReplaceChild(area, grid);
+        else
+            Docking.Layout.RootPanel.Children.Add(grid);
+
+        // Panes emptied - a tab dragged out on its own, a floating window - go.
+        Docking.Layout.CollectGarbage();
+    }
+
+    /// <summary>
+    /// The panes holding the viewers, at the top: the one in the main
+    /// window, not inside another group, not floating.
+    /// </summary>
+    private ILayoutElement? DocumentArea() =>
+        Docking.Layout.Descendents()
+            .OfType<ILayoutElement>()
+            .FirstOrDefault(element => element is LayoutDocumentPane or LayoutDocumentPaneGroup && element.Parent is LayoutPanel);
+
+    private LayoutDocument ViewerTab(TileViewModel tile)
+    {
+        var tab = new LayoutDocument
+        {
+            Title = tile.Title,
+            ContentId = $"viewer{tile.Number}",
+            CanClose = false,
+            Content = new ContentControl
+            {
+                Content = tile,
+                ContentTemplate = (DataTemplate)FindResource("TileTemplate"),
+                Focusable = false,
+            },
+        };
+
+        // The title - for the window a tab is floated out in, and the tab list - follows the picture.
+        tile.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TileViewModel.Title))
+                tab.Title = tile.Title;
+        };
+
+        return tab;
     }
 
     // ---- sorting ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
+using AvalonDock.Layout;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
@@ -446,5 +447,153 @@ public sealed class SiriusIvMatchingTests : IDisposable
             viewer.FitToWindow();
             Assert.Equal(1, told);
         });
+    }
+
+    // ---- a tab for each viewer ---------------------------------------------------------------
+
+    /// <summary>
+    /// Each viewer is a tab of its own, titled with its picture's name, put in
+    /// the layout's grid - and put back there, after being dragged about,
+    /// when the layout is chosen again.
+    /// </summary>
+    [Fact]
+    public void Each_viewer_is_a_tab_titled_with_its_picture_in_the_layouts_grid()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+            var model = Open(CameraPairs());
+            var window = new ViewerWindow(model);
+
+            try
+            {
+                var docking = (AvalonDock.DockingManager)window.FindName("Docking");
+                AvalonDock.Layout.LayoutDocumentPane[] Panes() =>
+                    docking.Layout.Descendents().OfType<AvalonDock.Layout.LayoutDocumentPane>().ToArray();
+
+                Assert.Equal(["p01_cam1_PASS.png"], window.ViewerTabs.Select(tab => tab.Title));
+                Assert.Single(Panes());
+
+                // A pair: two tabs side by side, a pane each, named for their pictures.
+                model.Match = new MatchRule { Mode = MatchMode.Pattern, Pattern = @"^(.+?)_cam\d" };
+                Assert.Equal(["p01_cam1_PASS.png", "p01_cam2_FAIL.png"], window.ViewerTabs.Select(tab => tab.Title));
+                Assert.Equal(2, Panes().Length);
+                Assert.All(window.ViewerTabs, tab => Assert.False(tab.CanClose));
+
+                var row = Assert.IsType<AvalonDock.Layout.LayoutDocumentPaneGroup>(window.ViewerTabs[0].Parent.Parent);
+                Assert.Equal(System.Windows.Controls.Orientation.Horizontal, row.Orientation);
+                Assert.Same(row, window.ViewerTabs[1].Parent.Parent);
+
+                // Its tab says how it went, with the picture's details for a tooltip.
+                var header = (FrameworkElement)docking.DocumentHeaderTemplate.LoadContent();
+                var host = new System.Windows.Controls.Border { DataContext = window.ViewerTabs[1], Child = header };
+                host.Measure(new Size(300, 30));
+                WpfTestHost.Settle(window.Dispatcher);
+                Assert.Equal(["p01_cam2_FAIL.png", "FAIL"], Texts(header));
+                Assert.Contains("p01_cam2_FAIL.png", (string)header.ToolTip);
+
+                // Stepping on: the titles follow; an empty viewer is numbered.
+                model.Choose([model.Files[2]]);
+                Assert.Equal(["p03_cam1_PASS.png", "Viewer 2"], window.ViewerTabs.Select(tab => tab.Title));
+
+                // Dragged into one pane as two tabs; the layout chosen again puts them back.
+                var second = window.ViewerTabs[1];
+                second.Parent.RemoveChild(second);
+                ((AvalonDock.Layout.LayoutDocumentPane)window.ViewerTabs[0].Parent).Children.Add(second);
+                docking.Layout.CollectGarbage();
+                Assert.Single(Panes());
+
+                model.SetLayoutCommand.Execute(ViewerLayout.Two);
+                Assert.Equal(2, Panes().Length);
+                Assert.All(Panes(), pane => Assert.Single(pane.Children));
+
+                // 2 x 2: two rows of two, in order.
+                model.Layout = ViewerLayout.Four;
+                Assert.Equal(4, Panes().Length);
+                var grid = Assert.IsType<AvalonDock.Layout.LayoutDocumentPaneGroup>(window.ViewerTabs[0].Parent.Parent.Parent);
+                Assert.Equal(System.Windows.Controls.Orientation.Vertical, grid.Orientation);
+                Assert.Same(window.ViewerTabs[0].Parent.Parent, window.ViewerTabs[1].Parent.Parent);
+                Assert.Same(window.ViewerTabs[2].Parent.Parent, window.ViewerTabs[3].Parent.Parent);
+                Assert.NotSame(window.ViewerTabs[0].Parent.Parent, window.ViewerTabs[2].Parent.Parent);
+
+                // One again: one tab, one pane, and the files still beside it.
+                model.Layout = ViewerLayout.Single;
+                Assert.Single(window.ViewerTabs);
+                Assert.Single(Panes());
+                Assert.Single(docking.Layout.Descendents().OfType<AvalonDock.Layout.LayoutAnchorable>());
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
+    public void Pictures_of_one_name_in_two_cameras_folders_have_their_folder_in_the_title()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            Picture(Path.Combine(_folder, "cam1", "0001.png"));
+            Picture(Path.Combine(_folder, "cam2", "0001.png"));
+            Picture(Path.Combine(_folder, "cam1", "0002.png"));
+            var model = Open(_folder);
+            model.Match = new MatchRule { Mode = MatchMode.NameStart, Characters = 20 };
+
+            Assert.Equal([@"cam1\0001.png", @"cam2\0001.png"], model.Tiles.Select(tile => tile.Title));
+
+            model.Choose([model.Files[1]]);
+            Assert.Equal(["0002.png", "Viewer 2"], model.Tiles.Select(tile => tile.Title));
+        });
+    }
+
+    /// <summary>A toggle's text takes the toggle's colour, as a button's does - not black.</summary>
+    [Fact]
+    public void A_toolbar_toggles_label_is_in_the_toggles_colour()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+            var model = Open(CameraPairs());
+            var window = new ViewerWindow(model);
+
+            try
+            {
+                var label = new System.Windows.Controls.TextBlock { Text = "Sync", Style = (Style)window.FindResource("ToolbarLabel") };
+                var toggle = new System.Windows.Controls.Primitives.ToggleButton
+                {
+                    Style = (Style)window.FindResource("ToolbarToggle"),
+                    Content = label,
+                };
+
+                toggle.Measure(new Size(100, 30));
+                toggle.Arrange(new Rect(0, 0, 100, 30));
+                WpfTestHost.Settle(window.Dispatcher);
+
+                Assert.Same(toggle.Foreground, label.Foreground);
+                Assert.NotEqual(Colors.Black, ((SolidColorBrush)label.Foreground).Color);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    private static List<string> Texts(DependencyObject root)
+    {
+        var found = new List<string>();
+
+        void Walk(DependencyObject element)
+        {
+            if (element is System.Windows.Controls.TextBlock { Text: { Length: > 0 } text })
+                found.Add(text);
+
+            foreach (var child in LogicalTreeHelper.GetChildren(element).OfType<DependencyObject>())
+                Walk(child);
+        }
+
+        Walk(root);
+        return found;
     }
 }

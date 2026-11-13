@@ -148,7 +148,11 @@ Builder opens a station's folder in it; so does
 - **Viewers**: one, two or three side by side, 2 × 2 or 3 × 3 (Ctrl+1,
   2, 3, 4, 9). Choose several pictures in the list to see those; choose
   one to see it and the ones after it, so stepping down the list steps
-  them all along.
+  them all along. Each viewer is a tab, titled with its picture's name
+  (with its folder too when two shown share a name) and its verdict, and
+  can be dragged anywhere - one above another, as tabs in one place, or
+  out onto a screen of its own; it keeps its place as the list moves on.
+  Choosing a layout, even the one in use, puts them back in its grid.
 - **Match** (Ctrl+M) makes pictures that belong together - two cameras'
   views of one part, a part lit three ways - into sets, by one of:
   - **in groups of N** (2 to 9) down the list, as it is sorted - for
@@ -176,7 +180,7 @@ Builder opens a station's folder in it; so does
   one marked with a small cross on the others.
 - Each viewer is Studio's: zoom, pan, pixel values, 12-bit display, save.
   The shapes from the annotation file are drawn over the picture; the
-  header's tooltip lists the station, time, results and layers.
+  tab's tooltip lists the station, time, results and layers.
 - **Measurements belong to their picture.** Drawn with the viewer's
   measuring tools, they stay with the picture they were drawn on when the
   list moves on, and come back with it. A picture measured and not saved

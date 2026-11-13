@@ -35,6 +35,7 @@ public sealed class TileViewModel : ObservableObject
     private string? _problem;
     private bool _loading;
     private int _showing;
+    private bool _showsFolder;
 
     /// <param name="owner">The window it is in, which keeps every picture's measurements; null for a viewer on its own.</param>
     public TileViewModel(BrowserViewModel? owner = null)
@@ -81,6 +82,7 @@ public sealed class TileViewModel : ObservableObject
             if (SetProperty(ref _file, value))
             {
                 OnPropertyChanged(nameof(Caption));
+                OnPropertyChanged(nameof(Title));
                 OnPropertyChanged(nameof(Verdict));
                 OnPropertyChanged(nameof(IsEmpty));
             }
@@ -116,8 +118,28 @@ public sealed class TileViewModel : ObservableObject
         }
     }
 
-    /// <summary>The file's name, over the viewer.</summary>
+    /// <summary>The file's name, with its folder inside the one open.</summary>
     public string Caption => _file?.RelativePath ?? string.Empty;
+
+    /// <summary>Its place in the layout, from 1: what an empty viewer's tab says.</summary>
+    public int Number { get; init; } = 1;
+
+    /// <summary>
+    /// Its tab's title: the file's name, or with its folder when another
+    /// viewer shows a picture of the same name; "Viewer 2" when empty.
+    /// </summary>
+    public string Title => _file is null ? $"Viewer {Number}" : ShowsFolder ? _file.RelativePath : _file.Name;
+
+    /// <summary>Set by the window it is in, when another viewer shows a picture of the same name.</summary>
+    public bool ShowsFolder
+    {
+        get => _showsFolder;
+        set
+        {
+            if (SetProperty(ref _showsFolder, value))
+                OnPropertyChanged(nameof(Title));
+        }
+    }
 
     /// <summary>PASS, FAIL, ERROR - from the annotations, or the file's name.</summary>
     public string? Verdict => _annotations?.VerdictWord ?? _file?.Verdict;

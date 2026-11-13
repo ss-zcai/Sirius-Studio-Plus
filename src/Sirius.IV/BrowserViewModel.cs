@@ -115,7 +115,14 @@ public sealed class BrowserViewModel : ObservableObject
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, () => HasFolder);
         ReverseSortCommand = new RelayCommand(() => SortDescending = !SortDescending);
         ToggleSyncViewsCommand = new RelayCommand(() => SyncViews = !SyncViews);
-        SetLayoutCommand = new RelayCommand<ViewerLayout>(layout => Layout = layout);
+        SetLayoutCommand = new RelayCommand<ViewerLayout>(layout =>
+        {
+            // Chosen again: the viewers put back in their places, after dragging them about.
+            if (layout == _layout)
+                TilesArranged?.Invoke(this, EventArgs.Empty);
+            else
+                Layout = layout;
+        });
         SaveCommand = new RelayCommand(() => Save(), () => HasUnsavedChanges);
         ReadSettings();
         ArrangeTiles();
@@ -704,9 +711,26 @@ public sealed class BrowserViewModel : ObservableObject
     {
         var shown = Shown();
 
+        // Two cameras saving into folders of their own give pictures of one
+        // name: their tabs then say the folder too.
+        var alike = shown.GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         for (var i = 0; i < Tiles.Count; i++)
-            Tiles[i].Show(i < shown.Count ? shown[i] : null);
+        {
+            var file = i < shown.Count ? shown[i] : null;
+            Tiles[i].ShowsFolder = file is not null && alike.Contains(file.Name);
+            Tiles[i].Show(file);
+        }
     }
+
+    /// <summary>
+    /// The viewers laid out afresh - the layout changed, or was chosen again:
+    /// the window puts each viewer's tab in its place in the grid.
+    /// </summary>
+    public event EventHandler? TilesArranged;
 
     private void ArrangeTiles()
     {
@@ -719,10 +743,11 @@ public sealed class BrowserViewModel : ObservableObject
         }
 
         while (Tiles.Count < places)
-            Tiles.Add(new TileViewModel(this));
+            Tiles.Add(new TileViewModel(this) { Number = Tiles.Count + 1 });
 
         OnPropertyChanged(nameof(Columns));
         OnPropertyChanged(nameof(Rows));
+        TilesArranged?.Invoke(this, EventArgs.Empty);
     }
 
     // ---- measurements drawn by hand ----------------------------------------------------
