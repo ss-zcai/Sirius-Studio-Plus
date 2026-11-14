@@ -2,8 +2,15 @@
 
 What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
-13 November 2026: the PLC is now planned as **controllers** in a project,
-each a PLC and a workflow, the framework built by us (F23, decision 74).
+14 November 2026.
+
+**Since the last update** (11-13 November): Sirius IV gained its file
+list, sorting, matching and Sync View, and a tab per viewer; the PLC
+arrived as **controllers** in a project - the workflow engine, Builder's
+editor and PLC window, the simulated PLC, controllers running in Test Run
+and Edge (F23a-c, decisions 74-76); and the **PLC kit** went to the PLC
+team: Builder, the driver SDK, a sample driver and the guides (F23e,
+decision 77). Next on the PLC: the real S7 driver (F23d).
 
 Each item has an ID to refer to it by, a rough size, and where it came
 from when that matters. The order is a proposal: change it, strike things
@@ -22,18 +29,19 @@ is in `licences.md`**; this is the list.
 
 - **L1. Emgu CV: GPLv3 or a commercial licence.** The one real blocker.
   Buy the Windows tier on the v4 rev 2 agreement, with §4 confirmed in
-  writing. Fallback: OpenCvSharp.
+  writing - the custom-node SDK and the PLC kit included in the question.
+  Fallback: OpenCvSharp.
 - **L2. pylon licence conditions 4-6**: our own licence agreement (L6),
   excluding Basler from liability, and indemnifying Basler. Legal review.
 - **L3. Hikrobot MVS**: may `MvCameraControl.Net.dll` ship? Its terms
-  are missing. (Now listed in `THIRD-PARTY-NOTICES.txt`.)
+  are missing. (Listed in `THIRD-PARTY-NOTICES.txt` since 13 November.)
 - ~~**L4. YOLO (Ultralytics) is AGPL-3.0**~~ - not ours: we do not use it.
-  It is a matter for custom node developers, whom the guides warn
-  (`licences.md` section 4).
-- **L5. PLC communication libraries** (with F23): HslCommunication's
-  **Enterprise licence is held**. Left: check that the contract's words
-  allow shipping it in our product and the start kit; keep the activation
-  code out of git; add it to the notices.
+  A matter for custom node developers, whom the guides warn.
+- **L5. PLC communication libraries**: HslCommunication's **Enterprise
+  licence is held**. Left: check that the contract's words allow shipping
+  it in our product and in the PLC kit; agree how the activation code
+  reaches a machine (the guide proposes `SIRIUS_HSL_CODE`); add it to the
+  notices when the first driver using it ships.
 - **L6. Our own licence agreement (EULA)**: none yet. Needed for any
   customer build, and by pylon (L2).
 
@@ -44,19 +52,33 @@ is in `licences.md`**; this is the list.
 - ~~**N1. Pack 1.0.10**~~ - done, 6 November 2026.
 - ~~**N2. Test with real cameras**~~ - done, 7 November 2026.
 - ~~**N6. Pack 1.0.11 and SDK 1.0.3**~~ - done, 11 November 2026.
-- **N3. Icons** - mostly settled, 7 November 2026: you are happy with
-  most, and will draw a few better ones later. Still true meanwhile:
-  `ph_find_curve`, `ph_lens_calibration`, `ph_line_defects` and
-  `ph_undistort` have no SVG in `res/ui icons`, so regenerating
-  `Themes/Icons.xaml` deletes them; Offset Shapes and Transform Shapes
-  borrow Dilate's and Resize's.
+- **N7. Pack 1.0.12** (S). Since 1.0.11: Sirius IV's file list, sorting,
+  matching, Sync View and viewer tabs; controllers in Builder and Edge;
+  the Project panel and one toolbar for the tab in front. Release notes
+  to write. The PLC kit is packed on its own (`pack-plc-kit.ps1`, 1.0.0).
+- **N3. Icons** - mostly settled. The four that had no SVG
+  (`ph_find_curve`, `ph_lens_calibration`, `ph_line_defects`,
+  `ph_undistort`) have one now, so regenerating `Themes/Icons.xaml` is
+  safe. Left: Offset Shapes and Transform Shapes borrow Dilate's and
+  Resize's; the new PLC icons (controller, the nine workflow nodes) and
+  BMP and TIF file icons are yours to redraw if you want.
 - **N4. A `.gitattributes`** (S). Line endings are normalised per machine
-  today; settle them before a second person works in the repository.
+  today; settle them before a second person works in the repository - the
+  PLC team may be the first.
 - **N5. Tidy-ups** (S each):
   - delete `src/Sirius.NodeEditor`, an empty project (one `Class1.cs`);
   - decide about the upright `Rectangle` region editor: no built-in
     node uses it since Crop went (decision 61). Delete it, or keep it for
     custom nodes and say so in the SDK.
+- **N8. Tests that fail now and then** (S each), passing when run again:
+  `HikrobotCameraTests.Two_stations_run_two_hikrobot_cameras_at_once`
+  times out on a busy machine; `EditHistoryTests.The_styler_colours_the_whole_selection_in_one_step`
+  failed once in a full run, 13 November. Worth finding out why before
+  they hide a real failure.
+- **N9. A station renamed leaves its workflows behind** (S). An Inspect or
+  Station Result naming the old name is reported by the workflow's check
+  ("There is no station called ..."), but not changed. Rename it in the
+  workflows too, as the screen's widgets are.
 
 ---
 
@@ -65,6 +87,102 @@ is in `licences.md`**; this is the list.
 Larger pieces, roughly in order of value to testers. Several want a word
 from you before they start.
 
+### The PLC
+
+- **F23. The PLC as controllers in a project** - decisions 74-77; the
+  design is in `plc-workflows.md` and `plc-drivers.md`. A project holds
+  stations and **controllers** - a PLC each, with the **workflow** that
+  watches it, reads and writes it, and has stations inspect. A new brand
+  is a driver DLL in `plc-drivers\`: no new nodes, no change to Builder.
+  It replaces Sirius Interface, which was rebuilt for each customer.
+  - ~~**F23a. The engine and nodes, with the simulated PLC**~~ - done 13
+    November 2026 (decision 75): passes started by a PLC Monitor or a
+    Station Result; branches and joins by wiring; one pass at a time;
+    timeouts; reconnecting. PLC Monitor, Read, Write, Pulse, Wait For,
+    Gather; Inspect, Station Result, Result Value. The part's values go
+    into the picture's `.sann` as `"part"`.
+  - ~~**F23b. Controllers in Builder**~~ - done 13 November 2026 (decision
+    76): stations and controllers in one Project panel; each workflow in
+    a tab on Studio's canvas; the PLC window - Test Connection, read and
+    write any type, the simulator's memory by hand; one toolbar, tools
+    panel and Properties for the tab in front.
+  - **F23c. Controllers on the line** (M) - **mostly done**: the runtime
+    window runs the controllers, so Builder's Test Run and Edge both do,
+    their state along the bottom. Left:
+    - a **Controller widget** for screens: connected or not, the last
+      event, the last error;
+    - a lost PLC as an **alarm** an operator cannot miss, not only a line
+      of text;
+    - in Edge, no way to look at the PLC: a PLC window for maintenance,
+      behind a user level.
+  - **F23d. The first real drivers** (M each) - **next**: **Siemens S7**,
+    then **Modbus TCP**, on HslCommunication (L5), as `plc-drivers.md` §4
+    designs them. Needs from you: permission to download the
+    HslCommunication package, and an S7 on the bench to run the
+    conformance check and the cable pull against. The guide's HSL code is
+    from its documentation and not yet compiled. Or the PLC team writes
+    them from the kit, and we review.
+  - ~~**F23e. The start kit for the PLC team**~~ - done 13 November 2026
+    (decision 77): driver discovery and its version check, driver
+    settings in Builder, the conformance check, the guides, and the PLC
+    kit zip (`tools/pack-plc-kit.ps1`) with a sample driver tested
+    outside the repository. Left: `Sirius.Plc` as a NuGet package, if the
+    team would rather than `sdk\lib` (S).
+  - **F23f. Workflow loose ends** (S-M each), as use asks:
+    - the **Result Log** writing the part's values, and a screen's Value
+      widget showing one (PalletId);
+    - the **workflow editor**: renaming a node on the canvas, as Studio
+      does; each node's state lit while a Test Run runs; zoom to fit;
+    - **two Inspects at once** - within a pass they run one after the
+      other today;
+    - reading many addresses **in one exchange** (the default reads them
+      in turn), and a PLC's own subscriptions in place of polling;
+    - nodes for the **handshake** (Ready, Busy), **recipe change by
+      product code**, and a **timer** to start passes (runtime design
+      §9);
+    - one workflow driving **several PLCs**, if a sequence must span two;
+    - **digital I/O** cards, as a driver.
+
+### The runtime and HMI
+
+- **F2. The runtime design** (`runtime-design.md`) - the MVP of its
+  section 0 is built (decisions 65-71): published names, projects and
+  stations, screens and the screen designer, settings changed on the line,
+  Builder and Edge; and now its PLC (F23). Next on it: counts kept over a
+  stop (F4), user levels, records and upload to the Server. Still needed
+  from you, before records and upload:
+  - what Sirius Client, Interface and Server are written in, and their
+    protocols, and whether that code can be read;
+  - how the Server stores results and images;
+  - typical line speed and image size;
+  - what happens today when the Server cannot be reached.
+- ~~**F3. Signal out**~~ - done as F23: a verdict reaches the PLC.
+- **F4. Counts that survive a restart** (S-M). Counts start from zero
+  each session. Wanted by the runtime anyway.
+- **F20. Saved images and their annotations** - the runtime's half done
+  (decision 73, `annotation-format.md`): a station keeps none, failed or
+  all of its pictures, with a `.sann` beside each; **Sirius IV**
+  (`SiriusIV.exe`) browses them - file list, sorting, measuring, matching,
+  Sync View, a tab per viewer. Left:
+  - **F20a. The batch half** (S-M): Run Folder and `sirius-run.exe`
+    writing the same `.sann` beside each image they run.
+  - **F20b. Sirius IV, next panels** (M each): the annotations as a
+    table (shapes and their measurements, results), a row double-clicked
+    zooming to its shape, and exported as one CSV across the pictures
+    chosen (the old ICB's Export Features); layers switched on and off.
+  - **F20e. Matching on the part** (S-M) - **now possible**: matching by
+    name is done (12 November); since F23a a picture's `.sann` carries the
+    part's values (`"part": { "PalletId": 12 }`), so a match rule "same
+    part value" pairs two stations' pictures of one part, which no name
+    could.
+  - **F20c. A disk quota** (S-M), beside Keep for: when a size is reached,
+    oldest passes go first, then oldest failures (runtime design §8).
+  - **F20d. Failed and one pass in N** (S), the policy the runtime design
+    proposed beside none, failed and all.
+  - **F20f. Sirius IV loose ends** (S each): the viewers' arrangement
+    remembered between sessions; copy and move into class folders, and
+    the old ICB's measuring in mm, if wanted.
+
 ### Bit depth
 
 - ~~**F1. Real bit depth through the tools**~~ - done, 7 November 2026
@@ -72,180 +190,6 @@ from you before they start.
   new nodes.
 - ~~**F1b. Bits for Python nodes**~~ - done, 7 November 2026: `image.bits`,
   `image.max_value`, `with_bits()`; SDK file 1.1, packed in SDK 1.0.3.
-
-### The runtime, HMI and PLC
-
-- **F2. Write the runtime design document** (M, design only) - **draft
-  written 8 November 2026: `runtime-design.md`**, for review, with
-  proposals, phases and open questions (its section 12). **The MVP of
-  section 0 is built, 8-9 November 2026** (decisions 65-70): published
-  names, projects and stations, the station runner, screens with the
-  runtime program and Run as Runtime, the screen designer, and settings
-  changed on the line; then split into Sirius Builder (projects, screens)
-  and Sirius Edge (the runtime), Studio keeping recipes (decision 71).
-  Next on it: counts kept over a stop, user levels, then the PLC as
-  controllers (F23); later a shared UI library so the three can ship apart. The
-  fourteen ideas agreed on 1 November - recipe vs project, published
-  results and tunables, stations, the HMI designer, the runtime exe, PLC
-  handshake and drivers, licensing per machine, edge vs cloud - into
-  `docs/`, with the open questions, before any code. Needs from you:
-  - what Sirius Client, Interface and Server are written in, and their
-    protocols, and whether that code can be read;
-  - how the Server stores results and images;
-  - typical line speed and image size;
-  - what happens today when the Server cannot be reached.
-
-  Also in scope: **Sirius IV** (Image Viewer) as the runtime's image
-  browser - the station's saved images and their annotations (F20). Its
-  first version is built (decision 73).
-- ~~**F3. Signal out**~~ - replaced by F23 below: the PLC through
-  controllers, each a PLC and a workflow. Today a verdict
-  still reaches the status line and a CSV, and nothing outside the PC.
-- **F23. The PLC as controllers in a project** (L) - proposed 13 November
-  2026, shaped the same day (decision 74).
-
-  **The idea.** A Builder project holds **controllers** beside its
-  stations, listed in a panel under Stations. A controller is one PLC -
-  its brand, address and connection settings - and a **workflow**: a
-  graph of PLC nodes (watch a bit, read, write, gather values) that
-  decides when a station inspects and what goes back to the PLC.
-  Double-clicking a controller opens its workflow in a tab in Builder.
-  Edge runs the workflows beside the stations. Several PLCs on one
-  machine are several controllers.
-
-  **Who does what (agreed).** We build the whole framework here: the
-  workflow engine, the editor, the nodes, the driver interface, a
-  simulated PLC, a driver test kit and the first real drivers. Then the
-  PLC team gets it as a **start kit** and writes further brands' drivers
-  against it. Their prototype on NodeGraphKit - Connector, Monitor,
-  Read, Write and Trigger nodes, an S7-1200 connected - is the reference
-  for what the nodes must do. So a new brand is a driver: no new nodes,
-  no change to Builder. This replaces Sirius Interface, which was
-  written again for each customer.
-
-  **Names, not addresses** (runtime design §9): only the workflow knows
-  `DB34.20.0`. Stations, screens and records see named values - a
-  pallet ID, a position, a verdict.
-
-  **Design points, proposed:**
-  - **Events and values.** A workflow is not a recipe. A recipe runs once,
-    start to end, per picture; a workflow waits for things to happen. It
-    has two kinds of wire:
-    - **trigger** wires carry "now" from node to node;
-    - **value** wires carry what was read, taken when the trigger
-      arrives.
-
-    A node that starts things - Monitor (a bit's rising edge), Station
-    Result, a timer - starts a pass along the trigger wires. A
-    controller's passes run one at a time, in order, so a sequence
-    never meets itself halfway. Every node that waits has a timeout, and
-    a timeout is an alarm. The editor, file handling and node catalogue
-    are shared with recipes; only the running is new.
-  - **The connection belongs to the controller**, not to a node: brand,
-    address, rack/slot or unit ID, and poll interval are set in
-    Builder's Properties, with **Test Connection**. The nodes use their
-    controller's connection, so no Connector node, and each
-    controller's status (connected, last event, last error) is one
-    thing to show.
-  - **The file is ours**: `controllers/<name>.sflow`, JSON, starting
-    with `"format": "sirius-workflow", "version": 1`. As with `.sann`, a
-    reader ignores fields it does not know. The connection settings live
-    in the `.sproj`:
-    `"controllers": [{ "name": "Line 1 PLC", "driver": "siemens-s7", "address": "192.168.0.10", "workflow": "controllers/Line 1 PLC.sflow" }]`.
-  - **Addresses as text, typed.** Each driver parses its own brand's
-    address (`DB34.20.0`, `40001`, `D100`), and each node says the
-    type to read or write it as: bit, 16- or 32-bit integer, real or
-    text.
-
-  **The pieces, in order:**
-  - ~~**F23a. The engine and the nodes, with the simulated PLC**~~ - **done
-    13 November 2026** (decision 75): `src/Sirius.Plc`, 26 tests, no window
-    yet. The `.sann` key is `"part"`. Left from it: the Result Log node
-    does not yet write the part's values, and screens cannot show them -
-    with F23b-c. What was planned:
-    - **`IPlcDriver`**: connect and disconnect, connection state, read
-      and write a typed value at an address, read many in one call,
-      watch an address by polling (or the brand's own subscription), and
-      log lines;
-    - **a simulated PLC driver**: a memory map, for tests and the desk;
-    - **the workflow runner**: events, values, passes in order, timeouts;
-    - **the PLC nodes**: Monitor, Read, Write, Pulse, Wait For, and
-      Gather (named values into one record - their Trigger node);
-    - **the station nodes**: **Inspect** (a station by name, with named
-      values) and **Station Result** (verdict, PASS and FAIL, and
-      published results by name). They meet the stations through a
-      **station bus** in Edge: `Inspect(station, values)` returning the
-      result, and Ready and Finished events.
-    - **The part ID**: the values given to Inspect go with the picture,
-      into the `.sann` (a `"plc"` object), the Result Log and the
-      screen. This is what matching across two stations (F20e) waits
-      for.
-
-    All of it is tested without a window, against the simulator.
-  - ~~**F23b. Controllers in Builder**~~ - **done 13 November 2026**
-    (decision 76), with much of F23c: the runtime window runs the
-    controllers, so Edge does too. Left of F23c: a Controller widget for
-    screens, and alarms beyond the status line. What was planned (M): a
-    Controllers panel under
-    Stations, with add, rename and remove; the connection in Properties
-    with Test Connection; the workflow editor as a tab; a panel showing
-    the simulated PLC's memory, changed by hand; and Test Run running
-    the workflows with the stations. A workflow naming a station or
-    value the project lacks is reported when the project opens.
-  - **F23c. Workflows running in Edge** (M). Edge connects each
-    controller and runs its workflow. A **Controller** widget for
-    screens shows connected or not, the last event and the last error. A
-    lost connection is an alarm, and Edge reconnects by itself.
-  - **F23d. The first real drivers** (M each): **Siemens S7** first, as
-    the PLC team's prototype talks to one; then **Modbus TCP**, which
-    nearly every brand speaks. Both on **HslCommunication** (Enterprise
-    licence held, L5), which covers most brands, so further drivers are
-    thin. Each passes the driver test kit against a real PLC: types and
-    byte order, timeouts, a cable pulled and put back.
-  - **F23e. The start kit for the PLC team** (S-M) - **partly done 13
-    November 2026** (decision 77): the guides (`plc-drivers.md`,
-    `plc-workflows.md`), driver discovery in `plc-drivers\` folders with
-    the version check, driver settings in Builder, and the conformance
-    check (`PlcDriverCheck`); and the **PLC kit** zip
-    (`tools/pack-plc-kit.ps1`): Builder, `sdk\lib`, a sample driver with
-    its conformance tests, the guides. Left: `Sirius.Plc` as a NuGet
-    package. Planned, packed as the custom-node SDK is:
-    - the driver interface;
-    - a template driver project;
-    - the test kit, and the guide;
-    - the simulator, to test against.
-
-    They write Mitsubishi MC, Omron FINS, Rockwell EtherNet/IP, Beckhoff
-    ADS and OPC UA as customers need them. Drivers are DLLs in a
-    `plc-drivers` folder, found as C# custom nodes are. Interface 1.0,
-    kept stable as the node interface is.
-  - **Later**: one workflow driving several PLCs, if a sequence must span
-    two; the handshake's Ready and Busy, and recipe change by product
-    code, as nodes (runtime design §9); digital I/O cards as a driver.
-- **F4. Counts that survive a restart** (S-M). Counter starts from zero
-  each session. Wanted by the runtime anyway.
-- **F20. Saved images and their annotations** - the runtime's half done,
-  11 November 2026 (decision 73, `annotation-format.md`): a station keeps
-  none, failed or all of its pictures, as PNG, JPEG or BMP, in a day
-  folder, with a `.sann` file beside each - shapes in layers, one per
-  viewer, the verdict and the published results - chosen per station in
-  Builder; and **Sirius IV** (`SiriusIV.exe`) browses them. Left:
-  - **F20a. The batch half** (S-M): Run Folder and `sirius-run.exe`
-    writing the same `.sann` beside each image they run.
-  - **F20b. Sirius IV, next panels** (M each): the annotations as a
-    table (shapes and their measurements, results), a row double-clicked
-    zooming to its shape, and exported as one CSV across the pictures
-    chosen (the old ICB's Export Features, one `.xlsx` each); layers
-    switched on and off.
-  - **F20e. Matching pictures** - done 12 November 2026: groups of N down
-    the sorted list, names alike in their first N characters, or in the
-    part a pattern finds; with Sync View. Left: matching on a part ID
-    from the line (F23a), once stations save one - two stations' names
-    share no time or count to match on.
-  - **F20c. A disk quota** (S-M), beside Keep for: when a size is reached,
-    oldest passes go first, then oldest failures (runtime design §8).
-  - **F20d. Failed and one pass in N** (S), the policy the runtime design
-    proposed beside none, failed and all.
 
 ### Sub-graphs
 
