@@ -18,6 +18,7 @@ sdk\
 docs\
   plc-drivers.md        writing a driver - Siemens S7 on HslCommunication step by step
   plc-workflows.md      controllers, workflows, every node, patterns
+  overview.md           what each Sirius program is for, and how they fit together
 ```
 
 ---

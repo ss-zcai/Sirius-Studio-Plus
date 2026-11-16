@@ -179,6 +179,13 @@ Get-ChildItem $cppSample -File |
     Where-Object { $_.Extension -in '.obj', '.exp', '.lib', '.ilk' -or $_.Name -like 'vc*.pdb' } |
     Remove-Item -Force
 
+# ---- what to read first ------------------------------------------------------
+
+# The overview is the package's README: what each program is for. Beside it
+# the guides it points to that no program copies in by itself.
+Copy-Item 'docs/overview.md' (Join-Path $staging 'README.md')
+Copy-Item 'docs/overview.md', 'docs/annotation-format.md', 'docs/plc-workflows.md' (Join-Path $staging 'docs')
+
 # ---- check -----------------------------------------------------------------
 
 $required = @(
@@ -194,6 +201,10 @@ $required = @(
     'LICENSE-avalondock-mspl.txt'
     'docs/node-reference.md'
     'docs/release-notes.md'
+    'README.md'
+    'docs/overview.md'
+    'docs/annotation-format.md'
+    'docs/plc-workflows.md'
     'cvextern.dll'
     'Clipper2Lib.dll'
     'tessdata/eng.traineddata'

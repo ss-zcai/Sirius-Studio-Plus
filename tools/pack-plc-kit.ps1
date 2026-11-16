@@ -123,7 +123,7 @@ try {
 
     # ---- the guides ------------------------------------------------------------------
 
-    Copy-Item 'docs/plc-drivers.md', 'docs/plc-workflows.md' $docs
+    Copy-Item 'docs/plc-drivers.md', 'docs/plc-workflows.md', 'docs/overview.md' $docs
     Copy-Item 'docs/plc-kit-readme.md' (Join-Path $staging 'README.md')
 
     # ---- check -----------------------------------------------------------------------
