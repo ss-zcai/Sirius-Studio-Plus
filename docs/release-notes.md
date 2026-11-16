@@ -5,6 +5,121 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.12 — 16 November 2026
+
+A custom node's model file, taught again and saved under the same name,
+is now used at the next run - what the test team found with their
+template-matching node. Also new since 1.0.11: stations **save their
+pictures**, with what was found on each; **Sirius IV** to browse them;
+and **controllers** - a PLC, real or simulated, triggering the stations
+and told the result. Recipes and projects saved in 1.0.11 open
+unchanged. The custom node SDK is **1.0.4** (its guides).
+
+### What is in the folder now
+
+| | |
+|---|---|
+| `SiriusStudioPlus.exe` | **Sirius Studio**: builds and tunes recipes |
+| `SiriusBuilder.exe` | **Sirius Builder** (1.0.2): stations, controllers and the line's screen |
+| `SiriusEdge.exe` | **Sirius Edge**: runs a project on the machine - its controllers too |
+| `SiriusIV.exe` | **Sirius IV** (1.0.0, new): the pictures a station saved, and what was found on each |
+| `sirius-run.exe` | recipes over a folder of images, from a script |
+
+### What to try first
+
+> Your template-matching node: teach, save the model under **the same name**, Run
+
+The node runs again with the new model - no rename. If it still shows
+the old one, the node keeps its model where the application cannot
+reach it: see *For node authors* below.
+
+> Builder: a station ▸ **Image Saving…** ▸ Save: All. Test Run, trigger a few times.
+> Then the station ▸ **Browse Saved Images**.
+
+Sirius IV opens on the station's pictures, by day, each with PASS or
+FAIL and the shapes the recipe found drawn over it. Measure on one,
+**Save** - the measurements go into its `.sann` beside it.
+
+> Builder: **+ ▸ Add Controller**, then **Test Run** (F5)
+
+A simulated PLC opens beside the screen. Set **M0.0** to true in it:
+the station inspects, and M0.1 and M0.2 answer. Double-click the
+controller for its workflow.
+
+### New: a file saved over runs its node again
+
+- **A setting that is a file** - a model, a template, a calibration, an
+  Image File's picture - is watched. Saved over under the same name, made,
+  or removed, its node runs again at the next run or inspection, with
+  everything after it. Before, nothing had changed as far as the
+  application could tell, and the old result stayed until the file was
+  renamed.
+- **Python and C++ nodes**: a file setting declared with `reload` calls
+  `load()` again when the file is saved over, not only when its path
+  changes.
+- **A teaching node writing its own file** does not run itself again; a
+  matching node reading that file, not wired to it, gets the new model at
+  the run after the teaching.
+
+**For node authors (C#).** The setting's setter is called only when the
+*path* changes. A node that loads its model in the setter, or keeps it by
+path, goes on with the old one even when run again. Load it in `Run`, and
+again when the file's time or length changes - `docs\custom-nodes.md`
+§3.4 has the code to copy. And write a model whole: to a temporary file,
+then moved over the old one, so a run never reads half of it.
+
+### New: saved pictures and Sirius IV
+
+- **Each station keeps none, failed or all of its pictures** (Builder ▸
+  Station ▸ Image Saving), as PNG, JPEG or BMP, in a folder per day, for
+  as many days as set. Saving never slows the line, and stops - saying so
+  - below 1 GB free.
+- **Beside each, a `.sann`**: the station, time, verdict, the published
+  results, the shapes each viewer drew, and - from a PLC - the part's
+  values. `docs\annotation-format.md`.
+- **Sirius IV**: the folder's pictures listed by day, with type, time,
+  size and dimensions; search; sort by name, date, size, dimensions or
+  type; PASS / FAIL / ERROR; one, two, three, 2 × 2 or 3 × 3 viewers, each
+  a tab you can drag anywhere; measurements saved into the `.sann`.
+- **Match** (Ctrl+M) makes pictures into sets - in groups of N, by the
+  start of the name, or by a pattern (`^(.+)_cam\d+$`) - shown side by
+  side, a set to a step. **Sync** keeps the viewers zoomed and scrolled as
+  one, with a cross where the pointer is.
+
+### New: controllers - a PLC
+
+- **A project holds controllers** beside its stations, in one **Project**
+  panel: a PLC each, and a **workflow** that watches it, reads it, has
+  stations inspect and writes back. A new controller starts with a
+  simulated PLC and a workflow that works as it is.
+- **The workflow** is built on Studio's canvas from PLC Monitor, Read,
+  Write, Pulse, Wait For, Gather, Inspect, Station Result and Result
+  Value - from the **Nodes** panel, set in **Properties**.
+- **The PLC window** (right-click a controller ▸ PLC…): Test Connection;
+  read or write any address as a bit, INT, DINT, REAL or text; and a
+  simulated PLC's memory, a bit flipped with a click.
+- **Test Run and Edge run the controllers**, reconnecting by themselves;
+  Test Run opens each simulated PLC beside the screen.
+- **Only the simulated PLC so far.** Siemens S7 and Modbus drivers come
+  next; the PLC team has a kit to write them (`docs\plc-drivers.md`).
+
+### Changed: Builder
+
+- **One toolbar** acts on the tab in front - the screen or a workflow -
+  and **File ▸ Save All** saves both. Closing asks about every unsaved
+  workflow, not only the screen.
+- **Double-click a station** to see the screen; right-click it to open
+  its recipe in Studio.
+
+### Known issues
+
+- Renaming a station leaves workflows naming it behind; the workflow's
+  check line says which. Choose the station again in the node.
+- One test of two Hikrobot cameras at once fails now and then on a busy
+  PC; it passes run again.
+
+---
+
 ## 1.0.11 — 11 November 2026
 
 Three programs instead of one - Studio for recipes, **Builder** for a

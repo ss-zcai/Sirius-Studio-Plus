@@ -52,10 +52,9 @@ is in `licences.md`**; this is the list.
 - ~~**N1. Pack 1.0.10**~~ - done, 6 November 2026.
 - ~~**N2. Test with real cameras**~~ - done, 7 November 2026.
 - ~~**N6. Pack 1.0.11 and SDK 1.0.3**~~ - done, 11 November 2026.
-- **N7. Pack 1.0.12** (S). Since 1.0.11: Sirius IV's file list, sorting,
-  matching, Sync View and viewer tabs; controllers in Builder and Edge;
-  the Project panel and one toolbar for the tab in front. Release notes
-  to write. The PLC kit is packed on its own (`pack-plc-kit.ps1`, 1.0.0).
+- ~~**N7. Pack 1.0.12**~~ - done, 16 November 2026, with SDK 1.0.4: the
+  custom node fix the test team asked for, saved pictures and Sirius IV,
+  controllers. The PLC kit is packed on its own (`pack-plc-kit.ps1`, 1.0.0).
 - **N3. Icons** - mostly settled. The four that had no SVG
   (`ph_find_curve`, `ph_lens_calibration`, `ph_line_defects`,
   `ph_undistort`) have one now, so regenerating `Themes/Icons.xaml` is

@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands. **1.0.11** is the latest package (11 November
+Where the product stands. **1.0.12** is the latest package (16 November
 2026). What could come next, in a proposed
 order, is in **`backlog.md`** - this page is what is done, and the one
 thing that blocks shipping.
@@ -25,17 +25,17 @@ same time: backlog items L1-L6, all set out in `licences.md`.
 
 ---
 
-## New in 1.0.11
+## New in 1.0.12
 
-- **Three programs.** Sirius Studio builds recipes; **Sirius Builder**
-  builds a project - stations and the line's screen; **Sirius Edge** runs
-  it on the machine. Decisions 68 to 71, and `runtime-design.md`.
-- **Real bit depth.** Images carry how many bits they use, and level
-  settings run to the image's own top - 4095 for 12-bit. Decision 64.
-- **Custom nodes in C++**, in the application's process, with their
-  faults caught. Decision 72 and `cpp-nodes.md`. SDK 1.0.3.
-- **Rotate and Mirror**, and **Resize to a size in pixels**.
-- **Label** has no mark at its point, and a choice of anchor.
+- **A file saved over runs its node again**: a model taught again and
+  saved under the same name is used at the next run. Decision 78.
+- **Stations save their pictures**, with a `.sann` beside each, and
+  **Sirius IV** browses them - sorting, measuring, matching, Sync View.
+  Decision 73.
+- **Controllers**: a PLC, simulated so far, and its workflow, in Builder's
+  Project panel; run by Test Run and Edge. Decisions 74-76. The PLC team
+  has a kit to write the real drivers (decision 77).
+- **Builder**: one toolbar for the tab in front, Save All.
 
 ---
 
@@ -88,7 +88,7 @@ earlier designs, including `Sirius Stu`, are no longer used.
 tests, regenerates the node reference, checks the licence notices,
 camera APIs and other required files are in it, and refuses to write one
 whose stamped version disagrees with its name. `tools/pack-sdk.ps1` packs
-the custom node SDK (1.0.3) and proves its sample builds from the package
+the custom node SDK (1.0.4) and proves its sample builds from the package
 alone.
 
 ### The viewer
@@ -203,7 +203,7 @@ backlog N2.
 
 - **Sub-graphs**, first version: a node holding a graph of its own,
   opened in a tab, with Graph Input and Graph Output as its sockets.
-- **Custom nodes in C#** (interface 1.0, SDK 1.0.3), **in Python**,
+- **Custom nodes in C#** (interface 1.0, SDK 1.0.4), **in Python**,
   each Python library in its own process and environment, and **in
   C++** (11 November 2026), a native DLL in the application's process
   with its faults caught at the boundary. See `custom-nodes.md`,

@@ -31,9 +31,9 @@
       added the C++ SDK and its sample, and an image's bits for Python
       nodes - again beside this assembly, not in it.
     -->
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.3.0</FileVersion>
+    <FileVersion>1.0.4.0</FileVersion>
 
     <!-- The package other teams reference. tools/pack-sdk.ps1 builds it. -->
     <PackageId>Sirius.Plugins</PackageId>
