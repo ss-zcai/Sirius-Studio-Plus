@@ -219,7 +219,14 @@ go beside it, or their folder goes in a `sirius.json` beside it;
 - **Handle every sample type you accept.** A frame can be 8-bit, 16-bit or
   float, in either language. Handle it, or warn and pass the image through.
 - **Python and C++: load models in `load()`, not in `run()`.** `load()`
-  runs once; `run()` runs for every image.
+  runs once; `run()` runs for every image. Declare the model's file
+  setting with `reload` (`reload=True` / `.reload()`): `load()` then runs
+  again when it changes - a new path, or the same file saved over by a
+  new teach.
+- **C#: read a model file in `Run`, keyed by its time and length** - not
+  in the setting's setter, not kept by its path. A `FilePath` setting's
+  file saved over under the same name runs the node again, but its setter
+  is not called again (`custom-nodes.md` §3.4).
 - **C++: an input image is read-only, and stops being valid when `run()`
   returns.** It is the application's own memory. `clone()` it to change it
   or to keep it. Writing to it corrupts what other nodes are reading.

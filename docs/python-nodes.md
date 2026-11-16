@@ -145,7 +145,9 @@ Setting.file(label, default, filter="ONNX (*.onnx)|*.onnx")
 
 All take `description=` (the tooltip) and `group=` (a heading in the
 properties panel). `reload=True` calls `load()` again when it changes - for
-a model path, a device. `connectable=True` (number, integer, bool, text)
+a model path, a device. For a `Setting.file`, *changes* includes the file
+itself saved over under the same name: a model taught again is loaded
+again at the next run, with no rename needed. `connectable=True` (number, integer, bool, text)
 gives the setting an input as well, so another node can drive it.
 
 They are saved in the recipe by name: renaming one loses saved values.

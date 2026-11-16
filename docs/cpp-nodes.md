@@ -213,7 +213,9 @@ d.setting_file("model", "Model", "ONNX (*.onnx)|*.onnx").reload();
 `.description(...)` is the tooltip; `.group(...)` the heading it is listed
 under; `.connectable()` gives the setting an input as well, so another node
 can drive it; `.logarithmic()` a slider that gives each power of ten the
-same travel; `.reload()` calls `load()` again when it changes.
+same travel; `.reload()` calls `load()` again when it changes - and, for
+a `setting_file`, when the file is saved over under the same name, so a
+model taught again is loaded again at the next run.
 
 They are saved in the recipe by name: renaming one loses saved values.
 

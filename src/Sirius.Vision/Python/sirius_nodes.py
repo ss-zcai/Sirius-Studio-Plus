@@ -40,6 +40,7 @@ image in keeps its bits; say otherwise with with_bits(result, 16).
 """
 
 import math
+import os
 import re
 
 __version__ = "1.1"
@@ -667,6 +668,21 @@ def nodes():
 
 # ---- running ------------------------------------------------------------------
 
+def _reload_value(setting, value):
+    """
+    What load() is told apart by, for one reload=True setting: its value -
+    and, for a file, when it was last written and how long it is, so a
+    model saved over under the same name is loaded again.
+    """
+    if setting.kind == "file" and isinstance(value, str) and value:
+        try:
+            stat = os.stat(value)
+            return (value, stat.st_mtime_ns, stat.st_size)
+        except OSError:
+            return (value, None, None)
+    return value
+
+
 class NodeRunner:
     """
     One node on a canvas: its object, loaded once, run many times.
@@ -699,7 +715,8 @@ class NodeRunner:
         for setting in spec.settings:
             setattr(self.obj, setting.name, setting._coerce(settings.get(setting.name)))
 
-        reload_key = tuple(getattr(self.obj, setting.name) for setting in spec.settings if setting.reload)
+        reload_key = tuple(
+            _reload_value(setting, getattr(self.obj, setting.name)) for setting in spec.settings if setting.reload)
         if self.loaded_with != reload_key:
             self.loaded_with = None
             self.stage = "load"

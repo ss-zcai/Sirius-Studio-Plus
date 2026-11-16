@@ -61,6 +61,9 @@ public sealed class GraphScheduler : IDisposable
     private readonly VisionGraph _graph;
     private readonly Dictionary<OutputPort, PortValue> _cache = new();
     private readonly HashSet<VisionNode> _dirty = new();
+
+    /// <summary>The files each node's settings name, as they were when it last ran.</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<VisionNode, IReadOnlyDictionary<string, (DateTime Written, long Length)>> _fileStamps = new();
     private readonly SynchronizationContext? _uiContext;
     private bool _disposed;
     private int _running;
@@ -234,6 +237,8 @@ public sealed class GraphScheduler : IDisposable
         foreach (var host in plan.OfType<ISubGraphHost>())
             host.Plan(_uiContext);
 
+        MarkChangedFiles();
+
         if (inspection)
             MarkInspectionNodes();
 
@@ -296,6 +301,8 @@ public sealed class GraphScheduler : IDisposable
             if (_plan is null && _planError is null)
                 Plan();
 
+            MarkChangedFiles();
+
             if (inspection)
                 MarkInspectionNodes();
 
@@ -317,6 +324,22 @@ public sealed class GraphScheduler : IDisposable
     {
         foreach (var node in _graph.Nodes.Where(ActsOnInspection).ToArray())
             Invalidate(node);
+    }
+
+    /// <summary>
+    /// Every node a file it reads has changed under - saved over, made,
+    /// removed - since it last ran, made stale with what depends on it
+    /// (<see cref="FileStamps"/>).
+    /// </summary>
+    private void MarkChangedFiles()
+    {
+        foreach (var (node, taken) in _fileStamps.ToArray())
+        {
+            if (!_graph.Nodes.Contains(node))
+                _fileStamps.TryRemove(node, out _);
+            else if (FileStamps.Changed(node, taken))
+                Invalidate(node);
+        }
     }
 
     private static bool ActsOnInspection(VisionNode node) =>
@@ -352,6 +375,9 @@ public sealed class GraphScheduler : IDisposable
                 cancelled = true;
                 break;
             }
+
+            // After it ran, so a node writing the file it names does not set itself off again.
+            _fileStamps[node] = FileStamps.Take(node);
 
             // Cleared only on completion, so a cancelled pass leaves the
             // remaining nodes dirty for the next one.

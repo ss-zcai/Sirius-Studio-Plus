@@ -270,6 +270,53 @@ property still holds it where it was drawn. Read straight from the property
 while a reference is wired, the region stays put and the node warns that it
 does not follow.
 
+**A file a node reads - a taught model, a template, a calibration - is
+read in `Run`, and read again when it changes.** A setting with
+`Editor = SettingEditor.FilePath` is a file the application watches: when
+the file is saved over, under the same name, the node runs again at the
+next run or inspection, even with nothing else changed. But the setting's
+*value* - the path - has not changed, so its setter is not called again.
+A node that loads its model in the setter, or keeps it by path, goes on
+using the old one. Keep it by the file's time and length instead:
+
+```csharp
+private Model? _model;
+private (string Path, DateTime Written, long Length) _loadedFrom;
+
+[Setting("Model", Editor = SettingEditor.FilePath, Filter = "Model (*.model)|*.model")]
+public string ModelPath { get; set; } = "";
+
+public void Run(IRunContext context)
+{
+    var file = new FileInfo(ModelPath);
+
+    if (!file.Exists)
+    {
+        context.Warn($"No model at {ModelPath}: teach one first.");
+        return;
+    }
+
+    // Loaded again when the file is - a model taught again, saved under the same name.
+    var now = (file.FullName, file.LastWriteTimeUtc, file.Length);
+
+    if (_model is null || now != _loadedFrom)
+    {
+        _model?.Dispose();
+        _model = Model.Load(file.FullName);
+        _loadedFrom = now;
+    }
+
+    // ... match with _model ...
+}
+```
+
+Whatever **writes** the model - a teaching node, a tool of your own -
+writes it whole: to a temporary file beside it, then
+`File.Move(temporary, path, overwrite: true)`, so a run never reads half a
+model. A teaching node writing the file its own setting names does not
+set itself off again; a matching node reading that file runs with the new
+model at the next run.
+
 ### 3.5 Coming from Python and NumPy
 
 Most algorithms being migrated were written against NumPy and

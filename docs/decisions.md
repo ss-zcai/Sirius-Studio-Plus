@@ -3117,3 +3117,37 @@ built first.
   HSL's, the activation code from the machine rather than the source.
   Not built yet: it needs the HslCommunication package, and a PLC to check
   it against (F23d).
+
+## 78. A file saved over under the same name runs its node again
+
+Reported on 16 November 2026 by the test team, writing a template-matching
+custom node: the model is taught into a file; taught again and saved over
+under the same name, matching went on with the old model until the file
+was renamed.
+
+Two causes, one ours and one the node's:
+
+- **The engine re-ran a node only when a setting or something upstream
+  changed** - a file on disk is neither. A node fed by an Image File, or
+  a matching node not wired to the teaching one, was never run again.
+  Renaming the file changed a setting, which is why that worked.
+- **A setting's setter runs only when its value changes.** A node loading
+  its model in the setter, or keeping it by path, kept the old one even
+  when run.
+
+**Built:** every setting edited as a file path (`ParamEditor.FilePath`) -
+built-in nodes', C# and Python custom nodes' - is a file the scheduler
+watches, by last-write time and length, read just after the node runs.
+Before each run or inspection, a node whose file has changed since - saved
+over, made, removed - is run again, with everything after it. Read after
+the node runs, so a node writing the file it names does not set itself
+off; settings a node writes (`SaveFile`: a log, saved pictures) are left
+out. Python's and C++'s `reload` settings count a file saved over as a
+change, so `load()` runs again. Image File re-reads a picture replaced on
+disk, for the same reason.
+
+**For C# node authors**, in `custom-nodes.md` §3.4: read the file in
+`Run`, keyed by its time and length, not in the setter; write it whole,
+through a temporary file. A matching node not wired to the teaching one
+gets the new model at the run after the teaching - the scheduler learns of
+the file when it has been written.

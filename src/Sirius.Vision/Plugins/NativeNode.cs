@@ -194,6 +194,23 @@ public sealed class NativeNode : VisionNode, IParameterChoices
         Invalidate();
     }
 
+    /// <summary>A file setting's value with when the file was last written and its length; any other, as it is.</summary>
+    private static object FileIdentity(PythonSetting setting, object value)
+    {
+        if (setting.Kind != "file" || value is not string { Length: > 0 } path)
+            return value;
+
+        try
+        {
+            var file = new FileInfo(path);
+            return file.Exists ? $"{path}|{file.LastWriteTimeUtc.Ticks}|{file.Length}" : $"{path}|missing";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return value;
+        }
+    }
+
     protected override unsafe void OnEvaluate(EvalContext context)
     {
         var library = Type.Library;
@@ -208,10 +225,11 @@ public sealed class NativeNode : VisionNode, IParameterChoices
             var host = run.Host();
 
             // What load() was last given. A change to any of it - typed, or
-            // arriving on a wire - is a different model to load.
+            // arriving on a wire - is a different model to load; and so is a
+            // file saved over under the same name: a model taught again.
             var loadWith = Type.Settings
                 .Where(setting => Type.Reloading.Contains(setting.Name))
-                .Select(run.Resolve)
+                .Select(setting => FileIdentity(setting, run.Resolve(setting)))
                 .ToArray();
 
             if (_loadedWith is null || !loadWith.SequenceEqual(_loadedWith))
