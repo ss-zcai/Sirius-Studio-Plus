@@ -498,14 +498,19 @@ public sealed class ScreenDesignerTests : IDisposable
             {
                 Assert.Equal("About Sirius Builder", about.Title);
                 Assert.Equal("Sirius Builder", about.ProductText.Text);
-                Assert.Equal("version 1.0.1", about.VersionText.Text);
+                // Builder's own version, from its project file - not Studio's, and not written here twice.
+                var builderVersion = typeof(Sirius.Builder.BuilderWindow).Assembly
+                    .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                    .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+                    .Single().InformationalVersion.Split('+')[0];
+                Assert.Equal($"version {builderVersion}", about.VersionText.Text);
                 Assert.Same(System.Windows.Application.Current!.FindResource("Icon.SiriusBuilder"), about.LogoImage.Source);
 
                 // Studio's own is unchanged.
                 var studio = new Sirius.Studio.App.AboutWindow();
                 Assert.Equal("About Sirius Studio Plus", studio.Title);
                 Assert.Equal("Sirius Studio Plus", studio.ProductText.Text);
-                Assert.NotEqual("version 1.0.1", studio.VersionText.Text);
+                Assert.NotEqual($"version {builderVersion}", studio.VersionText.Text);
                 studio.Close();
 
                 var menu = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Sirius.Builder", "BuilderWindow.xaml"));
