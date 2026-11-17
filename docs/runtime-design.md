@@ -9,7 +9,8 @@ Marked **Agreed** where it was settled in discussion, **Proposed** where it
 is mine to argue for, **Open** where it needs an answer from you.
 
 **Start with section 0**, the MVP agreed on 8 November. Sections 1-13 are
-the longer view it must not close doors on.
+the longer view it must not close doors on; section 14 (17 November) is
+parts of several pictures, and speed.
 
 **Three programs (decision 71, 9 November 2026).** What section 0 first
 put in Studio is now apart from it:
@@ -252,7 +253,8 @@ The project holds a *list* of stations from day one; the MVP shows one.
 ```
 
 **Proposed: one inspection at a time per station**, as the scheduler works
-today. Stations run in parallel with each other.
+today. Stations run in parallel with each other. (For speed, section 14.3:
+acquisition out of the recipe, and several recipe instances per station.)
 
 **Proposed: frames are a set from day one.** Acquisition hands the engine
 a *frame set* - one frame today - so several images per trigger (several
@@ -567,3 +569,249 @@ A proposal; each phase usable on its own.
    trigger into one inspection; several cameras per station; engines
    behind a network boundary (GPU nodes on the Server); the remaining PLC
    drivers.
+
+---
+
+## 14. Parts, shots and throughput
+
+Discussed 17 November 2026. **No code; nothing to change yet.** Agreed
+order: **a single picture per part, through the PLC, solid first**, then
+several pictures per part, then speed. Backlog F25-F28.
+
+This section builds on section 5 (frame sets, missed parts never silent,
+a result deadline) and section 9 (the handshake, hardware triggers). Where
+it says otherwise, it supersedes them.
+
+### 14.1 The part
+
+Today the unit is the **inspection**: a station's counts, its PASS / FAIL
+widget and each saved picture are per picture. On a line the unit is the
+**part**, and it can take several pictures - and, at speed, a part's
+result arrives after the next part's picture has been taken. Both cases
+need the part as a thing of its own.
+
+**Proposed: a part record.**
+
+| Field | |
+|---|---|
+| Part ID | from the PLC (a value Gather read), or the frame number when nothing gives one |
+| Shots | each inspection of it: station, shot number, frame number, verdict, published values, picture |
+| Verdict | combined from the shots: passed if every shot passed, else the worst grade |
+| Timing | triggered, taken, judged, returned to the PLC; late or not |
+| Settings | which version of the line settings judged it (14.3) |
+
+- A **single-picture part is a part with one shot**, so defining the
+  record now costs nothing extra and makes several shots a count, not a
+  redesign.
+- **Part counts** (total, passed, failed, late, not inspected) come from
+  the controller and belong on the screen beside, or instead of, the
+  station's picture counts. They are what F4 should keep over a restart.
+- Each picture's `.sann` already carries `part` (the values Gather read);
+  it gains the **shot** and **frame** numbers, so Sirius IV can put a
+  part's pictures side by side (F20e).
+
+### 14.2 Several shots per part
+
+A typical sequence: the PLC triggers shot 1, vision inspects and answers
+(an interim result, or only "picture taken, you may move"), the PLC
+moves the part or the camera and triggers shot 2, and vision combines
+the two and returns the part's result.
+
+**Most of it is expressible today**, as one workflow pass that waits
+partway:
+
+```
+PLC Monitor M0.0 rising --> Inspect (shot 1) --> Write M0.1 <- interim
+                                             --> Wait For M0.4 = true (timeout 30 s)
+                                                    --> Inspect (shot 2)
+                                                          --> Combine --> Write M0.5 <- part result
+                                                                      --> Pulse M0.6  (done)
+                         Timed Out / Failed --> Write M0.7 <- sequence error
+```
+
+- **Wait For** already waits up to ten minutes, enough for a robot.
+- **One pass at a time** is the right rule here: a pass is one part's
+  whole sequence, and the next part's first trigger waits its turn.
+- **Gather** reads the part number once; it goes with both pictures.
+
+**Proposed, to build:**
+
+- **Combine** (workflow node): the shots' verdicts into the part's -
+  all passed, or the worst grade - and their values carried through.
+- **Calculate** (workflow node): simple arithmetic across shots - a
+  length from an edge in shot 1 and one in shot 2, both calibrated to
+  the same coordinates - so recipes stay without memory between
+  triggers.
+- **Part Value** (recipe node): reads a value the workflow gave the
+  inspection - a shot number, a product code - so one recipe can judge
+  each shot differently, switching on it. The same node serves recipe
+  change by product code (section 9).
+- **A two-shot starter workflow**, with the sequence rules wired, so they
+  are seen rather than discovered:
+
+  | What happens | Proposed default |
+  |---|---|
+  | Shot 2's trigger never comes | the part is a sequence error, after the Wait For's timeout |
+  | Shot 1's trigger comes again while waiting for shot 2 | the part is abandoned as a sequence error; the new trigger starts the next |
+  | Shot 1 fails | shot 2 is still taken - the PLC's sequence stays the same - and the part fails |
+  | A station cannot inspect | the part is not inspected, which the PLC treats as a reject |
+
+- **Screen widgets**: the part's verdict and counts (from the controller),
+  and an image viewer for a station's picture of a given shot.
+
+**Later, only if a real job needs it:**
+
+- **A recipe judging several pictures together** - stitching, or one
+  measurement across two fields of view. The station collects the shots
+  of a part into the frame set of section 5 and runs once on the last.
+  That gives the station memory across triggers, with resets, timeouts
+  and parts mixed up to handle; most multi-shot jobs are each view judged
+  on its own, or arithmetic across them, which the above covers.
+- **Two stations sharing one camera**, one per position with recipes of
+  their own. Each station holds its camera open today, so they would have
+  to take turns. Part Value covers the same need with one station.
+
+### 14.3 Throughput: taking the next picture before the last is judged
+
+At speed, the camera takes a picture, the part moves on, the next picture
+is taken - and the first part's result only has to reach the PLC before
+the part reaches the reject station. Two numbers decide what is needed:
+the **cycle** (time between parts) and the **deadline** (time from the
+picture to the reject station).
+
+| | Needed |
+|---|---|
+| processing < cycle | **Pipelining**: the next picture is taken while this one is judged. One worker. |
+| cycle < processing < deadline | **Several workers**: N instances of the recipe judging parts side by side, N at least processing / cycle, with a margin |
+| processing > deadline | No threading helps: a faster recipe or PC, a GPU, or the reject station further away |
+
+Judged on the **worst** processing time (the 99th percentile), not the
+average: a part late once an hour is a fault.
+
+**Today:** the Camera node is inside the recipe and grabs when it runs, so
+a station's cycle is grab plus processing; a station judges one picture at
+a time with one recipe instance; its pictures are valid until its next
+inspection starts; and within an inspection the nodes run one after
+another.
+
+**Proposed:**
+
+```
+camera --> acquisition --> frame queue --> worker 1 (recipe instance) --+
+           frame no., time,  (bounded)  --> worker 2 (recipe instance) --+--> results by part ID --> PLC, on time or reject
+           part ID, deadline            --> worker N                   --+                       --> screen, pictures, records
+```
+
+1. **Acquisition out of the recipe.** The station owns the camera and runs
+   its own grab loop, stamping each frame with a frame number, time, part
+   ID and deadline. In a station the recipe's Camera node becomes "this
+   frame"; in Studio it grabs as now. Everything else rests on this.
+2. **Workers are separate recipe instances**, the recipe loaded N times,
+   each with its own scheduler: a graph holds state (cached outputs,
+   loaded models, counters) and cannot be shared between threads.
+3. **Every result carries its part ID**, since results finish out of
+   order. The PLC's own tracking (shift register, encoder) matches it to
+   the part; the PLC owns the reject timing.
+4. **Fail-safe deadlines**, as section 5 proposed: no result by the
+   deadline is a reject, counted as late. A full queue drops the frame
+   and rejects the part - it never blocks the camera, which would lose
+   parts silently. Late, dropped and not inspected are counts on the
+   screen.
+
+**What makes several instances hard:**
+
+- **Nodes with state** - Result Log, counters, Image Sequence's position,
+  teaching. Logs and records move out of the recipe to one collector per
+  station, written in order. Nodes are marked safe or not to run in
+  parallel instances; a recipe with one that is not runs with one worker,
+  and says why.
+- **Custom nodes.** C#: each instance has its own node objects - fine
+  unless the author kept something static. Python: a worker process per
+  instance, so N times the memory. C++: one DLL, node objects per
+  instance. The SDKs gain a "may run in parallel instances" declaration.
+- **Settings changed on the line** reach every instance between frames,
+  so a part is judged with one consistent set; the set's version goes in
+  the part record.
+- **Memory**: models, templates and image buffers N times; the camera's
+  buffers at least N plus the queue.
+- **CPU**: OpenCV already threads within a call; N workers on top of that
+  oversubscribe. The worker count follows the cores, with OpenCV's
+  threads per worker capped.
+- **The screen** already draws at its own pace; with N workers it shows
+  the latest result, never every one.
+
+**Also, separately:** running a recipe's **independent branches in
+parallel** within one inspection shortens the time to a result (latency)
+but not the parts per second (throughput) - useful when the deadline is
+tight. An engine change of its own.
+
+**Proposed, for Studio:** Run Folder with N workers, reporting parts per
+second and the worst processing time, so a recipe can be checked against
+a line's numbers before it goes on the machine.
+
+**To learn from:** Sirius Client and MS already separate taking pictures
+(Client) from judging them (MS). How they handle queues, late results
+and part IDs is worth asking before this is built.
+
+### 14.4 The hardware trigger - a later stage
+
+Agreed 17 November 2026: **later**. Until then the PLC triggers by a bit.
+
+**Already there:**
+
+- The **Camera node's Hardware trigger** waits for a pulse on the camera's
+  own input. A station running continuously with it set inspects each
+  part as the sensor fires, with no PLC bit in between.
+- A workflow can start from **Station Result** rather than a PLC bit:
+  the station finishes, the workflow writes the result.
+
+**Missing:**
+
+- **Matching a picture to its part.** With a bit, the workflow reads the
+  part number before it triggers; with a hardware trigger nothing tells
+  vision which part it was. The result carries a frame number the PLC
+  can match, or a part number read as close to the trigger as possible -
+  a choice to make with the PLC team.
+- **A lost trigger noticed.** Counts of triggers, frames and results kept
+  in step, a mismatch raised as an alarm.
+- **Pipelining** (14.3): a hardware-triggered camera fires at line speed
+  whether or not the last picture has been judged.
+
+**Meanwhile**, triggering by bit: the PLC Monitor reads the bit every
+**Poll Interval** (20 ms by default), so a part waits up to one interval,
+plus the PLC's scan, before its picture is taken. On an indexing machine,
+where the part stops under the camera, that does not matter. In
+continuous motion it varies from part to part, so the part is not in the
+same place in every picture; the poll interval is the first thing to
+shorten, and the hardware trigger the cure.
+
+### 14.5 Order
+
+1. **With the single picture (F25)** - the part record and part counts; a
+   frame and part ID on every result, `.sann` and PLC write; the
+   processing time shown, average and worst; a deadline per station, no
+   result a reject, a count of late ones; the handshake (Ready, Busy)
+   and error codes to the PLC.
+2. **Several shots (F26)** - Combine, Calculate, Part Value, the two-shot
+   starter workflow and its sequence rules, the part's widgets.
+3. **Pipelining, then workers (F27)** - acquisition out of the recipe
+   with one worker first, which has none of the parallel-state problems;
+   then N workers, the parallel-safe marking, logs moved to the station,
+   settings versioned per instance, a Workers setting per station (1 by
+   default), and Run Folder with N workers in Studio.
+4. **The hardware trigger (F28)** - part matching, trigger and frame
+   counts, on top of 3.
+
+### 14.6 Questions, to size it
+
+1. Parts per minute, recipe processing time, and the time from the camera
+   to the reject station, for the fastest line expected. (Question 6, in
+   these terms.)
+2. Several pictures per part: usually one camera at several positions
+   (robot, axis), or several cameras? How many shots?
+3. What does the PLC want between shots - only "picture taken, move on",
+   or a pass or fail per shot?
+4. How does the PLC track parts to the rejector - shift register, encoder
+   counts, something else - and is there an encoder?
+5. How did Sirius Interface do multi-shot sequences for customers? Is
+   there a project whose signal list we could start from?

@@ -6,7 +6,8 @@ where the product stands; this says what could come next. Updated
 
 **Since 1.0.12** (17 November): **several screens** - pages and popups,
 opened by buttons, each designed in a tab of its own in Builder (F24,
-decision 79).
+decision 79). Designed, not built: **parts of several pictures, and
+speed** - F25-F28, `runtime-design.md` section 14.
 
 **Since the last update** (11-13 November): Sirius IV gained its file
 list, sorting, matching and Sync View, and a tab per viewer; the PLC
@@ -196,6 +197,53 @@ from you before they start.
   - **F20f. Sirius IV loose ends** (S each): the viewers' arrangement
     remembered between sessions; copy and move into class folders, and
     the old ICB's measuring in mm, if wanted.
+
+### Parts, shots and throughput
+
+Designed 17 November 2026 in `runtime-design.md` section 14; nothing
+built. Agreed order: **a single picture per part, through the PLC, solid
+first**, then several pictures per part, then speed; the hardware trigger
+at a later stage. Its questions (section 14.6) - line speeds, shots per
+part, how the PLC tracks parts - size F26-F28.
+
+- **F25. The part, with the single picture** (M) - **next, with the
+  single-picture work**. A part record - part ID, its shots, the
+  combined verdict, timing, the settings that judged it - and part counts
+  from the controller (total, passed, failed, late, not inspected), on
+  the screen and kept with F4. A frame and part ID on every result,
+  `.sann` and PLC write. Processing time on screen, average and worst. A
+  deadline per station: no result in time is a reject, counted as late
+  (section 5). The handshake (Ready, Busy) and error codes to the PLC.
+  A single-picture part is a part of one shot, so F26 adds shots, not a
+  redesign.
+- **F26. Several shots per part** (M-L) - after F25. A workflow already
+  waits between triggers (Wait For) and runs one part's sequence as one
+  pass. To build: **Combine** (the shots' verdicts into the part's) and
+  **Calculate** (arithmetic across shots) for workflows; **Part Value**
+  for recipes, so one recipe judges each shot differently - and recipe
+  change by product code with it; a two-shot starter workflow with its
+  sequence rules wired (a trigger missing, repeated, a shot failed);
+  widgets for the part's verdict and a shot's picture. Later, only if a
+  job needs it: a recipe judging several pictures together (stitching),
+  and two stations sharing a camera.
+- **F27. Taking the next picture before the last is judged** (L) - after
+  F26, when a line needs it. First **pipelining**: acquisition out of the
+  recipe into the station's own grab loop and a bounded frame queue, with
+  one worker. Then **several workers** - the recipe loaded N times -
+  with results tagged by part ID, nodes marked safe or not for parallel
+  instances, logs and records moved to one collector per station,
+  settings versioned across instances, OpenCV's threads capped, and a
+  Workers setting per station. Run Folder with N workers in Studio, to
+  check a recipe against a line's numbers. Separately, independent
+  branches of one inspection run in parallel, for latency (M).
+- **F28. The hardware trigger** (M) - a later stage, agreed 17 November.
+  The Camera node's Hardware trigger, and workflows started by Station
+  Result, already work. To build: matching a picture to its part (a frame
+  number the PLC matches, or a part number read at the trigger - to
+  settle with the PLC team), counts of triggers, frames and results kept
+  in step with a mismatch raised as an alarm; on top of F27's pipelining.
+  Until then, the PLC Monitor's Poll Interval (20 ms by default) is the
+  knob for timing.
 
 ### Bit depth
 
