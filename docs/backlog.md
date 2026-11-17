@@ -4,19 +4,36 @@ What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
 17 November 2026.
 
-**Since 1.0.12** (17 November): **several screens** - pages and popups,
-opened by buttons, each designed in a tab of its own in Builder (F24,
-decision 79). Designed, not built: **parts of several pictures, and
-speed** - F25-F28, `runtime-design.md` section 14; and **cameras as a
-unit of the project** - F29, section 15.
+**Since the last update** (14-17 November):
 
-**Since the last update** (11-13 November): Sirius IV gained its file
-list, sorting, matching and Sync View, and a tab per viewer; the PLC
-arrived as **controllers** in a project - the workflow engine, Builder's
-editor and PLC window, the simulated PLC, controllers running in Test Run
-and Edge (F23a-c, decisions 74-76); and the **PLC kit** went to the PLC
-team: Builder, the driver SDK, a sample driver and the guides (F23e,
-decision 77). Next on the PLC: the real S7 driver (F23d).
+- **1.0.12 packed** (16 November) with SDK 1.0.4: a file saved over under
+  the same name runs its node again - the test team's template-matching
+  model (decision 78) - with saved pictures, Sirius IV and controllers.
+- **Built, not yet packed: several screens** - pages and popups, opened
+  by buttons, each designed in a tab of its own in Builder (F24, decision
+  79). Packing it is N10.
+- **Written:** `overview.md`, what each program is for, now the README of
+  every package; the developer README brought up to date.
+- **Designed, not built:** parts of several pictures, and speed (F25-F28,
+  `runtime-design.md` section 14); cameras as a unit of the project (F29,
+  section 15).
+
+**Proposed order from here** - the single picture through the PLC, made
+solid on a real machine, before several pictures or speed:
+
+1. **N10** - pack 1.0.13, so testers have several screens; with **N9**
+   (workflows following a station renamed) and **N4** (`.gitattributes`)
+   before it, both small.
+2. **F29, its first slice** - cameras set up in Builder, without
+   Studio; what commissioning a single-picture machine needs first.
+3. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
+   the HslCommunication download and a bench PLC from you.
+4. **F25** - the part record and part counts, deadlines, the handshake;
+   with **F4**, counts that survive a restart.
+5. **User levels** (F2) - the login popup that F24 made room for, and
+   the PLC and camera windows in Edge behind them (F23c, F29).
+6. **F26**, then **F27** and **F28**, when a line asks for them - sized
+   by the answers to `runtime-design.md` sections 14.6 and 15.6.
 
 Each item has an ID to refer to it by, a rough size, and where it came
 from when that matters. The order is a proposal: change it, strike things
@@ -65,8 +82,10 @@ is in `licences.md`**; this is the list.
   (`ph_find_curve`, `ph_lens_calibration`, `ph_line_defects`,
   `ph_undistort`) have one now, so regenerating `Themes/Icons.xaml` is
   safe. Left: Offset Shapes and Transform Shapes borrow Dilate's and
-  Resize's; the new PLC icons (controller, the nine workflow nodes) and
-  BMP and TIF file icons are yours to redraw if you want.
+  Resize's; the PLC icons (controller, the nine workflow nodes), the
+  screen icons (page and popup, from Phosphor's monitor and app-window,
+  17 November) and BMP and TIF file icons are yours to redraw if you
+  want.
 - **N4. A `.gitattributes`** (S). Line endings are normalised per machine
   today; settle them before a second person works in the repository - the
   PLC team may be the first.
@@ -83,7 +102,11 @@ is in `licences.md`**; this is the list.
 - **N9. A station renamed leaves its workflows behind** (S). An Inspect or
   Station Result naming the old name is reported by the workflow's check
   ("There is no station called ..."), but not changed. Rename it in the
-  workflows too, as the screen's widgets are.
+  workflows too, as every screen's widgets now are (F24) - open ones as a
+  change to save, the others in their files.
+- **N10. Pack 1.0.13** (S): several screens (F24), with Builder 1.0.3;
+  release notes, roadmap, and the PLC kit packed again with the same
+  Builder.
 
 ---
 
@@ -153,13 +176,15 @@ from you before they start.
 - **F2. The runtime design** (`runtime-design.md`) - the MVP of its
   section 0 is built (decisions 65-71): published names, projects and
   stations, screens and the screen designer, settings changed on the line,
-  Builder and Edge; and now its PLC (F23). Next on it: counts kept over a
-  stop (F4), user levels, records and upload to the Server. Still needed
-  from you, before records and upload:
+  Builder and Edge; its PLC (F23); several screens (F24). Next on it:
+  the part and its counts (F25, F4), cameras in the project (F29), user
+  levels, then records and upload to the Server. Line speeds and image
+  sizes are now asked in sections 14.6 and 15.6; still needed from you,
+  before records and upload:
   - what Sirius Client, Interface and Server are written in, and their
-    protocols, and whether that code can be read;
+    protocols, and whether that code can be read - and, for F27, how
+    Client and MS handle queues, late results and part IDs;
   - how the Server stores results and images;
-  - typical line speed and image size;
   - what happens today when the Server cannot be reached.
 - ~~**F24. Several screens: pages and popups**~~ - done 17 November 2026
   (decision 79): a project's screens are Main and any pages and popups
@@ -245,6 +270,8 @@ part, how the PLC tracks parts - size F26-F28.
   in step with a mismatch raised as an alarm; on top of F27's pipelining.
   Until then, the PLC Monitor's Poll Interval (20 ms by default) is the
   knob for timing.
+
+### Cameras
 
 - **F29. Cameras in the project** (M-L) - designed 17 November 2026,
   `runtime-design.md` section 15. A camera unit in Builder, beside
