@@ -42,6 +42,25 @@ public enum WidgetAction
 
     /// <summary>Starts the counts again from zero.</summary>
     ResetCounts,
+
+    /// <summary>Opens another of the project's screens (<see cref="Widget.Screen"/>): a page in place of this one, or a popup over it.</summary>
+    OpenScreen,
+
+    /// <summary>Closes the popup it is on, or goes back to the page shown before.</summary>
+    Close,
+}
+
+/// <summary>How a screen is shown.</summary>
+public enum ScreenKind
+{
+    /// <summary>Fills the window, in place of the screen shown before.</summary>
+    Page,
+
+    /// <summary>
+    /// Opens over the page, which is dimmed behind it and goes on running,
+    /// and must be closed before the page can be used again.
+    /// </summary>
+    Popup,
 }
 
 /// <summary>How a Setting widget lets a number be changed.</summary>
@@ -113,6 +132,10 @@ public sealed class Widget
     [JsonPropertyName("action")]
     public WidgetAction? Action { get; set; }
 
+    /// <summary>An Open Screen button's screen, by name.</summary>
+    [JsonPropertyName("screen")]
+    public string? Screen { get; set; }
+
     [JsonPropertyName("fontSize")]
     public double FontSize { get; set; } = 16;
 
@@ -174,7 +197,16 @@ public sealed class Widget
 /// </remarks>
 public sealed class Screen
 {
-    public const int CurrentVersion = 1;
+    /// <summary>
+    /// The newest format this build reads. A screen is written in the
+    /// oldest format that holds it - 1 unless it is a popup or opens
+    /// screens - so a project using neither still opens in a build from
+    /// before there were several.
+    /// </summary>
+    public const int CurrentVersion = 2;
+
+    /// <summary>The start screen's name: the page shown first, and the one screen every project has.</summary>
+    public const string StartName = "Main";
 
     /// <summary>A screen file's extension.</summary>
     public const string Extension = ".screen";
@@ -183,7 +215,19 @@ public sealed class Screen
     public int Version { get; set; } = CurrentVersion;
 
     [JsonPropertyName("name")]
-    public string Name { get; set; } = "Main";
+    public string Name { get; set; } = StartName;
+
+    /// <summary>A page, or a popup over one. The start screen is always shown as a page.</summary>
+    [JsonPropertyName("kind")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ScreenKind Kind { get; set; }
+
+    /// <summary>The format this screen needs: 2 for a popup or a button opening or closing screens, else 1.</summary>
+    [JsonIgnore]
+    public int RequiredVersion =>
+        Kind == ScreenKind.Popup || Widgets.Any(widget => widget.Kind == WidgetKind.Button && widget.Action is WidgetAction.OpenScreen or WidgetAction.Close)
+            ? 2
+            : 1;
 
     /// <summary>The canvas width in the screen's own units.</summary>
     [JsonPropertyName("width")]
@@ -217,6 +261,8 @@ public sealed class Screen
     public void Save(string path)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+
+        Version = RequiredVersion;
 
         var temporary = path + ".tmp";
         System.IO.File.WriteAllText(temporary, JsonSerializer.Serialize(this, Options));

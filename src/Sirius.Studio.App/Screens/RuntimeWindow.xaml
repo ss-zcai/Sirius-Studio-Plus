@@ -408,6 +408,28 @@
                     Command="{Binding Command}"
                     FontSize="{Binding FontSize}" />
         </DataTemplate>
+        <!-- A screen's widgets, each where it was put: the page's, and a popup's. -->
+        <Style x:Key="ScreenCanvas" TargetType="ItemsControl">
+            <Setter Property="Width" Value="{Binding Width}" />
+            <Setter Property="Height" Value="{Binding Height}" />
+            <Setter Property="ItemsPanel">
+                <Setter.Value>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Canvas.Left" Value="{Binding X}" />
+                        <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                        <Setter Property="Width" Value="{Binding Width}" />
+                        <Setter Property="Height" Value="{Binding Height}" />
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -416,25 +438,48 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!--
+            The page on view, and a popup over it: the page dimmed behind and
+            still running, but taking no input until the popup is closed. Both
+            in one scale, so a popup's text is the size of the page's.
+        -->
         <Viewbox Stretch="Uniform" Margin="4">
-            <ItemsControl x:Name="Canvas"
-                          ItemsSource="{Binding Widgets}"
-                          Width="{Binding Width}"
-                          Height="{Binding Height}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <Canvas />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemContainerStyle>
-                    <Style TargetType="ContentPresenter">
-                        <Setter Property="Canvas.Left" Value="{Binding X}" />
-                        <Setter Property="Canvas.Top" Value="{Binding Y}" />
-                        <Setter Property="Width" Value="{Binding Width}" />
-                        <Setter Property="Height" Value="{Binding Height}" />
-                    </Style>
-                </ItemsControl.ItemContainerStyle>
-            </ItemsControl>
+            <Grid x:Name="Stage" Width="{Binding Page.Width}" Height="{Binding Page.Height}">
+                <ItemsControl x:Name="Canvas"
+                              Style="{StaticResource ScreenCanvas}"
+                              ItemsSource="{Binding Page.Widgets}"
+                              IsEnabled="{Binding IsPageEnabled}" />
+
+                <Grid x:Name="PopupLayer" Visibility="{Binding HasPopup, Converter={StaticResource BoolToVisibility}}">
+                    <Rectangle Fill="#A6000000" />
+
+                    <Border x:Name="PopupFrame"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Background="{StaticResource Surface.Canvas}"
+                            BorderBrush="{StaticResource Surface.Border}"
+                            BorderThickness="1"
+                            DataContext="{Binding Popup}">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.6" />
+                        </Border.Effect>
+                        <Grid>
+                            <ItemsControl Style="{StaticResource ScreenCanvas}" ItemsSource="{Binding Widgets}" />
+                            <!-- A popup with no Close button of its own gets this one. -->
+                            <Button HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Margin="0,8,8,0"
+                                    Width="40"
+                                    Height="40"
+                                    FontSize="20"
+                                    Content="✕"
+                                    ToolTip="Close"
+                                    Command="{Binding DataContext.ClosePopupCommand, ElementName=Stage}"
+                                    Visibility="{Binding NeedsCloseCorner, Converter={StaticResource BoolToVisibility}}" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
         </Viewbox>
 
         <Border Grid.Row="1"

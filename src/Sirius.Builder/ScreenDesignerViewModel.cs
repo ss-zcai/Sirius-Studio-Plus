@@ -14,8 +14,9 @@ public sealed record StationOption(string Label, string Value);
 public sealed record WidgetTool(WidgetKind Kind, string Name, string Description, string Icon);
 
 /// <summary>
-/// The screen designer: a project's screen laid out on a canvas, its
-/// widgets placed, sized and bound (runtime MVP step 5).
+/// The screen designer: one of a project's screens laid out on a canvas,
+/// its widgets placed, sized and bound (runtime MVP step 5) - the start
+/// screen, or a page or popup beside it (decision 79).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -37,7 +38,10 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
 
     private readonly Stack<string> _undo = new();
     private readonly Stack<string> _redo = new();
-    private readonly string _path;
+    private readonly Func<IReadOnlyList<ScreenInfo>> _screens;
+    private string _path;
+    private string _name;
+    private ScreenKind _kind;
 
     private string _saved;
     private string? _gesture;
@@ -58,16 +62,25 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     [ObservableProperty]
     private string _statusText = string.Empty;
 
-    public ScreenDesignerViewModel(StationRecipes recipes)
+    /// <param name="name">The screen: the start screen, or another the project has.</param>
+    /// <param name="screens">
+    /// Every screen of the project - what an Open Screen button can open,
+    /// and the start screen's size a popup must fit in. None: this one alone.
+    /// </param>
+    public ScreenDesignerViewModel(StationRecipes recipes, string name = Screen.StartName, Func<IReadOnlyList<ScreenInfo>>? screens = null)
     {
         Recipes = recipes ?? throw new ArgumentNullException(nameof(recipes));
-        _path = ScreenLayout.MainScreenPath(recipes.Project);
+        _name = ScreenSet.IsStart(name) ? Screen.StartName : name.Trim();
+        _path = ScreenSet.PathFor(recipes.Project, _name);
+        _screens = screens ?? (() => [Info]);
 
         var screen = Load(out var problem);
         Apply(screen);
 
         _saved = File.Exists(_path) && problem is null ? Serialize() : string.Empty;
-        StatusText = problem ?? (File.Exists(_path) ? $"Editing {ScreenLayout.ScreensFolder}/{Path.GetFileName(_path)}." : "A standard screen, made from what the stations publish.");
+        StatusText = problem ?? (File.Exists(_path)
+            ? $"Editing {ScreenLayout.ScreensFolder}/{Path.GetFileName(_path)}."
+            : "A standard screen, made from what the stations publish.");
 
         AddCommand = new RelayCommand<WidgetKind>(kind => Add(kind));
         DeleteCommand = new RelayCommand(Delete, () => Selected is not null);
@@ -82,12 +95,41 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         UndoCommand = new RelayCommand(Undo, () => _undo.Count > 0);
         RedoCommand = new RelayCommand(Redo, () => _redo.Count > 0);
         SaveCommand = new RelayCommand(() => Save());
-        ResetCommand = new RelayCommand(AskThenReset);
+        ResetCommand = new RelayCommand(AskThenReset, () => IsStart);
 
         Check();
     }
 
     public StationRecipes Recipes { get; }
+
+    /// <summary>The screen's name, and its file's: Main for the start screen.</summary>
+    public string Name => _name;
+
+    /// <summary>The start screen: shown first, made from the stations until edited, always a page.</summary>
+    public bool IsStart => ScreenSet.IsStart(_name);
+
+    /// <summary>A page, or a popup over one. The start screen is always a page.</summary>
+    public ScreenKind Kind
+    {
+        get => IsStart ? ScreenKind.Page : _kind;
+        set
+        {
+            if (IsStart || value == _kind)
+                return;
+
+            Edit(() => _kind = value);
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>The screen's file.</summary>
+    public string FilePath => _path;
+
+    /// <summary>Its name, kind and size, as it is now - saved or not.</summary>
+    public ScreenInfo Info => new(_name, Kind, _width, _height);
+
+    /// <summary>The tab's title: its name, and a star until it is saved.</summary>
+    public string TabTitle => _name + (IsModified ? " *" : string.Empty);
 
     public ObservableCollection<DesignWidgetViewModel> Widgets { get; } = [];
 
@@ -120,9 +162,25 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     /// <summary>"Top › Main View", or the screen file.</summary>
     public string PropertySubtitle => Selected?.Caption ?? $"{ScreenLayout.ScreensFolder}/{Path.GetFileName(_path)} · {Widgets.Count} widgets";
 
+    /// <summary>"Page - the start screen, shown first", "Popup".</summary>
+    private string KindText => IsStart ? "Page - the start screen, shown first" : Kind == ScreenKind.Popup ? "Popup" : "Page";
+
     /// <summary>The screen's own properties, shown with no widget selected.</summary>
     public IReadOnlyList<PropertyCategory> ScreenCategories => _screenCategories ??= PropertyCategory.From(
     [
+        new PropertyRow("Screen", "Name", PropertyEditor.ReadOnly, () => _name),
+        IsStart
+            ? new PropertyRow("Screen", "Opens as", PropertyEditor.ReadOnly, () => KindText)
+            : new PropertyRow(
+                "Screen", "Opens as", PropertyEditor.Choice,
+                () => Kind,
+                value => { if (value is ScreenKind kind) Kind = kind; },
+                "A page fills the window in place of the one shown; Close goes back. A popup opens over the page, which is dimmed and goes on running, until it is closed.",
+                options: () => new[]
+                {
+                    new PropertyOption("Page", ScreenKind.Page),
+                    new PropertyOption("Popup", ScreenKind.Popup),
+                }),
         new PropertyRow(
             "Screen", "Width", PropertyEditor.Text,
             () => DesignWidgetViewModel.Number(Width),
@@ -135,7 +193,8 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         new PropertyRow("Screen", "Grid", PropertyEditor.ReadOnly, () => $"{GridSize:0} units"),
         new PropertyRow(
             "Screen", "Made", PropertyEditor.ReadOnly,
-            () => _generated ? "From the stations, each time it is shown, until saved" : "By hand"),
+            () => _generated ? "From the stations, each time it is shown, until saved" : "By hand",
+            visible: () => IsStart),
     ]);
 
     private void RefreshProperties()
@@ -161,6 +220,15 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     public IReadOnlyList<StationOption> ButtonStationOptions =>
         [new StationOption("All stations", string.Empty), .. StationOptions];
 
+    /// <summary>The project's other screens, for an Open Screen button: "Settings (popup)".</summary>
+    public IReadOnlyList<StationOption> ScreenOptions =>
+        _screens()
+            .Where(screen => !string.Equals(screen.Name, _name, StringComparison.OrdinalIgnoreCase))
+            .Select(screen => new StationOption(
+                screen.Kind == ScreenKind.Popup ? $"{screen.Name} (popup)" : ScreenSet.IsStart(screen.Name) ? $"{screen.Name} (start)" : screen.Name,
+                screen.Name))
+            .ToArray();
+
     public double Width
     {
         get => _width;
@@ -175,7 +243,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
 
     public bool IsModified => Serialize() != _saved;
 
-    public string Title => (IsModified ? "*" : string.Empty) + $"Screen - {Recipes.Project.Name}";
+    public string Title => (IsModified ? "*" : string.Empty) + $"{_name} - {Recipes.Project.Name}";
 
     public IRelayCommand<WidgetKind> AddCommand { get; }
 
@@ -400,6 +468,8 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsModified));
         OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(TabTitle));
+        OnPropertyChanged(nameof(Info));
 
         if (_gesture is null)
             RefreshProperties();
@@ -476,7 +546,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StatusText = $"Could not save the screen: {ex.Message}";
+            StatusText = $"Could not save the screen {_name}: {ex.Message}";
             return false;
         }
     }
@@ -502,6 +572,9 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     /// <summary>The standard screen made from the stations again, to start from - undoable.</summary>
     public void ResetToStandard()
     {
+        if (!IsStart)
+            return;
+
         var before = Serialize();
         Apply(ScreenLayout.Standard(Recipes.Project.Name, Recipes.All()));
         Selected = null;
@@ -515,7 +588,8 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     /// <summary>The screen as laid out now.</summary>
     public Screen ToScreen() => new()
     {
-        Name = "Main",
+        Name = _name,
+        Kind = Kind,
         Width = _width,
         Height = _height,
         Generated = _generated,
@@ -546,12 +620,60 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>
+    /// After a screen was renamed: the buttons opening it follow, as one
+    /// undoable change.
+    /// </summary>
+    /// <returns>Whether any button opened it.</returns>
+    public bool RetargetScreen(string from, string to)
+    {
+        var opening = Widgets
+            .Where(widget => string.Equals(widget.Widget.Screen, from, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (opening.Length == 0)
+            return false;
+
+        Edit(() =>
+        {
+            foreach (var widget in opening)
+                widget.Widget.Screen = to;
+        });
+
+        Refresh();
+        return true;
+    }
+
+    /// <summary>
+    /// This screen was renamed and its file moved: from now on it is saved
+    /// there, under its new name. Changes not yet saved stay so.
+    /// </summary>
+    public void Renamed(string name)
+    {
+        var saved = _saved.Length > 0 ? JsonSerializer.Deserialize<Screen>(_saved, Screen.Options) : null;
+
+        _name = name.Trim();
+        _path = ScreenSet.PathFor(Recipes.Project, _name);
+
+        if (saved is not null)
+        {
+            saved.Name = _name;
+            _saved = JsonSerializer.Serialize(saved, Screen.Options);
+        }
+
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(FilePath));
+        StatusText = $"Renamed to {_name}: {ScreenLayout.ScreensFolder}/{Path.GetFileName(_path)}.";
+        Changed();
+    }
+
     /// <summary>Re-reads the station recipes and checks the screen against them again.</summary>
     public void Refresh()
     {
         Recipes.Refresh();
         OnPropertyChanged(nameof(StationOptions));
         OnPropertyChanged(nameof(ButtonStationOptions));
+        OnPropertyChanged(nameof(ScreenOptions));
 
         foreach (var widget in Widgets)
             widget.RefreshChoices();
@@ -571,9 +693,14 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
             {
-                problem = $"The screen file could not be read ({ex.Message}); a standard one is shown. Saving replaces the file.";
+                problem = IsStart
+                    ? $"The screen file could not be read ({ex.Message}); a standard one is shown. Saving replaces the file."
+                    : $"The screen file could not be read ({ex.Message}); a new one is shown. Saving replaces the file.";
             }
         }
+
+        if (!IsStart)
+            return ScreenSet.NewScreen(_name, ScreenKind.Page);
 
         return ScreenLayout.Standard(Recipes.Project.Name, Recipes.All());
     }
@@ -583,6 +710,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         _width = screen.Width;
         _height = screen.Height;
         _generated = screen.Generated;
+        _kind = screen.Kind;
 
         Widgets.Clear();
 
@@ -603,12 +731,22 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
 
     private string Serialize() => JsonSerializer.Serialize(ToScreen(), Screen.Options);
 
+    /// <summary>The project's screens, with this one as it is now rather than as saved.</summary>
+    private ScreenInfo[] Others(Screen screen) =>
+        [
+            ScreenSet.Info(screen),
+            .. _screens().Where(other => !string.Equals(other.Name, _name, StringComparison.OrdinalIgnoreCase)),
+        ];
+
     private void Check()
     {
-        var problems = ScreenLayout.Problems(ToScreen(), Recipes.All());
-        HasProblems = problems.Count > 0;
+        var screen = ToScreen();
+        var problems = ScreenLayout.Problems(screen, Recipes.All())
+            .Concat(ScreenSet.NavigationProblems(screen, Others(screen)))
+            .ToArray();
+        HasProblems = problems.Length > 0;
 
-        ProblemText = problems.Count == 0
+        ProblemText = problems.Length == 0
             ? "Every widget finds what it shows."
             : string.Join("   ·   ", problems);
     }

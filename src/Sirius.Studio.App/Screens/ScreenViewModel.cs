@@ -1,43 +1,130 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
 using Sirius.Studio.App.ViewModels;
 
 namespace Sirius.Studio.App.Screens;
 
+/// <summary>Opens and closes a running project's screens - what an Open Screen or Close button asks.</summary>
+public interface IScreenNavigator
+{
+    /// <summary>Shows the screen called <paramref name="name"/>: a page in place of the one shown, a popup over it.</summary>
+    /// <returns>Whether there is such a screen.</returns>
+    bool Open(string? name);
+
+    /// <summary>Closes the popup, or - with none open - goes back to the page shown before.</summary>
+    void Close();
+}
+
+/// <summary>One of a running project's screens: its widgets, and whether it is on view.</summary>
+public sealed class ScreenPageViewModel : ObservableObject
+{
+    private bool _isShown;
+
+    internal ScreenPageViewModel(Screen screen, Func<ScreenPageViewModel, IReadOnlyList<WidgetViewModel>> widgets)
+    {
+        Screen = screen;
+        Widgets = widgets(this);
+    }
+
+    public Screen Screen { get; }
+
+    public string Name => Screen.Name;
+
+    /// <summary>A page or a popup; the start screen is a page whatever its file says.</summary>
+    public ScreenKind Kind => ScreenSet.IsStart(Screen.Name) ? ScreenKind.Page : Screen.Kind;
+
+    public bool IsPopup => Kind == ScreenKind.Popup;
+
+    public double Width => Screen.Width;
+
+    public double Height => Screen.Height;
+
+    public IReadOnlyList<WidgetViewModel> Widgets { get; }
+
+    /// <summary>
+    /// A popup with no Close button of its own is given one in its corner:
+    /// on a touch screen with no keyboard it could not be closed otherwise.
+    /// </summary>
+    public bool NeedsCloseCorner => IsPopup && !Widgets.OfType<ButtonWidgetViewModel>().Any(button => button.Widget.Action == WidgetAction.Close);
+
+    /// <summary>On view: the page shown, or the popup open over it. Only these draw pictures.</summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        internal set => SetProperty(ref _isShown, value);
+    }
+
+    public override string ToString() => Name;
+}
+
 /// <summary>
-/// A screen, running: its widgets bound to a project's stations as they
-/// inspect (runtime MVP step 4).
+/// A project's screens, running: every widget bound to the stations as they
+/// inspect, one page on view and perhaps a popup over it (runtime MVP step
+/// 4; several screens, decision 79).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Values follow every inspection. Pictures follow at up to the screen's
-/// rate, paced per station as Studio's live display is
-/// (<see cref="LiveDisplay"/>): a station inspecting four hundred parts a
-/// second must not spend its time drawing them. They are drawn in the
+/// Values follow every inspection, on every screen, so a page brought up
+/// shows the latest at once. Pictures follow only on the screens on view,
+/// at up to the screen's rate, paced per station as Studio's live display
+/// is (<see cref="LiveDisplay"/>): a station inspecting four hundred parts
+/// a second must not spend its time drawing them. They are drawn in the
 /// station's <see cref="StationRunner.Inspected"/> handler, the one moment
 /// its pictures are alive; one skipped while running is drawn when the
-/// station stops, from the inspection it stopped on.
+/// station stops, from the inspection it stopped on - as are a screen's
+/// pictures when it comes on view with its station stopped.
+/// </para>
+/// <para>
+/// Opening a page puts the one shown on a history, which Close on a page
+/// goes back through; opening the start screen starts the history again.
+/// One popup at a time: a popup opened from a popup takes its place.
 /// </para>
 /// </remarks>
-public sealed class ScreenViewModel : ObservableObject, IDisposable
+public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavigator
 {
     private readonly ProjectRuntime _runtime;
     private readonly Dictionary<StationRunner, (LiveDisplay Pacing, bool Undrawn)> _pacing = [];
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly List<string> _problems = [];
+    private readonly Stack<ScreenPageViewModel> _history = new();
+    private readonly List<(ScreenPageViewModel Screen, WidgetViewModel Widget)> _all = [];
+    private ScreenPageViewModel _page;
+    private ScreenPageViewModel? _popup;
 
+    /// <summary>A screen alone, as a project had before there were several.</summary>
     public ScreenViewModel(Screen screen, ProjectRuntime runtime, string projectFolder, IEnumerable<string>? problems = null)
+        : this([screen ?? throw new ArgumentNullException(nameof(screen))], runtime, projectFolder, problems)
     {
-        Screen = screen ?? throw new ArgumentNullException(nameof(screen));
+    }
+
+    /// <param name="screens">Every screen; the first is shown first.</param>
+    public ScreenViewModel(IReadOnlyList<Screen> screens, ProjectRuntime runtime, string projectFolder, IEnumerable<string>? problems = null)
+    {
+        ArgumentNullException.ThrowIfNull(screens);
+
+        if (screens.Count == 0)
+            throw new ArgumentException("A project has at least its start screen.", nameof(screens));
+
         _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
 
-        Widgets = screen.Widgets.Select(widget => Create(widget, projectFolder)).ToArray();
+        Screens = screens
+            .Select(screen => new ScreenPageViewModel(screen, page => screen.Widgets.Select(widget => Create(widget, page, projectFolder)).ToArray()))
+            .ToArray();
+
+        foreach (var page in Screens)
+            _all.AddRange(page.Widgets.Select(widget => (page, widget)));
+
+        _page = Screens[0];
+        _page.IsShown = true;
+
+        ClosePopupCommand = new RelayCommand(() => Popup = null, () => _popup is not null);
 
         _problems.AddRange(problems ?? []);
-        _problems.AddRange(ScreenLayout.Problems(screen, runtime.Stations));
+        _problems.AddRange(ScreenSet.Problems(screens, runtime.Stations));
         _problems.AddRange(runtime.Problems);
 
         foreach (var station in runtime.Stations)
@@ -50,16 +137,128 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
         }
     }
 
-    public Screen Screen { get; }
+    /// <summary>Every screen of the project, the start screen first.</summary>
+    public IReadOnlyList<ScreenPageViewModel> Screens { get; }
 
-    public double Width => Screen.Width;
+    /// <summary>The page on view.</summary>
+    public ScreenPageViewModel Page
+    {
+        get => _page;
+        private set
+        {
+            if (ReferenceEquals(_page, value))
+                return;
 
-    public double Height => Screen.Height;
+            _page.IsShown = false;
+            _page = value;
+            _page.IsShown = true;
 
-    public IReadOnlyList<WidgetViewModel> Widgets { get; }
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Screen));
+            OnPropertyChanged(nameof(Widgets));
+            OnPropertyChanged(nameof(Width));
+            OnPropertyChanged(nameof(Height));
+            OnPropertyChanged(nameof(CanGoBack));
+            DrawStopped(value);
+        }
+    }
+
+    /// <summary>The popup open over the page, or null.</summary>
+    public ScreenPageViewModel? Popup
+    {
+        get => _popup;
+        private set
+        {
+            if (ReferenceEquals(_popup, value))
+                return;
+
+            if (_popup is not null)
+                _popup.IsShown = false;
+
+            _popup = value;
+
+            if (_popup is not null)
+                _popup.IsShown = true;
+
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasPopup));
+            OnPropertyChanged(nameof(IsPageEnabled));
+            ClosePopupCommand.NotifyCanExecuteChanged();
+
+            if (value is not null)
+                DrawStopped(value);
+        }
+    }
+
+    public bool HasPopup => _popup is not null;
+
+    /// <summary>The page takes input only with no popup over it.</summary>
+    public bool IsPageEnabled => _popup is null;
+
+    /// <summary>A page was opened from another, which Close goes back to.</summary>
+    public bool CanGoBack => _history.Count > 0;
+
+    /// <summary>The × in the corner of a popup with no Close button of its own, and Escape.</summary>
+    public IRelayCommand ClosePopupCommand { get; }
+
+    /// <summary>The page on view's screen.</summary>
+    public Screen Screen => _page.Screen;
+
+    public double Width => _page.Width;
+
+    public double Height => _page.Height;
+
+    /// <summary>The page on view's widgets.</summary>
+    public IReadOnlyList<WidgetViewModel> Widgets => _page.Widgets;
+
+    /// <summary>Every widget of every screen.</summary>
+    internal IEnumerable<WidgetViewModel> AllWidgets => _all.Select(entry => entry.Widget);
+
+    /// <summary>The screen called <paramref name="name"/>, or null.</summary>
+    public ScreenPageViewModel? Find(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? null : Screens.FirstOrDefault(screen => string.Equals(screen.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    public bool Open(string? name)
+    {
+        if (Find(name) is not { } screen)
+            return false;
+
+        if (screen.IsPopup)
+        {
+            Popup = screen;
+            return true;
+        }
+
+        // A page: over any popup, and onto the history unless it is home.
+        Popup = null;
+
+        if (ReferenceEquals(screen, _page))
+            return true;
+
+        if (ReferenceEquals(screen, Screens[0]))
+            _history.Clear();
+        else
+            _history.Push(_page);
+
+        Page = screen;
+        OnPropertyChanged(nameof(CanGoBack));
+        return true;
+    }
+
+    public void Close()
+    {
+        if (_popup is not null)
+        {
+            Popup = null;
+            return;
+        }
+
+        if (_history.Count > 0)
+            Page = _history.Pop();
+    }
 
     /// <summary>
-    /// Stations that would not load, names the screen cannot find, and
+    /// Stations that would not load, names a screen cannot find, and
     /// pictures not being saved - shown along the bottom.
     /// </summary>
     public IReadOnlyList<string> Problems =>
@@ -73,14 +272,14 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
 
     public string ProblemText => string.Join("   ·   ", Problems);
 
-    private WidgetViewModel Create(Widget widget, string projectFolder) => widget.Kind switch
+    private WidgetViewModel Create(Widget widget, ScreenPageViewModel page, string projectFolder) => widget.Kind switch
     {
         WidgetKind.Image => new ImageWidgetViewModel(widget),
         WidgetKind.Verdict => new VerdictWidgetViewModel(widget),
         WidgetKind.Value => new ValueWidgetViewModel(widget),
         WidgetKind.Setting => new SettingWidgetViewModel(widget, _runtime),
         WidgetKind.Counter => new CounterWidgetViewModel(widget),
-        WidgetKind.Button => new ButtonWidgetViewModel(widget, _runtime),
+        WidgetKind.Button => new ButtonWidgetViewModel(widget, _runtime, this, page.Kind),
         WidgetKind.Logo => new LogoWidgetViewModel(widget, projectFolder),
         _ => new TextWidgetViewModel(widget),
     };
@@ -103,8 +302,11 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
         // A single trigger is always drawn; a run, at the screen's pace.
         var draw = station.State != StationState.Running || pacing.IsDue(now);
 
-        foreach (var widget in Widgets.Where(widget => widget.Follows(station)))
-            widget.Inspected(station, snapshot, draw);
+        foreach (var (screen, widget) in _all)
+        {
+            if (widget.Follows(station))
+                widget.Inspected(station, snapshot, draw && screen.IsShown);
+        }
 
         if (draw)
             pacing.Shown(now, _clock.Elapsed.TotalSeconds);
@@ -134,25 +336,45 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable
             _pacing[station] is { Undrawn: true } paced &&
             station.Last is { } last)
         {
-            foreach (var widget in Widgets.OfType<ImageWidgetViewModel>().Where(widget => widget.Follows(station)))
-                widget.Inspected(station, last, drawPictures: true);
+            foreach (var (screen, widget) in _all)
+            {
+                if (screen.IsShown && widget is ImageWidgetViewModel && widget.Follows(station))
+                    widget.Inspected(station, last, drawPictures: true);
+            }
 
             _pacing[station] = (paced.Pacing, false);
         }
     }
 
+    /// <summary>
+    /// A screen come on view: its pictures from each stopped station's last
+    /// inspection, which is alive until the next. A running station's come
+    /// with its next drawn inspection, a moment later.
+    /// </summary>
+    private void DrawStopped(ScreenPageViewModel screen)
+    {
+        foreach (var widget in screen.Widgets.OfType<ImageWidgetViewModel>())
+        {
+            if (widget.Station is { } name && _runtime.Find(name) is { State: StationState.Ready, Last: { } last } station)
+                widget.Inspected(station, last, drawPictures: true);
+        }
+    }
+
     private void Refresh(StationRunner station)
     {
-        foreach (var widget in Widgets.Where(widget => widget.Follows(station)))
-            widget.StationChanged(station);
+        foreach (var (_, widget) in _all)
+        {
+            if (widget.Follows(station))
+                widget.StationChanged(station);
+        }
 
-        foreach (var button in Widgets.OfType<ButtonWidgetViewModel>())
+        foreach (var button in AllWidgets.OfType<ButtonWidgetViewModel>())
             button.Refresh();
     }
 
     public void Dispose()
     {
-        foreach (var widget in Widgets)
+        foreach (var (_, widget) in _all)
             widget.Detach();
 
         foreach (var station in _runtime.Stations)

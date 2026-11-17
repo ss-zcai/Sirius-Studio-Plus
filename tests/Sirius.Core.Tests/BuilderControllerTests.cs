@@ -211,7 +211,7 @@ public sealed class BuilderControllerTests : IDisposable
     }
 
     [Fact]
-    public void The_project_panel_lists_stations_then_controllers_with_one_selection()
+    public void The_project_panel_lists_stations_then_controllers_then_screens_with_one_selection()
     {
         WpfTestHost.OnStaThread(() =>
         {
@@ -226,13 +226,14 @@ public sealed class BuilderControllerTests : IDisposable
                 return true;
             };
 
-            Assert.Equal(["Top"], model.Items.Select(Name));
+            // The start screen is always there, last.
+            Assert.Equal(["Top", "Main"], model.Items.Select(Name));
 
-            // A controller added goes after the stations, and is selected.
+            // A controller added goes after the stations, before the screens, and is selected.
             model.AddController("PLC 1");
             project.AddStation("Bottom", new VisionGraph());
 
-            Assert.Equal(["Top", "Bottom", "PLC 1"], model.Items.Select(Name));
+            Assert.Equal(["Top", "Bottom", "PLC 1", "Main"], model.Items.Select(Name));
             Assert.IsType<ControllerViewModel>(model.SelectedItem);
             Assert.Null(model.SelectedStation);
             Assert.Equal("PLC 1", model.SelectedController?.Name);
@@ -283,7 +284,7 @@ public sealed class BuilderControllerTests : IDisposable
 
                 var resources = Application.Current!;
                 Assert.Equal(
-                    [resources.FindResource("Icon.ph_camera"), resources.FindResource("Icon.ph_camera"), resources.FindResource("Icon.ph_controller")],
+                    [resources.FindResource("Icon.ph_camera"), resources.FindResource("Icon.ph_camera"), resources.FindResource("Icon.ph_controller"), resources.FindResource("Icon.ph_screen_page")],
                     icons);
             }
             finally
@@ -295,6 +296,7 @@ public sealed class BuilderControllerTests : IDisposable
             {
                 StationViewModel station => station.Name,
                 ControllerViewModel controller => controller.Name,
+                ScreenItemViewModel screen => screen.Name,
                 _ => "?",
             };
         });

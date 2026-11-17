@@ -38,9 +38,17 @@ public partial class BuilderWindow : Window
         model.WorkflowShown += (_, workflow) => ShowWorkflow(workflow);
         model.Workflows.CollectionChanged += (_, _) => DropClosedWorkflows();
 
+        // A page or popup in a tab of its own, beside the start screen.
+        model.Designers.CollectionChanged += (_, _) => DropClosedScreens();
+
         // The document in front decides what the toolbar, tools and Properties act on.
         Docking.ActiveContentChanged += (_, _) => FollowFront();
-        model.ScreenShown += (_, _) => ShowScreen();
+        model.ScreenShown += (_, designer) => ShowScreen(designer);
+        model.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(BuilderViewModel.MainDesigner))
+                FollowMainTitle();
+        };
         model.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(BuilderViewModel.ToolsTitle))
@@ -50,6 +58,10 @@ public partial class BuilderWindow : Window
 
     /// <summary>For tests: the screen's tab, to bring to the front.</summary>
     internal LayoutDocument? ScreenTabForTests => ScreenTab();
+
+    /// <summary>For tests: the tab of a page or popup, if it is open.</summary>
+    internal LayoutDocument? TabForTests(ScreenDesignerViewModel designer) =>
+        designer.IsStart ? ScreenTab() : _screenTabs.GetValueOrDefault(designer);
 
     /// <summary>The screen's own tab.</summary>
     private LayoutDocument? ScreenTab() =>
@@ -76,19 +88,108 @@ public partial class BuilderWindow : Window
                 _model.ActiveWorkflow = workflow;
                 break;
 
-            case ScreenDesignerView:
-                _model.ActiveWorkflow = null;
+            case ScreenDesignerView { DataContext: ScreenDesignerViewModel designer }:
+                _model.ShowingDesigner(designer);
                 break;
         }
     }
 
-    /// <summary>The screen's tab to the front.</summary>
-    internal void ShowScreen()
+    /// <summary>A screen's tab to the front: the start screen's, or a page's or popup's - made the first time.</summary>
+    internal void ShowScreen(ScreenDesignerViewModel designer)
     {
-        if (ScreenTab() is { } screen)
-            screen.IsActive = true;
+        if (designer.IsStart)
+        {
+            if (ScreenTab() is { } screen)
+                screen.IsActive = true;
+        }
+        else
+        {
+            ScreenTabFor(designer).IsActive = true;
+        }
 
-        _model.ActiveWorkflow = null;
+        _model.ShowingDesigner(designer);
+    }
+
+    // ---- pages and popups, each in a tab ---------------------------------------------
+
+    private readonly Dictionary<ScreenDesignerViewModel, LayoutDocument> _screenTabs = [];
+    private System.ComponentModel.PropertyChangedEventHandler? _mainTitle;
+    private ScreenDesignerViewModel? _mainTitled;
+
+    /// <summary>The start screen's tab carries its name and a star while it has changes, as the others do.</summary>
+    private void FollowMainTitle()
+    {
+        if (_mainTitled is not null && _mainTitle is not null)
+            _mainTitled.PropertyChanged -= _mainTitle;
+
+        _mainTitled = _model.MainDesigner;
+
+        if (_mainTitled is not { } main)
+            return;
+
+        _mainTitle = (_, e) =>
+        {
+            if (e.PropertyName == nameof(ScreenDesignerViewModel.TabTitle) && ScreenTab() is { } tab)
+                tab.Title = main.TabTitle;
+        };
+
+        main.PropertyChanged += _mainTitle;
+
+        if (ScreenTab() is { } tab)
+            tab.Title = main.TabTitle;
+    }
+
+    private LayoutDocument ScreenTabFor(ScreenDesignerViewModel designer)
+    {
+        if (!_screenTabs.TryGetValue(designer, out var tab))
+        {
+            tab = new LayoutDocument
+            {
+                Title = designer.TabTitle,
+                ContentId = "screen:" + designer.Name,
+                CanClose = true,
+                Content = new ScreenDesignerView { DataContext = designer },
+            };
+
+            designer.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ScreenDesignerViewModel.TabTitle))
+                    tab.Title = designer.TabTitle;
+                else if (e.PropertyName == nameof(ScreenDesignerViewModel.Name))
+                    tab.ContentId = "screen:" + designer.Name;
+            };
+
+            // Closing the tab asks to save first, and may be called off.
+            tab.Closing += (_, e) =>
+            {
+                if (_screenTabs.ContainsKey(designer) && !_model.CloseScreen(designer))
+                    e.Cancel = true;
+            };
+
+            tab.Closed += (_, _) => _screenTabs.Remove(designer);
+
+            _screenTabs[designer] = tab;
+        }
+
+        // Made before, but left out of a layout restored since - Reset Layout.
+        if (tab.Parent is null)
+            DocumentPane().Children.Add(tab);
+
+        return tab;
+    }
+
+    /// <summary>Tabs whose screen was closed elsewhere - the project closed, the screen removed.</summary>
+    private void DropClosedScreens()
+    {
+        foreach (var (designer, tab) in _screenTabs.ToArray())
+        {
+            if (_model.Designers.Contains(designer))
+                continue;
+
+            // Forgotten first, so the close below is not taken for the operator closing it.
+            _screenTabs.Remove(designer);
+            tab.Parent?.RemoveChild(tab);
+        }
     }
 
     internal BuilderViewModel Model => _model;
@@ -113,6 +214,9 @@ public partial class BuilderWindow : Window
 
         if (KeepsLayout && File.Exists(LayoutPath))
             Restore(serializer => serializer.Deserialize(LayoutPath));
+
+        // A layout saved before there were several screens calls this tab "Screen".
+        FollowMainTitle();
     }
 
     /// <summary>Back in front: a recipe may have been saved in Studio meanwhile.</summary>
@@ -239,7 +343,7 @@ public partial class BuilderWindow : Window
 
     private void OnRestoring(object? sender, LayoutSerializationCallbackEventArgs args)
     {
-        // Workflow tabs are opened from the project, not the saved layout.
+        // Workflow and screen tabs are opened from the project, not the saved layout.
         if (args.Model.ContentId is { } id && _panels.TryGetValue(id, out var content))
             args.Content = content;
         else
@@ -248,12 +352,12 @@ public partial class BuilderWindow : Window
 
     // ---- stations ----------------------------------------------------------
 
-    /// <summary>A station opens in Studio; a controller, its workflow here.</summary>
+    /// <summary>A station shows the start screen; a controller, its workflow; a screen, its design.</summary>
     private void OnProjectItemDoubleClick(object sender, MouseButtonEventArgs e)
     {
         for (var current = e.OriginalSource as DependencyObject; current is not null; current = VisualTreeHelper.GetParent(current))
         {
-            if (current is FrameworkElement { DataContext: StationViewModel or ControllerViewModel } item)
+            if (current is FrameworkElement { DataContext: StationViewModel or ControllerViewModel or ScreenItemViewModel } item)
             {
                 _model.Open(item.DataContext);
                 return;

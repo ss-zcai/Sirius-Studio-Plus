@@ -3151,3 +3151,58 @@ disk, for the same reason.
 through a temporary file. A matching node not wired to the teaching one
 gets the new model at the run after the teaching - the scheduler learns of
 the file when it has been written.
+
+## 79. Several screens: pages and popups (F24)
+
+Asked on 17 November 2026: a project with more than one screen - the
+pictures on one, the settings behind a button. Both kinds are wanted: a
+login will be a popup, simple settings a popup, a complex one a page of
+its own.
+
+**Built:**
+
+- **A screen is a page or a popup** (`kind` in the screen file). A page
+  fills the window in place of the one shown. A popup opens over it,
+  centred, the page dimmed behind and still running - pictures and values
+  live, so a setting can be tuned while watching what it does - but
+  taking no input until the popup is closed. One popup at a time; a popup
+  opened from a popup takes its place.
+- **Buttons open and close them**: **Open Screen**, naming the screen,
+  and **Close**, captioned Close on a popup and Back on a page. Opening a
+  page puts the one shown on a history that Back goes through; opening
+  the start screen starts it again. A popup with no Close button of its
+  own gets a × in its corner - on a touch screen with no keyboard it
+  could not be closed otherwise - and Escape closes a popup, full screen
+  too. No tab bar: buttons laid out in a row do that, and the integrator
+  decides where they go.
+- **The folder is the list.** Every `screens\*.screen` is a screen, named
+  after its file, so a screen copied in from another project is part of
+  this one; the project file names none of them. **Main** is the start
+  screen: always there, always a page, never renamed or removed - and the
+  only one ever made from the stations, as before.
+- **In Builder**, screens are listed in the Project panel after the
+  stations and controllers, a monitor for a page and a window for a
+  popup. **+ ▸ Add Page / Add Popup** writes one with a title and its way
+  out, and opens it. Each screen is designed in a tab of its own; the
+  toolbar, the Widgets panel and Properties follow the tab in front, as
+  they do for workflows. A screen's Properties say whether it opens as a
+  page or a popup. Renaming moves the file and the buttons opening it
+  follow - in screens open in a tab as a change to save, in the others at
+  once; a station renamed is followed the same way, on every screen.
+  Removing sends the file to the Recycle Bin.
+- **The check**: an Open Screen button with no screen, or one that is
+  not there, and a popup larger than Main, are problems - in the designer
+  as it is edited, and along the bottom of the running screen.
+- **Values follow on every screen; pictures only on those on view**, so
+  extra pages cost no drawing. A screen coming on view with its station
+  stopped is drawn at once from the last inspection; with it running,
+  with the next inspection drawn.
+- **Format 2.** A screen is written in the oldest format that holds it:
+  1 unless it is a popup or opens screens, so a project using neither
+  still opens in 1.0.12; one that does is refused there with "saved by a
+  newer version", and the standard screen shown instead.
+
+**Not yet:** a screen or button needing a user level - the login popup
+is what that is for, and it comes with user levels (F2). The standard
+screen is still one page, with the settings listed under each station;
+moving them into a Settings popup is Cut and Paste between tabs.

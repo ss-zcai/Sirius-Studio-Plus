@@ -37,6 +37,13 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   has a kit to write the real drivers (decision 77).
 - **Builder**: one toolbar for the tab in front, Save All.
 
+## Since 1.0.12, not yet packed
+
+- **Several screens**: pages and popups beside the start screen, opened
+  by buttons - Open Screen, and Close or Back. A popup opens over the
+  dimmed page, which goes on running. In Builder each is listed in the
+  Project panel and designed in a tab of its own. Decision 79.
+
 ---
 
 ## Done

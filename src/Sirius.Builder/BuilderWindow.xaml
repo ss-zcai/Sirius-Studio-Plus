@@ -124,6 +124,9 @@
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="_Screen">
+                <MenuItem Header="Add _Page…" Command="{Binding AddPageCommand}" />
+                <MenuItem Header="Add P_opup…" Command="{Binding AddPopupCommand}" />
+                <Separator />
                 <MenuItem Header="_Reset to Standard" Command="{Binding Designer.ResetCommand}" />
             </MenuItem>
             <MenuItem Header="S_tation">
@@ -305,7 +308,7 @@
                                         <!-- Add: a station, a station from a recipe, or a controller. -->
                                         <Button x:Name="AddButton"
                                                 Style="{StaticResource PanelToolButton}"
-                                                ToolTip="Add a station or a controller"
+                                                ToolTip="Add a station, a controller, a page or a popup"
                                                 Click="OnAddClick">
                                             <StackPanel Orientation="Horizontal">
                                                 <Path Data="M7,1 L7,13 M1,7 L13,7"
@@ -334,11 +337,18 @@
                                                     <MenuItem Header="Add _Controller…" Command="{Binding AddControllerCommand}">
                                                         <MenuItem.Icon><Image Source="{StaticResource Icon.ph_controller}" Width="16" Height="16" /></MenuItem.Icon>
                                                     </MenuItem>
+                                                    <Separator />
+                                                    <MenuItem Header="Add _Page…" Command="{Binding AddPageCommand}">
+                                                        <MenuItem.Icon><Image Source="{StaticResource Icon.ph_screen_page}" Width="16" Height="16" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="Add P_opup…" Command="{Binding AddPopupCommand}">
+                                                        <MenuItem.Icon><Image Source="{StaticResource Icon.ph_screen_popup}" Width="16" Height="16" /></MenuItem.Icon>
+                                                    </MenuItem>
                                                 </ContextMenu>
                                             </Button.ContextMenu>
                                         </Button>
                                         <Button Style="{StaticResource PanelToolButton}"
-                                                ToolTip="Open what is selected: a station's recipe in Studio, a controller's workflow here"
+                                                ToolTip="Open what is selected: a station's recipe in Studio, a controller's workflow or a screen here"
                                                 Command="{Binding OpenSelectedCommand}">
                                             <Image Source="{StaticResource Icon.ph_sub_graph}" Width="15" Height="15" />
                                         </Button>
@@ -349,7 +359,7 @@
                                                FontSize="11"
                                                Margin="0,8,0,0"
                                                Foreground="{StaticResource Text.Secondary}"
-                                               Text="Double-click: a station shows the screen, a controller its workflow. Right-click a station to open its recipe in Studio." />
+                                               Text="Double-click: a station shows the start screen, a controller its workflow, a screen its design. Right-click a station to open its recipe in Studio." />
 
                                     <Grid>
                                         <TextBlock TextWrapping="Wrap"
@@ -475,6 +485,52 @@
                                                         </DockPanel.Tag>
                                                     </DockPanel>
                                                 </DataTemplate>
+
+                                                <!-- A screen: the start page, a page or a popup. -->
+                                                <DataTemplate DataType="{x:Type local:ScreenItemViewModel}">
+                                                    <DockPanel Background="Transparent" ToolTip="{Binding FilePath}" Margin="0,2">
+                                                        <Image x:Name="ScreenIcon"
+                                                               DockPanel.Dock="Left"
+                                                               Source="{StaticResource Icon.ph_screen_page}"
+                                                               Width="24"
+                                                               Height="24"
+                                                               Margin="0,0,8,0"
+                                                               VerticalAlignment="Top" />
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Name}" />
+                                                            <TextBlock Text="{Binding KindText}"
+                                                                       FontSize="10"
+                                                                       Foreground="{StaticResource Text.Secondary}" />
+                                                            <TextBlock Text="{Binding Problem}"
+                                                                       FontSize="10"
+                                                                       FontStyle="Italic"
+                                                                       Foreground="#DB5C5C"
+                                                                       Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}" />
+                                                        </StackPanel>
+                                                        <DockPanel.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem Header="_Open"
+                                                                          Command="{Binding PlacementTarget.Tag.OpenScreenCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <MenuItem Header="_Rename…"
+                                                                          Command="{Binding PlacementTarget.Tag.RenameScreenCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <Separator />
+                                                                <MenuItem Header="Re_move from Project…"
+                                                                          Command="{Binding PlacementTarget.Tag.RemoveScreenCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                            </ContextMenu>
+                                                        </DockPanel.ContextMenu>
+                                                        <DockPanel.Tag>
+                                                            <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ListBox}" />
+                                                        </DockPanel.Tag>
+                                                    </DockPanel>
+                                                    <DataTemplate.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPopup}" Value="True">
+                                                            <Setter TargetName="ScreenIcon" Property="Source" Value="{StaticResource Icon.ph_screen_popup}" />
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
+                                                </DataTemplate>
                                             </ListBox.Resources>
                                         </ListBox>
                                     </Grid>
@@ -566,8 +622,8 @@
 
                     <!-- The screen -->
                     <avalonDock:LayoutDocumentPane>
-                        <avalonDock:LayoutDocument Title="Screen" ContentId="screen" CanClose="False">
-                            <local:ScreenDesignerView x:Name="Designer" DataContext="{Binding Designer}" />
+                        <avalonDock:LayoutDocument Title="Main" ContentId="screen" CanClose="False">
+                            <local:ScreenDesignerView x:Name="Designer" DataContext="{Binding MainDesigner}" />
                         </avalonDock:LayoutDocument>
                     </avalonDock:LayoutDocumentPane>
 

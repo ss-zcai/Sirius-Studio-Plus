@@ -141,6 +141,11 @@ PHOSPHOR = {
     "image": "ph_image",
     "sliders": "ph_sliders",
     "trademark": "ph_trademark",
+
+    # A project's screens: a monitor for a page, which fills the display,
+    # and a window for a popup, which opens over it.
+    "monitor": "ph_screen_page",
+    "app-window": "ph_screen_popup",
 }
 
 # source file -> the resource key it supplies

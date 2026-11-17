@@ -292,16 +292,25 @@ public sealed class ValueWidgetViewModel(Widget widget) : WidgetViewModel(widget
     }
 }
 
-/// <summary>A button: trigger, run or stop, reset counts - for one station or all.</summary>
+/// <summary>
+/// A button: trigger, run or stop, reset counts - for one station or all;
+/// or open another screen, or close the one it is on.
+/// </summary>
 public sealed class ButtonWidgetViewModel : WidgetViewModel
 {
     private readonly ProjectRuntime _runtime;
+    private readonly IScreenNavigator? _screens;
+    private readonly ScreenKind _on;
     private bool _running;
 
-    public ButtonWidgetViewModel(Widget widget, ProjectRuntime runtime)
+    /// <param name="screens">What opens and closes screens; none, and Open Screen and Close do nothing.</param>
+    /// <param name="on">The kind of screen it is on: Close is "Close" on a popup, "Back" on a page.</param>
+    public ButtonWidgetViewModel(Widget widget, ProjectRuntime runtime, IScreenNavigator? screens = null, ScreenKind on = ScreenKind.Page)
         : base(widget)
     {
         _runtime = runtime;
+        _screens = screens;
+        _on = on;
         Command = new AsyncRelayCommand(PressAsync);
     }
 
@@ -314,6 +323,8 @@ public sealed class ButtonWidgetViewModel : WidgetViewModel
         WidgetAction.Trigger => Station is null ? "Trigger All" : "Trigger",
         WidgetAction.RunStop => Station is null ? "Run All" : "Run",
         WidgetAction.ResetCounts => "Reset Counts",
+        WidgetAction.OpenScreen => string.IsNullOrWhiteSpace(Widget.Screen) ? "Open" : Widget.Screen!,
+        WidgetAction.Close => ScreenSet.CloseCaption(_on),
         _ => "?",
     };
 
@@ -325,6 +336,17 @@ public sealed class ButtonWidgetViewModel : WidgetViewModel
 
     private async Task PressAsync()
     {
+        switch (Widget.Action)
+        {
+            case WidgetAction.OpenScreen:
+                _screens?.Open(Widget.Screen);
+                return;
+
+            case WidgetAction.Close:
+                _screens?.Close();
+                return;
+        }
+
         var targets = Targets;
 
         switch (Widget.Action)

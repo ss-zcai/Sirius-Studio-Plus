@@ -72,6 +72,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
     public string Caption => Kind switch
     {
         WidgetKind.Text => Widget.Text ?? string.Empty,
+        WidgetKind.Button when IsNavigation => Widget.Action == WidgetAction.OpenScreen ? $"{ButtonCaption}  ·  opens {Widget.Screen ?? "?"}" : ButtonCaption,
         WidgetKind.Button => $"{ButtonCaption}  ·  {(Widget.Station ?? "all stations")}",
         WidgetKind.Logo => Widget.File ?? "no picture chosen",
         WidgetKind.Setting when Widget.Style == SettingStyle.Range => $"{Widget.Station ?? "?"} › {Widget.Name ?? "?"} – {Widget.HighName ?? "?"}",
@@ -85,8 +86,34 @@ public sealed class DesignWidgetViewModel : ObservableObject
         {
             WidgetAction.RunStop => "Run / Stop",
             WidgetAction.ResetCounts => "Reset Counts",
+            WidgetAction.OpenScreen => Widget.Screen ?? "Open",
+            WidgetAction.Close => ScreenSet.CloseCaption(_owner.Kind),
             _ => "Trigger",
         };
+
+    /// <summary>A button opening or closing a screen, which acts on no station.</summary>
+    public bool IsNavigation => Kind == WidgetKind.Button && Widget.Action is WidgetAction.OpenScreen or WidgetAction.Close;
+
+    /// <summary>An Open Screen button.</summary>
+    public bool OpensScreen => Kind == WidgetKind.Button && Widget.Action == WidgetAction.OpenScreen;
+
+    /// <summary>The screen an Open Screen button opens, by name.</summary>
+    public string ScreenValue
+    {
+        get => Widget.Screen ?? string.Empty;
+        set
+        {
+            var screen = string.IsNullOrWhiteSpace(value) ? null : value;
+            Set(() => Widget.Screen = screen, Widget.Screen, screen);
+        }
+    }
+
+    /// <summary>What is wrong with the screen an Open Screen button opens, or null.</summary>
+    public string? ScreenProblem =>
+        !OpensScreen ? null
+        : string.IsNullOrWhiteSpace(Widget.Screen) ? "No screen is chosen: add a page or popup to the project, then choose it here."
+        : _owner.ScreenOptions.Any(option => string.Equals(option.Value, Widget.Screen, StringComparison.OrdinalIgnoreCase)) ? null
+        : $"The project has no screen '{Widget.Screen}'.";
 
     /// <summary>The logo itself, for a Logo on the canvas; null for anything else or a picture not found.</summary>
     public string? LogoPath =>
@@ -229,7 +256,16 @@ public sealed class DesignWidgetViewModel : ObservableObject
     public WidgetAction Action
     {
         get => Widget.Action ?? WidgetAction.Trigger;
-        set => Set(() => Widget.Action = value, Widget.Action, value);
+        set => Set(
+            () =>
+            {
+                Widget.Action = value;
+
+                if (value == WidgetAction.OpenScreen && string.IsNullOrWhiteSpace(Widget.Screen))
+                    Widget.Screen = _owner.ScreenOptions.FirstOrDefault()?.Value;
+            },
+            Widget.Action,
+            value);
     }
 
     public double FontSize
@@ -667,7 +703,8 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 () => StationValue,
                 value => StationValue = value as string ?? string.Empty,
                 Kind == WidgetKind.Button ? "The station the button acts on, or every station." : "The station it shows.",
-                options: () => StationOptions.Select(option => new PropertyOption(option.Label, option.Value)).ToArray());
+                options: () => StationOptions.Select(option => new PropertyOption(option.Label, option.Value)).ToArray(),
+                visible: () => !IsNavigation);
         }
 
         if (HasName)
@@ -692,8 +729,23 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 "Shows", "Does", PropertyEditor.Choice,
                 () => Action,
                 value => { if (value is WidgetAction action) Action = action; },
-                "Trigger inspects once; Run / Stop runs part after part; Reset Counts starts the counts from zero.",
+                "Trigger inspects once; Run / Stop runs part after part; Reset Counts starts the counts from zero. " +
+                "Open Screen shows another of the project's screens - a page in place of this one, or a popup over it; " +
+                "Close closes a popup, or on a page goes back to the one shown before.",
                 options: () => _owner.Actions.Select(action => new PropertyOption(ActionLabel(action), action)).ToArray());
+
+            yield return new PropertyRow(
+                "Shows", "Opens", PropertyEditor.Choice,
+                () => ScreenValue,
+                value => ScreenValue = value as string ?? string.Empty,
+                "The screen it opens. Add pages and popups with + in the Project panel.",
+                options: () => _owner.ScreenOptions.Select(option => new PropertyOption(option.Label, option.Value)).ToArray(),
+                visible: () => OpensScreen);
+
+            yield return new PropertyRow(
+                "Shows", "Problem", PropertyEditor.ReadOnly,
+                () => ScreenProblem,
+                visible: () => ScreenProblem is not null);
         }
 
         if (HasText)
@@ -838,6 +890,8 @@ public sealed class DesignWidgetViewModel : ObservableObject
     {
         WidgetAction.RunStop => "Run / Stop",
         WidgetAction.ResetCounts => "Reset Counts",
+        WidgetAction.OpenScreen => "Open Screen",
+        WidgetAction.Close => "Close / Back",
         _ => "Trigger",
     };
 

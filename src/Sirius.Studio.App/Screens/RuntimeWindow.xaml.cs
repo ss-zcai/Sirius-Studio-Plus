@@ -54,12 +54,12 @@ public partial class RuntimeWindow : Window
         _bus = new ProjectStationBus(_runtime, new System.Windows.Threading.DispatcherSynchronizationContext(Dispatcher));
         _controllers = ProjectControllers.Open(project, _bus);
 
-        var screen = ScreenLayout.ScreenFor(project, _runtime.Stations, out var problem);
+        var screens = ScreenSet.Load(project, _runtime.Stations, out var unread);
         _screen = new ScreenViewModel(
-            screen,
+            screens,
             _runtime,
             project.Folder,
-            [.. problems ?? [], .. problem is null ? [] : new[] { problem }, .. _controllers.Problems]);
+            [.. problems ?? [], .. unread, .. _controllers.Problems]);
 
         _controllerClock = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _controllerClock.Tick += (_, _) => ShowControllers();
@@ -181,6 +181,14 @@ public partial class RuntimeWindow : Window
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
+        // Escape closes a popup first, full screen or not.
+        if (e.Key == Key.Escape && _screen.HasPopup)
+        {
+            e.Handled = true;
+            _screen.ClosePopupCommand.Execute(null);
+            return;
+        }
+
         if (e.Key == Key.Escape && WindowStyle != WindowStyle.None)
         {
             e.Handled = true;

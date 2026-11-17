@@ -5,15 +5,16 @@ using Sirius.Core.Runtime;
 namespace Sirius.Core.Screens;
 
 /// <summary>
-/// Makes, finds and checks a project's screen.
+/// Makes, finds and checks a project's start screen, and checks any screen.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The MVP has one screen per project, <c>screens/Main.screen</c>. Until the
-/// designer (MVP step 5) edits it, it is generated from what each station
-/// publishes: a column per station - its name, its picture, PASS/FAIL and
-/// counts, its own Trigger and Run buttons, then its results and settings -
-/// under a title and buttons acting on every station.
+/// The start screen is <c>screens/Main.screen</c>; pages and popups beside
+/// it are <see cref="ScreenSet"/>'s. Until the designer (MVP step 5) edits
+/// it, the start screen is generated from what each station publishes: a
+/// column per station - its name, its picture, PASS/FAIL and counts, its
+/// own Trigger and Run buttons, then its results and settings - under a
+/// title and buttons acting on every station.
 /// </para>
 /// </remarks>
 public static class ScreenLayout

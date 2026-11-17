@@ -2,7 +2,11 @@
 
 What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
-14 November 2026.
+17 November 2026.
+
+**Since 1.0.12** (17 November): **several screens** - pages and popups,
+opened by buttons, each designed in a tab of its own in Builder (F24,
+decision 79).
 
 **Since the last update** (11-13 November): Sirius IV gained its file
 list, sorting, matching and Sync View, and a tab per viewer; the PLC
@@ -155,6 +159,17 @@ from you before they start.
   - how the Server stores results and images;
   - typical line speed and image size;
   - what happens today when the Server cannot be reached.
+- ~~**F24. Several screens: pages and popups**~~ - done 17 November 2026
+  (decision 79): a project's screens are Main and any pages and popups
+  beside it; buttons Open Screen and Close; a popup over the dimmed page,
+  still running; each screen in its own tab in Builder, listed in the
+  Project panel. Left, when asked:
+  - a screen or button **behind a user level**, with a login popup - comes
+    with user levels (F2);
+  - the **standard screen with a Settings popup** made for it, rather than
+    the settings listed under each station (S);
+  - a **tab bar** of pages along the top of the running window, if
+    buttons are not enough (S).
 - ~~**F3. Signal out**~~ - done as F23: a verdict reaches the PLC.
 - **F4. Counts that survive a restart** (S-M). Counts start from zero
   each session. Wanted by the runtime anyway.

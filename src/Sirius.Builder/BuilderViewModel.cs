@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Sirius.Core.Graph;
 using Sirius.Core.Projects;
+using Sirius.Core.Screens;
 using Sirius.Plc;
 using Sirius.Plc.Workflows;
 using Sirius.Studio.App;
@@ -17,8 +18,8 @@ using Sirius.Studio.App.Screens;
 namespace Sirius.Builder;
 
 /// <summary>
-/// Sirius Builder's window: the open project, its stations, and its screen
-/// in the designer (decision 71).
+/// Sirius Builder's window: the open project, its stations, controllers
+/// and screens, each screen in a designer of its own (decisions 71, 79).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -38,7 +39,9 @@ public sealed partial class BuilderViewModel : ObservableObject
     public const string AppTitle = "Sirius Builder";
 
     private Project? _project;
+    private StationRecipes? _recipes;
     private ScreenDesignerViewModel? _designer;
+    private ScreenDesignerViewModel? _mainDesigner;
 
     [ObservableProperty]
     private StationViewModel? _selectedStation;
@@ -72,6 +75,12 @@ public sealed partial class BuilderViewModel : ObservableObject
         RenameControllerCommand = new RelayCommand<ControllerViewModel>(RenameController);
         RemoveControllerCommand = new RelayCommand<ControllerViewModel>(RemoveController);
         OpenSelectedCommand = new RelayCommand(() => OpenSelected(SelectedItem), () => SelectedItem is not null);
+
+        AddPageCommand = new RelayCommand(() => AskThenAddScreen(ScreenKind.Page), () => HasProject);
+        AddPopupCommand = new RelayCommand(() => AskThenAddScreen(ScreenKind.Popup), () => HasProject);
+        OpenScreenCommand = new RelayCommand<ScreenItemViewModel>(screen => OpenScreen(screen));
+        RenameScreenCommand = new RelayCommand<ScreenItemViewModel>(AskThenRenameScreen, screen => screen?.CanChange == true);
+        RemoveScreenCommand = new RelayCommand<ScreenItemViewModel>(AskThenRemoveScreen, screen => screen?.CanChange == true);
 
         // The toolbar's and the Edit menu's: whatever is in front does them.
         SaveCommand = Active(() => ActiveWorkflow?.SaveCommand ?? Designer?.SaveCommand);
@@ -212,26 +221,29 @@ public sealed partial class BuilderViewModel : ObservableObject
             OnPropertyChanged(nameof(Title));
     }
 
-    /// <summary>Saves the screen and every workflow open with changes.</summary>
+    /// <summary>Saves every screen and every workflow open with changes.</summary>
     /// <returns>Whether all were saved.</returns>
     internal bool SaveAll()
     {
-        var saved = _designer is not { IsModified: true } designer || designer.Save();
+        var saved = true;
+
+        foreach (var designer in Designers.Where(designer => designer.IsModified))
+            saved &= designer.Save();
 
         foreach (var workflow in Workflows.Where(workflow => workflow.IsModified))
             saved &= workflow.Save();
 
         if (saved)
-            StatusText = "Saved the screen and the workflows.";
+            StatusText = "Saved the screens and the workflows.";
 
         return saved;
     }
 
-    /// <summary>Asks about everything unsaved - the screen, each workflow - before Builder closes.</summary>
+    /// <summary>Asks about everything unsaved - each screen, each workflow - before Builder closes.</summary>
     /// <returns>False when the operator chose to stay.</returns>
     internal bool ConfirmLeaving(string title)
     {
-        if (!ConfirmScreen(title))
+        if (!ConfirmScreens(title))
             return false;
 
         foreach (var workflow in Workflows.Where(workflow => workflow.IsModified).ToArray())
@@ -268,14 +280,17 @@ public sealed partial class BuilderViewModel : ObservableObject
     /// </summary>
     public ObservableCollection<object> Items { get; } = [];
 
-    /// <summary>A project with neither stations nor controllers.</summary>
-    public bool IsEmpty => _project is not null && Items.Count == 0;
+    /// <summary>A project with neither stations nor controllers - its start screen is always listed.</summary>
+    public bool IsEmpty => _project is not null && Stations.Count == 0 && Controllers.Count == 0;
+
+    /// <summary>The project's screens: the start screen, then its pages and popups.</summary>
+    public ObservableCollection<ScreenItemViewModel> Screens { get; } = [];
 
     private object? _selectedItem;
 
     /// <summary>
-    /// What is selected in the Project panel - a station or a controller.
-    /// The Station and Controller menus act on it.
+    /// What is selected in the Project panel - a station, a controller or a
+    /// screen. The Station and Controller menus act on it.
     /// </summary>
     public object? SelectedItem
     {
@@ -306,13 +321,14 @@ public sealed partial class BuilderViewModel : ObservableObject
     /// <summary>The Project panel's open button: a station's recipe in Studio, a controller's workflow here.</summary>
     public IRelayCommand OpenSelectedCommand { get; }
 
-    /// <summary>The screen is to be brought to the front.</summary>
-    public event EventHandler? ScreenShown;
+    /// <summary>A screen's designer is to be brought to the front - opened, or already open.</summary>
+    public event EventHandler<ScreenDesignerViewModel>? ScreenShown;
 
     /// <summary>
     /// What a double-click does - open it here, in Builder: a station shows
-    /// the screen, a controller its workflow. A station's recipe opens in
-    /// Studio from its right-click menu, or the panel's open button.
+    /// the start screen, a controller its workflow, a screen its designer.
+    /// A station's recipe opens in Studio from its right-click menu, or the
+    /// panel's open button.
     /// </summary>
     internal void Open(object? item)
     {
@@ -324,6 +340,10 @@ public sealed partial class BuilderViewModel : ObservableObject
 
             case ControllerViewModel controller:
                 OpenWorkflowCommand.Execute(controller);
+                break;
+
+            case ScreenItemViewModel screen:
+                OpenScreen(screen);
                 break;
         }
     }
@@ -339,17 +359,24 @@ public sealed partial class BuilderViewModel : ObservableObject
             case ControllerViewModel controller:
                 OpenWorkflowCommand.Execute(controller);
                 break;
+
+            case ScreenItemViewModel screen:
+                OpenScreen(screen);
+                break;
         }
     }
 
-    /// <summary>Brings the screen to the front, saying how much of it shows the station.</summary>
+    /// <summary>Brings the start screen to the front, saying how much of it shows the station.</summary>
     internal void ShowScreen(StationViewModel? station = null)
     {
-        ActiveWorkflow = null;
-        ScreenShown?.Invoke(this, EventArgs.Empty);
+        if (_mainDesigner is not { } main)
+            return;
 
-        if (station is not null && _designer is { } designer)
+        ShowDesigner(main);
+
+        if (station is not null)
         {
+            var designer = main;
             var showing = designer.Widgets.Count(widget => string.Equals(widget.Widget.Station, station.Name, StringComparison.OrdinalIgnoreCase));
 
             StatusText = showing == 0
@@ -364,16 +391,53 @@ public sealed partial class BuilderViewModel : ObservableObject
     /// <summary>A workflow is to be shown - opened, or brought to the front.</summary>
     public event EventHandler<WorkflowDocumentViewModel>? WorkflowShown;
 
-    /// <summary>The project's screen in the designer; null with no project open.</summary>
+    /// <summary>
+    /// The screen being designed: the one whose tab is in front, or was last
+    /// - the start screen's to begin with. Null with no project open.
+    /// </summary>
     public ScreenDesignerViewModel? Designer
     {
         get => _designer;
-        private set => SetProperty(ref _designer, value);
+        private set
+        {
+            if (SetProperty(ref _designer, value))
+                ActiveChanged();
+        }
+    }
+
+    /// <summary>The start screen's designer, in the tab that is always there.</summary>
+    public ScreenDesignerViewModel? MainDesigner
+    {
+        get => _mainDesigner;
+        private set => SetProperty(ref _mainDesigner, value);
+    }
+
+    /// <summary>The screens open in designers, the start screen's first.</summary>
+    public ObservableCollection<ScreenDesignerViewModel> Designers { get; } = [];
+
+    /// <summary>
+    /// A screen's tab came to the front: its designer is the one the
+    /// toolbar, the Widgets panel and Properties act on.
+    /// </summary>
+    internal void ShowingDesigner(ScreenDesignerViewModel designer)
+    {
+        if (!Designers.Contains(designer))
+            return;
+
+        ActiveWorkflow = null;
+        Designer = designer;
+    }
+
+    /// <summary>Brings a screen's designer to the front.</summary>
+    private void ShowDesigner(ScreenDesignerViewModel designer)
+    {
+        ShowingDesigner(designer);
+        ScreenShown?.Invoke(this, designer);
     }
 
     public string Title => _project is null
         ? AppTitle
-        : $"{(_designer?.IsModified == true || Workflows.Any(workflow => workflow.IsModified) ? "*" : string.Empty)}{_project.Name} - {AppTitle}";
+        : $"{(Designers.Any(designer => designer.IsModified) || Workflows.Any(workflow => workflow.IsModified) ? "*" : string.Empty)}{_project.Name} - {AppTitle}";
 
     /// <summary>Asks the operator a question; replaced in tests.</summary>
     internal Func<string, string, MessageBoxResult> Ask { get; set; } = (message, title) => Dialog.Ask(message, title, Application.Current?.MainWindow);
@@ -418,6 +482,18 @@ public sealed partial class BuilderViewModel : ObservableObject
     public IRelayCommand<ControllerViewModel> RenameControllerCommand { get; }
 
     public IRelayCommand<ControllerViewModel> RemoveControllerCommand { get; }
+
+    /// <summary>A new page: fills the window in place of the one shown.</summary>
+    public IRelayCommand AddPageCommand { get; }
+
+    /// <summary>A new popup: opens over the page.</summary>
+    public IRelayCommand AddPopupCommand { get; }
+
+    public IRelayCommand<ScreenItemViewModel> OpenScreenCommand { get; }
+
+    public IRelayCommand<ScreenItemViewModel> RenameScreenCommand { get; }
+
+    public IRelayCommand<ScreenItemViewModel> RemoveScreenCommand { get; }
 
     /// <summary>Opens a PLC window; replaced in tests.</summary>
     internal Func<Window?, PlcViewModel, Window?> OpenPlcWindow { get; set; } = (owner, model) => PlcWindow.Open(owner, model);
@@ -504,28 +580,14 @@ public sealed partial class BuilderViewModel : ObservableObject
     internal void Show(Project project)
     {
         _project = project;
+        _recipes = new StationRecipes(project);
         project.Changed += OnProjectChanged;
 
         Rebuild();
 
-        var designer = new ScreenDesignerViewModel(new StationRecipes(project));
-        designer.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(ScreenDesignerViewModel.IsModified))
-                OnPropertyChanged(nameof(Title));
-
-            if (ActiveWorkflow is null && e.PropertyName is nameof(ScreenDesignerViewModel.PropertyCategories)
-                    or nameof(ScreenDesignerViewModel.PropertyTitle) or nameof(ScreenDesignerViewModel.PropertySubtitle))
-            {
-                OnPropertyChanged(e.PropertyName);
-            }
-
-            // The designer's news - saved, limited, reset - on Builder's status line.
-            if (e.PropertyName == nameof(ScreenDesignerViewModel.StatusText) && !string.IsNullOrEmpty(designer.StatusText))
-                StatusText = designer.StatusText;
-        };
-
-        Designer = designer;
+        var main = Designed(new ScreenDesignerViewModel(_recipes, Screen.StartName, ScreenInfos));
+        MainDesigner = main;
+        Designer = main;
         ActiveChanged();
         SelectedStation = Stations.FirstOrDefault();
 
@@ -540,7 +602,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         if (_project is null)
             return true;
 
-        if (!ConfirmScreen("Close Project"))
+        if (!ConfirmScreens("Close Project"))
             return false;
 
         foreach (var workflow in Workflows.ToArray())
@@ -551,10 +613,14 @@ public sealed partial class BuilderViewModel : ObservableObject
 
         _project.Changed -= OnProjectChanged;
         _project = null;
+        _recipes = null;
+        Designers.Clear();
+        MainDesigner = null;
         Designer = null;
         ActiveChanged();
         Stations.Clear();
         Controllers.Clear();
+        Screens.Clear();
         Items.Clear();
         SelectedItem = null;
         StatusText = "Open a project, or make a new one.";
@@ -562,14 +628,26 @@ public sealed partial class BuilderViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>Asks to save the screen when it has changes.</summary>
+    /// <summary>Asks to save each screen that has changes.</summary>
     /// <returns>False when the operator cancelled, or saving failed.</returns>
-    internal bool ConfirmScreen(string title)
+    internal bool ConfirmScreens(string title)
     {
-        if (_designer is not { IsModified: true } designer)
+        foreach (var designer in Designers.Where(designer => designer.IsModified).ToArray())
+        {
+            if (!ConfirmScreen(designer, title))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>Asks to save one screen, if it has changes.</summary>
+    private bool ConfirmScreen(ScreenDesignerViewModel designer, string title)
+    {
+        if (!designer.IsModified)
             return true;
 
-        var answer = Ask("Save the screen first?", title);
+        var answer = Ask(designer.IsStart && Designers.Count == 1 ? "Save the screen first?" : $"Save the screen {designer.Name} first?", title);
 
         return answer switch
         {
@@ -591,7 +669,8 @@ public sealed partial class BuilderViewModel : ObservableObject
         foreach (var station in Stations)
             station.RefreshLine();
 
-        _designer?.Refresh();
+        foreach (var designer in Designers)
+            designer.Refresh();
     }
 
     // ---- stations ---------------------------------------------------------
@@ -694,10 +773,13 @@ public sealed partial class BuilderViewModel : ObservableObject
         {
             project.RenameStation(station.Station, name);
 
-            if (_designer?.RenameStation(old, station.Name) == true)
-                StatusText = $"Renamed {old} to {station.Name}, on the screen too. Save the screen to keep it.";
-            else
-                StatusText = $"Renamed {old} to {station.Name}.";
+            // A screen open in a tab follows as a change to save; one not open, in its file at once.
+            var open = Designers.Where(designer => designer.RenameStation(old, station.Name)).Select(designer => designer.Name).ToArray();
+            var written = ScreenSet.RenameStation(project, old, station.Name, Designers.Select(designer => designer.Name).ToArray());
+
+            StatusText = open.Length == 0
+                ? written.Count == 0 ? $"Renamed {old} to {station.Name}." : $"Renamed {old} to {station.Name}, on {string.Join(", ", written)} too."
+                : $"Renamed {old} to {station.Name}, on {string.Join(", ", open.Concat(written))} too. Save {string.Join(", ", open)} to keep it.";
         }, "Rename Station");
     }
 
@@ -777,7 +859,9 @@ public sealed partial class BuilderViewModel : ObservableObject
 
         LineSettingsWindow.Show(Application.Current?.MainWindow, new LineSettingsViewModel(project, station.Station));
         station.RefreshLine();
-        _designer?.Refresh();
+
+        foreach (var designer in Designers)
+            designer.Refresh();
     }
 
     private void ShowImageSaving(StationViewModel? station)
@@ -836,14 +920,18 @@ public sealed partial class BuilderViewModel : ObservableObject
         if (_project is not { } project)
             return;
 
-        if (_designer is { IsModified: true } designer)
+        if (Designers.Where(designer => designer.IsModified).ToArray() is { Length: > 0 } unsaved)
         {
-            var answer = Ask("The test run shows the screen as saved. Save it first?", "Test Run");
+            var answer = Ask(
+                unsaved.Length == 1 && unsaved[0].IsStart && Designers.Count == 1
+                    ? "The test run shows the screen as saved. Save it first?"
+                    : $"The test run shows the screens as saved. Save {string.Join(", ", unsaved.Select(designer => designer.Name))} first?",
+                "Test Run");
 
             if (answer is MessageBoxResult.Cancel or MessageBoxResult.None)
                 return;
 
-            if (answer == MessageBoxResult.Yes && !designer.Save())
+            if (answer == MessageBoxResult.Yes && !unsaved.All(designer => designer.Save()))
                 return;
         }
 
@@ -1075,12 +1163,261 @@ public sealed partial class BuilderViewModel : ObservableObject
     private ControllerViewModel? Find(Controller controller) =>
         Controllers.FirstOrDefault(candidate => ReferenceEquals(candidate.Controller, controller));
 
+    // ---- screens ----------------------------------------------------------
+
+    /// <summary>A designer, listened to: its changes on the title, its news on the status line, its properties when in front.</summary>
+    private ScreenDesignerViewModel Designed(ScreenDesignerViewModel designer)
+    {
+        designer.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ScreenDesignerViewModel.IsModified))
+                OnPropertyChanged(nameof(Title));
+
+            if (ActiveWorkflow is null && ReferenceEquals(designer, _designer) &&
+                e.PropertyName is nameof(ScreenDesignerViewModel.PropertyCategories)
+                    or nameof(ScreenDesignerViewModel.PropertyTitle) or nameof(ScreenDesignerViewModel.PropertySubtitle))
+            {
+                OnPropertyChanged(e.PropertyName);
+            }
+
+            // The designer's news - saved, limited, reset - on Builder's status line.
+            if (e.PropertyName == nameof(ScreenDesignerViewModel.StatusText) && !string.IsNullOrEmpty(designer.StatusText))
+                StatusText = designer.StatusText;
+        };
+
+        Designers.Add(designer);
+        return designer;
+    }
+
+    /// <summary>
+    /// Every screen of the project, as a designer sees them: each open one
+    /// as it is now, saved or not, the rest as saved.
+    /// </summary>
+    private IReadOnlyList<ScreenInfo> ScreenInfos() =>
+        Screens.Select(screen => Designers.FirstOrDefault(designer => string.Equals(designer.Name, screen.Name, StringComparison.OrdinalIgnoreCase))?.Info ?? screen.Info)
+            .ToArray();
+
+    /// <summary>The screen called <paramref name="name"/> in the Project panel, or null.</summary>
+    internal ScreenItemViewModel? FindScreen(string name) =>
+        Screens.FirstOrDefault(screen => string.Equals(screen.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Opens a screen in its designer's tab - or brings the tab to the front.</summary>
+    internal ScreenDesignerViewModel? OpenScreen(ScreenItemViewModel? screen)
+    {
+        if (screen is null || _recipes is not { } recipes)
+            return null;
+
+        var open = Designers.FirstOrDefault(designer => string.Equals(designer.Name, screen.Name, StringComparison.OrdinalIgnoreCase))
+                   ?? Designed(new ScreenDesignerViewModel(recipes, screen.Name, ScreenInfos));
+
+        ShowDesigner(open);
+        StatusText = $"{open.Name}: {open.ProblemText}";
+        return open;
+    }
+
+    /// <summary>Closes a screen's tab, offering to save it first. The start screen's tab stays.</summary>
+    /// <returns>False when the operator chose to keep it open, or saving failed.</returns>
+    internal bool CloseScreen(ScreenDesignerViewModel designer)
+    {
+        if (designer.IsStart)
+            return false;
+
+        if (!Designers.Contains(designer))
+            return true;
+
+        if (!ConfirmScreen(designer, "Close Screen"))
+            return false;
+
+        Forget(designer);
+        return true;
+    }
+
+    private void Forget(ScreenDesignerViewModel designer)
+    {
+        Designers.Remove(designer);
+
+        if (ReferenceEquals(_designer, designer))
+            Designer = _mainDesigner;
+
+        OnPropertyChanged(nameof(Title));
+    }
+
+    private void AskThenAddScreen(ScreenKind kind)
+    {
+        if (_project is not { } project)
+            return;
+
+        var popup = kind == ScreenKind.Popup;
+
+        var name = TextPromptWindow.Ask(
+            Application.Current?.MainWindow,
+            popup ? "Add Popup" : "Add Page",
+            popup
+                ? "A popup opens over the page from a button, the page dimmed behind it and still running - for settings, a login, a part's details. What is it called?"
+                : "A page fills the window in place of the one shown, opened from a button; Back returns. What is it called?",
+            ScreenSet.Suggest(project, popup ? "Settings" : "Page"),
+            text => ScreenSet.NameProblem(project, text));
+
+        if (name is not null)
+            AddScreen(name, kind);
+    }
+
+    /// <summary>
+    /// Adds a page or popup - a title and its way out, to build on - writes
+    /// it, and opens it in a tab.
+    /// </summary>
+    internal ScreenDesignerViewModel? AddScreen(string name, ScreenKind kind)
+    {
+        if (_project is not { } project)
+            return null;
+
+        ScreenDesignerViewModel? opened = null;
+
+        Guard(() =>
+        {
+            if (ScreenSet.NameProblem(project, name) is { } problem)
+                throw new ArgumentException(problem);
+
+            var start = _mainDesigner?.Info ?? new ScreenInfo(Screen.StartName, ScreenKind.Page, 1280, 800);
+            ScreenSet.NewScreen(name, kind, start.Width, start.Height).Save(ScreenSet.PathFor(project, name));
+
+            RebuildScreens();
+            SelectedItem = FindScreen(name);
+            opened = OpenScreen(FindScreen(name));
+
+            StatusText = kind == ScreenKind.Popup
+                ? $"Added the popup {name.Trim()}. Put a button on another screen to open it: Does - Open Screen, Opens - {name.Trim()}."
+                : $"Added the page {name.Trim()}. Put a button on another screen to open it: Does - Open Screen, Opens - {name.Trim()}.";
+        }, kind == ScreenKind.Popup ? "Add Popup" : "Add Page");
+
+        return opened;
+    }
+
+    private void AskThenRenameScreen(ScreenItemViewModel? screen)
+    {
+        if (screen is null || _project is not { } project || !screen.CanChange)
+            return;
+
+        var name = TextPromptWindow.Ask(
+            Application.Current?.MainWindow,
+            "Rename Screen",
+            "Buttons opening it follow the new name.",
+            screen.Name,
+            text => ScreenSet.NameProblem(project, text, screen.Name));
+
+        if (name is not null && name.Trim() != screen.Name)
+            RenameScreen(screen, name);
+    }
+
+    /// <summary>
+    /// Renames a screen: its file, and the buttons opening it - in screens
+    /// open in a designer as an undoable change to save, in the others at
+    /// once.
+    /// </summary>
+    internal void RenameScreen(ScreenItemViewModel screen, string name)
+    {
+        if (_project is not { } project)
+            return;
+
+        var from = screen.Name;
+
+        Guard(() =>
+        {
+            var open = Designers.ToArray();
+            var renamed = Designers.FirstOrDefault(designer => string.Equals(designer.Name, from, StringComparison.OrdinalIgnoreCase));
+
+            // Open screens are left to their designers, so changes not yet saved are not lost.
+            var leave = open.Where(designer => !ReferenceEquals(designer, renamed)).Select(designer => designer.Name).ToArray();
+            ScreenSet.Rename(project, from, name, leave);
+
+            renamed?.Renamed(name);
+
+            var pointing = open
+                .Where(designer => !ReferenceEquals(designer, renamed))
+                .Where(designer => designer.RetargetScreen(from, name.Trim()))
+                .Select(designer => designer.Name)
+                .ToArray();
+
+            RebuildScreens();
+            SelectedItem = FindScreen(name.Trim());
+
+            StatusText = pointing.Length == 0
+                ? $"Renamed the screen {from} to {name.Trim()}."
+                : $"Renamed the screen {from} to {name.Trim()}; buttons on {string.Join(", ", pointing)} follow - save to keep them.";
+        }, "Rename Screen");
+    }
+
+    private void AskThenRemoveScreen(ScreenItemViewModel? screen)
+    {
+        if (screen is null || !screen.CanChange)
+            return;
+
+        var answer = Dialog.Confirm(
+            $"Remove the screen '{screen.Name}' from the project?\n\n" +
+            $"Its file ({Path.GetFileName(screen.FilePath)}) goes to the Recycle Bin, where it can be restored from. " +
+            "Buttons opening it are reported.",
+            "Remove Screen");
+
+        if (answer)
+            RemoveScreen(screen);
+    }
+
+    /// <summary>Removes a screen: its tab closes, unsaved changes and all, and its file goes to the Recycle Bin.</summary>
+    internal bool RemoveScreen(ScreenItemViewModel screen)
+    {
+        if (_project is null || !screen.CanChange)
+            return false;
+
+        if (Designers.FirstOrDefault(designer => string.Equals(designer.Name, screen.Name, StringComparison.OrdinalIgnoreCase)) is { } open)
+            Forget(open);
+
+        var removed = false;
+
+        Guard(() =>
+        {
+            if (File.Exists(screen.FilePath))
+                Recycle(screen.FilePath);
+
+            removed = true;
+            StatusText = $"Removed the screen {screen.Name}; its file is in the Recycle Bin.";
+        }, "Remove Screen");
+
+        RebuildScreens();
+
+        foreach (var designer in Designers)
+            designer.Refresh();
+
+        return removed;
+    }
+
+    /// <summary>Sends a file to the Recycle Bin; replaced in tests.</summary>
+    internal Action<string> Recycle { get; set; } = path =>
+        Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
+            path,
+            Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+            Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+
+    /// <summary>The screens as they are in the folder now - after one was added, renamed or removed.</summary>
+    private void RebuildScreens()
+    {
+        var selected = SelectedItem as ScreenItemViewModel;
+        Rebuild();
+
+        if (selected is not null)
+            SelectedItem = FindScreen(selected.Name);
+
+        foreach (var designer in Designers)
+            designer.Refresh();
+    }
+
     // ---- housekeeping -----------------------------------------------------
 
     private void OnProjectChanged(object? sender, EventArgs e)
     {
         Rebuild();
-        _designer?.Refresh();
+
+        foreach (var designer in Designers)
+            designer.Refresh();
     }
 
     private void Rebuild()
@@ -1090,11 +1427,13 @@ public sealed partial class BuilderViewModel : ObservableObject
         {
             StationViewModel station => (object)station.Station,
             ControllerViewModel controller => controller.Controller,
+            ScreenItemViewModel screen => screen.Name,
             _ => null,
         };
 
         Stations.Clear();
         Controllers.Clear();
+        Screens.Clear();
         Items.Clear();
 
         if (_project is { } project)
@@ -1104,15 +1443,19 @@ public sealed partial class BuilderViewModel : ObservableObject
 
             foreach (var controller in project.Controllers)
                 Controllers.Add(new ControllerViewModel(project, controller));
+
+            foreach (var name in ScreenSet.Names(project))
+                Screens.Add(new ScreenItemViewModel(project, name));
         }
 
-        foreach (var item in Stations.Cast<object>().Concat(Controllers))
+        foreach (var item in Stations.Cast<object>().Concat(Controllers).Concat(Screens))
             Items.Add(item);
 
         SelectedItem = selected switch
         {
             Station station => Find(station),
             Controller controller => Find(controller),
+            string screen => FindScreen(screen),
             _ => null,
         };
 
@@ -1134,6 +1477,8 @@ public sealed partial class BuilderViewModel : ObservableObject
         AddFromRecipeCommand.NotifyCanExecuteChanged();
         TestRunCommand.NotifyCanExecuteChanged();
         AddControllerCommand.NotifyCanExecuteChanged();
+        AddPageCommand.NotifyCanExecuteChanged();
+        AddPopupCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasNoControllers));
         OnPropertyChanged(nameof(IsEmpty));
     }

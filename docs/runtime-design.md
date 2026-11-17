@@ -342,6 +342,13 @@ PASS/FAIL, counters, a results table, a tunables page behind a level -
 whose slots the SI fills from the published lists. Enough to put a station
 in front of an operator before the designer exists.
 
+**Built (17 November 2026): several screens** (decision 79). Main, the
+start screen, and any pages and popups beside it, each a file in
+`screens\`. A button opens one (Open Screen) or closes it (Close, shown
+as Back on a page). A popup opens over the page, which is dimmed and goes
+on running; one popup at a time. The tunables page behind a level, above,
+becomes a popup behind a login once user levels exist.
+
 **Built (10 November 2026): the setting widget's controls.** For a number
 the SI chooses one of four controls in Builder's property grid:
 - **− value +**, the default.

@@ -59,17 +59,20 @@ A project is a folder holding everything a line needs:
 - **Controllers** - a PLC each, and its **workflow**: a small graph that
   watches the PLC, has stations inspect, and writes the result back
   (`plc-workflows.md`). A simulated PLC is there for the desk.
-- **The screen** the operator sees, laid out by dragging widgets:
+- **The screens** the operator sees, laid out by dragging widgets:
   pictures, PASS / FAIL, values, counts, buttons, settings, text and a
-  logo. Builder makes a standard one from what the recipes publish.
+  logo. Builder makes a standard **Main** screen from what the recipes
+  publish; **pages** and **popups** beside it - settings, details, later
+  a login - are opened from its buttons, a popup over the page, which
+  goes on running.
 - **What the line may change**: for each published setting, how far an
   operator may move it.
 - **Which pictures each station keeps**: none, failed or all, for how
   many days.
 
 **Test Run** (F5) runs the whole project in a window, exactly as Edge
-will. Double-click a station to see the screen; right-click it to open
-its recipe in Studio.
+will. Double-click a station to see the screen, or a screen to design
+it; right-click a station to open its recipe in Studio.
 
 Saves `<project>.sproj`, with the recipes, screens and workflows in
 folders beside it.
@@ -165,7 +168,7 @@ when it next opens the project.
 | `*.sgraph` | Studio | a recipe: its tools, settings and wires |
 | `*.line.json` | Edge, Builder | settings changed on the line, kept beside the recipe, not in it |
 | `*.sproj` | Builder | a project: its stations, controllers, limits, image saving |
-| `screens\*.screen` | Builder | the operator's screen |
+| `screens\*.screen` | Builder | the operator's screens: `Main.screen`, and a file per page or popup |
 | `controllers\*.sflow` | Builder | a controller's workflow |
 | `*.sann` | a station; Sirius IV | beside each saved picture: verdict, results, shapes, the part's values, measurements |
 
