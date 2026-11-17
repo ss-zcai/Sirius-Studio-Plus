@@ -7,7 +7,8 @@ where the product stands; this says what could come next. Updated
 **Since 1.0.12** (17 November): **several screens** - pages and popups,
 opened by buttons, each designed in a tab of its own in Builder (F24,
 decision 79). Designed, not built: **parts of several pictures, and
-speed** - F25-F28, `runtime-design.md` section 14.
+speed** - F25-F28, `runtime-design.md` section 14; and **cameras as a
+unit of the project** - F29, section 15.
 
 **Since the last update** (11-13 November): Sirius IV gained its file
 list, sorting, matching and Sync View, and a tab per viewer; the PLC
@@ -244,6 +245,29 @@ part, how the PLC tracks parts - size F26-F28.
   in step with a mismatch raised as an alarm; on top of F27's pipelining.
   Until then, the PLC Monitor's Poll Interval (20 ms by default) is the
   knob for timing.
+
+- **F29. Cameras in the project** (M-L) - designed 17 November 2026,
+  `runtime-design.md` section 15. A camera unit in Builder, beside
+  stations and controllers, and a station naming its camera, so a camera
+  is set up - and replaced - without opening the recipe in Studio. Studio
+  keeps its Camera node for capturing and testing at the desk; in a
+  station, the unit's camera and settings are used. In order:
+  - **the unit** (M): the camera window - find, choose, live view, Grab,
+    Save Image, exposure, gain, trigger; a unit offered from a recipe's
+    Camera node; Test Run and Edge using it; a camera in use by another
+    program said plainly;
+  - **Studio and the line agreeing** (S-M): Open in Studio grabbing from
+    the station's camera with the line's settings; Take from recipe and
+    Give to recipe;
+  - **commissioning** (M): a GigE camera's IP, and the network card
+    checked; Replace…; identity by the camera's user-defined name;
+    Simulated and Folder camera units;
+  - **later** (S-M each): a maker's feature file (`.pfs`, `.mfs`); more
+    settings; the window in Edge behind a user level.
+
+  Questions in section 15.6: whether integrators use pylon Viewer or MVS
+  today, how cameras are networked, where exposure belongs, how cameras
+  are identified.
 
 ### Bit depth
 

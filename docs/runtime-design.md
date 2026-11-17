@@ -10,7 +10,8 @@ is mine to argue for, **Open** where it needs an answer from you.
 
 **Start with section 0**, the MVP agreed on 8 November. Sections 1-13 are
 the longer view it must not close doors on; section 14 (17 November) is
-parts of several pictures, and speed.
+parts of several pictures, and speed; section 15, cameras as a unit of
+the project.
 
 **Three programs (decision 71, 9 November 2026).** What section 0 first
 put in Studio is now apart from it:
@@ -815,3 +816,145 @@ shorten, and the hardware trigger the cure.
    counts, something else - and is there an encoder?
 5. How did Sirius Interface do multi-shot sequences for customers? Is
    there a project whose signal list we could start from?
+
+---
+
+## 15. Cameras in the project
+
+Discussed 17 November 2026. **No code yet.** Backlog F29.
+
+### 15.1 Why
+
+The camera is chosen inside the recipe today: the Camera node's Device
+holds the camera's label with its serial number (`Basler acA1920-40gm
+[23456789]`), beside exposure, gain, trigger and timeout. On a machine
+that means:
+
+- a camera replaced - a new serial - is a recipe opened in Studio and
+  changed, although the vision logic has not;
+- one recipe on two machines is two copies differing only in their
+  camera;
+- the integrator commissions a camera in Studio, or the maker's tools;
+- there is nowhere to set a GigE camera's address, or check its
+  connection, apart from a recipe.
+
+The camera belongs to the machine; the recipe, to the judgement.
+
+### 15.2 Proposed: a camera unit in Builder
+
+A project holds **cameras** beside its stations and controllers, listed in
+the Project panel. A **station names its camera**, as it names its recipe.
+Stations get an icon of their own; the camera's goes to cameras.
+
+**The camera window** (as the PLC window):
+
+- **Find**: every camera the drivers see - Basler, Hikrobot - with model,
+  serial and IP; choose one.
+- **Live view and Grab**, with exposure, gain and trigger mode; frame rate
+  and lost frames shown.
+- **Save Image**: sample pictures taken on the machine, for the vision
+  engineer to build or check a recipe on.
+- **Take from recipe / Give to recipe** (15.3).
+
+**What goes where:**
+
+| The camera unit (Builder) | The recipe (Studio) |
+|---|---|
+| Driver and identity (serial, or the camera's user-defined name); IP | The vision logic, its thresholds and checks |
+| Trigger mode, timeout; the hardware trigger later (F28) | The Camera node: where pictures come in |
+| Exposure and gain - or "As the recipe" | Its own camera settings, for the desk |
+| Later: pixel format, area of the image, packet size, a maker's feature file | |
+
+**In a station**, the recipe's Camera node takes its pictures from the
+station's camera unit, with the unit's settings. It is the first half of
+section 14.3's "acquisition out of the recipe" - the station owns the
+camera - without the queue and workers.
+
+**Exposure and gain** go both ways: lighting differs from machine to
+machine, but a recipe's thresholds were tuned at a brightness. Proposed:
+in the camera unit, with **As the recipe** as a choice - and the default
+for a camera unit made from an existing recipe. Exposure published as a
+setting, and changed on the line, keeps working.
+
+### 15.3 Studio keeps its Camera node
+
+Agreed 17 November: **the Camera node stays in Studio, as it is.** An
+engineer captures from a camera and tests the vision logic in one place -
+grab, tune, run - rather than saving pictures to disk, loading them in
+Studio, and going round again when something is wrong. The camera unit
+only takes over when the recipe runs in a station: Test Run, Edge.
+
+Keeping both needs three things.
+
+**One camera, two programs.** A GigE camera is controlled by one program
+at a time. With Edge or a Test Run holding it, Studio cannot grab from it,
+and the other way round. Proposed: say so plainly - "Basler acA1920
+[23456789] is in use by another program, likely Sirius Edge: stop it
+there, or test on saved pictures" - rather than the SDK's error. Studio
+does not stop a running line from its side.
+
+**Open in Studio carries the station's camera.** When Builder opens a
+station's recipe in Studio, it tells Studio the station's camera unit and
+its settings; the Camera node grabs from that camera, with the line's
+exposure and gain, and says so on the node. An engineer at the machine
+tests with what the station will use, not whatever the recipe was last
+saved with. Opened on its own, Studio uses the node's own Device, as now.
+
+**A rule and two buttons for the settings.** In a station the camera
+unit's values win, unless set to As the recipe. Builder's camera window
+has **Take from recipe** - what the engineer tuned in Studio, into the
+unit - and **Give to recipe** - the line's values back into the recipe's
+Camera node, so the desk matches the machine. Without them the two drift
+apart quietly.
+
+### 15.4 Details
+
+- **Identity.** By serial - exact - with **Replace…**: the cameras found,
+  one chosen, the unit moved to it with all its settings. Or by the
+  camera's **user-defined name**, written into the camera, so a
+  replacement given the same name is found as the old one was. Both
+  offered; serial by default.
+- **IP setup.** Both SDKs set a GigE camera's IP, or give it one for now
+  when it is on the wrong subnet. The PC's network card - jumbo frames,
+  receive buffers - is Windows' and needs an administrator; the window
+  checks it and says what is wrong, which is most of a GigE camera's
+  commissioning trouble.
+- **The rare features.** Both makers' cameras are GenICam. Rather than a
+  page for every feature, a camera unit can load a feature file the
+  maker's own viewer saved (pylon `.pfs`, MVS `.mfs`), kept in the
+  project folder and applied as the camera opens. Our window covers what
+  is common; the maker's tools, the rare.
+- **At the desk.** A **Simulated** or **Folder of pictures** camera unit,
+  so a project is tried without hardware - and a station needs no Image
+  Sequence in its recipe standing in for a camera.
+- **Existing recipes and projects.** Adding a station from a recipe with
+  a Camera node offers a camera unit made from its Device, exposure and
+  gain. A station with no camera unit runs as today. A recipe with two
+  Camera nodes maps each to a camera unit, by node name.
+- **Edge.** The camera window is for maintenance on the machine, behind
+  a user level, as the PLC window (F23c).
+- **Shared.** A camera as a unit of its own is what lets two stations
+  take turns on one camera - one of the ways to several shots (14.2).
+
+### 15.5 Order
+
+1. Camera units in the project, stations naming theirs; the camera
+   window - find, choose, live view, Grab, Save Image, exposure, gain,
+   trigger; a unit offered from a recipe's Camera node; Test Run and Edge
+   using it; "in use by another program" said plainly in Studio and the
+   runtime.
+2. Open in Studio carrying the station's camera; Take from and Give to
+   recipe.
+3. IP setup and the network card check; Replace…; identity by
+   user-defined name; Simulated and Folder camera units.
+4. A maker's feature file; more settings; the window in Edge.
+
+### 15.6 Questions
+
+1. Do integrators commission cameras in pylon Viewer or MVS today? Then
+   a feature file builds on what they already do.
+2. On your machines, is each camera on its own network port with a fixed
+   IP, or several on a switch?
+3. Exposure: the machine's, with As the recipe to fall back on - agreed?
+4. Identity: serial with Replace…, or do service engineers already name
+   cameras?
