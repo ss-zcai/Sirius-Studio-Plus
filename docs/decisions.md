@@ -3206,3 +3206,52 @@ its own.
 is what that is for, and it comes with user levels (F2). The standard
 screen is still one page, with the settings listed under each station;
 moving them into a Settings popup is Cut and Paste between tabs.
+
+## 80. Cameras as a unit of the project (F29, first slice)
+
+Asked on 17 November 2026, designed in `runtime-design.md` section 15:
+set up a camera in Builder without opening the recipe in Studio, while
+Studio keeps its Camera node for capturing and testing at the desk.
+
+**Built (18 November):**
+
+- **A project holds cameras** (`"cameras"` in the `.sproj`, absent with
+  none, so a project without them is written as before). Each is a name,
+  a device - the Camera node's own label, `Basler acA1920-40gm
+  [23456789]`, found by the serial number - and exposure, gain, trigger
+  and timeout, **each left out for "as the recipe"**. A camera made from
+  an existing recipe starts with all four as the recipe's.
+- **A station names its camera** (`"camera"` on the station), or none
+  for its recipe's own Camera node, unchanged.
+- **When a station opens** - Test Run, Edge - its camera's device, and
+  each setting it does not leave to the recipe, are written into the
+  recipe's Camera node as loaded, never into the file, and **before the
+  line's settings**, so an exposure published and changed on the line
+  still wins. The core sets the node's parameters by name, so it still
+  knows nothing of cameras. A recipe with one Camera node takes it; with
+  several, the one named after the camera; with none, the station says
+  so and runs as it was.
+- **A camera found but not opened** is "most likely held by another
+  program: Sirius Edge, Studio or Builder, or the maker's viewer" - in
+  Studio's Camera node, the camera window and the runtime alike - with
+  the SDK's own words after it, rather than those alone.
+- **In Builder**: cameras in the Project panel after the stations, with
+  the camera's icon; stations get an eye of their own. **+ ▸ Add
+  Camera**, a **Camera** menu, and a station's right-click **Camera ▸**
+  listing the recipe's own and each camera. **The camera window**
+  (double-click a camera), modal so a Test Run cannot open the camera
+  under it: Find, a list of every camera the drivers see, Use; exposure,
+  gain, trigger and timeout, each with **As the recipe** - showing the
+  value of the first station using it; Grab, Live with its frame rate,
+  and **Save Image** into `images\samples`, for the vision engineer.
+  Every change is written to the project at once. Closing the window,
+  and ending a Test Run, let the cameras go, so Edge or Studio on the
+  same PC can open them.
+- **Adding a station from a recipe with a Camera node** offers a camera
+  made from it; a camera already in the project with that serial number
+  is simply used.
+
+**Left (F29's later slices):** Open in Studio carrying the station's
+camera, and Take from / Give to recipe; IP setup, the network card check,
+Replace…, identity by the camera's user-defined name, Simulated and
+Folder cameras as units; a maker's feature file; the window in Edge.

@@ -1,0 +1,233 @@
+<Window x:Class="Sirius.Builder.CameraWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Sirius.Builder"
+        xmlns:controls="clr-namespace:Sirius.Studio.App.Controls;assembly=SiriusStudioPlus"
+        xmlns:cameras="clr-namespace:Sirius.Vision.Cameras;assembly=Sirius.Vision"
+        Title="{Binding Title}"
+        Width="1100"
+        Height="720"
+        MinWidth="820"
+        MinHeight="520"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Surface.Background}"
+        Closed="OnClosed">
+
+    <!--
+        A project camera: which camera it is, found among those the drivers
+        can see; how it is set, each setting its own or the recipe's; and the
+        view through it, a frame at a time or live, saved for the vision
+        engineer. Changes are written to the project as they are made.
+    -->
+    <Window.Resources>
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Text.Secondary}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style x:Key="Heading" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Foreground" Value="{StaticResource Text.Primary}" />
+        </Style>
+
+        <Style x:Key="Box" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource Surface.Panel}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Surface.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+
+        <Style x:Key="SettingLabel" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Setter Property="Width" Value="70" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Text.Primary}" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12" TextElement.Foreground="{StaticResource Text.Primary}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="360" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Column="0">
+            <!-- Which camera -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource Box}">
+                <StackPanel>
+                    <TextBlock Text="Camera" Style="{StaticResource Heading}" />
+                    <TextBlock x:Name="DeviceLabel"
+                               Text="{Binding DeviceText}"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8" />
+                    <TextBlock Text="{Binding UsedByText}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- Its settings -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource Box}" Margin="0,10,0,0">
+                <StackPanel>
+                    <TextBlock Text="Settings" Style="{StaticResource Heading}" />
+
+                    <DockPanel Margin="0,0,0,6">
+                        <TextBlock Text="Exposure" Style="{StaticResource SettingLabel}" />
+                        <CheckBox DockPanel.Dock="Right"
+                                  Content="As the recipe"
+                                  VerticalAlignment="Center"
+                                  IsChecked="{Binding ExposureAsRecipe}"
+                                  ToolTip="Use the recipe's exposure. Typing one makes it this camera's own." />
+                        <TextBlock DockPanel.Dock="Right" Text="µs" Style="{StaticResource Caption}" Margin="6,0,12,0" />
+                        <TextBox x:Name="ExposureBox"
+                                 VerticalContentAlignment="Center"
+                                 Text="{Binding ExposureText, UpdateSourceTrigger=LostFocus}"
+                                 KeyDown="OnCommitOnEnter" />
+                    </DockPanel>
+
+                    <DockPanel Margin="0,0,0,6">
+                        <TextBlock Text="Gain" Style="{StaticResource SettingLabel}" />
+                        <CheckBox DockPanel.Dock="Right"
+                                  Content="As the recipe"
+                                  VerticalAlignment="Center"
+                                  IsChecked="{Binding GainAsRecipe}" />
+                        <TextBlock DockPanel.Dock="Right" Text="dB" Style="{StaticResource Caption}" Margin="6,0,12,0" />
+                        <TextBox VerticalContentAlignment="Center"
+                                 Text="{Binding GainText, UpdateSourceTrigger=LostFocus}"
+                                 KeyDown="OnCommitOnEnter" />
+                    </DockPanel>
+
+                    <DockPanel Margin="0,0,0,6">
+                        <TextBlock Text="Trigger" Style="{StaticResource SettingLabel}" />
+                        <ComboBox ItemsSource="{Binding TriggerChoices}"
+                                  DisplayMemberPath="Label"
+                                  SelectedValuePath="Value"
+                                  SelectedValue="{Binding TriggerValue}"
+                                  ToolTip="Free Run: the latest frame. Software: one frame each inspection. Hardware: wait for a pulse on the camera's trigger input." />
+                    </DockPanel>
+
+                    <DockPanel>
+                        <TextBlock Text="Timeout" Style="{StaticResource SettingLabel}" />
+                        <CheckBox DockPanel.Dock="Right"
+                                  Content="As the recipe"
+                                  VerticalAlignment="Center"
+                                  IsChecked="{Binding TimeoutAsRecipe}" />
+                        <TextBlock DockPanel.Dock="Right" Text="ms" Style="{StaticResource Caption}" Margin="6,0,12,0" />
+                        <TextBox VerticalContentAlignment="Center"
+                                 Text="{Binding TimeoutText, UpdateSourceTrigger=LostFocus}"
+                                 KeyDown="OnCommitOnEnter"
+                                 ToolTip="How long to wait for a frame - with a hardware trigger, for the part." />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Finding one -->
+            <Border Style="{StaticResource Box}" Margin="0,10,0,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Cameras here" Style="{StaticResource Heading}" />
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button x:Name="FindButton"
+                                Content="Find"
+                                MinWidth="80"
+                                Command="{Binding FindCommand}"
+                                ToolTip="List every camera the drivers here can see" />
+                        <Button x:Name="UseButton"
+                                Content="Use"
+                                MinWidth="80"
+                                Margin="8,0,0,0"
+                                Command="{Binding UseCommand}"
+                                ToolTip="Make the camera chosen below this one" />
+                    </StackPanel>
+                    <TextBlock DockPanel.Dock="Bottom"
+                               Text="{Binding FindText}"
+                               Style="{StaticResource Caption}"
+                               TextWrapping="Wrap"
+                               Margin="0,8,0,0" />
+                    <ListBox x:Name="FoundList"
+                             ItemsSource="{Binding Found}"
+                             SelectedItem="{Binding SelectedFound}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Foreground="{StaticResource Text.Primary}"
+                             ItemContainerStyle="{StaticResource DarkListBoxItem}"
+                             MouseDoubleClick="OnFoundDoubleClick">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type cameras:CameraInfo}">
+                                <DockPanel Margin="0,2">
+                                    <Image DockPanel.Dock="Left"
+                                           Source="{StaticResource Icon.ph_camera}"
+                                           Width="20"
+                                           Height="20"
+                                           Margin="0,0,8,0"
+                                           VerticalAlignment="Top" />
+                                    <StackPanel>
+                                        <TextBlock>
+                                            <Run Text="{Binding Driver, Mode=OneWay}" />
+                                            <Run Text="{Binding Model, Mode=OneWay}" />
+                                        </TextBlock>
+                                        <TextBlock FontSize="10" Foreground="{StaticResource Text.Secondary}">
+                                            <Run Text="{Binding Serial, Mode=OneWay}" />
+                                            <Run Text="  " />
+                                            <Run Text="{Binding Address, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </DockPanel>
+
+        <!-- The view through it -->
+        <Border Grid.Column="2" Style="{StaticResource Box}" Padding="0">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="10,8">
+                    <Button x:Name="GrabButton"
+                            Content="Grab"
+                            MinWidth="80"
+                            Command="{Binding GrabCommand}"
+                            ToolTip="Take one frame" />
+                    <ToggleButton x:Name="LiveButton"
+                                  Content="Live"
+                                  MinWidth="80"
+                                  Margin="8,0,0,0"
+                                  Command="{Binding LiveCommand}"
+                                  IsChecked="{Binding IsLive, Mode=OneWay}"
+                                  ToolTip="Keep taking frames, until pressed again" />
+                    <Button Content="Save Image…"
+                            MinWidth="100"
+                            Margin="8,0,0,0"
+                            Command="{Binding SaveImageCommand}"
+                            ToolTip="Save the frame on view, as the camera gave it - for building or checking a recipe in Studio" />
+                    <TextBlock Text="{Binding FrameText}"
+                               Style="{StaticResource Caption}"
+                               HorizontalAlignment="Right"
+                               Margin="12,0,0,0" />
+                </DockPanel>
+                <TextBlock DockPanel.Dock="Bottom"
+                           Text="{Binding ViewText}"
+                           Style="{StaticResource Caption}"
+                           Margin="10,6"
+                           TextTrimming="CharacterEllipsis" />
+                <controls:ImageViewer IsDisplayOnly="True" ImageSource="{Binding Picture}" />
+            </DockPanel>
+        </Border>
+
+        <DockPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,10,0,0">
+            <Button DockPanel.Dock="Right" Content="Close" MinWidth="90" IsCancel="True" Click="OnClose" />
+            <TextBlock x:Name="ProblemLabel"
+                       Text="{Binding Problem}"
+                       Foreground="#DB5C5C"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center" />
+        </DockPanel>
+    </Grid>
+</Window>

@@ -938,6 +938,8 @@ apart quietly.
 
 ### 15.5 Order
 
+**Step 1 built, 18 November 2026** (decision 80).
+
 1. Camera units in the project, stations naming theirs; the camera
    window - find, choose, live view, Grab, Save Image, exposure, gain,
    trigger; a unit offered from a recipe's Camera node; Test Run and Edge

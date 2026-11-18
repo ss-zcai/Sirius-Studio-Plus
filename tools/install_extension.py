@@ -153,6 +153,10 @@ PHOSPHOR = {
     # shape offset behind it, rather than Dilate's icon borrowed.
     "checkerboard": "ph_lens_calibration",
     "cards": "ph_offset_shapes",
+
+    # Builder's Project panel: a station looks at parts, so an eye; the
+    # camera icon goes to the project's cameras (F29).
+    "eye": "ph_station",
 }
 
 # source file -> the resource key it supplies

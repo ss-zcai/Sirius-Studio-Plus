@@ -56,6 +56,11 @@ A project is a folder holding everything a line needs:
 
 - **Stations** - a camera and the recipe made for it in Studio. A line
   may have several, each inspecting on its own.
+- **Cameras** - which camera a station takes its pictures from, and its
+  exposure, gain and trigger, set here with a live view rather than in
+  the recipe: a camera replaced, or a recipe moved to another machine,
+  is changed in Builder. Studio keeps its own Camera node for work at
+  the desk.
 - **Controllers** - a PLC each, and its **workflow**: a small graph that
   watches the PLC, has stations inspect, and writes the result back
   (`plc-workflows.md`). A simulated PLC is there for the desk.
@@ -167,7 +172,7 @@ when it next opens the project.
 |---|---|---|
 | `*.sgraph` | Studio | a recipe: its tools, settings and wires |
 | `*.line.json` | Edge, Builder | settings changed on the line, kept beside the recipe, not in it |
-| `*.sproj` | Builder | a project: its stations, controllers, limits, image saving |
+| `*.sproj` | Builder | a project: its stations, cameras, controllers, limits, image saving |
 | `screens\*.screen` | Builder | the operator's screens: `Main.screen`, and a file per page or popup |
 | `controllers\*.sflow` | Builder | a controller's workflow |
 | `*.sann` | a station; Sirius IV | beside each saved picture: verdict, results, shapes, the part's values, measurements |

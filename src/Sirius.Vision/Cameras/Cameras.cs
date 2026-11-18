@@ -35,6 +35,26 @@ public sealed record CameraInfo(string Driver, string Serial, string Model, stri
     }
 }
 
+/// <summary>
+/// A camera that is there but would not open - nearly always because
+/// another program has it: Sirius Edge, Studio, Builder, or the maker's
+/// viewer. A GigE camera is controlled by one program at a time.
+/// </summary>
+public sealed class CameraInUseException : InvalidOperationException
+{
+    public CameraInUseException(CameraInfo camera, Exception inner)
+        : base(
+            $"{camera.Label} is there but could not be opened - most likely another program has it: " +
+            "Sirius Edge, Studio or Builder, or the maker's viewer. Close it there, or work on saved pictures. " +
+            $"({ExceptionText.Describe(inner)})",
+            inner)
+    {
+        Camera = camera;
+    }
+
+    public CameraInfo Camera { get; }
+}
+
 /// <summary>An open camera.</summary>
 /// <remarks>
 /// Settings are applied as they are set; an implementation keeps the last
@@ -300,7 +320,16 @@ public static class CameraDrivers
                 if (info is null)
                     continue;
 
-                camera = driver.Open(info);
+                try
+                {
+                    camera = driver.Open(info);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Found but not opened: a GigE camera is controlled by one
+                    // program at a time, and that is nearly always why.
+                    throw new CameraInUseException(info, ex);
+                }
             }
 
             ICamera? kept = null;

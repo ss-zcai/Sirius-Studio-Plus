@@ -357,12 +357,70 @@ public partial class BuilderWindow : Window
     {
         for (var current = e.OriginalSource as DependencyObject; current is not null; current = VisualTreeHelper.GetParent(current))
         {
-            if (current is FrameworkElement { DataContext: StationViewModel or ControllerViewModel or ScreenItemViewModel } item)
+            if (current is FrameworkElement { DataContext: StationViewModel or CameraUnitViewModel or ControllerViewModel or ScreenItemViewModel } item)
             {
                 _model.Open(item.DataContext);
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// A station's Camera submenu, as it opens: its recipe's own Camera node,
+    /// then each of the project's cameras - the one it uses ticked - and a
+    /// way to add one.
+    /// </summary>
+    private void OnStationCameraMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: StationViewModel station } menu || !ReferenceEquals(e.OriginalSource, menu))
+            return;
+
+        menu.Items.Clear();
+
+        foreach (var item in StationCameraItems(station))
+            menu.Items.Add(item);
+    }
+
+    /// <summary>The station's Camera submenu, made - for the window, and for tests.</summary>
+    internal IReadOnlyList<object> StationCameraItems(StationViewModel station)
+    {
+        var items = new List<object>();
+
+        var own = new MenuItem
+        {
+            Header = "_The Recipe's Own",
+            IsCheckable = true,
+            IsChecked = !station.HasCamera,
+            ToolTip = "The Camera node in its recipe, as Studio set it",
+        };
+
+        own.Click += (_, _) => _model.SetStationCamera(station, null);
+        items.Add(own);
+
+        if (_model.Cameras.Count > 0)
+            items.Add(new Separator());
+
+        foreach (var camera in _model.Cameras)
+        {
+            var unit = camera.Camera;
+            var item = new MenuItem
+            {
+                Header = camera.Name.Replace("_", "__", StringComparison.Ordinal),
+                IsCheckable = true,
+                IsChecked = string.Equals(station.CameraName, unit.Name, StringComparison.OrdinalIgnoreCase),
+                ToolTip = camera.DeviceText,
+            };
+
+            item.Click += (_, _) => _model.SetStationCamera(station, unit);
+            items.Add(item);
+        }
+
+        items.Add(new Separator());
+
+        var add = new MenuItem { Header = "_Add Camera…", Command = _model.AddCameraCommand };
+        items.Add(add);
+
+        return items;
     }
 
     /// <summary>The + button: a menu of what can be added, under it.</summary>

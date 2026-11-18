@@ -20,6 +20,7 @@ public sealed class Station : ObservableObject
     private readonly Dictionary<string, SettingLimit> _limits = new(StringComparer.OrdinalIgnoreCase);
     private string _name;
     private ImageSaving _saving = ImageSaving.Off;
+    private string? _camera;
 
     public Station(string name, string recipe)
     {
@@ -61,6 +62,16 @@ public sealed class Station : ObservableObject
 
     /// <summary>Its recipe, relative to the project folder, with forward slashes.</summary>
     public string Recipe { get; }
+
+    /// <summary>
+    /// The project camera it takes its pictures from, by name; null for the
+    /// recipe's own Camera node as it is (backlog F29).
+    /// </summary>
+    public string? Camera
+    {
+        get => _camera;
+        internal set => SetProperty(ref _camera, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+    }
 
     public override string ToString() => Name;
 }
@@ -125,6 +136,7 @@ public sealed class Project
 
     private readonly List<Station> _stations = [];
     private readonly List<Controller> _controllers = [];
+    private readonly List<CameraUnit> _cameras = [];
 
     private Project(string filePath)
     {
@@ -145,7 +157,10 @@ public sealed class Project
     /// <summary>The PLCs and their workflows.</summary>
     public IReadOnlyList<Controller> Controllers => _controllers;
 
-    /// <summary>Raised after stations or controllers are added, removed, renamed, reordered or reconnected.</summary>
+    /// <summary>The cameras stations take their pictures from.</summary>
+    public IReadOnlyList<CameraUnit> Cameras => _cameras;
+
+    /// <summary>Raised after stations, cameras or controllers are added, removed, renamed, reordered or changed.</summary>
     public event EventHandler? Changed;
 
     // ---- creating and opening ------------------------------------------
@@ -194,6 +209,33 @@ public sealed class Project
         var project = new Project(path);
         var warnings = new List<string>();
 
+        foreach (var record in document.Cameras ?? [])
+        {
+            var name = record.Name?.Trim() ?? string.Empty;
+
+            if (name.Length == 0)
+            {
+                warnings.Add("A camera with no name was skipped.");
+                continue;
+            }
+
+            if (project._cameras.Any(camera => Same(camera.Name, name)))
+            {
+                warnings.Add($"Camera '{name}' is listed twice; the second was skipped.");
+                continue;
+            }
+
+            var setup = new CameraSetup(record.Device?.Trim() ?? string.Empty, record.Exposure, record.Gain, record.Trigger, record.Timeout);
+
+            if (setup.Problem() is { } problem)
+            {
+                warnings.Add($"Camera '{name}': its settings could not be used ({problem}); it takes the recipe's.");
+                setup = new CameraSetup(setup.Device);
+            }
+
+            project._cameras.Add(new CameraUnit(name, setup));
+        }
+
         foreach (var record in document.Stations)
         {
             var name = record.Name?.Trim() ?? string.Empty;
@@ -230,6 +272,14 @@ public sealed class Project
                     warnings.Add($"Station '{name}': the limits of '{setting}' could not be used ({problem}).");
                 else
                     station.SetLimit(setting.Trim(), new SettingLimit(limit.Lowest, limit.Highest));
+            }
+
+            if (!string.IsNullOrWhiteSpace(record.Camera))
+            {
+                if (project.FindCamera(record.Camera) is { } camera)
+                    station.Camera = camera.Name;
+                else
+                    warnings.Add($"Station '{name}': it names a camera '{record.Camera}' the project does not have; it uses its recipe's own.");
             }
 
             if (record.Images is { } images)
@@ -299,6 +349,7 @@ public sealed class Project
                 {
                     Name = station.Name,
                     Recipe = station.Recipe,
+                    Camera = station.Camera,
                     Limits = station.Limits.Count == 0
                         ? null
                         : station.Limits.ToDictionary(
@@ -314,6 +365,21 @@ public sealed class Project
                     },
                 })
                 .ToList(),
+
+            // Absent with none, so a project without cameras is written as before.
+            Cameras = _cameras.Count == 0
+                ? null
+                : _cameras
+                    .Select(camera => new CameraRecord
+                    {
+                        Name = camera.Name,
+                        Device = camera.Setup.Device,
+                        Exposure = camera.Setup.Exposure,
+                        Gain = camera.Setup.Gain,
+                        Trigger = camera.Setup.Trigger,
+                        Timeout = camera.Setup.Timeout,
+                    })
+                    .ToList(),
 
             // Absent with none, so a project without a PLC is written as before.
             Controllers = _controllers.Count == 0
@@ -498,6 +564,148 @@ public sealed class Project
 
         _stations.RemoveAt(from);
         _stations.Insert(to, station);
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    // ---- cameras ----------------------------------------------------------
+
+    /// <summary>The camera called <paramref name="name"/>, ignoring case, or null.</summary>
+    public CameraUnit? FindCamera(string? name) =>
+        name is null ? null : _cameras.FirstOrDefault(camera => Same(camera.Name, name.Trim()));
+
+    /// <summary>The camera <paramref name="station"/> takes its pictures from, or null for its recipe's own.</summary>
+    public CameraUnit? CameraOf(Station station)
+    {
+        ArgumentNullException.ThrowIfNull(station);
+        return FindCamera(station.Camera);
+    }
+
+    /// <summary>The stations taking their pictures from <paramref name="camera"/>.</summary>
+    public IReadOnlyList<Station> StationsUsing(CameraUnit camera) =>
+        _stations.Where(station => Same(station.Camera ?? string.Empty, camera.Name)).ToArray();
+
+    /// <summary>Why <paramref name="name"/> cannot name a camera, or null when it can.</summary>
+    /// <param name="except">The camera being renamed, whose own name is no clash.</param>
+    public string? CameraNameProblem(string? name, CameraUnit? except = null)
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+
+        if (trimmed.Length == 0)
+            return "A name is needed.";
+
+        if (trimmed.Length > MaxNameLength)
+            return $"A name can be at most {MaxNameLength} characters.";
+
+        if (trimmed.Any(char.IsControl) || trimmed.Contains('›'))
+            return "A name cannot contain '›' or control characters.";
+
+        return _cameras.Any(camera => camera != except && Same(camera.Name, trimmed))
+            ? $"There is already a camera called '{trimmed}'."
+            : null;
+    }
+
+    /// <summary>"Camera 1", or the first "Camera n" not taken.</summary>
+    public string SuggestCameraName(string stem = "Camera")
+    {
+        for (var i = _cameras.Count + 1; ; i++)
+        {
+            var candidate = $"{stem} {i}";
+
+            if (FindCamera(candidate) is null)
+                return candidate;
+        }
+    }
+
+    /// <summary>Adds a camera, its camera and settings chosen or not yet.</summary>
+    public CameraUnit AddCamera(string name, CameraSetup? setup = null)
+    {
+        if (CameraNameProblem(name) is { } problem)
+            throw new ArgumentException(problem, nameof(name));
+
+        if ((setup ?? CameraSetup.None).Problem() is { } settings)
+            throw new ArgumentException(settings, nameof(setup));
+
+        var camera = new CameraUnit(name.Trim(), setup);
+        _cameras.Add(camera);
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return camera;
+    }
+
+    /// <summary>Renames a camera; the stations taking their pictures from it follow.</summary>
+    public void RenameCamera(CameraUnit camera, string name)
+    {
+        ArgumentNullException.ThrowIfNull(camera);
+
+        if (CameraNameProblem(name, camera) is { } problem)
+            throw new ArgumentException(problem, nameof(name));
+
+        foreach (var station in StationsUsing(camera))
+            station.Camera = name.Trim();
+
+        camera.Name = name.Trim();
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Changes which camera a unit is, and how it is set. Written at once.</summary>
+    /// <returns>Whether anything changed.</returns>
+    public bool SetCameraSetup(CameraUnit camera, CameraSetup setup)
+    {
+        ArgumentNullException.ThrowIfNull(camera);
+        ArgumentNullException.ThrowIfNull(setup);
+
+        if (setup.Problem() is { } problem)
+            throw new ArgumentException(problem, nameof(setup));
+
+        setup = setup with { Device = setup.Device.Trim() };
+
+        if (camera.Setup == setup)
+            return false;
+
+        camera.Setup = setup;
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>
+    /// Has <paramref name="station"/> take its pictures from
+    /// <paramref name="camera"/>, or - null - from its recipe's own Camera
+    /// node. Written at once.
+    /// </summary>
+    /// <returns>Whether anything changed.</returns>
+    public bool SetStationCamera(Station station, CameraUnit? camera)
+    {
+        ArgumentNullException.ThrowIfNull(station);
+
+        if (camera is not null && !_cameras.Contains(camera))
+            throw new ArgumentException($"'{camera.Name}' is not one of this project's cameras.", nameof(camera));
+
+        if (Same(station.Camera ?? string.Empty, camera?.Name ?? string.Empty))
+            return false;
+
+        station.Camera = camera?.Name;
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>
+    /// Takes a camera out of the project. The stations using it go back to
+    /// their recipes' own Camera nodes.
+    /// </summary>
+    public void RemoveCamera(CameraUnit camera)
+    {
+        var users = StationsUsing(camera);
+
+        if (!_cameras.Remove(camera))
+            return;
+
+        foreach (var station in users)
+            station.Camera = null;
+
         Save();
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -708,8 +916,34 @@ public sealed class Project
         [JsonPropertyName("stations")]
         public List<StationRecord> Stations { get; set; } = [];
 
+        [JsonPropertyName("cameras")]
+        public List<CameraRecord>? Cameras { get; set; }
+
         [JsonPropertyName("controllers")]
         public List<ControllerRecord>? Controllers { get; set; }
+    }
+
+    private sealed class CameraRecord
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        /// <summary>"Basler acA1920-40gm [23456789]": found by the serial number.</summary>
+        [JsonPropertyName("device")]
+        public string? Device { get; set; }
+
+        /// <summary>Each absent for the recipe's own.</summary>
+        [JsonPropertyName("exposure")]
+        public double? Exposure { get; set; }
+
+        [JsonPropertyName("gain")]
+        public double? Gain { get; set; }
+
+        [JsonPropertyName("trigger")]
+        public string? Trigger { get; set; }
+
+        [JsonPropertyName("timeout")]
+        public int? Timeout { get; set; }
     }
 
     private sealed class ControllerRecord
@@ -738,6 +972,10 @@ public sealed class Project
 
         [JsonPropertyName("recipe")]
         public string? Recipe { get; set; }
+
+        /// <summary>The project camera it takes its pictures from; absent for the recipe's own.</summary>
+        [JsonPropertyName("camera")]
+        public string? Camera { get; set; }
 
         /// <summary>Published setting name to its limits on the line.</summary>
         [JsonPropertyName("limits")]

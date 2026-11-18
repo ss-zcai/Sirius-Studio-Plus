@@ -8,7 +8,9 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Sirius.Core.Graph;
 using Sirius.Core.Projects;
+using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
+using Sirius.Core.Serialization;
 using Sirius.Plc;
 using Sirius.Plc.Workflows;
 using Sirius.Studio.App;
@@ -50,6 +52,9 @@ public sealed partial class BuilderViewModel : ObservableObject
     private ControllerViewModel? _selectedController;
 
     [ObservableProperty]
+    private CameraUnitViewModel? _selectedCamera;
+
+    [ObservableProperty]
     private string _statusText = "Open a project, or make a new one.";
 
     public BuilderViewModel()
@@ -75,6 +80,11 @@ public sealed partial class BuilderViewModel : ObservableObject
         RenameControllerCommand = new RelayCommand<ControllerViewModel>(RenameController);
         RemoveControllerCommand = new RelayCommand<ControllerViewModel>(RemoveController);
         OpenSelectedCommand = new RelayCommand(() => OpenSelected(SelectedItem), () => SelectedItem is not null);
+
+        AddCameraCommand = new RelayCommand(AskThenAddCamera, () => HasProject);
+        OpenCameraCommand = new RelayCommand<CameraUnitViewModel>(camera => OpenCamera(camera));
+        RenameCameraCommand = new RelayCommand<CameraUnitViewModel>(AskThenRenameCamera);
+        RemoveCameraCommand = new RelayCommand<CameraUnitViewModel>(AskThenRemoveCamera);
 
         AddPageCommand = new RelayCommand(() => AskThenAddScreen(ScreenKind.Page), () => HasProject);
         AddPopupCommand = new RelayCommand(() => AskThenAddScreen(ScreenKind.Popup), () => HasProject);
@@ -269,6 +279,9 @@ public sealed partial class BuilderViewModel : ObservableObject
 
     public bool HasNoStations => _project is not null && Stations.Count == 0;
 
+    /// <summary>The project's cameras, which stations take their pictures from.</summary>
+    public ObservableCollection<CameraUnitViewModel> Cameras { get; } = [];
+
     /// <summary>The project's PLCs, each with its workflow.</summary>
     public ObservableCollection<ControllerViewModel> Controllers { get; } = [];
 
@@ -280,8 +293,8 @@ public sealed partial class BuilderViewModel : ObservableObject
     /// </summary>
     public ObservableCollection<object> Items { get; } = [];
 
-    /// <summary>A project with neither stations nor controllers - its start screen is always listed.</summary>
-    public bool IsEmpty => _project is not null && Stations.Count == 0 && Controllers.Count == 0;
+    /// <summary>A project with no stations, cameras or controllers - its start screen is always listed.</summary>
+    public bool IsEmpty => _project is not null && Stations.Count == 0 && Cameras.Count == 0 && Controllers.Count == 0;
 
     /// <summary>The project's screens: the start screen, then its pages and popups.</summary>
     public ObservableCollection<ScreenItemViewModel> Screens { get; } = [];
@@ -302,6 +315,7 @@ public sealed partial class BuilderViewModel : ObservableObject
 
             SelectedStation = value as StationViewModel;
             SelectedController = value as ControllerViewModel;
+            SelectedCamera = value as CameraUnitViewModel;
             OpenSelectedCommand.NotifyCanExecuteChanged();
         }
     }
@@ -313,6 +327,12 @@ public sealed partial class BuilderViewModel : ObservableObject
     }
 
     partial void OnSelectedControllerChanged(ControllerViewModel? value)
+    {
+        if (value is not null)
+            SelectedItem = value;
+    }
+
+    partial void OnSelectedCameraChanged(CameraUnitViewModel? value)
     {
         if (value is not null)
             SelectedItem = value;
@@ -345,6 +365,10 @@ public sealed partial class BuilderViewModel : ObservableObject
             case ScreenItemViewModel screen:
                 OpenScreen(screen);
                 break;
+
+            case CameraUnitViewModel camera:
+                OpenCamera(camera);
+                break;
         }
     }
 
@@ -362,6 +386,10 @@ public sealed partial class BuilderViewModel : ObservableObject
 
             case ScreenItemViewModel screen:
                 OpenScreen(screen);
+                break;
+
+            case CameraUnitViewModel camera:
+                OpenCamera(camera);
                 break;
         }
     }
@@ -495,6 +523,17 @@ public sealed partial class BuilderViewModel : ObservableObject
 
     public IRelayCommand<ScreenItemViewModel> RemoveScreenCommand { get; }
 
+    public IRelayCommand AddCameraCommand { get; }
+
+    public IRelayCommand<CameraUnitViewModel> OpenCameraCommand { get; }
+
+    public IRelayCommand<CameraUnitViewModel> RenameCameraCommand { get; }
+
+    public IRelayCommand<CameraUnitViewModel> RemoveCameraCommand { get; }
+
+    /// <summary>Shows a camera's window and returns once it is closed; replaced in tests.</summary>
+    internal Action<Window?, CameraViewModel> OpenCameraWindow { get; set; } = (owner, model) => CameraWindow.Show(owner, model);
+
     /// <summary>Opens a PLC window; replaced in tests.</summary>
     internal Func<Window?, PlcViewModel, Window?> OpenPlcWindow { get; set; } = (owner, model) => PlcWindow.Open(owner, model);
 
@@ -619,6 +658,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         Designer = null;
         ActiveChanged();
         Stations.Clear();
+        Cameras.Clear();
         Controllers.Clear();
         Screens.Clear();
         Items.Clear();
@@ -741,6 +781,9 @@ public sealed partial class BuilderViewModel : ObservableObject
             SelectedStation = Find(added);
             StatusText = $"Added {added.Name}, running a copy of {Path.GetFileName(recipeFile)}.";
         }, "Add Station");
+
+        if (added is not null)
+            OfferCamera(added);
 
         return added;
     }
@@ -990,6 +1033,9 @@ public sealed partial class BuilderViewModel : ObservableObject
         StatusText = $"Running {project.Name}…";
         RuntimeWindow.ShowWindowed(owner ?? Application.Current?.MainWindow, project, running => OpenSimulators(running));
 
+        // Let the cameras go, so Sirius Edge or Studio on this PC can open them.
+        Sirius.Vision.Cameras.CameraDrivers.CloseAll();
+
         foreach (var station in Stations)
             station.RefreshLine();
 
@@ -1029,6 +1075,190 @@ public sealed partial class BuilderViewModel : ObservableObject
 
         return opened;
     }
+
+    // ---- cameras -------------------------------------------------------------
+
+    /// <summary>
+    /// A station added from a recipe with a Camera node: offered a project
+    /// camera made from it - the node's camera, every setting as the recipe -
+    /// so the camera is changed here from now on. A camera already in the
+    /// project with that camera is simply used.
+    /// </summary>
+    private void OfferCamera(Station station)
+    {
+        if (_project is not { } project)
+            return;
+
+        CameraSetup? found;
+
+        try
+        {
+            found = StationCamera.From(GraphSerializer.Load(project.RecipePath(station)).Graph);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            return;
+        }
+
+        if (found is not { HasDevice: true } setup)
+            return;
+
+        var serial = Sirius.Vision.Cameras.CameraInfo.SerialIn(setup.Device);
+
+        if (project.Cameras.FirstOrDefault(camera => serial is not null &&
+                string.Equals(Sirius.Vision.Cameras.CameraInfo.SerialIn(camera.Setup.Device), serial, StringComparison.OrdinalIgnoreCase)) is { } same)
+        {
+            Guard(() => project.SetStationCamera(station, same), "Add Station");
+            StatusText = $"Added {station.Name}; it takes its pictures from {same.Name}, the project's camera for {setup.Device}.";
+            return;
+        }
+
+        var answer = Ask(
+            $"{station.Name}'s recipe takes its pictures from {setup.Device}.\n\n" +
+            "Make it a camera of the project? Then the camera - which one, its exposure and gain - is set here in " +
+            "Builder, and changed without opening the recipe in Studio. Its settings start as the recipe's.",
+            "Add Station");
+
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        Guard(() =>
+        {
+            var camera = project.AddCamera(project.CameraNameProblem($"{station.Name} camera") is null ? $"{station.Name} camera" : project.SuggestCameraName(), new CameraSetup(setup.Device));
+            project.SetStationCamera(station, camera);
+            SelectedStation = Find(station);
+            StatusText = $"Added {station.Name}, taking its pictures from the camera {camera.Name}: double-click it to set it up.";
+        }, "Add Station");
+    }
+
+    private void AskThenAddCamera()
+    {
+        if (_project is not { } project)
+            return;
+
+        var name = TextPromptWindow.Ask(
+            Application.Current?.MainWindow,
+            "Add Camera",
+            "A camera stations take their pictures from - chosen and set up here, without opening a recipe. What is it called?",
+            project.SuggestCameraName(),
+            text => project.CameraNameProblem(text));
+
+        if (name is not null && AddCamera(name) is { } added)
+            OpenCamera(Find(added));
+    }
+
+    /// <summary>Adds a camera, none chosen yet.</summary>
+    internal CameraUnit? AddCamera(string name, CameraSetup? setup = null)
+    {
+        if (_project is not { } project)
+            return null;
+
+        CameraUnit? added = null;
+
+        Guard(() =>
+        {
+            added = project.AddCamera(name, setup);
+            SelectedCamera = Find(added);
+            StatusText = $"Added the camera {added.Name}. Choose which camera it is, then have stations use it: right-click a station ▸ Camera.";
+        }, "Add Camera");
+
+        return added;
+    }
+
+    /// <summary>A camera's window: find, choose, set, look through it.</summary>
+    internal void OpenCamera(CameraUnitViewModel? camera)
+    {
+        if (camera is null || _project is not { } project)
+            return;
+
+        var unit = camera.Camera;
+        OpenCameraWindow(Application.Current?.MainWindow, new CameraViewModel(project, unit));
+        Rebuild();
+
+        StatusText = unit.Setup.HasDevice
+            ? $"{unit.Name} is {unit.Setup.Device}."
+            : $"{unit.Name} has no camera chosen yet: double-click it, Find, then Use.";
+    }
+
+    /// <summary>Has a station take its pictures from <paramref name="camera"/>, or - null - from its recipe's own.</summary>
+    internal void SetStationCamera(StationViewModel station, CameraUnit? camera)
+    {
+        if (_project is not { } project)
+            return;
+
+        Guard(() =>
+        {
+            if (project.SetStationCamera(station.Station, camera))
+            {
+                StatusText = camera is null
+                    ? $"{station.Name} takes its pictures from its recipe's own Camera node."
+                    : $"{station.Name} takes its pictures from {camera.Name}" +
+                      (CameraProblem(station.Station, camera) is { } problem ? $" - but {problem}" : ".");
+            }
+        }, "Camera");
+    }
+
+    /// <summary>Why a station's recipe cannot take <paramref name="camera"/>, lower-cased to follow a "but"; or null.</summary>
+    private string? CameraProblem(Station station, CameraUnit camera)
+    {
+        if (_project is not { } project)
+            return null;
+
+        try
+        {
+            var recipe = GraphSerializer.Load(project.RecipePath(station)).Graph;
+            return StationCamera.NodeFor(recipe, camera, out var problem) is null && problem is not null
+                ? char.ToLowerInvariant(problem[0]) + problem[1..]
+                : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    private void AskThenRenameCamera(CameraUnitViewModel? camera)
+    {
+        if (camera is null || _project is not { } project)
+            return;
+
+        var name = TextPromptWindow.Ask(
+            Application.Current?.MainWindow,
+            "Rename Camera",
+            "Stations taking their pictures from it follow the new name.",
+            camera.Name,
+            text => project.CameraNameProblem(text, camera.Camera));
+
+        if (name is not null && name.Trim() != camera.Name)
+            Guard(() => project.RenameCamera(camera.Camera, name), "Rename Camera");
+    }
+
+    private void AskThenRemoveCamera(CameraUnitViewModel? camera)
+    {
+        if (camera is null || _project is null)
+            return;
+
+        var users = _project.StationsUsing(camera.Camera);
+
+        var answer = Dialog.Confirm(
+            $"Remove the camera '{camera.Name}' from the project?\n\n" +
+            (users.Count == 0
+                ? "No station uses it."
+                : $"{string.Join(", ", users.Select(station => station.Name))} go back to taking pictures as their recipes' own Camera nodes say."),
+            "Remove Camera");
+
+        if (answer)
+            RemoveCamera(camera);
+    }
+
+    internal void RemoveCamera(CameraUnitViewModel camera)
+    {
+        if (_project is { } project)
+            Guard(() => project.RemoveCamera(camera.Camera), "Remove Camera");
+    }
+
+    private CameraUnitViewModel? Find(CameraUnit camera) =>
+        Cameras.FirstOrDefault(candidate => ReferenceEquals(candidate.Camera, camera));
 
     // ---- controllers -------------------------------------------------------
 
@@ -1466,11 +1696,13 @@ public sealed partial class BuilderViewModel : ObservableObject
         {
             StationViewModel station => (object)station.Station,
             ControllerViewModel controller => controller.Controller,
+            CameraUnitViewModel camera => camera.Camera,
             ScreenItemViewModel screen => screen.Name,
             _ => null,
         };
 
         Stations.Clear();
+        Cameras.Clear();
         Controllers.Clear();
         Screens.Clear();
         Items.Clear();
@@ -1480,6 +1712,9 @@ public sealed partial class BuilderViewModel : ObservableObject
             foreach (var station in project.Stations)
                 Stations.Add(new StationViewModel(project, station));
 
+            foreach (var camera in project.Cameras)
+                Cameras.Add(new CameraUnitViewModel(project, camera));
+
             foreach (var controller in project.Controllers)
                 Controllers.Add(new ControllerViewModel(project, controller));
 
@@ -1487,12 +1722,13 @@ public sealed partial class BuilderViewModel : ObservableObject
                 Screens.Add(new ScreenItemViewModel(project, name));
         }
 
-        foreach (var item in Stations.Cast<object>().Concat(Controllers).Concat(Screens))
+        foreach (var item in Stations.Cast<object>().Concat(Cameras).Concat(Controllers).Concat(Screens))
             Items.Add(item);
 
         SelectedItem = selected switch
         {
             Station station => Find(station),
+            CameraUnit camera => Find(camera),
             Controller controller => Find(controller),
             string screen => FindScreen(screen),
             _ => null,
@@ -1516,6 +1752,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         AddFromRecipeCommand.NotifyCanExecuteChanged();
         TestRunCommand.NotifyCanExecuteChanged();
         AddControllerCommand.NotifyCanExecuteChanged();
+        AddCameraCommand.NotifyCanExecuteChanged();
         AddPageCommand.NotifyCanExecuteChanged();
         AddPopupCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasNoControllers));

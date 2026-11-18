@@ -321,7 +321,7 @@ public sealed class BuilderControllerTests : IDisposable
 
                 var resources = Application.Current!;
                 Assert.Equal(
-                    [resources.FindResource("Icon.ph_camera"), resources.FindResource("Icon.ph_camera"), resources.FindResource("Icon.ph_controller"), resources.FindResource("Icon.ph_screen_page")],
+                    [resources.FindResource("Icon.ph_station"), resources.FindResource("Icon.ph_station"), resources.FindResource("Icon.ph_controller"), resources.FindResource("Icon.ph_screen_page")],
                     icons);
             }
             finally

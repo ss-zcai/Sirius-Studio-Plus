@@ -25,8 +25,10 @@ where the product stands; this says what could come next. Updated
 solid on a real machine, before several pictures or speed:
 
 1. ~~**N9**, **N4**, then **N10** - pack 1.0.13~~ - done 18 November.
-2. **F29, its first slice** - cameras set up in Builder, without
-   Studio; what commissioning a single-picture machine needs first.
+2. ~~**F29, its first slice**~~ - done 18 November (decision 80):
+   cameras set up in Builder, without Studio. Its next slice - Open in
+   Studio carrying the station's camera, Take from and Give to recipe -
+   is small and could follow at once.
 3. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
    the HslCommunication download and a bench PLC from you.
 4. **F25** - the part record and part counts, deadlines, the handshake;
@@ -279,10 +281,12 @@ part, how the PLC tracks parts - size F26-F28.
   is set up - and replaced - without opening the recipe in Studio. Studio
   keeps its Camera node for capturing and testing at the desk; in a
   station, the unit's camera and settings are used. In order:
-  - **the unit** (M): the camera window - find, choose, live view, Grab,
-    Save Image, exposure, gain, trigger; a unit offered from a recipe's
-    Camera node; Test Run and Edge using it; a camera in use by another
-    program said plainly;
+  - ~~**the unit**~~ - done 18 November 2026 (decision 80): cameras in
+    the project and the Project panel, a station's Camera menu, the
+    camera window - Find, Use, exposure, gain, trigger and timeout each
+    own or as the recipe, Grab, Live, Save Image - a camera offered when
+    a station is added from a recipe, Test Run and Edge using it, and a
+    camera held by another program said plainly;
   - **Studio and the line agreeing** (S-M): Open in Studio grabbing from
     the station's camera with the line's settings; Take from recipe and
     Give to recipe;

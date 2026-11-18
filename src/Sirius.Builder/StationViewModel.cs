@@ -22,6 +22,12 @@ public sealed class StationViewModel : ObservableObject
             if (e.PropertyName == nameof(Station.Name))
                 OnPropertyChanged(nameof(Name));
 
+            if (e.PropertyName == nameof(Station.Camera))
+            {
+                OnPropertyChanged(nameof(CameraText));
+                OnPropertyChanged(nameof(HasCamera));
+            }
+
             if (e.PropertyName == nameof(Station.Saving))
             {
                 OnPropertyChanged(nameof(SavesImages));
@@ -41,6 +47,14 @@ public sealed class StationViewModel : ObservableObject
     public string RecipeFile => Path.GetFileName(RecipePath);
 
     public bool RecipeMissing => !File.Exists(RecipePath);
+
+    /// <summary>The project camera it takes its pictures from, or null for its recipe's own.</summary>
+    public string? CameraName => Station.Camera;
+
+    public bool HasCamera => Station.Camera is not null;
+
+    /// <summary>"camera: Top camera".</summary>
+    public string CameraText => $"camera: {Station.Camera}";
 
     /// <summary>Whether it keeps any pictures when it runs.</summary>
     public bool SavesImages => Station.Saving.IsOn;
@@ -69,6 +83,8 @@ public sealed class StationViewModel : ObservableObject
 
     /// <summary>"2 changed on the line".</summary>
     public string LineChangesText => $"{_lineChanges} changed on the line";
+
+    public override string ToString() => Name;
 
     /// <summary>Reads its line settings file again, and whether its recipe is there.</summary>
     public void RefreshLine()

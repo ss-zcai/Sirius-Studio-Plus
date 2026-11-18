@@ -36,6 +36,14 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   Sirius IV (N3 closed).
 - **A station renamed** is followed by its workflows, as by its screens.
 
+## Since 1.0.13, not yet packed
+
+- **Cameras in the project** (F29, decision 80): a camera set up in
+  Builder - found, chosen, its exposure, gain and trigger, a live view,
+  sample pictures saved - and named by stations, so it is changed
+  without opening the recipe. Studio keeps its Camera node. A camera
+  held by another program says so.
+
 1.0.12 (16 November) brought a file saved over running its node again
 (decision 78), saved pictures and Sirius IV, and controllers.
 

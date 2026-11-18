@@ -146,6 +146,19 @@
                           Command="{Binding BrowseImagesCommand}"
                           CommandParameter="{Binding SelectedStation}" />
             </MenuItem>
+            <MenuItem Header="C_amera">
+                <MenuItem Header="_Add Camera…" Command="{Binding AddCameraCommand}" />
+                <Separator />
+                <MenuItem Header="_Camera…"
+                          Command="{Binding OpenCameraCommand}"
+                          CommandParameter="{Binding SelectedCamera}" />
+                <MenuItem Header="_Rename…"
+                          Command="{Binding RenameCameraCommand}"
+                          CommandParameter="{Binding SelectedCamera}" />
+                <MenuItem Header="Re_move from Project…"
+                          Command="{Binding RemoveCameraCommand}"
+                          CommandParameter="{Binding SelectedCamera}" />
+            </MenuItem>
             <MenuItem Header="_Controller">
                 <MenuItem Header="_Add Controller…" Command="{Binding AddControllerCommand}" />
                 <Separator />
@@ -308,7 +321,7 @@
                                         <!-- Add: a station, a station from a recipe, or a controller. -->
                                         <Button x:Name="AddButton"
                                                 Style="{StaticResource PanelToolButton}"
-                                                ToolTip="Add a station, a controller, a page or a popup"
+                                                ToolTip="Add a station, a camera, a controller, a page or a popup"
                                                 Click="OnAddClick">
                                             <StackPanel Orientation="Horizontal">
                                                 <Path Data="M7,1 L7,13 M1,7 L13,7"
@@ -328,10 +341,13 @@
                                             <Button.ContextMenu>
                                                 <ContextMenu x:Name="AddMenu">
                                                     <MenuItem Header="Add _Station…" Command="{Binding AddStationCommand}">
-                                                        <MenuItem.Icon><Image Source="{StaticResource Icon.ph_camera}" Width="16" Height="16" /></MenuItem.Icon>
+                                                        <MenuItem.Icon><Image Source="{StaticResource Icon.ph_station}" Width="16" Height="16" /></MenuItem.Icon>
                                                     </MenuItem>
                                                     <MenuItem Header="Add Station from _Recipe…" Command="{Binding AddFromRecipeCommand}">
                                                         <MenuItem.Icon><Image Source="{StaticResource Icon.ph_copy}" Width="16" Height="16" /></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="Add C_amera…" Command="{Binding AddCameraCommand}">
+                                                        <MenuItem.Icon><Image Source="{StaticResource Icon.ph_camera}" Width="16" Height="16" /></MenuItem.Icon>
                                                     </MenuItem>
                                                     <Separator />
                                                     <MenuItem Header="Add _Controller…" Command="{Binding AddControllerCommand}">
@@ -359,7 +375,7 @@
                                                FontSize="11"
                                                Margin="0,8,0,0"
                                                Foreground="{StaticResource Text.Secondary}"
-                                               Text="Double-click: a station shows the start screen, a controller its workflow, a screen its design. Right-click a station to open its recipe in Studio." />
+                                               Text="Double-click: a station shows the start screen, a camera its window, a controller its workflow, a screen its design. Right-click a station to open its recipe in Studio, or choose its camera." />
 
                                     <Grid>
                                         <TextBlock TextWrapping="Wrap"
@@ -381,7 +397,7 @@
                                                 <DataTemplate DataType="{x:Type local:StationViewModel}">
                                                     <DockPanel Background="Transparent" ToolTip="{Binding RecipePath}" Margin="0,2">
                                                         <Image DockPanel.Dock="Left"
-                                                               Source="{StaticResource Icon.ph_camera}"
+                                                               Source="{StaticResource Icon.ph_station}"
                                                                Width="24"
                                                                Height="24"
                                                                Margin="0,0,8,0"
@@ -391,6 +407,10 @@
                                                             <TextBlock Text="{Binding RecipeFile}"
                                                                        FontSize="10"
                                                                        Foreground="{StaticResource Text.Secondary}" />
+                                                            <TextBlock Text="{Binding CameraText}"
+                                                                       FontSize="10"
+                                                                       Foreground="{StaticResource Text.Secondary}"
+                                                                       Visibility="{Binding HasCamera, Converter={StaticResource BoolToVisibility}}" />
                                                             <TextBlock Text="recipe missing"
                                                                        FontSize="10"
                                                                        FontStyle="Italic"
@@ -412,6 +432,10 @@
                                                                 <MenuItem Header="Open in _Studio"
                                                                           Command="{Binding PlacementTarget.Tag.OpenInStudioCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                           CommandParameter="{Binding}" />
+                                                                <!-- Filled as it opens: the recipe's own, and each of the project's cameras. -->
+                                                                <MenuItem Header="_Camera" SubmenuOpened="OnStationCameraMenuOpened">
+                                                                    <MenuItem Header="…" />
+                                                                </MenuItem>
                                                                 <MenuItem Header="_Line Settings…"
                                                                           Command="{Binding PlacementTarget.Tag.LineSettingsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                                           CommandParameter="{Binding}" />
@@ -441,6 +465,54 @@
                                                             <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ListBox}" />
                                                         </DockPanel.Tag>
                                                     </DockPanel>
+                                                </DataTemplate>
+
+                                                <!-- A camera: which one it is, and how it is set. -->
+                                                <DataTemplate DataType="{x:Type local:CameraUnitViewModel}">
+                                                    <DockPanel Background="Transparent" ToolTip="{Binding DeviceText}" Margin="0,2">
+                                                        <Image DockPanel.Dock="Left"
+                                                               Source="{StaticResource Icon.ph_camera}"
+                                                               Width="24"
+                                                               Height="24"
+                                                               Margin="0,0,8,0"
+                                                               VerticalAlignment="Top" />
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Name}" />
+                                                            <TextBlock x:Name="CameraDevice"
+                                                                       Text="{Binding DeviceText}"
+                                                                       FontSize="10"
+                                                                       Foreground="{StaticResource Text.Secondary}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding SettingsText}"
+                                                                       FontSize="10"
+                                                                       Foreground="{StaticResource Text.Secondary}" />
+                                                            <TextBlock Text="{Binding UsedByText}"
+                                                                       FontSize="10"
+                                                                       Foreground="{StaticResource Text.Secondary}" />
+                                                        </StackPanel>
+                                                        <DockPanel.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem Header="_Camera…"
+                                                                          Command="{Binding PlacementTarget.Tag.OpenCameraCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <MenuItem Header="_Rename…"
+                                                                          Command="{Binding PlacementTarget.Tag.RenameCameraCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                                <Separator />
+                                                                <MenuItem Header="Re_move from Project…"
+                                                                          Command="{Binding PlacementTarget.Tag.RemoveCameraCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                          CommandParameter="{Binding}" />
+                                                            </ContextMenu>
+                                                        </DockPanel.ContextMenu>
+                                                        <DockPanel.Tag>
+                                                            <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=ListBox}" />
+                                                        </DockPanel.Tag>
+                                                    </DockPanel>
+                                                    <DataTemplate.Triggers>
+                                                        <DataTrigger Binding="{Binding HasDevice}" Value="False">
+                                                            <Setter TargetName="CameraDevice" Property="Foreground" Value="#D9A33A" />
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
                                                 </DataTemplate>
 
                                                 <!-- A controller: a PLC and its workflow. -->

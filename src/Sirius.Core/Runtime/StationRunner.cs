@@ -209,11 +209,19 @@ public sealed class StationRunner : ObservableObject, IDisposable
         {
             var loaded = GraphSerializer.Load(path);
             var line = LineSettings.ForRecipe(path, out var lineProblem);
+            var warnings = loaded.Warnings.ToList();
+
+            if (lineProblem is not null)
+                warnings.Add(lineProblem);
+
+            // The project's camera, before the line's settings: an operator's change on the line wins.
+            if (project.CameraOf(station) is { } camera && StationCamera.Apply(loaded.Graph, camera) is { } cameraProblem)
+                warnings.Add(cameraProblem);
 
             var runner = new StationRunner(
                 station.Name,
                 loaded.Graph,
-                lineProblem is null ? loaded.Warnings : [.. loaded.Warnings, lineProblem],
+                warnings,
                 line,
                 station.Limits)
             {
