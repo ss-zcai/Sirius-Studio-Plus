@@ -1,0 +1,30 @@
+# Line endings, the same on every machine whatever its own Git settings
+# (backlog N4). Text is stored with LF in the repository - as it always has
+# been here - and checked out with the machine's own endings.
+* text=auto
+
+# Files Windows tools read that want CRLF in the working copy everywhere.
+*.sln     text eol=crlf
+*.cmd     text eol=crlf
+*.bat     text eol=crlf
+*.ps1     text eol=crlf
+
+# Files that must keep LF, wherever they are checked out.
+*.sh      text eol=lf
+
+# Never touched: pictures, icons, binaries, models, archives.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.bmp           binary
+*.tif           binary
+*.tiff          binary
+*.ico           binary
+*.gif           binary
+*.ai            binary
+*.pdf           binary
+*.dll           binary
+*.exe           binary
+*.zip           binary
+*.traineddata   binary
+*.onnx          binary
