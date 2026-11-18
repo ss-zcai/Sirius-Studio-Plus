@@ -211,6 +211,43 @@ public sealed class BuilderControllerTests : IDisposable
     }
 
     [Fact]
+    public void A_station_renamed_is_followed_by_workflows_open_and_not()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var project = StationProject();
+            var model = Builder(project);
+            model.AddController(Unique("Open"));
+            model.AddController(Unique("Shut"));
+
+            var open = model.OpenWorkflow(model.Controllers[0])!;
+            Assert.False(open.IsModified);
+
+            model.RenameStation(model.Stations[0], "Camera");
+
+            // Open: its nodes follow, as a change to save, undone in one step.
+            Assert.Equal("Camera", open.Graph.Nodes.OfType<InspectNode>().Single().Station);
+            Assert.True(open.IsModified);
+            Assert.Equal("Ready to run.", open.ProblemText);
+
+            open.UndoCommand.Execute(null);
+            Assert.Equal("Top", open.Graph.Nodes.OfType<InspectNode>().Single().Station);
+            open.RedoCommand.Execute(null);
+
+            // Not open: in its file at once, its name kept.
+            var shut = project.Controllers[1];
+            var saved = WorkflowFile.Load(project.WorkflowPath(shut));
+            Assert.Equal("Camera", saved.Graph.Nodes.OfType<InspectNode>().Single().Station);
+            Assert.Contains($"\"name\": \"{shut.Name}\"", File.ReadAllText(project.WorkflowPath(shut)), StringComparison.Ordinal);
+
+            Assert.Contains($"{shut.Name}'s workflow", model.StatusText, StringComparison.Ordinal);
+            Assert.Contains($"{model.Controllers[0].Name}'s workflow to keep it", model.StatusText, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
     public void The_project_panel_lists_stations_then_controllers_then_screens_with_one_selection()
     {
         WpfTestHost.OnStaThread(() =>

@@ -95,4 +95,53 @@ public static class WorkflowFile
     }
 
     public static GraphLoadResult Load(string path) => Deserialize(File.ReadAllText(path));
+
+    /// <summary>
+    /// After a station was renamed: the nodes in <paramref name="workflow"/>
+    /// naming it - Inspect, Station Result - name it anew.
+    /// </summary>
+    /// <returns>How many did.</returns>
+    public static int RenameStation(VisionGraph workflow, string from, string to)
+    {
+        ArgumentNullException.ThrowIfNull(workflow);
+
+        var renamed = 0;
+
+        foreach (var node in workflow.Nodes)
+        {
+            switch (node)
+            {
+                case Nodes.InspectNode inspect when string.Equals(inspect.Station, from, StringComparison.OrdinalIgnoreCase):
+                    inspect.Station = to;
+                    renamed++;
+                    break;
+
+                case Nodes.StationResultNode heard when string.Equals(heard.Station, from, StringComparison.OrdinalIgnoreCase):
+                    heard.Station = to;
+                    renamed++;
+                    break;
+            }
+        }
+
+        return renamed;
+    }
+
+    /// <summary>
+    /// The same, in the workflow file at <paramref name="path"/>, written
+    /// back only if a node changed - and left alone if reading it found
+    /// anything amiss, since writing it back would lose what was not read.
+    /// </summary>
+    /// <returns>Whether the file was changed.</returns>
+    public static bool RenameStation(string path, string from, string to)
+    {
+        var text = File.ReadAllText(path);
+        var loaded = Deserialize(text);
+
+        if (loaded.Warnings.Count > 0 || RenameStation(loaded.Graph, from, to) == 0)
+            return false;
+
+        var name = (JsonNode.Parse(text) as JsonObject)?["name"]?.GetValue<string>();
+        Save(loaded.Graph, path, name);
+        return true;
+    }
 }

@@ -773,14 +773,53 @@ public sealed partial class BuilderViewModel : ObservableObject
         {
             project.RenameStation(station.Station, name);
 
-            // A screen open in a tab follows as a change to save; one not open, in its file at once.
-            var open = Designers.Where(designer => designer.RenameStation(old, station.Name)).Select(designer => designer.Name).ToArray();
-            var written = ScreenSet.RenameStation(project, old, station.Name, Designers.Select(designer => designer.Name).ToArray());
+            // A screen or workflow open in a tab follows as a change to save; one not open, in its file at once.
+            var open = Designers.Where(designer => designer.RenameStation(old, station.Name)).Select(designer => designer.Name)
+                .Concat(Workflows.Where(workflow => workflow.RenameStation(old, station.Name)).Select(workflow => $"{workflow.Controller.Name}'s workflow"))
+                .ToArray();
 
-            StatusText = open.Length == 0
-                ? written.Count == 0 ? $"Renamed {old} to {station.Name}." : $"Renamed {old} to {station.Name}, on {string.Join(", ", written)} too."
-                : $"Renamed {old} to {station.Name}, on {string.Join(", ", open.Concat(written))} too. Save {string.Join(", ", open)} to keep it.";
+            var written = ScreenSet.RenameStation(project, old, station.Name, Designers.Select(designer => designer.Name).ToArray())
+                .Concat(RenameInWorkflowFiles(project, old, station.Name))
+                .ToArray();
+
+            var all = open.Concat(written).ToArray();
+
+            StatusText = all.Length == 0
+                ? $"Renamed {old} to {station.Name}."
+                : open.Length == 0
+                    ? $"Renamed {old} to {station.Name}, on {string.Join(", ", all)} too."
+                    : $"Renamed {old} to {station.Name}, on {string.Join(", ", all)} too. Save {string.Join(", ", open)} to keep it.";
         }, "Rename Station");
+    }
+
+    /// <summary>
+    /// The workflows not open in a tab whose nodes name the station renamed,
+    /// changed in their files. One that cannot be read is left; its check
+    /// says the station is not there.
+    /// </summary>
+    private IEnumerable<string> RenameInWorkflowFiles(Project project, string from, string to)
+    {
+        var changed = new List<string>();
+
+        foreach (var controller in project.Controllers)
+        {
+            var path = project.WorkflowPath(controller);
+
+            if (Workflows.Any(workflow => ReferenceEquals(workflow.Controller, controller)) || !File.Exists(path))
+                continue;
+
+            try
+            {
+                if (WorkflowFile.RenameStation(path, from, to))
+                    changed.Add($"{controller.Name}'s workflow");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+            {
+                // Left as it is.
+            }
+        }
+
+        return changed;
     }
 
     private void Remove(StationViewModel? station)

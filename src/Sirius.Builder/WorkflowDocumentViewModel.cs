@@ -322,6 +322,29 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
         Changed();
     }
 
+    /// <summary>
+    /// After a station was renamed: the nodes naming it follow, as a change
+    /// to save - one undo step.
+    /// </summary>
+    /// <returns>Whether any did.</returns>
+    public bool RenameStation(string from, string to)
+    {
+        if (!Graph.Nodes.Any(node => node is InspectNode { Station: var station } && string.Equals(station, from, StringComparison.OrdinalIgnoreCase) ||
+                                     node is StationResultNode { Station: var heard } && string.Equals(heard, from, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        using (Document.Undo.Begin($"Rename {from} to {to}"))
+            WorkflowFile.RenameStation(Graph, from, to);
+
+        foreach (var category in Properties)
+            category.Refresh();
+
+        Changed();
+        return true;
+    }
+
     /// <summary>Writes the workflow to its file.</summary>
     /// <returns>Whether it was written.</returns>
     public bool Save()
