@@ -162,7 +162,8 @@ try {
 
     if (-not (Test-Path $OutputDirectory)) { New-Item -ItemType Directory $OutputDirectory | Out-Null }
 
-    $zip = Join-Path $OutputDirectory "Sirius-PLC-Kit-$version-win-x64.zip"
+    # Named for both: a kit repacked with a newer Builder must not take the place of one already handed over.
+    $zip = Join-Path $OutputDirectory "Sirius-PLC-Kit-$version-Builder-$builderVersion-win-x64.zip"
     if (Test-Path $zip) { Remove-Item $zip -Force }
 
     Write-Host 'Compressing...'

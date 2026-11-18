@@ -9,9 +9,12 @@ where the product stands; this says what could come next. Updated
 - **1.0.12 packed** (16 November) with SDK 1.0.4: a file saved over under
   the same name runs its node again - the test team's template-matching
   model (decision 78) - with saved pictures, Sirius IV and controllers.
-- **Built, not yet packed: several screens** - pages and popups, opened
-  by buttons, each designed in a tab of its own in Builder (F24, decision
-  79). Packing it is N10.
+- **1.0.13 packed** (18 November): **several screens** - pages and popups,
+  opened by buttons, each designed in a tab of its own in Builder (F24,
+  decision 79) - with the overview as the package's README, and N3's
+  icons, and workflows following a station renamed (N9). Builder 1.0.3,
+  Sirius IV 1.0.1; the PLC kit packed again with that Builder. Also a
+  `.gitattributes` (N4).
 - **Written:** `overview.md`, what each program is for, now the README of
   every package; the developer README brought up to date.
 - **Designed, not built:** parts of several pictures, and speed (F25-F28,
@@ -21,9 +24,7 @@ where the product stands; this says what could come next. Updated
 **Proposed order from here** - the single picture through the PLC, made
 solid on a real machine, before several pictures or speed:
 
-1. **N10** - pack 1.0.13, so testers have several screens; with **N9**
-   (workflows following a station renamed) and **N4** (`.gitattributes`)
-   before it, both small.
+1. ~~**N9**, **N4**, then **N10** - pack 1.0.13~~ - done 18 November.
 2. **F29, its first slice** - cameras set up in Builder, without
    Studio; what commissioning a single-picture machine needs first.
 3. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
@@ -84,9 +85,9 @@ is in `licences.md`**; this is the list.
   BMP and TIF icons of yours. Only Transform Shapes still borrows another
   node's icon (Resize's). The PLC and screen icons are Phosphor's, yours
   to redraw if you want.
-- **N4. A `.gitattributes`** (S). Line endings are normalised per machine
-  today; settle them before a second person works in the repository - the
-  PLC team may be the first.
+- ~~**N4. A `.gitattributes`**~~ - done, 18 November 2026: text stored
+  with LF, checked out with each machine's endings; nothing stored had to
+  change.
 - **N5. Tidy-ups** (S each):
   - delete `src/Sirius.NodeEditor`, an empty project (one `Class1.cs`);
   - decide about the upright `Rectangle` region editor: no built-in
@@ -100,14 +101,12 @@ is in `licences.md`**; this is the list.
   18 November, passing three times alone - the same day camera discovery
   took 87 s in `CameraSdkGateTests`. Worth finding out why before they
   hide a real failure.
-- **N9. A station renamed leaves its workflows behind** (S). An Inspect or
-  Station Result naming the old name is reported by the workflow's check
-  ("There is no station called ..."), but not changed. Rename it in the
-  workflows too, as every screen's widgets now are (F24) - open ones as a
-  change to save, the others in their files.
-- **N10. Pack 1.0.13** (S): several screens (F24), with Builder 1.0.3;
-  release notes, roadmap, and the PLC kit packed again with the same
-  Builder.
+- ~~**N9. A station renamed leaves its workflows behind**~~ - done, 18
+  November 2026, in 1.0.13: Inspect and Station Result follow, open
+  workflows as a change to save, the rest in their files.
+- ~~**N10. Pack 1.0.13**~~ - done, 18 November 2026: several screens
+  (F24), Builder 1.0.3, Sirius IV 1.0.1; the PLC kit packed again with
+  that Builder, its zip now named for both versions.
 
 ---
 

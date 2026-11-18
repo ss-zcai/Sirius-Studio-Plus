@@ -187,7 +187,7 @@ language and the guides: `sdk-readme.md` first, then `custom-nodes.md`,
 `python-nodes.md`, `cpp-nodes.md`.
 
 **PLC drivers** - a new brand of PLC is a driver DLL in `plc-drivers\`.
-The **PLC kit** (`Sirius-PLC-Kit-<version>.zip`) has Builder, the driver
+The **PLC kit** (`Sirius-PLC-Kit-<version>-Builder-<version>-win-x64.zip`) has Builder, the driver
 SDK, a sample driver and `plc-drivers.md`; workflows are in
 `plc-workflows.md`. Today the simulated PLC is built in; Siemens S7 and
 Modbus TCP come next.

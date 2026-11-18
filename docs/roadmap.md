@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands. **1.0.12** is the latest package (16 November
+Where the product stands. **1.0.13** is the latest package (18 November
 2026). What could come next, in a proposed
 order, is in **`backlog.md`** - this page is what is done, and the one
 thing that blocks shipping.
@@ -25,24 +25,19 @@ same time: backlog items L1-L6, all set out in `licences.md`.
 
 ---
 
-## New in 1.0.12
-
-- **A file saved over runs its node again**: a model taught again and
-  saved under the same name is used at the next run. Decision 78.
-- **Stations save their pictures**, with a `.sann` beside each, and
-  **Sirius IV** browses them - sorting, measuring, matching, Sync View.
-  Decision 73.
-- **Controllers**: a PLC, simulated so far, and its workflow, in Builder's
-  Project panel; run by Test Run and Edge. Decisions 74-76. The PLC team
-  has a kit to write the real drivers (decision 77).
-- **Builder**: one toolbar for the tab in front, Save All.
-
-## Since 1.0.12, not yet packed
+## New in 1.0.13
 
 - **Several screens**: pages and popups beside the start screen, opened
   by buttons - Open Screen, and Close or Back. A popup opens over the
   dimmed page, which goes on running. In Builder each is listed in the
   Project panel and designed in a tab of its own. Decision 79.
+- **The package's README** is `overview.md`: what each program is for.
+- **Icons**: Lens Calibration, Offset Shapes, and BMP and TIF files in
+  Sirius IV (N3 closed).
+- **A station renamed** is followed by its workflows, as by its screens.
+
+1.0.12 (16 November) brought a file saved over running its node again
+(decision 78), saved pictures and Sirius IV, and controllers.
 
 ---
 

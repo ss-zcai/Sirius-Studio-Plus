@@ -5,6 +5,91 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.13 — 18 November 2026
+
+A project's screen can now be several: **pages and popups** beside the
+start screen, opened from buttons - the pictures on one, the settings
+behind a button in a popup, a complex setup on a page of its own. Also:
+workflows follow a station renamed, two icons redrawn, Sirius IV's BMP and TIF icons, and a README that says
+what each program is for. Recipes and projects saved in 1.0.12 open
+unchanged. The custom node SDK stays **1.0.4**.
+
+### What is in the folder now
+
+| | |
+|---|---|
+| `SiriusStudioPlus.exe` | **Sirius Studio**: builds and tunes recipes |
+| `SiriusBuilder.exe` | **Sirius Builder** (1.0.3): stations, controllers and the line's screens |
+| `SiriusEdge.exe` | **Sirius Edge**: runs a project on the machine |
+| `SiriusIV.exe` | **Sirius IV** (1.0.1): the pictures a station saved, and what was found on each |
+| `sirius-run.exe` | recipes over a folder of images, from a script |
+| `README.md` | **new**: what each program is for, how they fit together, a first hour |
+
+### What to try first
+
+> Builder: **+ ▸ Add Popup…**, call it Settings
+
+It opens in a tab of its own, with a title and a Close button, and is
+listed in the Project panel with a window's icon. Cut a Setting widget
+from Main and paste it in the Settings tab.
+
+> On Main: a **Button**, Does: **Open Screen**, Opens: Settings. **Test Run**
+
+The button opens Settings over the screen, which is dimmed but goes on
+running - change a setting and watch the picture follow. Close, or
+Escape, closes it. **+ ▸ Add Page…** does the same with a page, which
+takes the screen's place; its Back returns.
+
+### New: pages and popups
+
+- **A project's screens** are **Main**, shown first, and any pages and
+  popups beside it, each a file in the project's `screens` folder.
+- **A page** fills the window in place of the one shown; **Back** returns
+  to the page before. **A popup** opens over the page, which stays on
+  view and running but takes no input until the popup is closed. One
+  popup at a time.
+- **Two new button actions**: **Open Screen** (which screen, in
+  Properties ▸ Opens) and **Close** - captioned Close on a popup, Back on
+  a page. A popup with no Close button gets a ✕ in its corner, so a touch
+  screen without a keyboard can always close it.
+- **In Builder** each screen is designed in a tab of its own; the
+  toolbar, the Widgets panel and Properties follow the tab in front. A
+  screen's Properties say whether it opens as a page or a popup.
+  Right-click a screen to rename it - buttons opening it follow - or to
+  remove it, which sends its file to the Recycle Bin. Main cannot be
+  renamed or removed.
+- **Checked as you go**: a button opening no screen, or one that is not
+  there, and a popup larger than Main, are listed under the screen and
+  along the bottom of the running window.
+- **Renaming a station** now changes the widgets showing it on every
+  screen, not only the one open - and the workflows' nodes naming it.
+
+A project using pages or popups opens in 1.0.12 with its standard screen
+in place of its own, saying it was saved by a newer version. A project
+using neither is unchanged.
+
+### Changed
+
+- **Icons**: Lens Calibration is a checkerboard; Offset Shapes has an
+  icon of its own; Sirius IV's file list shows BMP and TIF pictures with
+  their own icons.
+- **The package's README** is the new overview - every program, how they
+  fit together, the files each makes. The `docs` folder adds it, the
+  saved-pictures guide (`annotation-format.md`) and the PLC workflow
+  guide (`plc-workflows.md`).
+
+### Changed: renaming a station
+
+- **Workflows follow.** Inspect and Station Result nodes naming a station
+  renamed take the new name - in a workflow open in Builder as a change
+  to save, in the others at once. Before, they were left naming the old
+  one, and the workflow's check said so.
+
+### Known issues
+
+- Two camera tests fail now and then on a busy PC and pass run again;
+  not something a tester will meet.
+
 ## 1.0.12 — 16 November 2026
 
 A custom node's model file, taught again and saved under the same name,
