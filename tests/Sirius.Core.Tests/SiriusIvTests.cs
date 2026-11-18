@@ -457,14 +457,21 @@ public sealed class SiriusIvTests : IDisposable
                 var texts = Texts(entry);
                 Assert.Contains("PASS", texts);
 
-                // Its icon says its type: the icon set's file-jpg; file-png; file-image for the rest.
+                // Its icon says its type: file-jpg, file-png, file-bmp, file-tif; file-image for anything else.
                 var icon = Assert.Single(Images(entry));
                 var resources = System.Windows.Application.Current!;
                 Assert.Same(resources.FindResource("Icon.ph_file_jpg"), icon.Source);
 
-                foreach (var (index, key) in new[] { (0, "Icon.ph_file_png"), (5, "Icon.ph_image_file") })
+                foreach (var (index, key) in new[] { (0, "Icon.ph_file_png"), (5, "Icon.ph_file_bmp") })
                 {
                     entry.DataContext = model.Files[index];
+                    WpfTestHost.Settle(window.Dispatcher);
+                    Assert.Same(resources.FindResource(key), icon.Source);
+                }
+
+                foreach (var (name, key) in new[] { ("scan.tiff", "Icon.ph_file_tif"), ("scan.tif", "Icon.ph_file_tif"), ("old.gif", "Icon.ph_image_file") })
+                {
+                    entry.DataContext = new ImageFileItem(Path.Combine(model.Folder!, name), model.Folder!);
                     WpfTestHost.Settle(window.Dispatcher);
                     Assert.Same(resources.FindResource(key), icon.Source);
                 }

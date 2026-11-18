@@ -146,6 +146,13 @@ PHOSPHOR = {
     # and a window for a popup, which opens over it.
     "monitor": "ph_screen_page",
     "app-window": "ph_screen_popup",
+
+    # Lens Calibration is calibrated on a chessboard, so Phosphor's
+    # checkerboard - in place of the hand-drawn one in Extension, kept
+    # there but no longer installed. Offset Shapes: a shape and the same
+    # shape offset behind it, rather than Dilate's icon borrowed.
+    "checkerboard": "ph_lens_calibration",
+    "cards": "ph_offset_shapes",
 }
 
 # source file -> the resource key it supplies
@@ -175,14 +182,19 @@ INSTALL = {
     "bring-to-front.svg": "ph_bring_to_front",
     "send-to-back.svg": "ph_send_to_back",
 
+    # Sirius IV's file list: a picture's type, beside Phosphor's file-png
+    # and file-jpg.
+    "file-bmp.svg": "ph_file_bmp",
+    "file-tiff.svg": "ph_file_tif",
+
     # Drawn straight into Icons.xaml with their nodes (b0f2528) and
     # recovered from it, so that regenerating no longer drops them.
     # Find Curve: edge points along a curve. Line Defects: a straight
-    # edge with a notch in it, and a warning mark. Lens Calibration: a
-    # chessboard. Undistort: a bowed line made straight.
+    # edge with a notch in it, and a warning mark. Undistort: a bowed line
+    # made straight. (Lens Calibration's, recovered with them, gave way to
+    # Phosphor's checkerboard above.)
     "find-curve.svg": "ph_find_curve",
     "line-defects.svg": "ph_line_defects",
-    "lens-calibration.svg": "ph_lens_calibration",
     "undistort.svg": "ph_undistort",
 }
 

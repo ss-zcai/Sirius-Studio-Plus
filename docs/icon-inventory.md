@@ -52,7 +52,7 @@ must ship with the product.
 
 ## The hand-drawn extensions
 
-Eighteen icons are not Phosphor. They are drawn in Phosphor's geometry - 256
+Nineteen icons are not Phosphor. They are drawn in Phosphor's geometry - 256
 canvas, stroke 16, round caps - and live in
 `res/phosphor-icons/Extension/`, which is the editable source; the installed
 copies in `res/ui icons/` are generated from it.
@@ -73,13 +73,18 @@ copies in `res/ui icons/` are generated from it.
 | `send-backward.svg` | `ph_send_backward` | - |
 | `bring-to-front.svg` | `ph_bring_to_front` | - |
 | `send-to-back.svg` | `ph_send_to_back` | - |
+| `file-bmp.svg` | `ph_file_bmp` | `file-image` |
+| `file-tiff.svg` | `ph_file_tif` | `file-image` |
 | `find-curve.svg` | `ph_find_curve` | - |
 | `line-defects.svg` | `ph_line_defects` | - |
-| `lens-calibration.svg` | `ph_lens_calibration` | - |
 | `undistort.svg` | `ph_undistort` | - |
 
-The last four were first drawn straight into `Icons.xaml` and had no source,
+The last three were first drawn straight into `Icons.xaml` and had no source,
 so a regeneration dropped them; their SVGs were recovered from its geometry.
+A fourth recovered with them, `lens-calibration.svg`, is still in the folder
+but no longer installed: Lens Calibration uses Phosphor's `checkerboard`
+(18 November 2026), as Offset Shapes uses its `cards` rather than Dilate's
+icon.
 
 The measurement tools are the four Phosphor could only approximate - a
 generic two-point vector or an equals sign says nothing about *which*

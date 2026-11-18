@@ -93,8 +93,8 @@
         </Style>
 
         <!--
-            A file's icon, by its type: Phosphor's file-png and file-jpg; any
-            other picture, file-image - until BMP and TIF have their own.
+            A file's icon, by its type: Phosphor's file-png and file-jpg, and
+            file-bmp and file-tiff drawn to match; anything else, file-image.
         -->
         <Style x:Key="FileKindIcon" TargetType="Image">
             <Setter Property="Source" Value="{StaticResource Icon.ph_image_file}" />
@@ -104,6 +104,12 @@
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Kind}" Value="JPG">
                     <Setter Property="Source" Value="{StaticResource Icon.ph_file_jpg}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="BMP">
+                    <Setter Property="Source" Value="{StaticResource Icon.ph_file_bmp}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Kind}" Value="TIF">
+                    <Setter Property="Source" Value="{StaticResource Icon.ph_file_tif}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>

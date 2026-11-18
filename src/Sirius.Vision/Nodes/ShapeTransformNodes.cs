@@ -63,7 +63,7 @@ public enum OffsetLines
     "Offset Shapes",
     TypeKey = "shape.offset",
     Category = NodeCategory.Blob,
-    Icon = "ph_dilate",
+    Icon = "ph_offset_shapes",
     Description = "Grows or shrinks shapes by a distance in pixels - a circle's radius, a rectangle's sides, an outline all round.")]
 public sealed class OffsetShapesNode : VisionNode
 {

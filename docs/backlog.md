@@ -78,14 +78,12 @@ is in `licences.md`**; this is the list.
 - ~~**N7. Pack 1.0.12**~~ - done, 16 November 2026, with SDK 1.0.4: the
   custom node fix the test team asked for, saved pictures and Sirius IV,
   controllers. The PLC kit is packed on its own (`pack-plc-kit.ps1`, 1.0.0).
-- **N3. Icons** - mostly settled. The four that had no SVG
-  (`ph_find_curve`, `ph_lens_calibration`, `ph_line_defects`,
-  `ph_undistort`) have one now, so regenerating `Themes/Icons.xaml` is
-  safe. Left: Offset Shapes and Transform Shapes borrow Dilate's and
-  Resize's; the PLC icons (controller, the nine workflow nodes), the
-  screen icons (page and popup, from Phosphor's monitor and app-window,
-  17 November) and BMP and TIF file icons are yours to redraw if you
-  want.
+- ~~**N3. Icons**~~ - done, 18 November 2026: every icon has its SVG, so
+  regenerating `Themes/Icons.xaml` is safe; Lens Calibration has
+  Phosphor's checkerboard, Offset Shapes its cards; Sirius IV's list has
+  BMP and TIF icons of yours. Only Transform Shapes still borrows another
+  node's icon (Resize's). The PLC and screen icons are Phosphor's, yours
+  to redraw if you want.
 - **N4. A `.gitattributes`** (S). Line endings are normalised per machine
   today; settle them before a second person works in the repository - the
   PLC team may be the first.
@@ -97,8 +95,11 @@ is in `licences.md`**; this is the list.
 - **N8. Tests that fail now and then** (S each), passing when run again:
   `HikrobotCameraTests.Two_stations_run_two_hikrobot_cameras_at_once`
   times out on a busy machine; `EditHistoryTests.The_styler_colours_the_whole_selection_in_one_step`
-  failed once in a full run, 13 November. Worth finding out why before
-  they hide a real failure.
+  failed once in a full run, 13 November;
+  `StationRunnerTests.Two_stations_grab_from_two_cameras_at_once` once on
+  18 November, passing three times alone - the same day camera discovery
+  took 87 s in `CameraSdkGateTests`. Worth finding out why before they
+  hide a real failure.
 - **N9. A station renamed leaves its workflows behind** (S). An Inspect or
   Station Result naming the old name is reported by the workflow's check
   ("There is no station called ..."), but not changed. Rename it in the
