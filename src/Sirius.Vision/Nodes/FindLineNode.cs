@@ -80,6 +80,7 @@ public sealed class FindLineNode : VisionNode
 
     [Param("Region",
         Editor = ParamEditor.Rect,
+        RegionColour = ParamAttribute.SearchColour,
         Connectable = true,
         Description = "Search rectangle as x, y, w, h, angle. Its long axis runs along the expected edge.")]
     public OrientedRect Region

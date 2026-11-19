@@ -322,6 +322,25 @@ public class FindRectangleTests
         Assert.Equal(0, panel.RoiBand);
     }
 
+    /// <summary>
+    /// A region calipers search is drawn sky blue, as Find Circle's band
+    /// and Find Curve's path are; a region simply worked on stays amber.
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(FindRectangleNode), true)]
+    [InlineData(typeof(FindLineNode), true)]
+    [InlineData(typeof(LineCalipersNode), true)]
+    [InlineData(typeof(LineDefectsNode), true)]
+    [InlineData(typeof(RegionOfInterestNode), false)]
+    [InlineData(typeof(RegionStatsNode), false)]
+    public void Search_regions_are_drawn_in_the_search_blue(Type nodeType, bool searches)
+    {
+        var node = (VisionNode)Activator.CreateInstance(nodeType)!;
+        var region = node.Descriptor.Parameters.Single(p => p.Attribute.Editor == ParamEditor.Rect);
+
+        Assert.Equal(searches ? ParamAttribute.SearchColour : null, region.Attribute.RegionColour);
+    }
+
     [Fact]
     public void A_region_with_no_band_has_none()
     {

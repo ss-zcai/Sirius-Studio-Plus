@@ -154,6 +154,7 @@ public sealed class LineDefectsNode : VisionNode, IJudgingNode
 
     [Param("Region",
         Editor = ParamEditor.Rect,
+        RegionColour = ParamAttribute.SearchColour,
         Connectable = true,
         Description = "Search rectangle as x, y, w, h, angle, its long axis along the edge and wide enough to take " +
                       "the biggest burr and the deepest chip. A wired line replaces it.")]

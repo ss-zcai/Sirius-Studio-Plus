@@ -237,6 +237,14 @@ public sealed class ParamAttribute : Attribute
     public string? RegionColour { get; set; }
 
     /// <summary>
+    /// The colour of a region that is where calipers search - Find Line's,
+    /// Find Rectangle's - as the band Find Circle searches and the path Find
+    /// Curve searches are drawn: sky blue, apart from the amber of a region
+    /// that is simply worked on.
+    /// </summary>
+    public const string SearchColour = "#38BDF8";
+
+    /// <summary>
     /// For a number: the region parameter it is a band either side of the
     /// sides of, by property name - Find Rectangle's Search Width round
     /// its Region. The viewer draws the band's inner and outer edges round

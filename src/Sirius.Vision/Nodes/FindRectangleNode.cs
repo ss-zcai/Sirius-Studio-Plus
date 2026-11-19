@@ -51,7 +51,7 @@ public sealed class FindRectangleNode : VisionNode
 
     private const uint Evidence = 0xFFFBBF24;
 
-    private const uint Searched = 0xFF3B82F6;
+    private const uint Searched = 0xFF38BDF8;
 
     private OrientedRect _region = new(320, 240, 300, 200, 0);
     private double _searchWidth = 20;
@@ -114,6 +114,7 @@ public sealed class FindRectangleNode : VisionNode
 
     [Param("Region",
         Editor = ParamEditor.Rect,
+        RegionColour = ParamAttribute.SearchColour,
         Connectable = true,
         Description = "The rectangle expected, as x, y, w, h, angle: drawn round the part as it should lie. Its top is the side the angle turns.")]
     public OrientedRect Region
