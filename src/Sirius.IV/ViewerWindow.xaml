@@ -276,7 +276,7 @@
                             ToolTip="Cut the rectangles drawn on a picture from every picture in the list, and save each as an ROI image: picture-1.png, picture-2.png…"
                             Command="{x:Static local:ViewerWindow.CropAllCommand}">
                         <StackPanel Orientation="Horizontal">
-                            <Image Source="{StaticResource Icon.ph_crop}" Width="18" Height="18" />
+                            <Image Source="{StaticResource Icon.ph_save_rois}" Width="18" Height="18" />
                             <TextBlock Text="ROIs from All" Style="{StaticResource ToolbarLabel}" />
                         </StackPanel>
                     </Button>

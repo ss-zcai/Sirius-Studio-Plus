@@ -208,6 +208,10 @@ INSTALL = {
     "find-curve.svg": "ph_find_curve",
     "line-defects.svg": "ph_line_defects",
     "undistort.svg": "ph_undistort",
+
+    # Saving ROIs (F32): a page with a small box over its corner - the
+    # save that sits beside Save Image and cuts pieces out of it.
+    "save-as.svg": "ph_save_rois",
 }
 
 KEYLINE_EXTRA = 32.0

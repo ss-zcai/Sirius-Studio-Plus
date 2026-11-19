@@ -98,6 +98,30 @@
                     </Button>
 
                     <!--
+                        The rectangles' crops, saved as ROIs: the selected
+                        one, or every one numbered as artboards are. Beside
+                        Save Image, since it saves from the same picture.
+                    -->
+                    <Button x:Name="SaveRoisButton"
+                            Style="{StaticResource ToolbarButton}"
+                            ToolTip="Save what the rectangles hold, as ROI images"
+                            Click="OnSaveRoisClick">
+                        <Image Source="{StaticResource Icon.ph_save_rois}" Width="16" Height="16" />
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem x:Name="SaveRoiItem"
+                                          Header="Save ROI As…"
+                                          ToolTip="The selected rectangle's crop, turned upright"
+                                          Click="OnSaveRoiClick" />
+                                <MenuItem x:Name="SaveAllRoisItem"
+                                          Header="Save All ROIs As…"
+                                          ToolTip="Every rectangle's crop, numbered as drawn: name-1, name-2…"
+                                          Click="OnSaveAllRoisClick" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+
+                    <!--
                         How a 16-bit picture is shown, offered only for one.
                         A 12-bit camera's frame is a 16-bit image whose values
                         stop at 4095, and shown across the full 16 bits it is
@@ -265,29 +289,6 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-
-                    <!--
-                        The rectangles' crops, saved as ROIs: the selected
-                        one, or every one numbered as artboards are.
-                    -->
-                    <Button x:Name="SaveRoisButton"
-                            Style="{StaticResource ToolbarButton}"
-                            ToolTip="Save what the rectangles hold, as ROI images"
-                            Click="OnSaveRoisClick">
-                        <Image Source="{StaticResource Icon.ph_crop}" Width="16" Height="16" />
-                        <Button.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem x:Name="SaveRoiItem"
-                                          Header="Save ROI As…"
-                                          ToolTip="The selected rectangle's crop, turned upright"
-                                          Click="OnSaveRoiClick" />
-                                <MenuItem x:Name="SaveAllRoisItem"
-                                          Header="Save All ROIs As…"
-                                          ToolTip="Every rectangle's crop, numbered as drawn: name-1, name-2…"
-                                          Click="OnSaveAllRoisClick" />
-                            </ContextMenu>
-                        </Button.ContextMenu>
-                    </Button>
 
                     <Button Style="{StaticResource ToolbarButton}"
                             ToolTip="Delete the selected measurement (Del)"
