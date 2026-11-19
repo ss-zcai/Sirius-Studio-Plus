@@ -3886,7 +3886,17 @@ public partial class ImageViewer : UserControl
 
         var colour = RoiColour;
         RoiShape.Stroke = new SolidColorBrush(colour);
-        RoiShape.Fill = new SolidColorBrush(Color.FromArgb(0x22, colour.R, colour.G, colour.B));
+
+        // With a band, the band is what is searched: it is shaded and its
+        // edges drawn solid, and the rectangle drawn - the line the band
+        // runs either side of - is dashed and left clear.
+        var banded = RoiBand > 0;
+
+        RoiShape.Fill = banded
+            ? Brushes.Transparent
+            : new SolidColorBrush(Color.FromArgb(0x22, colour.R, colour.G, colour.B));
+
+        RoiShape.StrokeDashArray = banded ? new DoubleCollection { 4, 3 } : null;
 
         Canvas.SetLeft(RoiShape, roi.X);
         Canvas.SetTop(RoiShape, roi.Y);
@@ -3910,13 +3920,15 @@ public partial class ImageViewer : UserControl
     }
 
     /// <summary>
-    /// The search band round the region - its inner and outer edges, dashed
-    /// in the region's colour and turned with it - for a node that looks a
-    /// set distance either side of the region's sides.
+    /// The search band round the region, for a node that looks a set
+    /// distance either side of the region's sides: the band shaded, as
+    /// Find Circle's ring is, and its inner and outer edges drawn solid in
+    /// the region's colour, turned with it.
     /// </summary>
     /// <remarks>
-    /// On the handle layer, under the corner marks' hit area but drawn
-    /// without taking any clicks, so the region is grabbed as before.
+    /// One path of the two rectangles with an even-odd fill, so only the
+    /// band between them is shaded, not the middle. Put under the corner
+    /// marks, and takes no clicks, so the region is grabbed as before.
     /// </remarks>
     private void DrawRoiBand(DrawingRectangle roi, Color colour)
     {
@@ -3924,37 +3936,33 @@ public partial class ImageViewer : UserControl
         if (band <= 0)
             return;
 
-        var brush = new SolidColorBrush(Color.FromArgb(0xCC, colour.R, colour.G, colour.B));
-        brush.Freeze();
-
         var centre = new Point(roi.X + (roi.Width / 2.0), roi.Y + (roi.Height / 2.0));
+        var edges = new GeometryGroup { FillRule = FillRule.EvenOdd };
 
         foreach (var grow in new[] { band, -band })
         {
             var width = roi.Width + (2 * grow);
             var height = roi.Height + (2 * grow);
 
-            // A band wider than half the region leaves no inside to draw.
+            // A band wider than half the region leaves no inside: the whole
+            // of it is searched, and shaded.
             if (width <= 0 || height <= 0)
                 continue;
 
-            var edge = new Rectangle
-            {
-                Width = width,
-                Height = height,
-                Stroke = brush,
-                StrokeThickness = ScreenPixel,
-                StrokeDashArray = new DoubleCollection { 4, 3 },
-                Fill = Brushes.Transparent,
-                IsHitTestVisible = false,
-                RenderTransformOrigin = new Point(0.5, 0.5),
-                RenderTransform = RoiAngle == 0 ? Transform.Identity : new RotateTransform(RoiAngle),
-            };
-
-            Canvas.SetLeft(edge, centre.X - (width / 2));
-            Canvas.SetTop(edge, centre.Y - (height / 2));
-            HandleLayer.Children.Add(edge);
+            edges.Children.Add(new RectangleGeometry(new Rect(centre.X - (width / 2), centre.Y - (height / 2), width, height)));
         }
+
+        if (RoiAngle != 0)
+            edges.Transform = new RotateTransform(RoiAngle, centre.X, centre.Y);
+
+        HandleLayer.Children.Insert(0, new System.Windows.Shapes.Path
+        {
+            Data = edges,
+            Stroke = new SolidColorBrush(colour),
+            StrokeThickness = ScreenPixel,
+            Fill = new SolidColorBrush(Color.FromArgb(0x22, colour.R, colour.G, colour.B)),
+            IsHitTestVisible = false,
+        });
     }
 
     /// <summary>
@@ -4071,7 +4079,10 @@ public partial class ImageViewer : UserControl
                 Width = size,
                 Height = size,
                 Fill = Brushes.White,
-                Stroke = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)),
+
+                // The region's own colour, as its outline is: amber for a
+                // region worked on, blue for one searched.
+                Stroke = new SolidColorBrush(RoiColour),
                 StrokeThickness = ScreenPixel,
                 IsHitTestVisible = false,
             };

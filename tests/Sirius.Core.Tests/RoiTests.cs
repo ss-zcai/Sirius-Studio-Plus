@@ -446,21 +446,42 @@ public class RoiTests : IDisposable
             viewer.Arrange(new Rect(0, 0, 900, 700));
             viewer.UpdateLayout();
 
-            System.Windows.Shapes.Rectangle[] Edges() => viewer.HandleLayer.Children
-                .OfType<System.Windows.Shapes.Rectangle>()
-                .Where(r => r.StrokeDashArray is { Count: > 0 })
-                .ToArray();
+            System.Windows.Shapes.Path? Band() =>
+                viewer.HandleLayer.Children.OfType<System.Windows.Shapes.Path>().SingleOrDefault();
 
-            Assert.Empty(Edges());
+            // No band: the region shaded and solid, as any region.
+            Assert.Null(Band());
+            Assert.True(viewer.RoiShape.StrokeDashArray is null or { Count: 0 });
+            Assert.NotEqual(System.Windows.Media.Brushes.Transparent, viewer.RoiShape.Fill);
 
+            viewer.RoiColour = System.Windows.Media.Color.FromRgb(0x38, 0xBD, 0xF8);
             viewer.RoiBand = 20;
-            var edges = Edges();
+            var band = Band();
 
-            Assert.Equal(2, edges.Length);
-            Assert.Equal(new[] { 240.0, 160.0 }, edges.Select(e => e.Width).ToArray());
-            Assert.Equal(new[] { 160.0, 80.0 }, edges.Select(e => e.Height).ToArray());
-            Assert.All(edges, e => Assert.Equal(10, ((System.Windows.Media.RotateTransform)e.RenderTransform).Angle));
-            Assert.All(edges, e => Assert.False(e.IsHitTestVisible));
+            // The band shaded between its two solid edges, turned with the
+            // region, under the corner marks and taking no clicks...
+            Assert.NotNull(band);
+            Assert.Same(band, viewer.HandleLayer.Children[0]);
+            Assert.True(band!.StrokeDashArray is null or { Count: 0 });
+            Assert.False(band.IsHitTestVisible);
+
+            var edges = (System.Windows.Media.GeometryGroup)band.Data;
+            Assert.Equal(System.Windows.Media.FillRule.EvenOdd, edges.FillRule);
+            Assert.Equal(
+                new[] { new Rect(80, 30, 240, 160), new Rect(120, 70, 160, 80) },
+                edges.Children.Cast<System.Windows.Media.RectangleGeometry>().Select(r => r.Rect).ToArray());
+            Assert.Equal(10, ((System.Windows.Media.RotateTransform)edges.Transform).Angle);
+
+            // ...and the rectangle drawn between them dashed and clear.
+            Assert.True(viewer.RoiShape.StrokeDashArray is { Count: > 0 });
+            Assert.Equal(System.Windows.Media.Brushes.Transparent, viewer.RoiShape.Fill);
+
+            // The corner marks in the region's colour, not amber.
+            var marks = viewer.HandleLayer.Children.OfType<System.Windows.Shapes.Rectangle>().ToArray();
+            Assert.Equal(4, marks.Length);
+            Assert.All(marks, mark => Assert.Equal(
+                System.Windows.Media.Color.FromRgb(0x38, 0xBD, 0xF8),
+                ((System.Windows.Media.SolidColorBrush)mark.Stroke).Color));
         });
 
     private static MeasurementRecord Rectangle(double x0, double y0, double x1, double y1, double x2, double y2) =>
