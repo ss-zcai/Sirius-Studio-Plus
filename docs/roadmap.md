@@ -43,6 +43,11 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   sample pictures saved - and named by stations, so it is changed
   without opening the recipe. Studio keeps its Camera node. A camera
   held by another program says so.
+- **A rectangle in every viewer, and ROIs** (F31, F32, decision 81):
+  measured as L x W and its angle, turned and resized by its handles;
+  its crop saved upright with the picture's own bits - one, or all
+  numbered as artboards are - and in Sirius IV cut from every picture in
+  the list, a day's pictures into a training set.
 
 1.0.12 (16 November) brought a file saved over running its node again
 (decision 78), saved pictures and Sirius IV, and controllers.

@@ -3255,3 +3255,51 @@ Studio keeps its Camera node for capturing and testing at the desk.
 camera, and Take from / Give to recipe; IP setup, the network card check,
 Replace…, identity by the camera's user-defined name, Simulated and
 Folder cameras as units; a maker's feature file; the window in Edge.
+
+## 81. A rectangle in every viewer, and its crops saved as ROIs (F31, F32)
+
+Asked on 19 November 2026: a rectangle measured by length and width in
+the image viewers, and its crop saved - one, or all of them numbered as
+artboards are exported - with Sirius IV cutting the same rectangles from
+every picture, for a deep-learning tool later.
+
+**Built (19 November):**
+
+- **The Rectangle tool**, in the one viewer control, so in Studio, Sirius
+  IV and Builder's camera window alike. Drag along one side, then click
+  on the opposite one: any side, either way along it. It reads
+  **L x W**, the longer side first, and its angle when turned.
+- **Kept as three corners**, top left, top right and bottom right, in the
+  recipe or the picture's `.sann` like any measurement; an older build
+  passes it over, as it does any tool it does not know.
+- **Its top** is the side facing most nearly up the image when it is
+  drawn, so a crop of a level part comes out as it looks. A stalk from
+  the middle of the top shows which side it is, with the knob on it when
+  selected; **T** moves the top to the next side round without moving
+  the rectangle - the knob, as asked, is the indicator for up.
+- **Selected**: a corner resizes it from the opposite corner, keeping
+  its turn; the knob turns it about its centre (Shift for steps of 15
+  degrees); the outline moves it. Picked by its outline, as a circle is,
+  so a rectangle round a whole part does not take every click inside it.
+- **Numbered** on the image as drawn - the number its crop is saved
+  under.
+- **Save ROI As...** and **Save All ROIs As...**, from the crop button on
+  the viewer's toolbar: the selected rectangle, or every one as
+  `<name>-1.png`, `-2`, the name chosen once, with one question if any
+  of the files are already there.
+- **The crop** is turned upright, its top the rectangle's top, never
+  mirrored. A rectangle square to the picture is copied pixel for pixel;
+  a turned one is resampled bilinearly; outside the picture is black.
+  The picture's own values are kept - a 12-bit frame gives a 12-bit
+  crop in a PNG or TIFF - and a JPEG or BMP gets 8 bits scaled by the
+  picture's bit count, so it is not nearly black.
+- **Sirius IV ▸ ROIs from All**: the rectangles on the first viewer that
+  has any, cut from every picture in the list as it is filtered (a
+  matched set's pictures included) into a folder chosen for them, as
+  `<picture>-<n>.png`. Two pictures of one name - two cameras' folders -
+  are told apart by their folders. Read from each file, so the crops
+  keep its bits; done on a worker with its progress on the toolbar; a
+  picture that cannot be read is listed at the end, and the rest go on.
+
+**Left:** naming a rectangle, for crops named by what they hold rather
+than by number; a rectangle set to an exact size; Find Rectangle (F30).

@@ -20,6 +20,7 @@ public partial class ViewerWindow : Window
     public static readonly RoutedUICommand CopyNameCommand = new("Copy Name", nameof(CopyNameCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand CopyPathCommand = new("Copy Full Path", nameof(CopyPathCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand ShowInExplorerCommand = new("Show in Explorer", nameof(ShowInExplorerCommand), typeof(ViewerWindow));
+    public static readonly RoutedUICommand CropAllCommand = new("ROIs from All Pictures", nameof(CropAllCommand), typeof(ViewerWindow));
 
     private readonly BrowserViewModel _model;
     private bool _choosing;
@@ -198,6 +199,73 @@ public partial class ViewerWindow : Window
     {
         if (MatchingWindow.Ask(this, _model) is { } rule)
             _model.Match = rule;
+    }
+
+    // Asked while the window is still being built, before it has a model.
+    private void OnCanCropAll(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = _model is { HasFolder: true, IsCropping: false };
+
+    /// <summary>
+    /// The rectangles drawn on a picture, cut from every picture in the list
+    /// into a folder chosen for them.
+    /// </summary>
+    private async void OnCropAll(object sender, ExecutedRoutedEventArgs e)
+    {
+        const string title = "ROIs from All Pictures";
+
+        if (_model.RoiSource() is not { } source)
+        {
+            Dialog.Inform(
+                "Draw a rectangle round each ROI on one picture first, with the viewer's Rectangle tool.\n\n" +
+                "Every picture in the list is then cut by the same rectangles, and each crop saved " +
+                "as picture-1.png, picture-2.png… in the folder you choose.",
+                title,
+                this);
+            return;
+        }
+
+        var pictures = _model.ListedPictures();
+        if (pictures.Count == 0)
+            return;
+
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Choose the folder for the ROI images",
+            InitialDirectory = _model.Folder ?? string.Empty,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        var targets = RoiBatch.Targets(pictures, source.Rois.Count, dialog.FolderName);
+        var existing = targets.Count(t => File.Exists(t.Path));
+        var rois = source.Rois.Count;
+
+        var ask =
+            $"Cut {rois} ROI{(rois == 1 ? string.Empty : "s")}, as drawn on {source.Picture.Name}, " +
+            $"from each of {pictures.Count:N0} picture{(pictures.Count == 1 ? string.Empty : "s")} - " +
+            $"{targets.Count:N0} files - into {dialog.FolderName}?" +
+            (existing > 0 ? $"\n\n{existing:N0} of the files are there already, and will be replaced." : string.Empty);
+
+        if (!Dialog.Confirm(ask, title, this))
+            return;
+
+        var result = await _model.CropAllAsync(targets, source.Rois);
+        CommandManager.InvalidateRequerySuggested();
+
+        var summary = $"Saved {result.Saved:N0} ROI image{(result.Saved == 1 ? string.Empty : "s")} " +
+                      $"from {result.Pictures:N0} picture{(result.Pictures == 1 ? string.Empty : "s")}.";
+
+        if (result.Problems.Count == 0)
+        {
+            Dialog.Inform(summary, title, this);
+            return;
+        }
+
+        var listed = string.Join("\n", result.Problems.Take(8));
+        var more = result.Problems.Count > 8 ? $"\n…and {result.Problems.Count - 8} more." : string.Empty;
+
+        Dialog.Warn($"{summary}\n\n{result.Problems.Count} could not be cut:\n{listed}{more}", title, this);
     }
 
     private void OnViewerLoaded(object sender, RoutedEventArgs e)

@@ -591,6 +591,23 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
         }
     }
 
+    /// <summary>A copy of the picture on show with its own values, or null when it is 8-bit.</summary>
+    public Emgu.CV.Mat? CopyOriginal()
+    {
+        lock (_deepLock)
+            return _deep?.Clone();
+    }
+
+    /// <summary>How many bits carry the picture on show.</summary>
+    public int OriginalBits
+    {
+        get
+        {
+            lock (_deepLock)
+                return _deepBits;
+        }
+    }
+
     public override void Dispose()
     {
         lock (_deepLock)

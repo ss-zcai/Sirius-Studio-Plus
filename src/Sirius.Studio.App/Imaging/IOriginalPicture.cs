@@ -19,4 +19,13 @@ public interface IOriginalPicture
     /// on a 12-bit frame - or null when it is 8-bit and shown as it is.
     /// </summary>
     string? Reading(int x, int y);
+
+    /// <summary>
+    /// A copy of it with its own values, for cutting ROIs from - or null
+    /// when it is 8-bit and the displayed picture is its own values.
+    /// </summary>
+    Emgu.CV.Mat? CopyOriginal() => null;
+
+    /// <summary>How many bits carry it: 12 for a 12-bit camera's frame.</summary>
+    int OriginalBits => 16;
 }

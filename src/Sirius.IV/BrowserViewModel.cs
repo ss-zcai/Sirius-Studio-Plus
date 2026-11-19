@@ -903,6 +903,79 @@ public sealed class BrowserViewModel : ObservableObject
         Announce();
     }
 
+    // ---- ROIs from every picture ------------------------------------------------------
+
+    private string? _activity;
+    private bool _cropping;
+
+    /// <summary>What is being done in the background - ROIs being cut - or null.</summary>
+    public string? Activity
+    {
+        get => _activity;
+        private set => SetProperty(ref _activity, value);
+    }
+
+    /// <summary>ROIs are being cut from the pictures; another run waits.</summary>
+    public bool IsCropping
+    {
+        get => _cropping;
+        private set => SetProperty(ref _cropping, value);
+    }
+
+    /// <summary>
+    /// The rectangles to cut from every picture: those on the first viewer
+    /// that has any, drawn on its picture whether saved or not - and the
+    /// picture they were drawn on.
+    /// </summary>
+    internal (ImageFileItem Picture, IReadOnlyList<RoiBatch.Roi> Rois)? RoiSource()
+    {
+        foreach (var tile in Tiles)
+        {
+            if (tile.File is not { } file)
+                continue;
+
+            var rois = RoiBatch.From(tile.Measurements);
+            if (rois.Count > 0)
+                return (file, rois);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Every picture in the list as it is filtered - with each matched
+    /// set's other pictures, which the list shows as one line.
+    /// </summary>
+    internal IReadOnlyList<ImageFileItem> ListedPictures() =>
+        _match.IsOn ? Files.SelectMany(item => item.Set).Distinct().ToArray() : Files.ToArray();
+
+    /// <summary>Cuts the ROIs from each picture into their files, on a worker.</summary>
+    internal async Task<RoiBatch.Result> CropAllAsync(
+        IReadOnlyList<RoiBatch.Target> targets, IReadOnlyList<RoiBatch.Roi> rois)
+    {
+        var pictures = targets.Select(t => t.Picture).Distinct().Count();
+
+        IsCropping = true;
+        Activity = $"Cutting ROIs: 0 of {pictures} pictures";
+
+        // A report posted before the end and run after it is let go.
+        var progress = new Progress<int>(done =>
+        {
+            if (IsCropping)
+                Activity = $"Cutting ROIs: {done} of {pictures} pictures";
+        });
+
+        try
+        {
+            return await Task.Run(() => RoiBatch.Run(targets, rois, progress));
+        }
+        finally
+        {
+            IsCropping = false;
+            Activity = null;
+        }
+    }
+
     private void Announce()
     {
         OnPropertyChanged(nameof(HasUnsavedChanges));

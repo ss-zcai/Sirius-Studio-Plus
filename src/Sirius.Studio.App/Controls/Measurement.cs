@@ -60,6 +60,18 @@ public enum ViewerTool
     /// its own.
     /// </remarks>
     LineProfile,
+
+    /// <summary>
+    /// A rectangle, turned to lie along a part: drag along one side, then
+    /// click across for the other. Its length and width are the reading;
+    /// its crop can be saved, so it is also the viewer's ROI.
+    /// </summary>
+    /// <remarks>
+    /// Kept as three corners - top left, top right, bottom right - with
+    /// the top meaning the side its knob is on, which is the side a saved
+    /// crop is turned to have at the top. The fourth corner follows.
+    /// </remarks>
+    Rectangle,
 }
 
 /// <summary>How a tool collects each of its points.</summary>
@@ -136,6 +148,9 @@ public sealed class Measurement
         ViewerTool.CircleThreePoint =>
             new[] { GestureKind.Click, GestureKind.Click, GestureKind.Click },
 
+        // A side, drawn like a point-to-point; then how far across.
+        ViewerTool.Rectangle => new[] { GestureKind.Drag, GestureKind.Click },
+
         _ => Array.Empty<GestureKind>(),
     };
 
@@ -155,6 +170,7 @@ public sealed class Measurement
         ViewerTool.LineProfile => "Line profile",
         ViewerTool.Ring => "Search band",
         ViewerTool.Path => "Search path",
+        ViewerTool.Rectangle => "Rectangle",
         _ => "Pointer",
     };
 
@@ -209,6 +225,8 @@ public sealed class Measurement
                     ? RadiusReading(circle.Radius)
                     : "no circle (points are in line)",
 
+            ViewerTool.Rectangle => RectangleReading(points),
+
             _ => string.Empty,
         };
     }
@@ -218,6 +236,26 @@ public sealed class Measurement
 
     private static string RadiusReading(double radius) =>
         string.Create(CultureInfo.CurrentCulture, $"R {radius:0.##}  ⌀ {radius * 2:0.##} px");
+
+    /// <summary>
+    /// "L 245.3 × W 120.1 px", the longer side first whichever way it was
+    /// drawn, and the angle of its top when it is turned.
+    /// </summary>
+    private static string RectangleReading(IReadOnlyList<Point> points)
+    {
+        var corners = RectangleCorners(points[0], points[1], points[2]);
+        var top = Distance(corners[0], corners[1]);
+        var side = Distance(corners[1], corners[2]);
+        var reading = string.Create(
+            CultureInfo.CurrentCulture,
+            $"L {Math.Max(top, side):0.##} × W {Math.Min(top, side):0.##} px");
+
+        var angle = RectangleAngle(corners);
+
+        return Math.Abs(angle) < 0.005
+            ? reading
+            : string.Create(CultureInfo.CurrentCulture, $"{reading}  ∠ {angle:0.##}°");
+    }
 
     /// <summary>Where the label sits, in image coordinates.</summary>
     public Point LabelAnchor
@@ -237,6 +275,9 @@ public sealed class Measurement
                 ViewerTool.Angle => Points[0],
 
                 ViewerTool.PointToLine => Midpoint(Points[0], FootOnLine(Points[0], Points[1], Points[2])),
+
+                ViewerTool.Rectangle when Points.Count >= 3 =>
+                    Midpoint(Points[0], RectangleCorners(Points[0], Points[1], Points[2])[2]),
 
                 _ => Points.Count >= 2 ? Midpoint(Points[0], Points[1]) : Points[0],
             };
@@ -408,6 +449,19 @@ public sealed class Measurement
                     : Math.Abs(Distance(p, circle.Value.Centre) - circle.Value.Radius);
             }
 
+            // Its outline, as a circle's is: a large rectangle round a whole
+            // part would otherwise take every click made inside it.
+            case ViewerTool.Rectangle:
+            {
+                var corners = RectangleCorners(Points[0], Points[1], Points[2]);
+                var nearest = double.MaxValue;
+
+                for (var i = 0; i < 4; i++)
+                    nearest = Math.Min(nearest, PointToSegmentDistance(p, corners[i], corners[(i + 1) % 4]));
+
+                return nearest;
+            }
+
             default:
                 return double.MaxValue;
         }
@@ -480,6 +534,176 @@ public sealed class Measurement
 
         var t = (((b1.X - a1.X) * w.Y) - ((b1.Y - a1.Y) * w.X)) / denominator;
         return new Point(a1.X + (u.X * t), a1.Y + (u.Y * t));
+    }
+
+    // ---- the rectangle -----------------------------------------------------
+
+    /// <summary>
+    /// The four corners of the rectangle with a side from <paramref name="a"/>
+    /// to <paramref name="b"/> and its opposite side through
+    /// <paramref name="across"/>, in order round it: a, b, then the two
+    /// across.
+    /// </summary>
+    /// <remarks>
+    /// Serves both the three points of a rectangle being drawn and the
+    /// three corners it is kept as: a kept rectangle's third corner is
+    /// square to its first side, so it is its own foot across.
+    /// </remarks>
+    public static Point[] RectangleCorners(Point a, Point b, Point across)
+    {
+        var normal = Normal(a, b);
+        var width = ((across.X - a.X) * normal.X) + ((across.Y - a.Y) * normal.Y);
+        var offset = normal * width;
+
+        return [a, b, b + offset, a + offset];
+    }
+
+    /// <summary>
+    /// The three corners a rectangle is kept as - top left, top right,
+    /// bottom right - with its top the side facing most nearly up the
+    /// image, so a crop of it is turned by as little as it can be.
+    /// </summary>
+    public static Point[] UprightCorners(Point a, Point b, Point across)
+    {
+        var corners = RectangleCorners(a, b, across);
+        var centre = Midpoint(corners[0], corners[2]);
+
+        // Of the four sides, the one facing most nearly up: its middle
+        // furthest above the centre for its distance from it. On a tie -
+        // a rectangle turned exactly 45 degrees - the first found stays.
+        var best = 0;
+        var bestUp = double.MinValue;
+
+        for (var i = 0; i < 4; i++)
+        {
+            var outward = Midpoint(corners[i], corners[(i + 1) % 4]) - centre;
+            if (outward.Length < 1e-12)
+                continue;
+
+            var up = -outward.Y / outward.Length;
+            if (up > bestUp + 1e-9)
+            {
+                best = i;
+                bestUp = up;
+            }
+        }
+
+        return WithTop(corners, best);
+    }
+
+    /// <summary>
+    /// The same rectangle with the next side clockwise as its top - the
+    /// way to say which way up a crop should be without moving it.
+    /// </summary>
+    public static Point[] NextTop(IReadOnlyList<Point> kept) =>
+        WithTop(RectangleCorners(kept[0], kept[1], kept[2]), 1);
+
+    /// <summary>
+    /// Top left, top right and bottom right of <paramref name="corners"/>
+    /// with the side starting at corner <paramref name="side"/> as the top:
+    /// its left the end that keeps a crop unmirrored, whichever way round
+    /// the corners were given.
+    /// </summary>
+    private static Point[] WithTop(Point[] corners, int side)
+    {
+        var p = corners[side];
+        var q = corners[(side + 1) % 4];
+        var centre = Midpoint(corners[0], corners[2]);
+        var middle = Midpoint(p, q);
+
+        // Down is from the top's middle towards the centre; right is down
+        // turned a quarter anticlockwise on screen, as +x is from +y.
+        var down = centre - middle;
+        var height = 2 * down.Length;
+
+        if (height < 1e-12)
+            return [p, q, q];
+
+        down.Normalize();
+        var right = new Vector(down.Y, -down.X);
+
+        var (left, rightEnd) = Vector.Multiply(q - p, right) >= 0 ? (p, q) : (q, p);
+
+        return [left, rightEnd, rightEnd + (down * height)];
+    }
+
+    /// <summary>
+    /// How far a rectangle's top is turned from level, in degrees, clockwise
+    /// on screen and between -180 and 180.
+    /// </summary>
+    public static double RectangleAngle(IReadOnlyList<Point> corners)
+    {
+        var top = corners[1] - corners[0];
+        return Math.Atan2(top.Y, top.X) * 180 / Math.PI;
+    }
+
+    /// <summary>
+    /// Resizes a kept rectangle by one corner (0 to 3, round from top left),
+    /// the opposite corner staying where it is and its turn and top kept.
+    /// </summary>
+    public static Point[] ResizeRectangle(IReadOnlyList<Point> kept, int corner, Point to)
+    {
+        var corners = RectangleCorners(kept[0], kept[1], kept[2]);
+        var right = corners[1] - corners[0];
+        var down = corners[3] - corners[0];
+
+        if (right.Length < 1e-12 || down.Length < 1e-12)
+            return [.. kept];
+
+        right.Normalize();
+        down.Normalize();
+
+        var origin = corners[0];
+        var fixedCorner = corners[(corner + 2) % 4];
+
+        double Along(Point point, Vector axis) => Vector.Multiply(point - origin, axis);
+
+        var (x1, x2) = (Along(fixedCorner, right), Along(to, right));
+        var (y1, y2) = (Along(fixedCorner, down), Along(to, down));
+
+        // At least a pixel each way, so a corner dragged over its opposite
+        // stops there rather than turning the rectangle inside out.
+        var width = Math.Max(1, Math.Abs(x2 - x1));
+        var height = Math.Max(1, Math.Abs(y2 - y1));
+        var left = x2 < x1 ? x1 - width : x1;
+        var top = y2 < y1 ? y1 - height : y1;
+
+        var topLeft = origin + (right * left) + (down * top);
+        return [topLeft, topLeft + (right * width), topLeft + (right * width) + (down * height)];
+    }
+
+    /// <summary>
+    /// A kept rectangle turned about its centre by <paramref name="degrees"/>,
+    /// clockwise on screen.
+    /// </summary>
+    public static Point[] TurnRectangle(IReadOnlyList<Point> kept, double degrees)
+    {
+        var centre = Midpoint(kept[0], kept[2]);
+        var (sin, cos) = Math.SinCos(degrees * Math.PI / 180);
+
+        Point Turn(Point p)
+        {
+            var v = p - centre;
+            return new Point(centre.X + (v.X * cos) - (v.Y * sin), centre.Y + (v.X * sin) + (v.Y * cos));
+        }
+
+        return [Turn(kept[0]), Turn(kept[1]), Turn(kept[2])];
+    }
+
+    /// <summary>
+    /// Where a kept rectangle's knob is: beyond the middle of its top,
+    /// <paramref name="reach"/> image pixels out.
+    /// </summary>
+    public static Point RectangleKnob(IReadOnlyList<Point> kept, double reach)
+    {
+        var middle = Midpoint(kept[0], kept[1]);
+        var down = kept[2] - kept[1];
+
+        if (down.Length < 1e-12)
+            return middle;
+
+        down.Normalize();
+        return middle - (down * reach);
     }
 
     /// <summary>

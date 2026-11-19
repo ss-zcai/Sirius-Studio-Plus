@@ -90,7 +90,9 @@ The measurement tools are the four Phosphor could only approximate - a
 generic two-point vector or an equals sign says nothing about *which*
 measurement - so they were drawn to show the actual construction: the point
 and its perpendicular, the caliper span between two parallels, the radius
-from a centre, three points on an arc.
+from a centre, three points on an arc. The rectangle (F31, 19 November
+2026) needed no drawing: Phosphor's `bounding-box`, a box with a handle on
+each corner, is `ph_measure_rect`; Save ROIs uses the Crop node's `ph_crop`.
 
 An Illustrator export differs from the Phosphor source in two ways the
 restyler cannot read, so it is normalised before being restyled:

@@ -189,6 +189,7 @@
         <CommandBinding Command="{x:Static local:ViewerWindow.OpenFolderCommand}" Executed="OnOpenFolder" />
         <CommandBinding Command="{x:Static local:ViewerWindow.SearchCommand}" Executed="OnSearch" />
         <CommandBinding Command="{x:Static local:ViewerWindow.MatchCommand}" Executed="OnMatch" />
+        <CommandBinding Command="{x:Static local:ViewerWindow.CropAllCommand}" Executed="OnCropAll" CanExecute="OnCanCropAll" />
         <CommandBinding Command="{x:Static local:ViewerWindow.CopyNameCommand}" Executed="OnCopyName" CanExecute="OnCanUseChosen" />
         <CommandBinding Command="{x:Static local:ViewerWindow.CopyPathCommand}" Executed="OnCopyPath" CanExecute="OnCanUseChosen" />
         <CommandBinding Command="{x:Static local:ViewerWindow.ShowInExplorerCommand}" Executed="OnShowInExplorer" CanExecute="OnCanUseChosen" />
@@ -245,6 +246,12 @@
                            VerticalAlignment="Center"
                            Margin="12,0,6,0"
                            Foreground="{StaticResource Text.Secondary}" />
+                <TextBlock DockPanel.Dock="Right"
+                           Text="{Binding Activity}"
+                           VerticalAlignment="Center"
+                           Margin="12,0,6,0"
+                           Foreground="{StaticResource Text.Secondary}"
+                           Visibility="{Binding Activity, Converter={StaticResource NullToVisibility}}" />
 
                 <StackPanel Orientation="Horizontal">
                     <Button Style="{StaticResource ToolbarTextButton}" ToolTip="Open a folder of pictures (Ctrl+O)" Command="{x:Static local:ViewerWindow.OpenFolderCommand}">
@@ -263,6 +270,14 @@
                         <StackPanel Orientation="Horizontal">
                             <Image Source="{StaticResource Icon.ph_redo}" Width="18" Height="18" />
                             <TextBlock Text="Refresh" Style="{StaticResource ToolbarLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolbarTextButton}"
+                            ToolTip="Cut the rectangles drawn on a picture from every picture in the list, and save each as an ROI image: picture-1.png, picture-2.png…"
+                            Command="{x:Static local:ViewerWindow.CropAllCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Source="{StaticResource Icon.ph_crop}" Width="18" Height="18" />
+                            <TextBlock Text="ROIs from All" Style="{StaticResource ToolbarLabel}" />
                         </StackPanel>
                     </Button>
 

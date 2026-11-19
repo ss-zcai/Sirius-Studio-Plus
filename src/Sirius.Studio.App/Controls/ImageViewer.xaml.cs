@@ -1356,6 +1356,138 @@ public partial class ImageViewer : UserControl
         }
     }
 
+    // ---- ROIs: the rectangles' crops ---------------------------------------
+
+    private void OnSaveRoisClick(object sender, RoutedEventArgs e)
+    {
+        if (SaveRoisButton.ContextMenu is not { } menu)
+            return;
+
+        SaveRoiItem.IsEnabled = _selected is { Tool: ViewerTool.Rectangle };
+        SaveAllRoisItem.IsEnabled = Rectangles().Count > 0;
+
+        menu.PlacementTarget = SaveRoisButton;
+        menu.Placement = PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
+
+    private void OnSaveRoiClick(object sender, RoutedEventArgs e) => SaveRois(selectedOnly: true);
+
+    private void OnSaveAllRoisClick(object sender, RoutedEventArgs e) => SaveRois(selectedOnly: false);
+
+    /// <summary>The rectangles drawn, in the order they were drawn - their numbers.</summary>
+    internal IReadOnlyList<Measurement> Rectangles() =>
+        _measurements.Where(m => m is { Tool: ViewerTool.Rectangle, Points.Count: >= 3 }).ToList();
+
+    /// <summary>
+    /// What a set of crops is named after: the picture's file, or the
+    /// viewer's title, made fit for a file name.
+    /// </summary>
+    private string RoiBaseName()
+    {
+        var name = string.IsNullOrWhiteSpace(SaveName)
+            ? "ROI"
+            : System.IO.Path.GetFileNameWithoutExtension(SaveName.Trim());
+
+        foreach (var invalid in System.IO.Path.GetInvalidFileNameChars())
+            name = name.Replace(invalid, '-');
+
+        return string.IsNullOrWhiteSpace(name) ? "ROI" : name;
+    }
+
+    private void SaveRois(bool selectedOnly)
+    {
+        if (ImageSource is null)
+        {
+            HintText.Text = "There is no image here to cut ROIs from yet.";
+            return;
+        }
+
+        var all = Rectangles();
+
+        IReadOnlyList<Measurement> chosen = selectedOnly
+            ? _selected is { Tool: ViewerTool.Rectangle } selected ? [selected] : []
+            : all;
+
+        if (chosen.Count == 0)
+        {
+            HintText.Text = selectedOnly
+                ? "Select a rectangle to save its ROI."
+                : "Draw a rectangle round each ROI first, with the Rectangle tool.";
+            return;
+        }
+
+        var baseName = RoiBaseName();
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = selectedOnly ? "Save ROI As" : "Save All ROIs As - each numbered after this name",
+            Filter = Imaging.ImageFileWriter.Filter,
+            DefaultExt = ".png",
+            AddExtension = true,
+            FileName = selectedOnly ? $"{baseName}-{RoiNumber(chosen[0])}.png" : $"{baseName}.png",
+            InitialDirectory = _saveFolder ?? Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+
+            // The set's own files are checked below; the name chosen for it
+            // is not itself written.
+            OverwritePrompt = selectedOnly,
+        };
+
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true)
+            return;
+
+        var owner = Window.GetWindow(this);
+
+        var targets = selectedOnly
+            ? new[] { (Rectangle: chosen[0], Path: dialog.FileName) }
+            : chosen.Select(r => (Rectangle: r, Path: Imaging.RoiCrop.Numbered(dialog.FileName, RoiNumber(r)))).ToArray();
+
+        if (!selectedOnly)
+        {
+            var existing = targets.Count(t => System.IO.File.Exists(t.Path));
+
+            if (existing > 0 && !Dialog.Confirm(
+                    $"{existing} of the {targets.Length} files are there already. Replace {(existing == 1 ? "it" : "them")}?",
+                    "Save All ROIs",
+                    owner))
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            var bits = OriginalPicture?.OriginalBits ?? 8;
+
+            using var source = OriginalPicture?.CopyOriginal() ?? Imaging.RoiCrop.FromBitmap(ImageSource);
+
+            foreach (var (rectangle, path) in targets)
+            {
+                var points = rectangle.Points;
+                using var crop = Imaging.RoiCrop.Cut(source, points[0], points[1], points[2]);
+                Imaging.RoiCrop.Save(crop, path, bits);
+            }
+
+            _saveFolder = System.IO.Path.GetDirectoryName(dialog.FileName);
+
+            var first = System.IO.Path.GetFileName(targets[0].Path);
+            var last = System.IO.Path.GetFileName(targets[^1].Path);
+
+            HintText.Text = targets.Length == 1
+                ? $"Saved {first}"
+                : $"Saved {targets.Length} ROIs, {first} to {last}";
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or NotSupportedException
+                                       or InvalidOperationException or ArgumentException
+                                       or Emgu.CV.Util.CvException)
+        {
+            Dialog.Warn(
+                $"The ROIs could not all be saved to {System.IO.Path.GetDirectoryName(dialog.FileName)}.\n\n{ex.Message}",
+                selectedOnly ? "Save ROI" : "Save All ROIs",
+                owner);
+        }
+    }
+
     /// <summary>
     /// The picture at full resolution with the results and measurements this
     /// viewer is showing drawn over it - each layer only if it is shown, so
@@ -1558,6 +1690,15 @@ public partial class ImageViewer : UserControl
                 e.Handled = true;
                 break;
 
+            // T for top: the next side round becomes the top, without the
+            // rectangle moving - which way up its crop is saved.
+            case Key.T when _selected is { Tool: ViewerTool.Rectangle, Points.Count: >= 3 } rectangle
+                            && _dragMode == DragMode.None:
+                ReplacePoints(rectangle, Measurement.NextTop(rectangle.Points));
+                Publish();
+                e.Handled = true;
+                break;
+
             case Key.Escape when _ringClicks.Count > 0:
                 ResetRing();
                 e.Handled = true;
@@ -1664,7 +1805,13 @@ public partial class ImageViewer : UserControl
     {
         if (!_dragAnchored && _pending.Count >= Measurement.PointsRequired(ActiveTool))
         {
-            var measurement = new Measurement(ActiveTool, _pending, _colour);
+            // A rectangle is kept by its corners, top first, the top being
+            // the side facing most nearly up whichever side was drawn.
+            var points = ActiveTool == ViewerTool.Rectangle
+                ? Measurement.UprightCorners(_pending[0], _pending[1], _pending[2])
+                : (IEnumerable<Point>)_pending;
+
+            var measurement = new Measurement(ActiveTool, points, _colour);
 
             // Named on creation, because the name is what its window is called
             // and what is drawn beside it on the image.
@@ -2241,7 +2388,9 @@ public partial class ImageViewer : UserControl
     {
         if (ActiveTool == ViewerTool.None)
         {
-            if (_selected is not null)
+            if (_selected is { Tool: ViewerTool.Rectangle })
+                HintText.Text = "Drag a corner to resize, the knob to turn, the edge to move; T moves its top to the next side";
+            else if (_selected is not null)
                 HintText.Text = "Drag a handle to adjust, the body to move, Delete to remove";
             else if (_measurements.Count > 0)
                 HintText.Text = "Click a measurement to select it";
@@ -2310,6 +2459,10 @@ public partial class ImageViewer : UserControl
             ViewerTool.CircleThreePoint =>
                 $"click {3 - placed} point{(3 - placed == 1 ? string.Empty : "s")} on the curve",
 
+            ViewerTool.Rectangle => placed < 2
+                ? "drag along one side"
+                : "click on the opposite side",
+
             _ => string.Empty,
         };
     }
@@ -2334,10 +2487,11 @@ public partial class ImageViewer : UserControl
 
         var best = -1;
         var bestDistance = double.MaxValue;
+        var handles = HandlesOf(measurement);
 
-        for (var index = 0; index < measurement.Points.Count; index++)
+        for (var index = 0; index < handles.Count; index++)
         {
-            var distance = Measurement.Distance(image, measurement.Points[index]);
+            var distance = Measurement.Distance(image, handles[index]);
             if (distance <= tolerance && distance < bestDistance)
             {
                 best = index;
@@ -2348,10 +2502,79 @@ public partial class ImageViewer : UserControl
         return best;
     }
 
+    /// <summary>Where the rectangle's knob is, the handle that turns it.</summary>
+    private const int KnobHandle = 4;
+
+    /// <summary>
+    /// The points of a measurement that can be grabbed: its own points, or
+    /// for a rectangle its four corners and then its knob.
+    /// </summary>
+    private IReadOnlyList<Point> HandlesOf(Measurement measurement)
+    {
+        if (measurement is not { Tool: ViewerTool.Rectangle, Points.Count: >= 3 })
+            return measurement.Points;
+
+        var points = measurement.Points;
+        var corners = Measurement.RectangleCorners(points[0], points[1], points[2]);
+
+        return [.. corners, Measurement.RectangleKnob(points, RotateKnobReach)];
+    }
+
+    private static void ReplacePoints(Measurement measurement, IReadOnlyList<Point> points)
+    {
+        for (var index = 0; index < points.Count && index < measurement.Points.Count; index++)
+            measurement.Points[index] = points[index];
+    }
+
+    /// <summary>
+    /// A rectangle's corner or knob dragged: resized from the corner opposite,
+    /// or turned about its centre - always from where the drag began.
+    /// </summary>
+    /// <remarks>
+    /// Not clamped to the image: a turned rectangle round a part near the
+    /// edge has corners past it, and its crop is black there.
+    /// </remarks>
+    private void EditRectangle(Measurement rectangle, Point image)
+    {
+        if (_editStart.Count < 3)
+            return;
+
+        if (_editIndex == KnobHandle)
+        {
+            var centre = new Point(
+                (_editStart[0].X + _editStart[2].X) / 2,
+                (_editStart[0].Y + _editStart[2].Y) / 2);
+
+            var bearing = Math.Atan2(image.Y - centre.Y, image.X - centre.X) * 180 / Math.PI;
+            var turn = bearing - _dragStartBearing;
+
+            // Shift for steps of 15 degrees, as for the region.
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+            {
+                var start = Measurement.RectangleAngle(_editStart);
+                turn = (Math.Round((start + turn) / 15) * 15) - start;
+            }
+
+            ReplacePoints(rectangle, Measurement.TurnRectangle(_editStart, turn));
+        }
+        else
+        {
+            ReplacePoints(rectangle, Measurement.ResizeRectangle(_editStart, _editIndex, image));
+        }
+    }
+
     private void MoveSelectedPoint(Point image)
     {
         if (_selected is not { } measurement || _editIndex < 0)
             return;
+
+        if (measurement.Tool == ViewerTool.Rectangle)
+        {
+            EditRectangle(measurement, image);
+            RedrawMeasurements();
+            UpdateReading();
+            return;
+        }
 
         measurement.Points[_editIndex] = ClampToImage(image);
 
@@ -2525,6 +2748,19 @@ public partial class ImageViewer : UserControl
             // the more specific target, and it is only there once selected.
             _editIndex = handle;
             _dragMode = DragMode.MovePoint;
+
+            // A rectangle's corners and knob work from where it started.
+            if (_selected is { Tool: ViewerTool.Rectangle } rectangle)
+            {
+                _editStart = new List<Point>(rectangle.Points);
+
+                var centre = new Point(
+                    (_editStart[0].X + _editStart[2].X) / 2,
+                    (_editStart[0].Y + _editStart[2].Y) / 2);
+
+                _dragStartBearing = Math.Atan2(
+                    _dragStartImage.Y - centre.Y, _dragStartImage.X - centre.X) * 180 / Math.PI;
+            }
         }
         else if (HitTestPath(_dragStartScreen) is not PathPart.None)
         {
@@ -2826,20 +3062,33 @@ public partial class ImageViewer : UserControl
 
         DrawGeometry(measurement, brush, width);
 
-        foreach (var point in measurement.Points)
+        if (measurement.Tool == ViewerTool.Rectangle)
         {
-            DrawMarker(point, brush, width);
+            DrawRectangleHandles(measurement, brush, width);
+        }
+        else
+        {
+            foreach (var point in measurement.Points)
+            {
+                DrawMarker(point, brush, width);
 
-            if (measurement.IsSelected)
-                DrawHandle(point, brush);
+                if (measurement.IsSelected)
+                    DrawHandle(point, brush);
+            }
         }
 
         // A profile line is labelled with its name, which is also the title of
-        // its chart window; its length stays in the status bar. Everything else
-        // is labelled with its reading, which is the whole point of it.
-        var label = measurement.Tool == ViewerTool.LineProfile
-            ? measurement.Name
-            : measurement.Text;
+        // its chart window; its length stays in the status bar. A rectangle
+        // with its number, which is the number its crop is saved under, then
+        // its reading. Everything else is labelled with its reading, which is
+        // the whole point of it.
+        var label = measurement.Tool switch
+        {
+            ViewerTool.LineProfile => measurement.Name,
+            ViewerTool.Rectangle when RoiNumber(measurement) is > 0 and var number =>
+                $"{number}   {measurement.Text}",
+            _ => measurement.Text,
+        };
 
         if (!string.IsNullOrEmpty(label))
             DrawLabel(label, measurement.LabelAnchor, brush, measurement.IsSelected);
@@ -2942,7 +3191,83 @@ public partial class ImageViewer : UserControl
                     DrawMarker(circle.Centre, brush, width);
                 }
                 break;
+
+            case ViewerTool.Rectangle:
+                if (points.Count == 2)
+                {
+                    // The first side, while it is being dragged.
+                    DrawLine(points[0], points[1], brush, width);
+                }
+                else if (points.Count >= 3)
+                {
+                    var corners = Measurement.RectangleCorners(points[0], points[1], points[2]);
+
+                    for (var i = 0; i < 4; i++)
+                        DrawLine(corners[i], corners[(i + 1) % 4], brush, width);
+                }
+                break;
         }
+    }
+
+    /// <summary>
+    /// A rectangle's chrome: a short stalk from the middle of its top, which
+    /// says which way up its crop is saved; with the knob on it and a handle
+    /// on each corner when it is selected.
+    /// </summary>
+    private void DrawRectangleHandles(Measurement measurement, Brush brush, double width)
+    {
+        // Only once it is kept: while it is drawn, its points are not yet
+        // the corners, and it has no top.
+        if (!_measurements.Contains(measurement) || measurement.Points.Count < 3)
+            return;
+
+        var points = measurement.Points;
+        var middle = new Point((points[0].X + points[1].X) / 2, (points[0].Y + points[1].Y) / 2);
+        var reach = measurement.IsSelected ? RotateKnobReach : RotateKnobReach / 2;
+        var knob = Measurement.RectangleKnob(points, reach);
+
+        DrawLine(middle, knob, brush, width);
+
+        if (!measurement.IsSelected)
+            return;
+
+        foreach (var corner in Measurement.RectangleCorners(points[0], points[1], points[2]))
+            DrawHandle(corner, brush);
+
+        var radius = 4 * ScreenPixel;
+        var grip = new Ellipse
+        {
+            Width = radius * 2,
+            Height = radius * 2,
+            Fill = brush,
+            IsHitTestVisible = false,
+        };
+
+        Canvas.SetLeft(grip, knob.X - radius);
+        Canvas.SetTop(grip, knob.Y - radius);
+        MeasureLayer.Children.Add(grip);
+    }
+
+    /// <summary>
+    /// A rectangle's number among the rectangles, counted from one in the
+    /// order they were drawn: what its crop is numbered in a set.
+    /// </summary>
+    private int RoiNumber(Measurement measurement)
+    {
+        var number = 0;
+
+        foreach (var each in _measurements)
+        {
+            if (each.Tool != ViewerTool.Rectangle)
+                continue;
+
+            number++;
+
+            if (ReferenceEquals(each, measurement))
+                return number;
+        }
+
+        return 0;
     }
 
     /// <summary>

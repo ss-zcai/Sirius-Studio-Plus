@@ -157,6 +157,10 @@ PHOSPHOR = {
     # Builder's Project panel: a station looks at parts, so an eye; the
     # camera icon goes to the project's cameras (F29).
     "eye": "ph_station",
+
+    # The viewer's rectangle measurement (F31): a box with handles on its
+    # corners, as it is drawn on the image.
+    "bounding-box": "ph_measure_rect",
 }
 
 # source file -> the resource key it supplies

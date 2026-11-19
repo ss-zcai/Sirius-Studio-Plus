@@ -1,0 +1,130 @@
+using System.IO;
+using System.Windows;
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Sirius.Core.Graph;
+using Sirius.Studio.App.Controls;
+using Sirius.Studio.App.Imaging;
+
+namespace Sirius.IV;
+
+/// <summary>
+/// The same rectangles cut from every picture in the list: a day's
+/// pictures turned into a set of ROI images, for training a model or
+/// collecting samples.
+/// </summary>
+/// <remarks>
+/// Each picture's crops are named after it and numbered as the rectangles
+/// are - <c>&lt;picture&gt;-1.png</c>, <c>-2</c> - into one folder. Read
+/// from the file each time, not from what a viewer shows, so a 12-bit
+/// picture gives 12-bit crops, saved as 16-bit PNG.
+/// </remarks>
+internal static class RoiBatch
+{
+    /// <summary>A rectangle as it is kept: top left, top right, bottom right.</summary>
+    public sealed record Roi(Point TopLeft, Point TopRight, Point BottomRight);
+
+    /// <summary>What a run did.</summary>
+    public sealed record Result(int Pictures, int Saved, IReadOnlyList<string> Problems, bool Cancelled = false);
+
+    /// <summary>One file to write: a picture's crop by one rectangle.</summary>
+    public sealed record Target(ImageFileItem Picture, int Number, string Path);
+
+    /// <summary>The rectangles among a picture's measurements, in the order drawn.</summary>
+    public static IReadOnlyList<Roi> From(IEnumerable<MeasurementRecord> measurements) =>
+        measurements
+            .Where(m => m.Tool == nameof(ViewerTool.Rectangle) && m.Points.Count >= 3)
+            .Select(m => new Roi(
+                new Point(m.Points[0].X, m.Points[0].Y),
+                new Point(m.Points[1].X, m.Points[1].Y),
+                new Point(m.Points[2].X, m.Points[2].Y)))
+            .ToArray();
+
+    /// <summary>
+    /// Every file a run writes. Named after the picture, or - where two
+    /// pictures of one name are in the list, from two cameras' folders -
+    /// after its path from the folder open, so neither overwrites the other.
+    /// </summary>
+    public static IReadOnlyList<Target> Targets(IReadOnlyList<ImageFileItem> pictures, int rois, string folder)
+    {
+        var alike = pictures
+            .GroupBy(p => Path.GetFileNameWithoutExtension(p.Name), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var targets = new List<Target>(pictures.Count * rois);
+
+        foreach (var picture in pictures)
+        {
+            var stem = Path.GetFileNameWithoutExtension(picture.Name);
+
+            if (alike.Contains(stem))
+            {
+                stem = Path.ChangeExtension(picture.RelativePath, null)
+                    .Replace(Path.DirectorySeparatorChar, '_')
+                    .Replace(Path.AltDirectorySeparatorChar, '_');
+            }
+
+            for (var number = 1; number <= rois; number++)
+                targets.Add(new Target(picture, number, Path.Combine(folder, $"{stem}-{number}.png")));
+        }
+
+        return targets;
+    }
+
+    /// <summary>
+    /// Cuts and writes every target, a picture at a time, saying after each
+    /// how many pictures are done. A picture that cannot be read or written
+    /// is noted and passed over; the rest go on.
+    /// </summary>
+    public static Result Run(
+        IReadOnlyList<Target> targets,
+        IReadOnlyList<Roi> rois,
+        IProgress<int>? progress = null,
+        CancellationToken cancel = default)
+    {
+        var problems = new List<string>();
+        var saved = 0;
+        var done = 0;
+
+        foreach (var picture in targets.GroupBy(t => t.Picture))
+        {
+            if (cancel.IsCancellationRequested)
+                return new Result(done, saved, problems, Cancelled: true);
+
+            try
+            {
+                using var source = CvInvoke.Imread(picture.Key.Path, ImreadModes.Unchanged);
+
+                if (source.IsEmpty)
+                {
+                    problems.Add($"{picture.Key.Name}: not a picture that can be read.");
+                }
+                else
+                {
+                    foreach (var target in picture)
+                    {
+                        var roi = rois[target.Number - 1];
+                        using var crop = RoiCrop.Cut(source, roi.TopLeft, roi.TopRight, roi.BottomRight);
+                        RoiCrop.Save(crop, target.Path, BitsOf(source));
+                        saved++;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Emgu.CV.Util.CvException
+                                           or InvalidOperationException or ArgumentException)
+            {
+                problems.Add($"{picture.Key.Name}: {ex.Message}");
+            }
+
+            done++;
+            progress?.Report(done);
+        }
+
+        return new Result(done, saved, problems);
+    }
+
+    /// <summary>The bits a PNG cannot hold are brought down by: a float picture's, mostly.</summary>
+    private static int BitsOf(Mat source) => source.Depth == DepthType.Cv16U ? 16 : 8;
+}

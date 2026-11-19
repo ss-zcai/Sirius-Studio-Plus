@@ -104,6 +104,9 @@ and the shapes the recipe found drawn over it, its results in a tooltip.
 - **Match** pictures into sets - two cameras' views of one part - and
   **Sync** the viewers, so the same pixel is in the same place in each.
 - Measure, and save the measurements with the picture.
+- **ROIs from All**: rectangles drawn on one picture, cut from every
+  picture in the list and saved as `<picture>-1.png`, `-2` - a set of
+  samples for training, in the pictures' own bits.
 
 ### sirius-run - from a script
 

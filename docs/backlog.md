@@ -29,13 +29,16 @@ solid on a real machine, before several pictures or speed:
    cameras set up in Builder, without Studio. Its next slice - Open in
    Studio carrying the station's camera, Take from and Give to recipe -
    is small and could follow at once.
-3. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
+3. ~~**F31** and **F32**~~ - done 19 November (decision 81): a
+   rectangle measured in every image viewer, its crops saved as ROIs.
+   Then **F30**, Find Rectangle.
+4. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
    the HslCommunication download and a bench PLC from you.
-4. **F25** - the part record and part counts, deadlines, the handshake;
+5. **F25** - the part record and part counts, deadlines, the handshake;
    with **F4**, counts that survive a restart.
-5. **User levels** (F2) - the login popup that F24 made room for, and
+6. **User levels** (F2) - the login popup that F24 made room for, and
    the PLC and camera windows in Edge behind them (F23c, F29).
-6. **F26**, then **F27** and **F28**, when a line asks for them - sized
+7. **F26**, then **F27** and **F28**, when a line asks for them - sized
    by the answers to `runtime-design.md` sections 14.6 and 15.6.
 
 Each item has an ID to refer to it by, a rough size, and where it came
@@ -335,6 +338,38 @@ part, how the PLC tracks parts - size F26-F28.
   Tested on synthetic views only.
 - **F14. More blob measures** (S-M) - fitted ellipse, inner and outer
   radius, moment invariants - when something needs them.
+- **F30. Find Rectangle** (M) - asked 19 November 2026: a board's
+  outline, a chip's body. Find Circle's calipers along the four sides of
+  a turned rectangle: **Region** the rectangle expected (drawn and turned
+  like a Region of Interest, connectable so a match can carry it),
+  **Search Width** either side of each side, **Direction** inward or
+  outward, calipers per side. **Fit**: Rectangle - all the points at
+  once, sides parallel and square - or Four Lines, each side alone and
+  the corners where they meet, for a part not truly square or a camera
+  at an angle; a **Square** checkbox, for a chip. Out: the rectangle
+  (centre, length, width, angle, fit error - Measure reads it as it is),
+  its sides, corners and edge points, and Length, Width and Angle; a
+  missed side named.
+
+### Image viewers
+
+Every viewer is one control - Studio's, Sirius IV's, the camera
+window's - so a tool added once is in all of them.
+
+- ~~**F31. A rectangle measurement**~~ - done 19 November 2026
+  (decision 81). Asked 19 November 2026. Drag
+  along one side, then click across for the other: **L x W**, and its
+  angle when turned. Its corners resize it, a knob turns it, and the knob
+  marks which side is its top. Saved with the others: in the recipe, in
+  a picture's `.sann`.
+- ~~**F32. Rectangles as ROIs: their crops saved**~~ - done 19 November
+  2026 (decision 81). **Save ROI As...** for the selected rectangle and **Save All ROIs
+  As...** for every one, as `<name>-1.png`, `-2`, numbered as drawn, the
+  way artboards are exported. A turned rectangle is cut upright, its top
+  the knob's side; the picture's own values are kept, 12 bits as 12 in a
+  PNG. In **Sirius IV**, the same rectangles cut from every picture in
+  the list, `<picture>-<n>.png` - a day's pictures into a training set,
+  for a deep-learning tool later.
 
 ### Custom nodes
 
