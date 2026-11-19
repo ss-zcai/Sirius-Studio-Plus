@@ -161,6 +161,10 @@ PHOSPHOR = {
     # The viewer's rectangle measurement (F31): a box with handles on its
     # corners, as it is drawn on the image.
     "bounding-box": "ph_measure_rect",
+
+    # Find Rectangle (F30): the corners of a frame, found - beside Find
+    # Circle and Find Line in the toolbox.
+    "frame-corners": "ph_find_rectangle",
 }
 
 # source file -> the resource key it supplies

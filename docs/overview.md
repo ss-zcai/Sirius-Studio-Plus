@@ -32,8 +32,8 @@ A recipe is a **graph of tools**: a camera or picture goes in, tools find,
 measure, read and judge, and a verdict comes out. Drag tools from the
 toolbox, wire them, and watch every step's picture as the settings change.
 
-- **72 tools**: filters, thresholds, blobs, edges and lines, circles and
-  arcs, calipers, measurements, template matching, codes (QR, Data
+- **73 tools**: filters, thresholds, blobs, edges and lines, circles,
+  arcs and rectangles, calipers, measurements, template matching, codes (QR, Data
   Matrix, barcodes) and text, calibration and lens correction, checks and
   grades, logs. Help ▸ Node Reference lists them all.
 - **Cameras**: Basler (pylon) and Hikrobot (MVS), GigE and USB3, and a

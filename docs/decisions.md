@@ -3306,3 +3306,45 @@ every picture, for a deep-learning tool later.
 
 **Left:** naming a rectangle, for crops named by what they hold rather
 than by number; a rectangle set to an exact size; Find Rectangle (F30).
+
+## 82. Find Rectangle (F30)
+
+Asked on 19 November 2026, beside the viewer's rectangle (decision 81): a
+board's outline, a chip's body, found as Find Circle finds a circle.
+
+**Built (19 November):**
+
+- **Fitting ▸ Find Rectangle** (`fitting.findrectangle`). **Region** is
+  the rectangle expected, drawn and turned on the image as a Region of
+  Interest is, and connectable so a match can carry it. **Search Width**
+  is how far either side of each of its sides to look.
+- **Find Line's calipers across each side**, **Calipers** to a side.
+  Each side's calipers stop Search Width short of the corners, so none
+  can take the neighbouring side's edge. **Direction** is Inward or
+  Outward for all four sides at once, which is what makes Polarity mean
+  the same on every side - a light board on a dark bench is Dark to
+  Light going inward all round.
+- **Fit**: **Rectangle** fits every point at once with the sides parallel
+  and square - one direction from all four sides' points by total least
+  squares, the left and right turned a quarter to run with the top -
+  so the angle is steadier than any one side's, and length and width are
+  measured between parallel sides. **Four Lines** fits each side alone
+  and takes the corners where they meet, for a part not truly square or
+  seen at an angle; its corners carry their angles. Strays are dropped
+  as Find Line drops them.
+- **Square** (a checkbox, as asked): length and width held equal, by
+  moving the sides the least for the points each has. It changes the
+  sides, not the angle. With the Rectangle fit.
+- **Out**: the rectangle - a turned rectangle Measure reads as it reads
+  any, or for Four Lines the four corners as an outline - with its
+  centre, length, width, angle and fit error; its four sides; its
+  corners; the edge points, each with its side; **Search**, the band's
+  inner and outer edges in blue, to wire to a viewer while setting it
+  up; and **Length** (the longer pair), **Width** and **Angle** (its
+  top's) as numbers.
+- **A side with no edge is named** in the warning - "No edge was found
+  on the right and left sides" - and no rectangle is given.
+
+**Left:** the band drawn on the image by the region's own editor, as
+Find Circle's ring is, rather than through the Search output; a
+rectangle with rounded corners.

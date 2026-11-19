@@ -48,6 +48,10 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   its crop saved upright with the picture's own bits - one, or all
   numbered as artboards are - and in Sirius IV cut from every picture in
   the list, a day's pictures into a training set.
+- **Find Rectangle** (F30, decision 82): a board's outline or a chip's
+  body, by calipers across the four sides of a turned region - fitted
+  as a true rectangle, or as four lines for a part not square, and held
+  square with a checkbox.
 
 1.0.12 (16 November) brought a file saved over running its node again
 (decision 78), saved pictures and Sirius IV, and controllers.
@@ -64,7 +68,7 @@ ownership, `.sgraph` serialisation with legacy migrations, and partial
 evaluation: a recipe slower than 60 ms runs the edited node and its
 ancestors at once and the rest when the edits pause.
 
-**72 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
+**73 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis, Calibration, Text and Code Reading,
 Judging, Output and Sub Graph. `node-reference.md` lists every one.
 

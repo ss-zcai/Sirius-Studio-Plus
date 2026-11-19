@@ -93,6 +93,7 @@ and its perpendicular, the caliper span between two parallels, the radius
 from a centre, three points on an arc. The rectangle (F31, 19 November
 2026) needed no drawing: Phosphor's `bounding-box`, a box with a handle on
 each corner, is `ph_measure_rect`; Save ROIs uses the Crop node's `ph_crop`.
+Find Rectangle (F30) is Phosphor's `frame-corners`, `ph_find_rectangle`.
 
 The **turning cursor** over a rotate knob is a drawing too:
 `res/cursors/turn-cursor.svg`, a 32 x 32 artboard built into the app. Only

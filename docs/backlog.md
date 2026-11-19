@@ -31,7 +31,7 @@ solid on a real machine, before several pictures or speed:
    is small and could follow at once.
 3. ~~**F31** and **F32**~~ - done 19 November (decision 81): a
    rectangle measured in every image viewer, its crops saved as ROIs.
-   Then **F30**, Find Rectangle.
+   Then ~~**F30**, Find Rectangle~~ - done 19 November (decision 82).
 4. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
    the HslCommunication download and a bench PLC from you.
 5. **F25** - the part record and part counts, deadlines, the handshake;
@@ -338,7 +338,8 @@ part, how the PLC tracks parts - size F26-F28.
   Tested on synthetic views only.
 - **F14. More blob measures** (S-M) - fitted ellipse, inner and outer
   radius, moment invariants - when something needs them.
-- **F30. Find Rectangle** (M) - asked 19 November 2026: a board's
+- ~~**F30. Find Rectangle**~~ - done 19 November 2026 (decision 82).
+  Asked 19 November 2026: a board's
   outline, a chip's body. Find Circle's calipers along the four sides of
   a turned rectangle: **Region** the rectangle expected (drawn and turned
   like a Region of Interest, connectable so a match can carry it),

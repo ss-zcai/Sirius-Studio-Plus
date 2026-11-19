@@ -11,7 +11,7 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**72 nodes** across 14 categories.
+**73 nodes** across 14 categories.
 
 - **Source** — Blank Image, Camera, Image File, Image Sequence, Matrix, Number, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Invert, Region of Interest, Resize, RGB Channel, Rotate and Mirror, Threshold
@@ -19,7 +19,7 @@ Socket shapes: square = image, circle = everything else.
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
 - **Morphology** — Advanced Morphology, Dilate, Erode
 - **Blob** — Filter Shapes, Find Blobs, Offset Shapes, Select Shape, Shape Style, Transform Shapes
-- **Fitting** — Find Circle, Find Curve, Find Line, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
+- **Fitting** — Find Circle, Find Curve, Find Line, Find Rectangle, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
 - **Transformation** — Polar to Linear
 - **Analysis** — Histogram, Line Profile, Match Template, Measure, Region Stats, Shape Table
 - **Calibration** — Calibrate, Lens Calibration, Undistort
@@ -1108,6 +1108,52 @@ Casts calipers across a rectangle and fits a line to the edges they find.
 | Polarity | `EdgePolarity` | ComboBox | - |
 | Edge | `EdgeChoice` | ComboBox | - |
 | Direction | `ScanDirection` | ComboBox | - |
+| Reject Above | `Number` | Slider | 0 to 6 |
+| Follow Reference Angle | `Yes/No` | CheckBox | - |
+
+### Find Rectangle
+
+`fitting.findrectangle`
+
+Casts calipers across the four sides of a rectangle and fits a rectangle to the edges they find.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+| Region | `Rectangle` | circle | optional |
+| Reference | `Shapes` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Rectangle | `Shapes` | circle | - |
+| Sides | `Shapes` | circle | - |
+| Corners | `Shapes` | circle | - |
+| Points | `Shapes` | circle | - |
+| Search | `Shapes` | circle | - |
+| Length | `Number` | circle | - |
+| Width | `Number` | circle | - |
+| Angle | `Number` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Region | `Rectangle` | Rect | - |
+| Search Width | `Number` | Slider | 1 to 500 |
+| Direction | `RadialDirection` | ComboBox | - |
+| Calipers | `Integer` | Slider | 2 to 200 |
+| Caliper Width | `Integer` | Slider | 1 to 101, odd only |
+| Sampling | `Number` | Slider | 0.1 to 2 |
+| Smoothing | `Integer` | Slider | 1 to 51, odd only |
+| Min Contrast | `Number` | Slider | 0 to 255 |
+| Polarity | `EdgePolarity` | ComboBox | - |
+| Edge | `EdgeChoice` | ComboBox | - |
+| Fit | `RectangleFitMode` | ComboBox | - |
+| Square | `Yes/No` | CheckBox | - |
 | Reject Above | `Number` | Slider | 0 to 6 |
 | Follow Reference Angle | `Yes/No` | CheckBox | - |
 
