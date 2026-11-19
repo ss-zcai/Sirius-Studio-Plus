@@ -423,6 +423,46 @@ public class RoiTests : IDisposable
             Assert.Equal(System.Windows.Input.Cursors.SizeNESW, CursorAt(0));
         });
 
+    /// <summary>
+    /// A region with a band has its inner and outer edges drawn round it,
+    /// dashed and turned with it; with none, only the region.
+    /// </summary>
+    [Fact]
+    public void The_region_editor_draws_the_band_round_the_region() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var viewer = new ImageViewer
+            {
+                ImageSource = new System.Windows.Media.Imaging.WriteableBitmap(
+                    400, 300, 96, 96, System.Windows.Media.PixelFormats.Gray8, null),
+                IsRoiEnabled = true,
+                Roi = new System.Drawing.Rectangle(100, 50, 200, 120),
+                RoiAngle = 10,
+            };
+
+            viewer.Measure(new Size(900, 700));
+            viewer.Arrange(new Rect(0, 0, 900, 700));
+            viewer.UpdateLayout();
+
+            System.Windows.Shapes.Rectangle[] Edges() => viewer.HandleLayer.Children
+                .OfType<System.Windows.Shapes.Rectangle>()
+                .Where(r => r.StrokeDashArray is { Count: > 0 })
+                .ToArray();
+
+            Assert.Empty(Edges());
+
+            viewer.RoiBand = 20;
+            var edges = Edges();
+
+            Assert.Equal(2, edges.Length);
+            Assert.Equal(new[] { 240.0, 160.0 }, edges.Select(e => e.Width).ToArray());
+            Assert.Equal(new[] { 160.0, 80.0 }, edges.Select(e => e.Height).ToArray());
+            Assert.All(edges, e => Assert.Equal(10, ((System.Windows.Media.RotateTransform)e.RenderTransform).Angle));
+            Assert.All(edges, e => Assert.False(e.IsHitTestVisible));
+        });
+
     private static MeasurementRecord Rectangle(double x0, double y0, double x1, double y1, double x2, double y2) =>
         new("Rectangle", [new Point2(x0, y0), new Point2(x1, y1), new Point2(x2, y2)], "#FFFFD700", null);
 

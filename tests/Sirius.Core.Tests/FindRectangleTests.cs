@@ -283,6 +283,61 @@ public class FindRectangleTests
         Assert.Equal(270, left.Angle);
     }
 
+    // ---- the band drawn round the region -------------------------------------------------
+
+    /// <summary>
+    /// The preview of the node's input knows the band round its region,
+    /// and hears when Search Width changes, so the band drawn round the
+    /// region while it is edited follows the slider.
+    /// </summary>
+    [Fact]
+    public void The_region_editor_is_given_the_band_and_follows_it()
+    {
+        var finder = new FindRectangleNode { SearchWidth = 25 };
+        var region = new Sirius.Studio.App.ViewModels.ParameterViewModel(
+            finder, finder.Descriptor.Parameters.Single(p => p.Name == nameof(FindRectangleNode.Region)));
+
+        using var panel = new Sirius.Studio.App.ViewModels.PreviewPanelViewModel(
+            finder, finder.ImageIn, null, new Sirius.Studio.App.ViewModels.ShapeSelectionService())
+        {
+            RegionParameter = region,
+        };
+
+        Assert.Equal(25, panel.RoiBand);
+
+        var heard = new List<string?>();
+        panel.PropertyChanged += (_, e) => heard.Add(e.PropertyName);
+
+        finder.SearchWidth = 40;
+
+        Assert.Contains(nameof(panel.RoiBand), heard);
+        Assert.Equal(40, panel.RoiBand);
+
+        // Let go of, it no longer listens - and says there is no band.
+        panel.RegionParameter = null;
+        heard.Clear();
+        finder.SearchWidth = 10;
+
+        Assert.DoesNotContain(nameof(panel.RoiBand), heard);
+        Assert.Equal(0, panel.RoiBand);
+    }
+
+    [Fact]
+    public void A_region_with_no_band_has_none()
+    {
+        var finder = new FindLineNode();
+        var region = new Sirius.Studio.App.ViewModels.ParameterViewModel(
+            finder, finder.Descriptor.Parameters.Single(p => p.Name == nameof(FindLineNode.Region)));
+
+        using var panel = new Sirius.Studio.App.ViewModels.PreviewPanelViewModel(
+            finder, finder.ImageIn, null, new Sirius.Studio.App.ViewModels.ShapeSelectionService())
+        {
+            RegionParameter = region,
+        };
+
+        Assert.Equal(0, panel.RoiBand);
+    }
+
     // ---- the fit -----------------------------------------------------------------------
 
     private static IReadOnlyList<IReadOnlyList<Point2>> SidesOf(double cx, double cy, double w, double h, double angle, int each = 6)

@@ -450,6 +450,23 @@ public partial class ImageViewer : UserControl
         set => SetValue(RoiAngleProperty, value);
     }
 
+    public static readonly DependencyProperty RoiBandProperty = DependencyProperty.Register(
+        nameof(RoiBand),
+        typeof(double),
+        typeof(ImageViewer),
+        new PropertyMetadata(0.0, OnRoiChanged));
+
+    /// <summary>
+    /// How far either side of the region's sides its node searches - zero
+    /// for none. Drawn as two dashed outlines, inside and outside the
+    /// region, turned with it.
+    /// </summary>
+    public double RoiBand
+    {
+        get => (double)GetValue(RoiBandProperty);
+        set => SetValue(RoiBandProperty, value);
+    }
+
     public Ring Ring
     {
         get => (Ring)GetValue(RingProperty);
@@ -3887,8 +3904,57 @@ public partial class ImageViewer : UserControl
             : new RotateTransform(RoiAngle);
 
         DrawCornerMarks(roi);
+        DrawRoiBand(roi, colour);
         DrawRotateKnob(roi);
         DrawRoiLabel(roi);
+    }
+
+    /// <summary>
+    /// The search band round the region - its inner and outer edges, dashed
+    /// in the region's colour and turned with it - for a node that looks a
+    /// set distance either side of the region's sides.
+    /// </summary>
+    /// <remarks>
+    /// On the handle layer, under the corner marks' hit area but drawn
+    /// without taking any clicks, so the region is grabbed as before.
+    /// </remarks>
+    private void DrawRoiBand(DrawingRectangle roi, Color colour)
+    {
+        var band = RoiBand;
+        if (band <= 0)
+            return;
+
+        var brush = new SolidColorBrush(Color.FromArgb(0xCC, colour.R, colour.G, colour.B));
+        brush.Freeze();
+
+        var centre = new Point(roi.X + (roi.Width / 2.0), roi.Y + (roi.Height / 2.0));
+
+        foreach (var grow in new[] { band, -band })
+        {
+            var width = roi.Width + (2 * grow);
+            var height = roi.Height + (2 * grow);
+
+            // A band wider than half the region leaves no inside to draw.
+            if (width <= 0 || height <= 0)
+                continue;
+
+            var edge = new Rectangle
+            {
+                Width = width,
+                Height = height,
+                Stroke = brush,
+                StrokeThickness = ScreenPixel,
+                StrokeDashArray = new DoubleCollection { 4, 3 },
+                Fill = Brushes.Transparent,
+                IsHitTestVisible = false,
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                RenderTransform = RoiAngle == 0 ? Transform.Identity : new RotateTransform(RoiAngle),
+            };
+
+            Canvas.SetLeft(edge, centre.X - (width / 2));
+            Canvas.SetTop(edge, centre.Y - (height / 2));
+            HandleLayer.Children.Add(edge);
+        }
     }
 
     /// <summary>

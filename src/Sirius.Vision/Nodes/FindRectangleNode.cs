@@ -122,7 +122,7 @@ public sealed class FindRectangleNode : VisionNode
         set => SetParam(ref _region, value);
     }
 
-    [Param("Search Width", Min = 1, Max = 500, Step = 1,
+    [Param("Search Width", Min = 1, Max = 500, Step = 1, BandFor = nameof(Region),
         Description = "How far either side of each of the region's sides to look for the edge, in pixels.")]
     public double SearchWidth
     {

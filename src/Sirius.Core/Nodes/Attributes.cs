@@ -237,6 +237,14 @@ public sealed class ParamAttribute : Attribute
     public string? RegionColour { get; set; }
 
     /// <summary>
+    /// For a number: the region parameter it is a band either side of the
+    /// sides of, by property name - Find Rectangle's Search Width round
+    /// its Region. The viewer draws the band's inner and outer edges round
+    /// that region while it is edited, and as this number changes.
+    /// </summary>
+    public string? BandFor { get; set; }
+
+    /// <summary>
     /// Whether either end of a range may be left off, meaning no limit.
     /// </summary>
     /// <remarks>

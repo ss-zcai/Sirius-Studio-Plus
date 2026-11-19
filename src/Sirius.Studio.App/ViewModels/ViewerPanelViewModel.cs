@@ -660,7 +660,9 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
             if (SetProperty(ref _regionParameter, Accepts(value) ? value : null))
             {
                 Follow(old, _regionParameter);
+                FollowBand(old, _regionParameter);
                 OnPropertyChanged(nameof(Roi));
+                OnPropertyChanged(nameof(RoiBand));
                 OnPropertyChanged(nameof(IsRoiEnabled));
                 OnPropertyChanged(nameof(RoiAngle));
                 OnPropertyChanged(nameof(RoiColour));
@@ -693,6 +695,49 @@ public abstract class ImagePanelViewModel : NodePanelViewModel, IOriginalPicture
 
     /// <summary>The region's name, written beside its box: "Search Region".</summary>
     public string? RoiLabel => _regionParameter?.DisplayName;
+
+    /// <summary>
+    /// How far either side of the region's sides its node looks - Find
+    /// Rectangle's Search Width - or zero for a region with no band. Drawn
+    /// round the region as it is edited.
+    /// </summary>
+    public double RoiBand
+    {
+        get
+        {
+            if (_regionParameter is null || BandOf(_regionParameter) is not { } band)
+                return 0;
+
+            try
+            {
+                return Math.Max(0, Convert.ToDouble(band.GetValue(_regionParameter.Node), System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
+            {
+                return 0;
+            }
+        }
+    }
+
+    /// <summary>The node's parameter that is a band round this region, if it has one.</summary>
+    private static Sirius.Core.Nodes.ParamDescriptor? BandOf(ParameterViewModel region) =>
+        region.Node.Descriptor.Parameters.FirstOrDefault(parameter => parameter.Attribute.BandFor == region.Name);
+
+    /// <summary>Follows the region's node, so the band is redrawn as its width is changed.</summary>
+    private void FollowBand(ParameterViewModel? old, ParameterViewModel? now)
+    {
+        if (old is not null)
+            old.Node.PropertyChanged -= OnNodeChanged;
+
+        if (now is not null && BandOf(now) is not null)
+            now.Node.PropertyChanged += OnNodeChanged;
+    }
+
+    private void OnNodeChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_regionParameter is { } region && BandOf(region) is { } band && e.PropertyName == band.Name)
+            OnPropertyChanged(nameof(RoiBand));
+    }
 
     /// <summary>
     /// The selected node's search band, if it has one.

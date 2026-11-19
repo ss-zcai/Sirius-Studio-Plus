@@ -3345,6 +3345,11 @@ board's outline, a chip's body, found as Find Circle finds a circle.
 - **A side with no edge is named** in the warning - "No edge was found
   on the right and left sides" - and no rectangle is given.
 
-**Left:** the band drawn on the image by the region's own editor, as
-Find Circle's ring is, rather than through the Search output; a
-rectangle with rounded corners.
+- **The band is drawn round the region while it is edited** - its inner
+  and outer edges, dashed in the region's colour and turned with it -
+  and follows Search Width as it is changed (asked the same day: "as
+  you show the search area in result, why not in the interactive
+  area"). Any node's number can say it is such a band, with
+  `BandFor` naming its region parameter; Search Width is the first.
+
+**Left:** a rectangle with rounded corners.
