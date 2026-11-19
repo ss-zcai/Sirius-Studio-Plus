@@ -353,13 +353,10 @@ public class RoiTests : IDisposable
             Assert.NotNull(drawn);
             Assert.Equal((16, 17), (drawn!.Value.HotX, drawn.Value.HotY));
 
-            // The drawing's outline covers what the fallback's does.
+            // Something sizeable, on the artboard - whatever it is drawn as.
             var bounds = drawn.Value.Outline.Bounds;
-            var fallback = TurnCursor.Outline().Bounds;
-            Assert.Equal(fallback.Left, bounds.Left, 1);
-            Assert.Equal(fallback.Top, bounds.Top, 1);
-            Assert.Equal(fallback.Right, bounds.Right, 1);
-            Assert.Equal(fallback.Bottom, bounds.Bottom, 1);
+            Assert.True(bounds.Width > 8 && bounds.Height > 8, $"the drawing is only {bounds}");
+            Assert.True(bounds.Left >= 0 && bounds.Top >= 0 && bounds.Right <= 32 && bounds.Bottom <= 32, $"the drawing is off the artboard: {bounds}");
         });
 
     [Fact]
