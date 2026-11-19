@@ -316,6 +316,50 @@ public class RoiTests : IDisposable
             Assert.Equal(30, rectangles[1].Points[0].X);
         });
 
+    /// <summary>
+    /// A corner shows a two-way arrow along its own diagonal, turned with
+    /// the rectangle; the knob a hand; the selected outline Move.
+    /// </summary>
+    [Fact]
+    public void A_selected_rectangles_corners_show_resize_arrows_along_their_diagonals() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var viewer = new ImageViewer
+            {
+                ImageSource = new System.Windows.Media.Imaging.WriteableBitmap(
+                    200, 200, 96, 96, System.Windows.Media.PixelFormats.Gray8, null),
+            };
+
+            viewer.Measure(new Size(900, 700));
+            viewer.Arrange(new Rect(0, 0, 900, 700));
+            viewer.UpdateLayout();
+
+            viewer.Measurements = [Rectangle(20, 20, 120, 20, 120, 80)];
+            var rectangle = viewer.Rectangles()[0];
+
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(ImageViewer).GetMethod("Select", flags)!.Invoke(viewer, [rectangle]);
+
+            System.Windows.Input.Cursor CursorAt(int handle) =>
+                (System.Windows.Input.Cursor)typeof(ImageViewer).GetMethod("HandleCursor", flags)!.Invoke(viewer, [handle])!;
+
+            Assert.Equal(System.Windows.Input.Cursors.SizeNWSE, CursorAt(0));
+            Assert.Equal(System.Windows.Input.Cursors.SizeNESW, CursorAt(1));
+            Assert.Equal(System.Windows.Input.Cursors.SizeNWSE, CursorAt(2));
+            Assert.Equal(System.Windows.Input.Cursors.SizeNESW, CursorAt(3));
+            Assert.Equal(System.Windows.Input.Cursors.Hand, CursorAt(4));
+
+            // Turned a quarter, the top left corner sits where the top right
+            // was, and its arrow turns with it.
+            var turned = Measurement.TurnRectangle(rectangle.Points, 90);
+            for (var i = 0; i < 3; i++)
+                rectangle.Points[i] = turned[i];
+
+            Assert.Equal(System.Windows.Input.Cursors.SizeNESW, CursorAt(0));
+        });
+
     private static MeasurementRecord Rectangle(double x0, double y0, double x1, double y1, double x2, double y2) =>
         new("Rectangle", [new Point2(x0, y0), new Point2(x1, y1), new Point2(x2, y2)], "#FFFFD700", null);
 

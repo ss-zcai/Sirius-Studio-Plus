@@ -3656,9 +3656,9 @@ public partial class ImageViewer : UserControl
 
     private void UpdateCursor(Point screen)
     {
-        if (HitTestHandle(screen) >= 0)
+        if (HitTestHandle(screen) is var handle and >= 0)
         {
-            Surface.Cursor = Cursors.SizeAll;
+            Surface.Cursor = HandleCursor(handle);
             return;
         }
 
@@ -3693,7 +3693,7 @@ public partial class ImageViewer : UserControl
         {
             // With no region to edit, the only thing under the cursor worth
             // reacting to is a measurement.
-            Surface.Cursor = PickMeasurement(screen) is null ? Cursors.Arrow : Cursors.Hand;
+            Surface.Cursor = MeasurementCursor(screen) ?? Cursors.Arrow;
             return;
         }
 
@@ -3703,10 +3703,43 @@ public partial class ImageViewer : UserControl
         {
             Edge.Rotate => Cursors.Hand,
             Edge.Inside => Cursors.SizeAll,
-            Edge.None => PickMeasurement(screen) is null ? Cursors.Cross : Cursors.Hand,
+            Edge.None => MeasurementCursor(screen) ?? Cursors.Cross,
             _ => RegionResizeCursor(edge, RoiAngle),
         };
     }
+
+    /// <summary>
+    /// The cursor over one of the selected measurement's handles. A
+    /// rectangle's corner resizes it, so a two-way arrow along its diagonal,
+    /// turned with it; its knob turns it, a hand as the region's knob has.
+    /// Any other measurement's point moves where it is dragged.
+    /// </summary>
+    private Cursor HandleCursor(int handle)
+    {
+        if (_selected is not { Tool: ViewerTool.Rectangle, Points.Count: >= 3 } rectangle)
+            return Cursors.SizeAll;
+
+        if (handle == KnobHandle)
+            return Cursors.Hand;
+
+        var points = rectangle.Points;
+        var corner = Measurement.RectangleCorners(points[0], points[1], points[2])[handle];
+        var centre = new Point((points[0].X + points[2].X) / 2, (points[0].Y + points[2].Y) / 2);
+
+        return ResizeCursorFor(Math.Atan2(corner.Y - centre.Y, corner.X - centre.X) * 180 / Math.PI);
+    }
+
+    /// <summary>
+    /// The cursor over a measurement's outline, or null over none: Move on
+    /// the selected one, which a drag moves; a hand on any other, which a
+    /// click selects.
+    /// </summary>
+    private Cursor? MeasurementCursor(Point screen) => PickMeasurement(screen) switch
+    {
+        null => null,
+        var picked when ReferenceEquals(picked, _selected) => Cursors.SizeAll,
+        _ => Cursors.Hand,
+    };
 
     /// <summary>
     /// The resize cursor for an edge or corner of a region turned by
