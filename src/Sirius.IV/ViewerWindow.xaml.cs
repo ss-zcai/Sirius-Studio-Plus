@@ -8,6 +8,8 @@ using System.Windows.Media;
 using AvalonDock.Layout;
 using Microsoft.Win32;
 using Sirius.Studio.App;
+using Sirius.Studio.App.Layout;
+using Sirius.Studio.App.ViewModels;
 
 namespace Sirius.IV;
 
@@ -299,6 +301,7 @@ public partial class ViewerWindow : Window
             {
                 _viewerTabs.Remove(tile);
                 tab.Parent?.RemoveChild(tab);
+                CloseCharts(tile);
             }
         }
 
@@ -368,11 +371,154 @@ public partial class ViewerWindow : Window
         // The title - for the window a tab is floated out in, and the tab list - follows the picture.
         tile.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(TileViewModel.Title))
-                tab.Title = tile.Title;
+            if (e.PropertyName != nameof(TileViewModel.Title))
+                return;
+
+            tab.Title = tile.Title;
+
+            foreach (var (chart, window) in _charts)
+            {
+                if (tile.ProfileLines.Contains(chart))
+                    window.Title = ChartTitle(chart, tile);
+            }
+        };
+
+        // A chart for each profile line drawn on it.
+        tile.ProfileLines.CollectionChanged += (_, e) =>
+        {
+            foreach (var chart in e.OldItems?.OfType<ProfileLinePanelViewModel>() ?? [])
+                CloseChart(chart);
+
+            foreach (var chart in e.NewItems?.OfType<ProfileLinePanelViewModel>() ?? [])
+                OpenChart(chart, tile);
         };
 
         return tab;
+    }
+
+    // ---- profile charts --------------------------------------------------------------------
+
+    /// <summary>Each profile line's chart window, by its chart.</summary>
+    private readonly Dictionary<ProfileLinePanelViewModel, LayoutAnchorable> _charts = [];
+
+    /// <summary>Charts floated and not yet shown by AvalonDock, which must not be closed until they are.</summary>
+    private readonly HashSet<LayoutAnchorable> _floatingPending = [];
+
+    /// <summary>How many charts have been opened, for the cascade.</summary>
+    private int _chartsOpened;
+
+    /// <summary>The profile charts open, for tests.</summary>
+    internal IReadOnlyCollection<LayoutAnchorable> ChartWindows => _charts.Values;
+
+    /// <summary>
+    /// Floats a chart for a profile line, as Studio does: docked, it would
+    /// land as a tab over the pictures the line was drawn on.
+    /// </summary>
+    private void OpenChart(ProfileLinePanelViewModel chart, TileViewModel tile)
+    {
+        if (_charts.ContainsKey(chart))
+            return;
+
+        var window = new LayoutAnchorable
+        {
+            Title = ChartTitle(chart, tile),
+            ContentId = chart.ContentId,
+            Content = chart,
+            CanClose = true,
+            CanHide = false,
+        };
+
+        chart.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ProfileLinePanelViewModel.Title))
+                window.Title = ChartTitle(chart, tile);
+        };
+
+        // Closing the chart takes its line off the picture, as in Studio:
+        // drawing the line again is how a chart is had back. Not from inside
+        // AvalonDock's close, which the list changing would run into.
+        window.Closed += (_, _) =>
+        {
+            if (!_charts.Remove(chart))
+                return;
+
+            Dispatcher.BeginInvoke(() => tile.ProfileLines.Remove(chart), System.Windows.Threading.DispatcherPriority.Background);
+        };
+
+        _charts[chart] = window;
+
+        var origin = IsLoaded
+            ? PointToScreenIndependent(new Point(
+                Math.Max(0, (ActualWidth - PanelLayout.DefaultFloatingSize.Width) / 2),
+                Math.Max(0, (ActualHeight - PanelLayout.DefaultFloatingSize.Height) / 2)))
+            : new Point(Left + 80, Top + 80);
+        var position = PanelLayout.CascadeFrom(origin, _chartsOpened++);
+
+        window.FloatingLeft = position.X;
+        window.FloatingTop = position.Y;
+        window.FloatingWidth = PanelLayout.DefaultFloatingSize.Width;
+        window.FloatingHeight = PanelLayout.DefaultFloatingSize.Height;
+
+        window.AddToLayout(Docking, AnchorableShowStrategy.Most);
+        window.Float();
+
+        // AvalonDock shows the window on a later pass; closed before then, it throws.
+        _floatingPending.Add(window);
+        Dispatcher.BeginInvoke(() => _floatingPending.Remove(window), System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    /// <summary>Closes a chart whose line has gone.</summary>
+    private void CloseChart(ProfileLinePanelViewModel chart)
+    {
+        if (!_charts.Remove(chart, out var window))
+            return;
+
+        CloseWindow(window);
+    }
+
+    private void CloseWindow(LayoutAnchorable window)
+    {
+        if (_floatingPending.Contains(window))
+        {
+            Dispatcher.BeginInvoke(() => CloseWindow(window), System.Windows.Threading.DispatcherPriority.Background);
+            return;
+        }
+
+        try
+        {
+            window.Close();
+        }
+        catch (Exception)
+        {
+            // Already detached by AvalonDock; it is gone either way.
+        }
+    }
+
+    /// <summary>Closes the charts of a viewer that has gone from the layout.</summary>
+    private void CloseCharts(TileViewModel tile)
+    {
+        foreach (var chart in tile.ProfileLines.ToArray())
+            CloseChart(chart);
+    }
+
+    /// <summary>
+    /// The line's name and the picture it is on: two viewers can each have
+    /// a Profile 1.
+    /// </summary>
+    private static string ChartTitle(ProfileLinePanelViewModel chart, TileViewModel tile) =>
+        tile.IsEmpty ? chart.Title : $"{chart.Title} — {tile.Title}";
+
+    /// <summary>
+    /// A point in this window on the screen, in device-independent units as
+    /// a window's Left and Top are - not the device pixels PointToScreen gives.
+    /// </summary>
+    private Point PointToScreenIndependent(Point point)
+    {
+        var screen = PointToScreen(point);
+        var toIndependent = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice
+            ?? Matrix.Identity;
+
+        return toIndependent.Transform(screen);
     }
 
     // ---- sorting ---------------------------------------------------------------------------

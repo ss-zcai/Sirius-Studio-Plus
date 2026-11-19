@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -9,6 +10,7 @@ using Sirius.Core.Annotations;
 using Sirius.Core.Graph;
 using Sirius.Core.Shapes;
 using Sirius.Studio.App.Imaging;
+using Sirius.Studio.App.ViewModels;
 using Sirius.Vision;
 
 namespace Sirius.IV;
@@ -36,6 +38,8 @@ public sealed class TileViewModel : ObservableObject
     private bool _loading;
     private int _showing;
     private bool _showsFolder;
+    private bool _isProfilingEnabled;
+    private LineProfileSource? _profileSource;
 
     /// <param name="owner">The window it is in, which keeps every picture's measurements; null for a viewer on its own.</param>
     public TileViewModel(BrowserViewModel? owner = null)
@@ -95,6 +99,97 @@ public sealed class TileViewModel : ObservableObject
     {
         get => _picture;
         private set => SetProperty(ref _picture, value);
+    }
+
+    /// <summary>
+    /// A chart for every profile line drawn on the picture, filled by the
+    /// viewer, which owns the lines; the window floats one for each.
+    /// </summary>
+    public ObservableCollection<ProfileLinePanelViewModel> ProfileLines { get; } = [];
+
+    /// <summary>
+    /// Whether the viewer wants the picture kept for line profiles: while its
+    /// profile tool is in hand, or a profile line is on the picture. Set by
+    /// the viewer.
+    /// </summary>
+    /// <remarks>
+    /// The copy is four bytes per pixel per channel, so it is made only when
+    /// wanted - from the file, decoded as it was saved, so a 12-bit picture
+    /// profiles in its own values rather than the 8 bits shown.
+    /// </remarks>
+    public bool IsProfilingEnabled
+    {
+        get => _isProfilingEnabled;
+        set
+        {
+            if (!SetProperty(ref _isProfilingEnabled, value))
+                return;
+
+            if (value)
+                _ = PrepareProfileAsync();
+            else
+                ProfileSource = null;
+        }
+    }
+
+    /// <summary>The picture, prepared for line profiles, or null when not wanted.</summary>
+    public LineProfileSource? ProfileSource
+    {
+        get => _profileSource;
+        private set
+        {
+            if (ReferenceEquals(_profileSource, value))
+                return;
+
+            var previous = _profileSource;
+            SetProperty(ref _profileSource, value);
+            previous?.Dispose();
+        }
+    }
+
+    /// <summary>Prepares the picture on show for profiling, when it was not as it was read.</summary>
+    private async Task PrepareProfileAsync()
+    {
+        if (_file is not { } file || _picture is null || _loading || _profileSource is not null)
+            return;
+
+        var showing = _showing;
+        LineProfileSource? source;
+
+        try
+        {
+            source = await Task.Run(() => ProfileOf(file)).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Emgu.CV.Util.CvException or ArgumentException)
+        {
+            return;
+        }
+
+        // Moved on, or put away, meanwhile.
+        if (showing != _showing || !_isProfilingEnabled || _profileSource is not null)
+        {
+            source?.Dispose();
+            return;
+        }
+
+        ProfileSource = source;
+    }
+
+    /// <summary>The file, read again for profiling; null when it no longer reads.</summary>
+    private static LineProfileSource? ProfileOf(ImageFileItem file)
+    {
+        var bits = System.IO.File.Exists(file.AnnotationPath)
+            && AnnotationFile.TryLoad(file.AnnotationPath, out _) is { Bits: > 0 and var said }
+            ? said
+            : (int?)null;
+
+        using var mat = CvInvoke.Imread(file.Path, ImreadModes.Unchanged);
+
+        if (mat.IsEmpty)
+            return null;
+
+        using var image = ImageData.CopyOf(mat, bits: bits);
+        return LineProfileSource.From(image);
     }
 
     /// <summary>Every layer of its annotation file, drawn as one.</summary>
@@ -204,6 +299,7 @@ public sealed class TileViewModel : ObservableObject
             Apply(() =>
             {
                 Picture = null;
+                ProfileSource = null;
                 Shapes = null;
                 Annotations = null;
                 _saved = [];
@@ -225,7 +321,8 @@ public sealed class TileViewModel : ObservableObject
 
         try
         {
-            loaded = await Task.Run(() => Load(file)).ConfigureAwait(true);
+            var profile = _isProfilingEnabled;
+            loaded = await Task.Run(() => Load(file, profile)).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Emgu.CV.Util.CvException or ArgumentException)
         {
@@ -234,13 +331,17 @@ public sealed class TileViewModel : ObservableObject
 
         // Moved on meanwhile.
         if (showing != _showing)
+        {
+            loaded.Profile?.Dispose();
             return;
+        }
 
         IsLoading = false;
 
         Apply(() =>
         {
             Picture = loaded.Picture;
+            ProfileSource = loaded.Profile;
             Annotations = loaded.Annotations;
             Shapes = loaded.Annotations is { } annotations && loaded.Picture is { } picture
                 ? Frame(annotations, picture.PixelWidth, picture.PixelHeight)
@@ -252,6 +353,10 @@ public sealed class TileViewModel : ObservableObject
         });
 
         Problem = loaded.Problem;
+
+        // Profiling was asked for while the picture was being read.
+        if (_isProfilingEnabled && _profileSource is null)
+            _ = PrepareProfileAsync();
     }
 
     /// <summary>Changes what is shown without it counting as anything drawn by hand.</summary>
@@ -269,8 +374,11 @@ public sealed class TileViewModel : ObservableObject
         }
     }
 
-    /// <summary>The picture, decoded as it was saved - 12 bits as 12 - and its annotation file.</summary>
-    internal static Loaded Load(ImageFileItem file)
+    /// <summary>
+    /// The picture, decoded as it was saved - 12 bits as 12 - and its
+    /// annotation file; prepared for line profiles too, when <paramref name="profile"/>.
+    /// </summary>
+    internal static Loaded Load(ImageFileItem file, bool profile = false)
     {
         AnnotationFile? annotations = null;
         string? problem = null;
@@ -286,7 +394,11 @@ public sealed class TileViewModel : ObservableObject
         var bits = annotations?.Bits is > 0 and var said ? said : (int?)null;
         using var image = ImageData.CopyOf(mat, bits: bits);
 
-        return new Loaded(MatImageConverter.ToBitmapSource(image), annotations, problem);
+        return new Loaded(
+            MatImageConverter.ToBitmapSource(image),
+            annotations,
+            problem,
+            profile ? LineProfileSource.From(image) : null);
     }
 
     /// <summary>
@@ -307,5 +419,5 @@ public sealed class TileViewModel : ObservableObject
         _ => Convert.ToString(value, CultureInfo.CurrentCulture) ?? string.Empty,
     };
 
-    internal sealed record Loaded(BitmapSource? Picture, AnnotationFile? Annotations, string? Problem);
+    internal sealed record Loaded(BitmapSource? Picture, AnnotationFile? Annotations, string? Problem, LineProfileSource? Profile = null);
 }

@@ -160,6 +160,9 @@
                                           ImageSource="{Binding Picture}"
                                           Shapes="{Binding Shapes}"
                                           Measurements="{Binding Measurements, Mode=TwoWay}"
+                                          IsProfilingEnabled="{Binding IsProfilingEnabled, Mode=TwoWay}"
+                                          ProfileSource="{Binding ProfileSource}"
+                                          ProfileLines="{Binding ProfileLines}"
                                           SaveName="{Binding File.Name}" />
                     <TextBlock Text="Choose a picture in the list"
                                HorizontalAlignment="Center"

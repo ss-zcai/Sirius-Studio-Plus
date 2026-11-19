@@ -938,4 +938,103 @@ public sealed class SiriusIvTests : IDisposable
             Assert.Equal(ImageSaving.Off, project.Stations[0].Saving);
         });
     }
+
+    /// <summary>
+    /// A viewer keeps its picture for line profiles only while asked - the
+    /// copy is four bytes a pixel - and keeps it as the list moves on.
+    /// </summary>
+    [Fact]
+    public void A_viewer_prepares_its_picture_for_profiles_only_while_asked()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = Open(StationFolder());
+            var tile = new TileViewModel();
+
+            WpfTestHost.Wait(tile.Show(model.Files[0]));
+            Assert.Null(tile.ProfileSource);
+
+            // Asked for with a picture on show: read again for it.
+            tile.IsProfilingEnabled = true;
+            WpfTestHost.PumpUntil(() => tile.ProfileSource is not null);
+            Assert.Equal((40, 30), (tile.ProfileSource!.Width, tile.ProfileSource.Height));
+
+            var sample = tile.ProfileSource.Sample(new System.Drawing.PointF(5, 10), new System.Drawing.PointF(30, 10));
+            Assert.All(sample.Channels[0].Samples, value => Assert.Equal(100f, value, 3));
+
+            // The next picture comes with its own.
+            var first = tile.ProfileSource;
+            WpfTestHost.Wait(tile.Show(model.Files[2]));
+            Assert.NotNull(tile.ProfileSource);
+            Assert.NotSame(first, tile.ProfileSource);
+
+            // Put away, it goes; and an empty viewer has none.
+            tile.IsProfilingEnabled = false;
+            Assert.Null(tile.ProfileSource);
+
+            tile.IsProfilingEnabled = true;
+            WpfTestHost.PumpUntil(() => tile.ProfileSource is not null);
+            WpfTestHost.Wait(tile.Show(null));
+            Assert.Null(tile.ProfileSource);
+        });
+    }
+
+    /// <summary>
+    /// A line profile drawn in IV opens a chart of it, as in Studio - it drew
+    /// the line and charted nothing - and closing the chart takes the line.
+    /// </summary>
+    [Fact]
+    public void A_profile_line_drawn_in_the_viewer_opens_a_chart_of_it()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+            var model = Open(StationFolder());
+            var window = new ViewerWindow(model)
+            {
+                ShowActivated = false,
+                ShowInTaskbar = false,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+                Left = -20000,
+                Top = -20000,
+            };
+
+            var tile = model.Tiles[0];
+
+            try
+            {
+                window.Show();
+                WpfTestHost.Settle(window.Dispatcher);
+                WpfTestHost.Wait(tile.Show(model.Files[0]));
+                WpfTestHost.Settle(window.Dispatcher);
+
+                tile.Measurements =
+                [
+                    new MeasurementRecord("LineProfile", [new Point2(5, 10), new Point2(30, 10)], "#FFFFD700", "Profile 1"),
+                ];
+
+                WpfTestHost.PumpUntil(() => tile.ProfileLines.Count == 1 && tile.ProfileLines[0].Data is not null);
+
+                var chart = tile.ProfileLines[0];
+                Assert.All(chart.Data!.Channels[0].Samples, value => Assert.Equal(100f, value, 3));
+
+                WpfTestHost.Settle(window.Dispatcher);
+                var floated = Assert.Single(window.ChartWindows);
+                Assert.Same(chart, floated.Content);
+                Assert.Equal($"Profile 1 — {model.Files[0].Name}", floated.Title);
+
+                // Closed, the chart takes its line off the picture.
+                floated.Close();
+                WpfTestHost.PumpUntil(() => tile.Measurements.Count == 0);
+                Assert.Empty(tile.ProfileLines);
+                Assert.Empty(window.ChartWindows);
+                Assert.False(model.HasUnsavedChanges);
+            }
+            finally
+            {
+                tile.Measurements = [];
+                window.Close();
+            }
+        });
+    }
 }

@@ -52,6 +52,9 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   body, by calipers across the four sides of a turned region - fitted
   as a true rectangle, or as four lines for a part not square, and held
   square with a checkbox.
+- **Line profiles in Sirius IV**: a profile line drawn on a picture
+  opens its chart, floated as in Studio, in the picture's own bits; IV
+  drew the line and charted nothing.
 
 1.0.12 (16 November) brought a file saved over running its node again
 (decision 78), saved pictures and Sirius IV, and controllers.
