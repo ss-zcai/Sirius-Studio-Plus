@@ -94,6 +94,12 @@ from a centre, three points on an arc. The rectangle (F31, 19 November
 2026) needed no drawing: Phosphor's `bounding-box`, a box with a handle on
 each corner, is `ph_measure_rect`; Save ROIs uses the Crop node's `ph_crop`.
 
+The **turning cursor** over a rotate knob is a drawing too:
+`res/cursors/turn-cursor.svg`, a 32 x 32 artboard built into the app. Only
+its outlines are read - the app fills them white and edges them with one
+black pixel, so straight edges belong on half pixels to stay crisp - and
+the circle named `hotspot` is the point that grabs. Rebuild after editing.
+
 An Illustrator export differs from the Phosphor source in two ways the
 restyler cannot read, so it is normalised before being restyled:
 

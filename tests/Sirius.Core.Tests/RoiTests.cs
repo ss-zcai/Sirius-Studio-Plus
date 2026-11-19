@@ -339,6 +339,49 @@ public class RoiTests : IDisposable
         });
 
     /// <summary>
+    /// The cursor is drawn from res\cursors\turn-cursor.svg, built in -
+    /// not the fallback shape - with the hot spot its "hotspot" circle marks.
+    /// </summary>
+    [Fact]
+    public void The_turning_cursor_is_drawn_from_its_svg() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            using var stream = typeof(TurnCursor).Assembly.GetManifestResourceStream(TurnCursor.DrawingName);
+            Assert.NotNull(stream);
+
+            var drawn = TurnCursor.FromSvg(stream!);
+            Assert.NotNull(drawn);
+            Assert.Equal((16, 17), (drawn!.Value.HotX, drawn.Value.HotY));
+
+            // The drawing's outline covers what the fallback's does.
+            var bounds = drawn.Value.Outline.Bounds;
+            var fallback = TurnCursor.Outline().Bounds;
+            Assert.Equal(fallback.Left, bounds.Left, 1);
+            Assert.Equal(fallback.Top, bounds.Top, 1);
+            Assert.Equal(fallback.Right, bounds.Right, 1);
+            Assert.Equal(fallback.Bottom, bounds.Bottom, 1);
+        });
+
+    [Fact]
+    public void A_drawing_scaled_to_its_view_box_gives_the_cursors_32_pixels() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            const string svg = """
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+                  <rect x="8" y="8" width="48" height="16" />
+                  <circle id="hotspot" cx="32" cy="16" r="1" />
+                </svg>
+                """;
+
+            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(svg));
+            var drawn = TurnCursor.FromSvg(stream);
+
+            Assert.NotNull(drawn);
+            Assert.Equal(new Rect(4, 4, 24, 8), drawn!.Value.Outline.Bounds);
+            Assert.Equal((16, 8), (drawn.Value.HotX, drawn.Value.HotY));
+        });
+
+    /// <summary>
     /// A corner shows a two-way arrow along its own diagonal, turned with
     /// the rectangle; the knob a hand; the selected outline Move.
     /// </summary>

@@ -44,6 +44,14 @@
 
   <ItemGroup>
     <Resource Include="Assets\Icons\**\*.svg" />
+
+    <!--
+      The turning cursor's outline, edited as a drawing; read and drawn
+      into a cursor when first needed (TurnCursor.cs).
+    -->
+    <EmbeddedResource Include="..\..\res\cursors\turn-cursor.svg"
+                      Link="Cursors\turn-cursor.svg"
+                      LogicalName="Sirius.Studio.App.Cursors.turn-cursor.svg" />
   </ItemGroup>
 
   <!--
