@@ -7,24 +7,43 @@ using System.Windows.Media.Imaging;
 namespace Sirius.Studio.App.Controls;
 
 /// <summary>
-/// The cursor over a turning knob: a circle of arrow, heads at both ends,
-/// white edged in black so it reads on a light picture and a dark one.
+/// The cursor over a turning knob: a broad band round most of a circle,
+/// open at the bottom left, with one head at the top pointing left - white,
+/// edged with a single black pixel so it reads on a light picture and a
+/// dark one.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Windows has no such cursor among its own, and a hand - what the knobs
 /// had - says "grab", not "turn". Drawn here rather than shipped as a
-/// file, so it needs no resource and keeps to the shape of the rest.
+/// file, so it needs no resource.
 /// </para>
 /// <para>
-/// Made once, on first use, as a .cur in memory: a 32-pixel image with
-/// its hot spot in the middle, scaled by Windows with the display. Should
-/// that ever fail, the hand is used, as before.
+/// Laid out on the pixel grid: the circle's centre and every straight edge
+/// - the head's base, the band at its top, bottom and sides - are on half
+/// pixels, so the one-pixel edge falls on one row or column of pixels
+/// rather than greyed across two. Only the curves and the head's slopes
+/// are smoothed.
+/// </para>
+/// <para>
+/// Made once, on first use, as a .cur in memory: a 32-pixel image with its
+/// hot spot at the circle's centre, scaled by Windows with the display.
+/// Should that ever fail, the hand is used, as before.
 /// </para>
 /// </remarks>
 internal static class TurnCursor
 {
     private const int Size = 32;
+
+    /// <summary>The circle's centre, on a half pixel so its edges are crisp.</summary>
+    private const double CentreX = 16.5;
+
+    private const double CentreY = 17.5;
+
+    /// <summary>The hot spot: the pixel at the circle's centre.</summary>
+    internal const int HotX = 16;
+
+    internal const int HotY = 17;
 
     private static Cursor? _cursor;
 
@@ -50,10 +69,10 @@ internal static class TurnCursor
         }
     }
 
-    /// <summary>The cursor as a .cur file: one 32-bit image, its hot spot at the centre.</summary>
+    /// <summary>The cursor as a .cur file: one 32-bit image, its hot spot at the circle's centre.</summary>
     internal static byte[] CursorFile()
     {
-        var pixels = Draw();
+        var pixels = Pixels();
 
         using var file = new MemoryStream();
         using var writer = new BinaryWriter(file);
@@ -71,8 +90,8 @@ internal static class TurnCursor
         writer.Write((byte)Size);
         writer.Write((byte)0);
         writer.Write((byte)0);
-        writer.Write((ushort)(Size / 2));
-        writer.Write((ushort)(Size / 2));
+        writer.Write((ushort)HotX);
+        writer.Write((ushort)HotY);
         writer.Write(imageBytes);
         writer.Write(22);
 
@@ -99,70 +118,65 @@ internal static class TurnCursor
         return file.ToArray();
     }
 
-    /// <summary>The picture, as straight (not premultiplied) BGRA, top row first.</summary>
-    private static byte[] Draw()
+    /// <summary>
+    /// The outline: the band and its head as one shape, so the black edge
+    /// runs round the outside of both and never across where they join.
+    /// </summary>
+    internal static Geometry Outline()
     {
-        var centre = new Point(Size / 2.0, Size / 2.0);
-        const double radius = 9;
+        const double outer = 11;
+        const double inner = 6;
 
-        // A circle open at the top right: from 300 degrees round clockwise
-        // to 210, on screen. Its heads point on round either way.
-        const double start = -60;
-        const double end = 210;
+        // From the top, round clockwise on screen - right, bottom - to just
+        // past the left, where the band is cut square.
+        const double end = 165;
 
-        Point At(double degrees) => new(
-            centre.X + (radius * Math.Cos(degrees * Math.PI / 180)),
-            centre.Y + (radius * Math.Sin(degrees * Math.PI / 180)));
+        Point On(double radius, double degrees) => new(
+            CentreX + (radius * Math.Cos(degrees * Math.PI / 180)),
+            CentreY + (radius * Math.Sin(degrees * Math.PI / 180)));
 
-        // Clockwise along the circle, as screen angles grow.
-        Vector Along(double degrees) => new(
-            -Math.Sin(degrees * Math.PI / 180),
-            Math.Cos(degrees * Math.PI / 180));
-
-        var arc = new StreamGeometry();
-        using (var context = arc.Open())
+        var band = new StreamGeometry();
+        using (var context = band.Open())
         {
-            context.BeginFigure(At(start), isFilled: false, isClosed: false);
-            context.ArcTo(At(end), new Size(radius, radius), 0, isLargeArc: true, SweepDirection.Clockwise, true, false);
+            context.BeginFigure(new Point(CentreX, CentreY - outer), isFilled: true, isClosed: true);
+            context.ArcTo(On(outer, end), new Size(outer, outer), 0, isLargeArc: true, SweepDirection.Clockwise, true, false);
+            context.LineTo(On(inner, end), true, false);
+            context.ArcTo(new Point(CentreX, CentreY - inner), new Size(inner, inner), 0, isLargeArc: true, SweepDirection.Counterclockwise, true, false);
         }
 
-        arc.Freeze();
+        band.Freeze();
 
-        static Geometry Head(Point tip, Vector direction)
+        // The head: its base upright through the circle's centre, on a half
+        // pixel, about three times the band's width; its point to the left,
+        // level with the middle of the band.
+        var middle = CentreY - ((outer + inner) / 2);
+        const double half = 6.5;
+        const double reach = 8;
+
+        var head = new StreamGeometry();
+        using (var context = head.Open())
         {
-            var across = new Vector(-direction.Y, direction.X);
-            var point = tip + (direction * 3.5);
-            var back = tip - (direction * 2.5);
-
-            var head = new StreamGeometry();
-            using (var context = head.Open())
-            {
-                context.BeginFigure(point, isFilled: true, isClosed: true);
-                context.LineTo(back + (across * 4.5), true, false);
-                context.LineTo(back - (across * 4.5), true, false);
-            }
-
-            head.Freeze();
-            return head;
+            context.BeginFigure(new Point(CentreX, middle - half), isFilled: true, isClosed: true);
+            context.LineTo(new Point(CentreX, middle + half), true, false);
+            context.LineTo(new Point(CentreX - reach, middle), true, false);
         }
 
-        var heads = new GeometryGroup();
-        heads.Children.Add(Head(At(end), Along(end)));
-        heads.Children.Add(Head(At(start), -Along(start)));
-        heads.Freeze();
+        head.Freeze();
 
+        var outline = Geometry.Combine(band, head, GeometryCombineMode.Union, null);
+        outline.Freeze();
+        return outline;
+    }
+
+    /// <summary>The picture, as straight (not premultiplied) BGRA, top row first.</summary>
+    internal static byte[] Pixels()
+    {
         var visual = new DrawingVisual();
 
         using (var context = visual.RenderOpen())
         {
-            var edge = new Pen(Brushes.Black, 4.5) { LineJoin = PenLineJoin.Round, StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
-            var line = new Pen(Brushes.White, 2) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
-            var headEdge = new Pen(Brushes.Black, 2.5) { LineJoin = PenLineJoin.Round };
-
-            context.DrawGeometry(null, edge, arc);
-            context.DrawGeometry(Brushes.Black, headEdge, heads);
-            context.DrawGeometry(null, line, arc);
-            context.DrawGeometry(Brushes.White, null, heads);
+            var edge = new Pen(Brushes.Black, 1) { LineJoin = PenLineJoin.Miter, MiterLimit = 4 };
+            context.DrawGeometry(Brushes.White, edge, Outline());
         }
 
         var bitmap = new RenderTargetBitmap(Size, Size, 96, 96, PixelFormats.Pbgra32);

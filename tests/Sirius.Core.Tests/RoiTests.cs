@@ -328,8 +328,8 @@ public class RoiTests : IDisposable
 
             Assert.Equal(22 + 40 + (32 * 32 * 4) + (32 * 4), file.Length);
             Assert.Equal(2, BitConverter.ToUInt16(file, 2));
-            Assert.Equal(16, BitConverter.ToUInt16(file, 10));
-            Assert.Equal(16, BitConverter.ToUInt16(file, 12));
+            Assert.Equal(TurnCursor.HotX, BitConverter.ToUInt16(file, 10));
+            Assert.Equal(TurnCursor.HotY, BitConverter.ToUInt16(file, 12));
 
             var alphas = Enumerable.Range(0, 32 * 32).Select(i => file[62 + (i * 4) + 3]).ToArray();
             Assert.True(alphas.Count(a => a > 200) > 60, "the arrow should be drawn");
