@@ -317,6 +317,28 @@ public class RoiTests : IDisposable
         });
 
     /// <summary>
+    /// The turning cursor is a real .cur - one 32-pixel image, its hot spot
+    /// in the middle, something drawn in it and its corners clear.
+    /// </summary>
+    [Fact]
+    public void The_turning_cursor_is_a_cursor_file_with_its_hot_spot_in_the_middle() =>
+        WpfTestHost.OnStaThread(() =>
+        {
+            var file = TurnCursor.CursorFile();
+
+            Assert.Equal(22 + 40 + (32 * 32 * 4) + (32 * 4), file.Length);
+            Assert.Equal(2, BitConverter.ToUInt16(file, 2));
+            Assert.Equal(16, BitConverter.ToUInt16(file, 10));
+            Assert.Equal(16, BitConverter.ToUInt16(file, 12));
+
+            var alphas = Enumerable.Range(0, 32 * 32).Select(i => file[62 + (i * 4) + 3]).ToArray();
+            Assert.True(alphas.Count(a => a > 200) > 60, "the arrow should be drawn");
+            Assert.Equal(0, alphas[0]);
+
+            Assert.NotEqual(System.Windows.Input.Cursors.Hand, TurnCursor.Value);
+        });
+
+    /// <summary>
     /// A corner shows a two-way arrow along its own diagonal, turned with
     /// the rectangle; the knob a hand; the selected outline Move.
     /// </summary>
@@ -349,7 +371,8 @@ public class RoiTests : IDisposable
             Assert.Equal(System.Windows.Input.Cursors.SizeNESW, CursorAt(1));
             Assert.Equal(System.Windows.Input.Cursors.SizeNWSE, CursorAt(2));
             Assert.Equal(System.Windows.Input.Cursors.SizeNESW, CursorAt(3));
-            Assert.Equal(System.Windows.Input.Cursors.Hand, CursorAt(4));
+            Assert.Same(TurnCursor.Value, CursorAt(4));
+            Assert.NotEqual(System.Windows.Input.Cursors.Hand, CursorAt(4));
 
             // Turned a quarter, the top left corner sits where the top right
             // was, and its arrow turns with it.

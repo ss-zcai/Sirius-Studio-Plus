@@ -3701,7 +3701,7 @@ public partial class ImageViewer : UserControl
 
         Surface.Cursor = edge switch
         {
-            Edge.Rotate => Cursors.Hand,
+            Edge.Rotate => TurnCursor.Value,
             Edge.Inside => Cursors.SizeAll,
             Edge.None => MeasurementCursor(screen) ?? Cursors.Cross,
             _ => RegionResizeCursor(edge, RoiAngle),
@@ -3711,7 +3711,8 @@ public partial class ImageViewer : UserControl
     /// <summary>
     /// The cursor over one of the selected measurement's handles. A
     /// rectangle's corner resizes it, so a two-way arrow along its diagonal,
-    /// turned with it; its knob turns it, a hand as the region's knob has.
+    /// turned with it; its knob turns it, so the turning cursor, as the
+    /// region's knob has.
     /// Any other measurement's point moves where it is dragged.
     /// </summary>
     private Cursor HandleCursor(int handle)
@@ -3720,7 +3721,7 @@ public partial class ImageViewer : UserControl
             return Cursors.SizeAll;
 
         if (handle == KnobHandle)
-            return Cursors.Hand;
+            return TurnCursor.Value;
 
         var points = rectangle.Points;
         var corner = Measurement.RectangleCorners(points[0], points[1], points[2])[handle];
