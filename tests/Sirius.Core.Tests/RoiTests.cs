@@ -38,50 +38,41 @@ public class RoiTests : IDisposable
             $"expected {expected}, got {actual}");
     }
 
-    // ---- kept upright -------------------------------------------------------
+    // ---- drawn corner to corner -----------------------------------------------
 
-    [Fact]
-    public void A_rectangle_drawn_along_its_top_keeps_its_corners_as_drawn()
+    /// <summary>
+    /// Dragged any way - down and right, up and left, either diagonal - it
+    /// is the same level rectangle, top left first, so a crop of it comes
+    /// out as it looks, never turned or mirrored.
+    /// </summary>
+    [Theory]
+    [InlineData(10, 20, 110, 70)]
+    [InlineData(110, 70, 10, 20)]
+    [InlineData(110, 20, 10, 70)]
+    [InlineData(10, 70, 110, 20)]
+    public void A_rectangle_dragged_any_way_is_kept_top_left_first(double ax, double ay, double bx, double by)
     {
-        var kept = Measurement.UprightCorners(new Point(10, 20), new Point(110, 20), new Point(50, 70));
+        var kept = Measurement.BoxCorners(new Point(ax, ay), new Point(bx, by));
 
         Near(new Point(10, 20), kept[0]);
         Near(new Point(110, 20), kept[1]);
         Near(new Point(110, 70), kept[2]);
-    }
-
-    /// <summary>
-    /// Whichever side is drawn first, and whichever way along it, the top
-    /// is the side facing up the image and the left is on the left: a crop
-    /// of a level part comes out as it looks, never turned or mirrored.
-    /// </summary>
-    [Theory]
-    [InlineData(110, 70, 10, 70, 50, 20, 110)]   // the bottom, right to left, then up
-    [InlineData(10, 20, 10, 70, 90, 40, 90)]     // the left side, downwards, then across
-    [InlineData(110, 70, 110, 20, 10, 40, 110)]  // the right side, upwards, then across
-    public void Any_side_drawn_first_gives_the_same_upright_rectangle(
-        double ax, double ay, double bx, double by, double cx, double cy, double right)
-    {
-        var kept = Measurement.UprightCorners(new Point(ax, ay), new Point(bx, by), new Point(cx, cy));
-
-        Near(new Point(10, 20), kept[0]);
-        Near(new Point(right, 20), kept[1]);
-        Near(new Point(right, 70), kept[2]);
+        Assert.Equal(0, Measurement.RectangleAngle(kept), 6);
     }
 
     [Fact]
-    public void A_turned_rectangle_keeps_the_side_facing_most_nearly_up_as_its_top()
+    public void A_drag_along_a_line_still_makes_a_rectangle_a_pixel_across()
     {
-        // A board turned 10 degrees clockwise, its long side drawn first
-        // along what is now its bottom.
-        var corners = Measurement.TurnRectangle(
-            [new Point(0, 0), new Point(200, 0), new Point(200, 100)], 10);
-        var all = Measurement.RectangleCorners(corners[0], corners[1], corners[2]);
+        var kept = Measurement.BoxCorners(new Point(10, 20), new Point(60, 20));
 
-        var kept = Measurement.UprightCorners(all[2], all[3], all[0]);
+        Assert.Equal(50, Measurement.Distance(kept[0], kept[1]), 6);
+        Assert.Equal(1, Measurement.Distance(kept[1], kept[2]), 6);
+    }
 
-        Assert.Equal(10, Measurement.RectangleAngle(kept), 6);
-        Near(all[0], kept[0]);
+    [Fact]
+    public void A_rectangle_being_dragged_reads_as_the_box_so_far()
+    {
+        Assert.StartsWith("L 100 × W 50 px", Measurement.Describe(ViewerTool.Rectangle, [new(110, 70), new(10, 20)]));
     }
 
     [Fact]

@@ -357,8 +357,8 @@ Every viewer is one control - Studio's, Sirius IV's, the camera
 window's - so a tool added once is in all of them.
 
 - ~~**F31. A rectangle measurement**~~ - done 19 November 2026
-  (decision 81). Asked 19 November 2026. Drag
-  along one side, then click across for the other: **L x W**, and its
+  (decision 81). Asked 19 November 2026. Dragged
+  corner to corner, then turned by its knob: **L x W**, and its
   angle when turned. Its corners resize it, a knob turns it, and the knob
   marks which side is its top. Saved with the others: in the recipe, in
   a picture's `.sann`.

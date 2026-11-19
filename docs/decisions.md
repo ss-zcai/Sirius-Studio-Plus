@@ -3266,14 +3266,17 @@ every picture, for a deep-learning tool later.
 **Built (19 November):**
 
 - **The Rectangle tool**, in the one viewer control, so in Studio, Sirius
-  IV and Builder's camera window alike. Drag along one side, then click
-  on the opposite one: any side, either way along it. It reads
+  IV and Builder's camera window alike. **Drag from one corner to the
+  opposite one**, as in any drawing program, any way round; then turn it
+  by its knob to lie along a part. (First built as a side dragged and
+  then a click across, which on trying it was not what was expected - a
+  rectangle is drawn corner to corner; changed the same day.) It reads
   **L x W**, the longer side first, and its angle when turned.
 - **Kept as three corners**, top left, top right and bottom right, in the
   recipe or the picture's `.sann` like any measurement; an older build
   passes it over, as it does any tool it does not know.
-- **Its top** is the side facing most nearly up the image when it is
-  drawn, so a crop of a level part comes out as it looks. A stalk from
+- **Its top** is the top when it is drawn, so a crop of a level part
+  comes out as it looks; turning it carries the top round. A stalk from
   the middle of the top shows which side it is, with the knob on it when
   selected; **T** moves the top to the next side round without moving
   the rectangle - the knob, as asked, is the indicator for up.

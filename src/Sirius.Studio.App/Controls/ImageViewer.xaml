@@ -168,7 +168,7 @@
                     </ToggleButton>
                     <ToggleButton Style="{StaticResource ViewerToolButton}"
                                   Tag="Rectangle"
-                                  ToolTip="Rectangle — drag along one side, then click across for the other; its crop can be saved as an ROI"
+                                  ToolTip="Rectangle — drag from one corner to the opposite one, then turn it by its knob if need be; its crop can be saved as an ROI"
                                   Click="OnToolClick">
                         <Image Source="{StaticResource Icon.ph_measure_rect}" Width="17" Height="17" />
                     </ToggleButton>

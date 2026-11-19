@@ -1805,10 +1805,10 @@ public partial class ImageViewer : UserControl
     {
         if (!_dragAnchored && _pending.Count >= Measurement.PointsRequired(ActiveTool))
         {
-            // A rectangle is kept by its corners, top first, the top being
-            // the side facing most nearly up whichever side was drawn.
+            // A rectangle is kept by its corners, top left first, whichever
+            // way it was dragged.
             var points = ActiveTool == ViewerTool.Rectangle
-                ? Measurement.UprightCorners(_pending[0], _pending[1], _pending[2])
+                ? Measurement.BoxCorners(_pending[0], _pending[1])
                 : (IEnumerable<Point>)_pending;
 
             var measurement = new Measurement(ActiveTool, points, _colour);
@@ -2459,9 +2459,8 @@ public partial class ImageViewer : UserControl
             ViewerTool.CircleThreePoint =>
                 $"click {3 - placed} point{(3 - placed == 1 ? string.Empty : "s")} on the curve",
 
-            ViewerTool.Rectangle => placed < 2
-                ? "drag along one side"
-                : "click on the opposite side",
+            ViewerTool.Rectangle =>
+                "drag from one corner to the opposite one; turn it afterwards by its knob",
 
             _ => string.Empty,
         };
@@ -3193,14 +3192,10 @@ public partial class ImageViewer : UserControl
                 break;
 
             case ViewerTool.Rectangle:
-                if (points.Count == 2)
+                if (points.Count >= 2)
                 {
-                    // The first side, while it is being dragged.
-                    DrawLine(points[0], points[1], brush, width);
-                }
-                else if (points.Count >= 3)
-                {
-                    var corners = Measurement.RectangleCorners(points[0], points[1], points[2]);
+                    var kept = Measurement.RectangleOf(points);
+                    var corners = Measurement.RectangleCorners(kept[0], kept[1], kept[2]);
 
                     for (var i = 0; i < 4; i++)
                         DrawLine(corners[i], corners[(i + 1) % 4], brush, width);

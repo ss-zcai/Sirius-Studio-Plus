@@ -62,14 +62,16 @@ public enum ViewerTool
     LineProfile,
 
     /// <summary>
-    /// A rectangle, turned to lie along a part: drag along one side, then
-    /// click across for the other. Its length and width are the reading;
-    /// its crop can be saved, so it is also the viewer's ROI.
+    /// A rectangle: drag from one corner to the opposite one, as in any
+    /// drawing program, then turn it by its knob to lie along a part. Its
+    /// length and width are the reading; its crop can be saved, so it is
+    /// also the viewer's ROI.
     /// </summary>
     /// <remarks>
     /// Kept as three corners - top left, top right, bottom right - with
     /// the top meaning the side its knob is on, which is the side a saved
-    /// crop is turned to have at the top. The fourth corner follows.
+    /// crop is turned to have at the top. The fourth corner follows. While
+    /// it is being dragged it is the two corners of the drag.
     /// </remarks>
     Rectangle,
 }
@@ -148,8 +150,8 @@ public sealed class Measurement
         ViewerTool.CircleThreePoint =>
             new[] { GestureKind.Click, GestureKind.Click, GestureKind.Click },
 
-        // A side, drawn like a point-to-point; then how far across.
-        ViewerTool.Rectangle => new[] { GestureKind.Drag, GestureKind.Click },
+        // Corner to corner, in one drag.
+        ViewerTool.Rectangle => new[] { GestureKind.Drag },
 
         _ => Array.Empty<GestureKind>(),
     };
@@ -243,7 +245,8 @@ public sealed class Measurement
     /// </summary>
     private static string RectangleReading(IReadOnlyList<Point> points)
     {
-        var corners = RectangleCorners(points[0], points[1], points[2]);
+        var kept = RectangleOf(points);
+        var corners = RectangleCorners(kept[0], kept[1], kept[2]);
         var top = Distance(corners[0], corners[1]);
         var side = Distance(corners[1], corners[2]);
         var reading = string.Create(
@@ -276,8 +279,8 @@ public sealed class Measurement
 
                 ViewerTool.PointToLine => Midpoint(Points[0], FootOnLine(Points[0], Points[1], Points[2])),
 
-                ViewerTool.Rectangle when Points.Count >= 3 =>
-                    Midpoint(Points[0], RectangleCorners(Points[0], Points[1], Points[2])[2]),
+                ViewerTool.Rectangle when Points.Count >= 2 =>
+                    Midpoint(RectangleOf(Points)[0], RectangleOf(Points)[2]),
 
                 _ => Points.Count >= 2 ? Midpoint(Points[0], Points[1]) : Points[0],
             };
@@ -453,7 +456,8 @@ public sealed class Measurement
             // part would otherwise take every click made inside it.
             case ViewerTool.Rectangle:
             {
-                var corners = RectangleCorners(Points[0], Points[1], Points[2]);
+                var kept = RectangleOf(Points);
+                var corners = RectangleCorners(kept[0], kept[1], kept[2]);
                 var nearest = double.MaxValue;
 
                 for (var i = 0; i < 4; i++)
@@ -559,37 +563,27 @@ public sealed class Measurement
     }
 
     /// <summary>
-    /// The three corners a rectangle is kept as - top left, top right,
-    /// bottom right - with its top the side facing most nearly up the
-    /// image, so a crop of it is turned by as little as it can be.
+    /// The three corners a rectangle dragged from <paramref name="a"/> to
+    /// <paramref name="b"/> is kept as - top left, top right, bottom right -
+    /// level, its top at the top, whichever way the drag went. At least a
+    /// pixel each way, so a drag along a line still makes a rectangle.
     /// </summary>
-    public static Point[] UprightCorners(Point a, Point b, Point across)
+    public static Point[] BoxCorners(Point a, Point b)
     {
-        var corners = RectangleCorners(a, b, across);
-        var centre = Midpoint(corners[0], corners[2]);
+        var left = Math.Min(a.X, b.X);
+        var top = Math.Min(a.Y, b.Y);
+        var right = Math.Max(Math.Max(a.X, b.X), left + 1);
+        var bottom = Math.Max(Math.Max(a.Y, b.Y), top + 1);
 
-        // Of the four sides, the one facing most nearly up: its middle
-        // furthest above the centre for its distance from it. On a tie -
-        // a rectangle turned exactly 45 degrees - the first found stays.
-        var best = 0;
-        var bestUp = double.MinValue;
-
-        for (var i = 0; i < 4; i++)
-        {
-            var outward = Midpoint(corners[i], corners[(i + 1) % 4]) - centre;
-            if (outward.Length < 1e-12)
-                continue;
-
-            var up = -outward.Y / outward.Length;
-            if (up > bestUp + 1e-9)
-            {
-                best = i;
-                bestUp = up;
-            }
-        }
-
-        return WithTop(corners, best);
+        return [new Point(left, top), new Point(right, top), new Point(right, bottom)];
     }
+
+    /// <summary>
+    /// A rectangle's three kept corners from its points: the two corners of
+    /// the drag while it is being drawn, its kept three once it is placed.
+    /// </summary>
+    public static Point[] RectangleOf(IReadOnlyList<Point> points) =>
+        points.Count >= 3 ? [points[0], points[1], points[2]] : BoxCorners(points[0], points[1]);
 
     /// <summary>
     /// The same rectangle with the next side clockwise as its top - the
