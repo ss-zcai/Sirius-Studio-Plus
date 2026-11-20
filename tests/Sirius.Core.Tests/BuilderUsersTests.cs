@@ -96,7 +96,30 @@ public sealed class BuilderUsersTests : IDisposable
             WpfTestHost.EnsureApplicationResources();
 
             var window = UsersWindow.Unshown(new UsersViewModel(project));
-            window.Close();
+            window.ShowActivated = false;
+            window.ShowInTaskbar = false;
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Left = -20000;
+            window.Top = -20000;
+
+            try
+            {
+                window.Show();
+                WpfTestHost.Settle(window.Dispatcher);
+
+                // At the size it opens at, both halves of the form fit: nothing to scroll.
+                var form = FindChild<System.Windows.Controls.ScrollViewer>(window);
+                Assert.NotNull(form);
+                Assert.Equal(0, form!.ScrollableHeight);
+
+                // The PIN boxes are the theme's, not the stock white.
+                var pin = (System.Windows.Controls.PasswordBox)window.FindName("PinBox");
+                Assert.NotEqual(System.Windows.Media.Colors.White, ((System.Windows.Media.SolidColorBrush)pin.Background).Color);
+            }
+            finally
+            {
+                window.Close();
+            }
 
             var builder = new BuilderViewModel { RememberProjects = false, Ask = (_, _) => MessageBoxResult.No };
             var opened = new List<UsersViewModel>();
@@ -109,6 +132,23 @@ public sealed class BuilderUsersTests : IDisposable
             builder.UsersCommand.Execute(null);
             Assert.Single(opened);
         });
+    }
+
+    private static T? FindChild<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+
+            if (child is T found)
+                return found;
+
+            if (FindChild<T>(child) is { } deeper)
+                return deeper;
+        }
+
+        return null;
     }
 
     [Fact]

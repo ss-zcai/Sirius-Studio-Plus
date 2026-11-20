@@ -83,6 +83,19 @@
     </Style>
 
     <!--
+        A PIN box (Builder's Users window) as the text boxes are: without it,
+        the stock one is white on the dark window.
+    -->
+    <Style TargetType="PasswordBox">
+        <Setter Property="Background" Value="#1A1B1E" />
+        <Setter Property="Foreground" Value="{StaticResource Text.Primary}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Surface.Border}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="4,2" />
+        <Setter Property="CaretBrush" Value="{StaticResource Text.Primary}" />
+    </Style>
+
+    <!--
         Popups (tooltips, context menus, combo-box drop-downs) are separate
         visual trees, so they inherit nothing from the window. Each needs its
         colours set explicitly or it falls back to the system's light chrome.
