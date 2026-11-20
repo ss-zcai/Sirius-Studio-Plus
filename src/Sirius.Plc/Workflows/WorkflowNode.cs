@@ -67,6 +67,13 @@ public abstract class WorkflowNode : VisionNode
     /// </summary>
     public virtual TimeSpan? StepTimeout => null;
 
+    /// <summary>
+    /// Whether it has a station inspect the part: its timeout is then the
+    /// station's deadline - a part late when it passes - and its failing a
+    /// part not inspected.
+    /// </summary>
+    public virtual bool Inspects => false;
+
     /// <summary>Does this node's work, for one pass of the workflow.</summary>
     protected internal abstract Task RunAsync(WorkflowStep step);
 

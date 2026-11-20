@@ -43,7 +43,11 @@ public sealed class ProjectControllers : IAsyncDisposable
                     opened._problems.Add($"{controller.Name}: {warning}");
 
                 var driver = PlcDrivers.Create(new PlcConnection(controller.Driver, controller.Address, controller.Options));
-                opened._runners.Add(new WorkflowRunner(loaded.Graph, driver, stations, controller.Name));
+                var runner = new WorkflowRunner(loaded.Graph, driver, stations, controller.Name);
+
+                // Its part counts carry on from the last run (F4).
+                runner.KeepCountsIn(PartCountsFile.PathFor(project.WorkflowPath(controller)));
+                opened._runners.Add(runner);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or PlcException)
             {

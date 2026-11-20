@@ -35,13 +35,15 @@ public sealed record WorkflowLogEntry(DateTime Time, WorkflowLogLevel Level, str
 /// <summary>How a pass of a workflow went.</summary>
 /// <param name="Ran">The nodes that ran and finished, in the order they ran.</param>
 /// <param name="Failed">The nodes that failed.</param>
+/// <param name="Part">The part it judged; null for a pass that inspected nothing.</param>
 public sealed record WorkflowPassResult(
     int Number,
     string Start,
     string What,
     IReadOnlyList<string> Ran,
     IReadOnlyList<string> Failed,
-    TimeSpan Duration);
+    TimeSpan Duration,
+    PartRecord? Part = null);
 
 /// <summary>
 /// Runs a controller: connects its PLC and keeps it connected, has its
@@ -94,6 +96,12 @@ public sealed class WorkflowRunner : IAsyncDisposable
     private string? _lastEvent;
     private string? _lastError;
 
+    private readonly object _partGate = new();
+    private PartCounts _partCounts = PartCounts.Zero;
+    private long _nextPart = 1;
+    private PartRecord? _lastPart;
+    private string? _countsPath;
+
     public WorkflowRunner(VisionGraph workflow, IPlcDriver driver, IStationBus? stations = null, string name = "Controller")
     {
         Workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
@@ -128,6 +136,60 @@ public sealed class WorkflowRunner : IAsyncDisposable
 
     /// <summary>What last went wrong, or null.</summary>
     public string? LastError => Volatile.Read(ref _lastError);
+
+    /// <summary>The parts judged, kept over a restart when <see cref="KeepCountsIn"/> was given a file.</summary>
+    public PartCounts PartCounts
+    {
+        get
+        {
+            lock (_partGate)
+                return _partCounts;
+        }
+    }
+
+    /// <summary>The last part judged, or null.</summary>
+    public PartRecord? LastPart
+    {
+        get
+        {
+            lock (_partGate)
+                return _lastPart;
+        }
+    }
+
+    /// <summary>
+    /// Keeps the part counts, and the number the next part takes, in
+    /// <paramref name="path"/> - carrying on from what it holds.
+    /// </summary>
+    public void KeepCountsIn(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        var (counts, next) = PartCountsFile.Load(path);
+
+        lock (_partGate)
+        {
+            _countsPath = path;
+            _partCounts = counts;
+            _nextPart = next;
+        }
+    }
+
+    /// <summary>
+    /// Starts the part counts again from zero. Part numbers carry on, so a
+    /// number is never given to two parts.
+    /// </summary>
+    public void ResetPartCounts()
+    {
+        lock (_partGate)
+            _partCounts = PartCounts.Zero;
+
+        SaveCounts();
+        StatusChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>A part has been judged: after its pass, and before <see cref="PassFinished"/>.</summary>
+    public event EventHandler<PartRecord>? PartFinished;
 
     /// <summary>The latest lines of the log, oldest first.</summary>
     public IReadOnlyList<WorkflowLogEntry> Log
@@ -350,13 +412,16 @@ public sealed class WorkflowRunner : IAsyncDisposable
         foreach (var (output, value) in pass.Values)
             _last[output] = value;
 
+        var part = FinishPart(pass, clock.Elapsed);
+
         var result = new WorkflowPassResult(
             number,
             request.Start.Name,
             request.What,
             ran,
             pass.Failed.Select(node => node.Name).ToArray(),
-            clock.Elapsed);
+            clock.Elapsed,
+            part);
 
         Write(
             pass.Failed.Count > 0 ? WorkflowLogLevel.Warning : WorkflowLogLevel.Info,
@@ -365,7 +430,79 @@ public sealed class WorkflowRunner : IAsyncDisposable
                 ? $"Pass {number} finished in {clock.ElapsedMilliseconds} ms, with {pass.Failed.Count} failed."
                 : $"Pass {number} finished in {clock.ElapsedMilliseconds} ms.");
 
+        if (part is not null)
+            PartFinished?.Invoke(this, part);
+
         PassFinished?.Invoke(this, result);
+    }
+
+    // ---- parts ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Makes the pass a part, when it is not one yet: the next number, and
+    /// its ID from <paramref name="given"/> - Part ID from the PLC - or else
+    /// the number.
+    /// </summary>
+    internal void BeginPart(WorkflowPass pass, PartValues? given)
+    {
+        if (pass.PartNumber is not null)
+            return;
+
+        lock (_partGate)
+            pass.PartNumber = _nextPart++;
+
+        pass.PartId = PartRecord.IdIn(given) ?? pass.PartNumber.Value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>The part a pass judged, counted and kept; null when it inspected nothing.</summary>
+    private PartRecord? FinishPart(WorkflowPass pass, TimeSpan duration)
+    {
+        if (pass.PartNumber is null && pass.Missed is null)
+            return null;
+
+        BeginPart(pass, null);
+
+        var verdict = PartRecord.Judge(pass.Shots, pass.Missed);
+        var part = new PartRecord(
+            pass.PartNumber!.Value,
+            pass.PartId!,
+            pass.Shots.ToArray(),
+            verdict,
+            DateTime.Now - duration,
+            duration,
+            pass.MissedWhy);
+
+        lock (_partGate)
+        {
+            _partCounts = _partCounts.Add(verdict);
+            _lastPart = part;
+        }
+
+        SaveCounts();
+
+        Write(
+            verdict == PartVerdict.Passed ? WorkflowLogLevel.Info : WorkflowLogLevel.Warning,
+            null,
+            $"Part {part.Id}: {part.VerdictWord}{(part.Problem is null ? string.Empty : $" - {part.Problem}")}.");
+
+        return part;
+    }
+
+    private void SaveCounts()
+    {
+        string? path;
+        PartCounts counts;
+        long next;
+
+        lock (_partGate)
+        {
+            path = _countsPath;
+            counts = _partCounts;
+            next = _nextPart;
+        }
+
+        if (path is not null && PartCountsFile.Save(path, counts, next) is { } problem)
+            Write(WorkflowLogLevel.Warning, null, problem);
     }
 
     /// <summary>Whether a node downstream of the pass's start runs in it - see the remarks on the class.</summary>
@@ -418,14 +555,36 @@ public sealed class WorkflowRunner : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            Fail(node, pass, $"No answer within {timeout.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture)} s.");
+            var why = $"No answer within {timeout.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture)} s.";
+
+            // A station past its deadline: the part is late, a reject.
+            if (node.Inspects)
+                Missed(pass, PartVerdict.Late, $"{node.Name}: no result within {timeout.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture)} ms");
+
+            Fail(node, pass, why);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            if (node.Inspects)
+                Missed(pass, PartVerdict.NotInspected, $"{node.Name}: {ex.Message.TrimEnd('.')}");
+
             Fail(node, pass, ex.Message);
         }
 
         return false;
+    }
+
+    /// <summary>A station gave no result for the part; late wins over not inspected, the first reason is kept.</summary>
+    private static void Missed(WorkflowPass pass, PartVerdict how, string why)
+    {
+        if (pass.Missed == PartVerdict.Late)
+            return;
+
+        pass.Missed = how;
+        pass.MissedWhy ??= why;
+
+        if (how == PartVerdict.Late)
+            pass.MissedWhy = why;
     }
 
     private void Fail(WorkflowNode node, WorkflowPass pass, string message)

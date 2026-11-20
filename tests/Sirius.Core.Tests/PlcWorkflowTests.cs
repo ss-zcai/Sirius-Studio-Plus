@@ -175,6 +175,12 @@ public sealed class PlcWorkflowTests : IDisposable
 
         public TimeSpan Takes { get; set; }
 
+        /// <summary>Busy or faulted: inspects nothing.</summary>
+        public bool Busy { get; set; }
+
+        /// <summary>Whether the last inspection asked for was cancelled while it ran.</summary>
+        public bool WasCancelled { get; private set; }
+
         public IReadOnlyList<string> Stations => ["Top"];
 
         public event EventHandler<InspectionSnapshot>? Inspected;
@@ -184,8 +190,21 @@ public sealed class PlcWorkflowTests : IDisposable
             lock (Asked)
                 Asked.Add((station, part));
 
+            if (Busy)
+                return null;
+
             if (Takes > TimeSpan.Zero)
-                await Task.Delay(Takes, cancellationToken);
+            {
+                try
+                {
+                    await Task.Delay(Takes, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    WasCancelled = true;
+                    return null;
+                }
+            }
 
             var snapshot = Snapshot(station, Passes, Interlocked.Increment(ref _serial)) with { Part = part };
             Inspected?.Invoke(this, snapshot);
@@ -270,7 +289,7 @@ public sealed class PlcWorkflowTests : IDisposable
         // The part as the PLC described it, to the station.
         var (station, part) = Assert.Single(stations.Asked);
         Assert.Equal("Top", station);
-        Assert.Equal([("PalletId", (object?)12L), ("PositionId", 3L), ("RunMode", 1L)], part!.Select(pair => (pair.Key, pair.Value)));
+        Assert.Equal([("PalletId", (object?)12L), ("PositionId", 3L), ("RunMode", 1L), (PartRecord.PartIdName, "1"), (PartRecord.ShotName, 1L)], part!.Select(pair => (pair.Key, pair.Value)));
 
         // Capture Done pulsed, the verdict written; no alarm.
         Assert.Equal([("DB34.20.1", (object)true), ("DB34.20.1", false), ("DB34.28", (short)1)], plc.Writes);
@@ -328,7 +347,8 @@ public sealed class PlcWorkflowTests : IDisposable
         Assert.Contains("Bad", pass.Ran);
 
         // Asked for nothing about the part: none is gathered, and none goes with it.
-        Assert.Null(Assert.Single(stations.Asked).Part);
+        // Nothing gathered: told only which part, and which shot.
+        Assert.Equal([(PartRecord.PartIdName, (object?)"1"), (PartRecord.ShotName, 1L)], Assert.Single(stations.Asked).Part!.Select(pair => (pair.Key, pair.Value)));
     }
 
     [Fact]
@@ -585,6 +605,240 @@ public sealed class PlcWorkflowTests : IDisposable
         public ValueTask DisposeAsync() => plc.DisposeAsync();
     }
 
+    // ---- parts (F25) ---------------------------------------------------------------------
+
+    /// <summary>
+    /// A pass that inspects is a part: numbered by the controller, its ID
+    /// told to the station with which shot it is - kept in the picture's
+    /// .sann - and counted.
+    /// </summary>
+    [Fact]
+    public async Task A_pass_that_inspects_is_a_part_numbered_and_counted()
+    {
+        var plc = Line();
+        var stations = new FakeStations();
+        var line = new LineWorkflow();
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+
+        var first = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+        var part = Assert.IsType<PartRecord>(first.Part);
+
+        Assert.Equal(1, part.Number);
+        Assert.Equal("1", part.Id);
+        Assert.Equal(PartVerdict.Passed, part.Verdict);
+        Assert.Equal("PASS", part.VerdictWord);
+        var shot = Assert.Single(part.Shots);
+        Assert.Equal("Top", shot.Station);
+
+        // The station is told the part's ID and the shot, beside what Gather read.
+        var told = stations.Asked.Single().Part!;
+        Assert.Equal(12L, told["PalletId"]);
+        Assert.Equal("1", told[PartRecord.PartIdName]);
+        Assert.Equal(1L, told[PartRecord.ShotName]);
+
+        // The next part, failed.
+        stations.Passes = false;
+        plc.Set("DB34.20.0", false);
+        var readsSince = plc.Reads;
+        await Until(() => plc.Reads > readsSince + 1);
+        var second = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+
+        Assert.Equal(2, second.Part!.Number);
+        Assert.Equal(PartVerdict.Failed, second.Part.Verdict);
+        Assert.Equal(new PartCounts(2, 1, 1, 0, 0), runner.PartCounts);
+        Assert.Same(second.Part, runner.LastPart);
+        Assert.Equal(50, runner.PartCounts.Yield);
+    }
+
+    /// <summary>A value Gather read called Part ID is the part's ID, however it is written.</summary>
+    [Theory]
+    [InlineData("Part ID")]
+    [InlineData("PartId")]
+    [InlineData("part_id")]
+    public async Task A_part_id_read_from_the_plc_is_the_parts_id(string name)
+    {
+        var plc = Line();
+        plc.Set("DB34.30", (short)1043);
+        var stations = new FakeStations();
+        var line = new LineWorkflow();
+
+        var id = new PlcReadNode { Name = "Part ID", Address = "DB34.30", Type = PlcType.Int16 };
+        line.Graph.Add(id);
+        line.Wire(line.Monitor.Triggered, id.Trigger);
+        line.Gather.Name4 = name;
+        line.Wire(id.ValueOut, line.Gather.Values[3]);
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+
+        var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+
+        Assert.Equal("1043", pass.Part!.Id);
+        Assert.Equal(1, pass.Part.Number);
+
+        // Told as read, not again under another name.
+        var told = stations.Asked.Single().Part!;
+        Assert.Equal(1043L, told[name]);
+        Assert.Equal(5, told.Count);
+    }
+
+    /// <summary>
+    /// A station that gives no result by its deadline: the part is a reject,
+    /// counted as late, the PLC answered on time - Failed fires - and the
+    /// inspection is cancelled.
+    /// </summary>
+    [Fact]
+    public async Task A_station_past_its_deadline_makes_the_part_late_and_is_cancelled()
+    {
+        var plc = Line();
+        var stations = new FakeStations { Takes = TimeSpan.FromSeconds(5) };
+        var line = new LineWorkflow();
+        line.Inspect.Timeout = 150;
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(3), $"answered after {clock.Elapsed}");
+        Assert.Equal(PartVerdict.Late, pass.Part!.Verdict);
+        Assert.Equal("LATE", pass.Part.VerdictWord);
+        Assert.Contains("no result within 150 ms", pass.Part.Problem);
+        Assert.Empty(pass.Part.Shots);
+        Assert.Contains("Inspect", pass.Failed);
+        Assert.Contains(plc.Writes, written => written.Address == "DB34.20.2");
+        Assert.Equal(new PartCounts(1, 0, 0, 1, 0), runner.PartCounts);
+
+        await Until(() => stations.WasCancelled);
+    }
+
+    /// <summary>A station busy or faulted: the part is not inspected, a reject.</summary>
+    [Fact]
+    public async Task A_station_that_cannot_inspect_leaves_the_part_not_inspected()
+    {
+        var plc = Line();
+        var stations = new FakeStations { Busy = true };
+        var line = new LineWorkflow();
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+
+        var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+
+        Assert.Equal(PartVerdict.NotInspected, pass.Part!.Verdict);
+        Assert.Equal("NOT INSPECTED", pass.Part.VerdictWord);
+        Assert.Contains("busy or faulted", pass.Part.Problem);
+        Assert.Equal(new PartCounts(1, 0, 0, 0, 1), runner.PartCounts);
+        Assert.Equal(1, runner.PartCounts.Rejected);
+    }
+
+    /// <summary>A pass that inspects nothing - a heartbeat, a reset - is not a part.</summary>
+    [Fact]
+    public async Task A_pass_that_inspects_nothing_is_not_a_part()
+    {
+        var plc = Line();
+        var graph = new VisionGraph();
+        var monitor = new PlcMonitorNode { Name = "Reset", Address = "M0.0", PollInterval = 5 };
+        var write = new PlcWriteNode { Name = "Ack", Address = "M0.1", Value = "true" };
+        graph.Add(monitor);
+        graph.Add(write);
+        Assert.True(graph.TryConnect(monitor.Triggered, write.Trigger).Success);
+
+        await using var runner = new WorkflowRunner(graph, plc);
+        await StartAsync(runner, plc);
+
+        var pass = await PassAfter(runner, () => plc.Set("M0.0", true));
+
+        Assert.Null(pass.Part);
+        Assert.Equal(PartCounts.Zero, runner.PartCounts);
+    }
+
+    /// <summary>
+    /// Part counts, and the next part's number, are kept beside the
+    /// workflow and carried on from after a restart (F4); a reset starts
+    /// the counts again but never a number given before.
+    /// </summary>
+    [Fact]
+    public async Task Part_counts_and_numbers_carry_on_after_a_restart()
+    {
+        var path = PartCountsFile.PathFor(Path.Combine(_folder, "workflows", "Line 1 PLC" + WorkflowFile.Extension));
+        Assert.EndsWith("Line 1 PLC.counts.json", path);
+
+        var plc = Line();
+        var stations = new FakeStations();
+
+        await using (var runner = new WorkflowRunner(new LineWorkflow().Graph, plc, stations))
+        {
+            runner.KeepCountsIn(path);
+            await StartAsync(runner, plc);
+            await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+            Assert.Equal(1, runner.PartCounts.Total);
+        }
+
+        Assert.True(File.Exists(path));
+
+        var again = new SimulatedPlc();
+        again.Set("DB34.22", (short)12);
+
+        await using (var runner = new WorkflowRunner(new LineWorkflow().Graph, again, stations))
+        {
+            runner.KeepCountsIn(path);
+            Assert.Equal(new PartCounts(1, 1, 0, 0, 0), runner.PartCounts);
+
+            await StartAsync(runner, again);
+            var pass = await PassAfter(runner, () => again.Set("DB34.20.0", true));
+            Assert.Equal(2, pass.Part!.Number);
+            Assert.Equal(2, runner.PartCounts.Total);
+
+            runner.ResetPartCounts();
+            Assert.Equal(PartCounts.Zero, runner.PartCounts);
+        }
+
+        var (counts, next) = PartCountsFile.Load(path);
+        Assert.Equal(PartCounts.Zero, counts);
+        Assert.Equal(3, next);
+
+        // Unreadable: started again, not a failure.
+        File.WriteAllText(path, "{ not json");
+        Assert.Equal((PartCounts.Zero, 1L), PartCountsFile.Load(path));
+    }
+
+    /// <summary>The part's ID and the picture's frame number, written to the PLC by Result Value.</summary>
+    [Fact]
+    public async Task Result_value_gives_the_part_id_and_the_frame()
+    {
+        var plc = Line();
+        var stations = new FakeStations();
+        var line = new LineWorkflow();
+
+        var id = new ResultValueNode { Name = "Id", ValueName = "Part ID" };
+        var frame = new ResultValueNode { Name = "Frame", ValueName = "Frame" };
+        var writeId = new PlcWriteNode { Name = "Write Id", Address = "DB34.40", Type = PlcType.Int16 };
+        var writeFrame = new PlcWriteNode { Name = "Write Frame", Address = "DB34.42", Type = PlcType.Int32 };
+
+        foreach (var node in new VisionNode[] { id, frame, writeId, writeFrame })
+            line.Graph.Add(node);
+
+        line.Wire(line.Inspect.ResultOut, id.ResultIn);
+        line.Wire(line.Inspect.ResultOut, frame.ResultIn);
+        line.Wire(id.ValueOut, writeId.ValueIn);
+        line.Wire(frame.ValueOut, writeFrame.ValueIn);
+        line.Wire(line.Inspect.Done, writeId.Trigger);
+        line.Wire(line.Inspect.Done, writeFrame.Trigger);
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+
+        var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+
+        Assert.Empty(pass.Failed);
+        Assert.Contains(plc.Writes, written => written.Address == "DB34.40" && Equals(written.Value, (short)1));
+        Assert.Contains(plc.Writes, written => written.Address == "DB34.42" && Equals(written.Value, 1));
+    }
+
     [Fact]
     public void A_check_names_what_is_wrong_before_anything_runs()
     {
@@ -738,7 +992,7 @@ public sealed class PlcWorkflowTests : IDisposable
 
             Assert.Null(problem);
             Assert.Equal(
-                [("PalletId", (object?)12L), ("PositionId", 3L), ("RunMode", 1L)],
+                [("PalletId", (object?)12L), ("PositionId", 3L), ("RunMode", 1L), (PartRecord.PartIdName, "1"), (PartRecord.ShotName, 1L)],
                 annotations!.Part.Select(pair => (pair.Key, pair.Value)));
             Assert.Contains("\"part\"", File.ReadAllText(AnnotationFile.PathFor(picture)));
         }

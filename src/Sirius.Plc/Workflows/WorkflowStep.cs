@@ -1,5 +1,6 @@
 using Sirius.Core.Graph;
 using Sirius.Core.Runtime;
+using Sirius.Plc.Nodes;
 
 namespace Sirius.Plc.Workflows;
 
@@ -27,6 +28,21 @@ internal sealed class WorkflowPass
     public HashSet<OutputPort> Fired { get; } = [];
 
     public Dictionary<OutputPort, object?> Values { get; } = [];
+
+    /// <summary>The controller's number for the part this pass judges; null until it inspects.</summary>
+    public long? PartNumber { get; set; }
+
+    /// <summary>The part's ID: Part ID from the PLC, or its number.</summary>
+    public string? PartId { get; set; }
+
+    /// <summary>Each inspection of the part, in the order taken.</summary>
+    public List<InspectionResult> Shots { get; } = [];
+
+    /// <summary>Late or not inspected, when a station gave no result; null when every one did.</summary>
+    public PartVerdict? Missed { get; set; }
+
+    /// <summary>Why it was missed.</summary>
+    public string? MissedWhy { get; set; }
 }
 
 /// <summary>
@@ -65,6 +81,40 @@ public sealed class WorkflowStep
 
     /// <summary>Which pass of the workflow this is, from 1.</summary>
     public int Pass => _pass.Number;
+
+    /// <summary>The ID of the part this pass judges, or null before it has inspected.</summary>
+    public string? PartId => _pass.PartId;
+
+    /// <summary>The controller's number for the part this pass judges, or null before it has inspected.</summary>
+    public long? PartNumber => _pass.PartNumber;
+
+    /// <summary>
+    /// What a station is to be told about the part about to be inspected:
+    /// <paramref name="given"/> - what Gather read - with its Part ID, and
+    /// which shot of the part this is. The first asks the controller for
+    /// the part's number.
+    /// </summary>
+    public PartValues PartFor(PartValues? given)
+    {
+        _runner.BeginPart(_pass, given);
+
+        var values = (given ?? PartValues.Empty).ToList();
+
+        if (PartRecord.IdIn(given) is null)
+            values.Add(new(PartRecord.PartIdName, _pass.PartId));
+
+        values.Add(new(PartRecord.ShotName, _pass.Shots.Count + 1));
+        return new PartValues(values);
+    }
+
+    /// <summary>An inspection of the part this pass judges, taken or heard of.</summary>
+    public void AddShot(InspectionResult shot)
+    {
+        ArgumentNullException.ThrowIfNull(shot);
+
+        _runner.BeginPart(_pass, shot.Part);
+        _pass.Shots.Add(shot);
+    }
 
     /// <summary>Whether a trigger reached this node through <paramref name="trigger"/> in this pass.</summary>
     public bool WasFired(InputPort trigger) => trigger.Connection is { } wire && _pass.Fired.Contains(wire.Source);

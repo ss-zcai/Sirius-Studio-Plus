@@ -3353,3 +3353,55 @@ board's outline, a chip's body, found as Find Circle finds a circle.
   `BandFor` naming its region parameter; Search Width is the first.
 
 **Left:** a rectangle with rounded corners.
+
+## 83. The part, its counts and its deadline (F25)
+
+Asked on 20 November 2026 to start F25 (`runtime-design.md` section
+14.1). Three choices were the user's, and each went the recommended way:
+the part's ID from a Gather value called Part ID; the handshake as a
+workflow node; and a station past its deadline cancelled.
+
+**Built (20 November), the part:**
+
+- **A pass of a controller's workflow that inspects is a part.** It is
+  numbered by the controller, from 1, and the number carries on over a
+  restart and over a reset of the counts, so no number is given to two
+  parts. A pass that inspects nothing - a heartbeat, a reset - is not a
+  part.
+- **Its ID** is a value Gather read called Part ID - written PartId,
+  part_id or PART ID as well - or else its number.
+- **The station is told** the part's ID and which shot of it this is,
+  as Part ID and Shot beside what Gather read, so each picture's `.sann`
+  carries them in `part`. Its frame number is the station's serial,
+  which the `.sann` already has.
+- **The record** (`PartRecord`): number, ID, each shot (the station's
+  result), the verdict, when its trigger came, how long it took to the
+  answer written, and why it was missed when it was.
+- **Its verdict**: PASS when every shot passed; FAIL when one failed or
+  could not judge; **LATE** when a station gave no result by its
+  deadline; **NOT INSPECTED** when a station was busy or faulted. All
+  but PASS are rejects.
+- **Part counts** (`PartCounts`): total, passed, failed, late and not
+  inspected, rejects and yield. **Kept** beside the workflow
+  (`Line 1 PLC.counts.json`, F4), written whole and moved into place, and
+  carried on from when the controller is opened again - in Edge and in
+  Builder's Test Run alike.
+- **Result Value** gives Part ID - the controller's, for a pass a
+  Station Result started - and **Frame**, the picture's number at its
+  station, to write to the PLC.
+
+**The deadline.** Inspect's Timeout is now **Deadline (ms)**, still
+saved as Timeout. Past it the PLC is answered at once - Failed fires -
+the part is LATE, and the inspection is cancelled: the station stops at
+the next node. The step no longer waits for a slow node to finish before
+answering. The deadline lives on the Inspect node rather than the
+station, because it is the PLC's requirement for that part and the same
+station can serve two controllers.
+
+**Cameras, met on the way.** A camera asked for while Studio is still
+looking for its drivers - a recipe opened as Studio starts - waits for
+them rather than being "not found" (a027e12). Each search is waited for
+at most 30 seconds from when it began, and a camera whose driver is
+already there is not held up by it. A test that closed every camera
+closed other tests' too; it closes its own, and the simulated camera's
+frame count carries on when it is opened again.

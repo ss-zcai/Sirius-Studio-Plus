@@ -40,9 +40,28 @@ public sealed record InspectionResult(
             snapshot.Part);
     }
 
-    /// <summary>A published result by name, or else a value of the part's; null when neither has it.</summary>
-    public bool TryGetValue(string name, out object? value) =>
-        Results.TryGetValue(name, out value) || (Part?.TryGetValue(name, out value) ?? false);
+    /// <summary>
+    /// A published result by name, or else a value of the part's - its Part
+    /// ID and Shot among them - or Frame, the station's number for the
+    /// picture; false when none has it.
+    /// </summary>
+    public bool TryGetValue(string name, out object? value)
+    {
+        if (Results.TryGetValue(name, out value) || (Part?.TryGetValue(name, out value) ?? false))
+            return true;
+
+        if (string.Equals(name?.Trim(), FrameName, StringComparison.OrdinalIgnoreCase))
+        {
+            value = Serial;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    /// <summary>The name a picture's number at its station is read under: its serial.</summary>
+    public const string FrameName = "Frame";
 }
 
 /// <summary>Has a station inspect once, telling it what is known about the part.</summary>
@@ -102,7 +121,16 @@ public sealed class InspectNode : WorkflowNode
         set => SetParam(ref _station, value?.Trim() ?? string.Empty);
     }
 
-    [Param("Timeout (ms)", Min = 100, Max = 600000, Description = "How long the inspection may take before Failed.")]
+    /// <summary>
+    /// The station's deadline. Named Timeout in saved workflows, as it was
+    /// before it became one.
+    /// </summary>
+    [Param(
+        "Deadline (ms)",
+        Min = 100,
+        Max = 600000,
+        Description = "How long the station has to give its result. Past it the inspection is cancelled, the part " +
+                      "is a reject counted as late, and Failed fires - on time, for the PLC.")]
     public int Timeout
     {
         get => _timeout;
@@ -110,6 +138,8 @@ public sealed class InspectNode : WorkflowNode
     }
 
     public override TimeSpan? StepTimeout => TimeSpan.FromMilliseconds(Timeout);
+
+    public override bool Inspects => true;
 
     protected internal override IEnumerable<string> Check(WorkflowCheck check)
     {
@@ -124,12 +154,23 @@ public sealed class InspectNode : WorkflowNode
         if (step.Stations is not { } stations)
             throw new WorkflowException("This controller runs without the project's stations.");
 
-        var part = step.Get(PartIn) as PartValues;
+        var given = step.Get(PartIn) as PartValues;
+        var part = step.PartFor(given);
 
-        var snapshot = await stations.InspectAsync(Station, part, step.CancellationToken).ConfigureAwait(false)
-                       ?? throw new WorkflowException($"{Station} did not inspect: it is busy or faulted.");
+        // Waited for only until the deadline: a node still running in the
+        // recipe is cancelled when it finishes, but the PLC is answered now.
+        var snapshot = await stations.InspectAsync(Station, part, step.CancellationToken)
+            .WaitAsync(step.CancellationToken)
+            .ConfigureAwait(false);
+
+        if (snapshot is null)
+        {
+            step.CancellationToken.ThrowIfCancellationRequested();
+            throw new WorkflowException($"{Station} did not inspect: it is busy or faulted.");
+        }
 
         var result = InspectionResult.From(snapshot);
+        step.AddShot(result);
 
         step.Set(VerdictOut, result.Verdict);
         step.Set(PassedOut, result.Passed == true);
@@ -141,8 +182,8 @@ public sealed class InspectNode : WorkflowNode
         else if (result.Passed == false)
             step.Fire(Fail);
 
-        step.Log(part is { Count: > 0 }
-            ? $"{Station} inspection {result.Serial}: {result.Verdict} ({part})."
+        step.Log(given is { Count: > 0 }
+            ? $"{Station} inspection {result.Serial}: {result.Verdict} ({given})."
             : $"{Station} inspection {result.Serial}: {result.Verdict}.");
     }
 }
@@ -217,6 +258,7 @@ public sealed class StationResultNode : WorkflowEventNode
             _ = watch.RaiseAsync(
                 step =>
                 {
+                    step.AddShot(result);
                     step.Set(VerdictOut, result.Verdict);
                     step.Set(PassedOut, result.Passed == true);
                     step.Set(ResultOut, result);
@@ -286,8 +328,15 @@ public sealed class ResultValueNode : WorkflowNode
         if (step.Get(ResultIn) is not InspectionResult result)
             throw new WorkflowException("No inspection result is wired in.");
 
+        // The part's ID, when the station was not told it - a Station Result
+        // pass, the inspection started by a button - is the controller's.
         if (!result.TryGetValue(ValueName, out var value))
-            throw new WorkflowException($"{result.Station} published nothing called '{ValueName}'.");
+        {
+            if (PartRecord.IsPartIdName(ValueName) && step.PartId is { } id)
+                value = id;
+            else
+                throw new WorkflowException($"{result.Station} published nothing called '{ValueName}'.");
+        }
 
         step.Set(ValueOut, value);
         return Task.CompletedTask;
