@@ -220,6 +220,16 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     public IReadOnlyList<StationOption> ButtonStationOptions =>
         [new StationOption("All stations", string.Empty), .. StationOptions];
 
+    /// <summary>What a counter's station list holds value starting with, for a controller's parts.</summary>
+    public const string ControllerPrefix = "controller:";
+
+    /// <summary>A counter's: each station's pictures, then each controller's parts (F25).</summary>
+    public IReadOnlyList<StationOption> CounterOptions =>
+    [
+        .. StationOptions,
+        .. Recipes.ControllerNames.Select(name => new StationOption($"{name}: parts", ControllerPrefix + name)),
+    ];
+
     /// <summary>The project's other screens, for an Open Screen button: "Settings (popup)".</summary>
     public IReadOnlyList<StationOption> ScreenOptions =>
         _screens()
@@ -597,6 +607,30 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     };
 
     /// <summary>
+    /// After a controller was renamed: the counters of its parts follow, as
+    /// one undoable change.
+    /// </summary>
+    /// <returns>Whether any counter counted its parts.</returns>
+    public bool RenameController(string from, string to)
+    {
+        var following = Widgets
+            .Where(widget => string.Equals(widget.Widget.Controller, from, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (following.Length == 0)
+            return false;
+
+        Edit(() =>
+        {
+            foreach (var widget in following)
+                widget.Widget.Controller = to;
+        });
+
+        Refresh();
+        return true;
+    }
+
+    /// <summary>
     /// After a station was renamed: the widgets showing it follow, as one
     /// undoable change.
     /// </summary>
@@ -673,6 +707,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         Recipes.Refresh();
         OnPropertyChanged(nameof(StationOptions));
         OnPropertyChanged(nameof(ButtonStationOptions));
+        OnPropertyChanged(nameof(CounterOptions));
         OnPropertyChanged(nameof(ScreenOptions));
 
         foreach (var widget in Widgets)

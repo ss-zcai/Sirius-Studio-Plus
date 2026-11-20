@@ -284,7 +284,23 @@ public static class ScreenSet
     /// which changes its own.
     /// </summary>
     /// <returns>The screens whose widgets were changed.</returns>
-    public static IReadOnlyList<string> RenameStation(Project project, string from, string to, IReadOnlyCollection<string>? leave = null)
+    public static IReadOnlyList<string> RenameStation(Project project, string from, string to, IReadOnlyCollection<string>? leave = null) =>
+        Follow(project, leave, widget => string.Equals(widget.Station, from, StringComparison.OrdinalIgnoreCase), widget => widget.Station = to);
+
+    /// <summary>
+    /// After a controller was renamed: the counters of its parts, in every
+    /// screen file but those in <paramref name="leave"/>.
+    /// </summary>
+    /// <returns>The screens whose widgets were changed.</returns>
+    public static IReadOnlyList<string> RenameController(Project project, string from, string to, IReadOnlyCollection<string>? leave = null) =>
+        Follow(project, leave, widget => string.Equals(widget.Controller, from, StringComparison.OrdinalIgnoreCase), widget => widget.Controller = to);
+
+    /// <summary>Changes the widgets <paramref name="showing"/> picks, in every screen file but those in <paramref name="leave"/>.</summary>
+    private static IReadOnlyList<string> Follow(
+        Project project,
+        IReadOnlyCollection<string>? leave,
+        Func<Widget, bool> picks,
+        Action<Widget> change)
     {
         ArgumentNullException.ThrowIfNull(project);
 
@@ -300,20 +316,20 @@ public static class ScreenSet
             try
             {
                 var screen = Screen.Load(path);
-                var showing = screen.Widgets.Where(widget => string.Equals(widget.Station, from, StringComparison.OrdinalIgnoreCase)).ToArray();
+                var showing = screen.Widgets.Where(picks).ToArray();
 
                 if (showing.Length == 0)
                     continue;
 
                 foreach (var widget in showing)
-                    widget.Station = to;
+                    change(widget);
 
                 screen.Save(path);
                 changed.Add(name);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
             {
-                // Left as it is; its check says the station is not there.
+                // Left as it is; its check says the station or controller is not there.
             }
         }
 

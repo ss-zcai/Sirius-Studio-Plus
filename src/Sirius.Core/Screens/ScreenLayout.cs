@@ -288,6 +288,10 @@ public static class ScreenLayout
         {
             var label = string.IsNullOrWhiteSpace(widget.Name) ? $"{widget.Kind}" : $"{widget.Kind} '{widget.Name}'";
 
+            // A controller's parts: the controller is checked where controllers are known.
+            if (widget.Kind == WidgetKind.Counter && !string.IsNullOrWhiteSpace(widget.Controller))
+                continue;
+
             if (widget.Station is null)
             {
                 if (NeedsStation(widget.Kind))

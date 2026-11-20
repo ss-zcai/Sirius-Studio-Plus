@@ -61,6 +61,8 @@ public partial class RuntimeWindow : Window
             project.Folder,
             [.. problems ?? [], .. unread, .. _controllers.Problems]);
 
+        _screen.UseControllers(_controllers.Runners);
+
         _controllerClock = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _controllerClock.Tick += (_, _) => ShowControllers();
         Loaded += (_, _) => StartControllers();
@@ -126,6 +128,9 @@ public partial class RuntimeWindow : Window
     {
         ControllerStatus.Text = _controllers.Runners.Count == 0 ? string.Empty : _controllers.StatusText;
         ControllerStatus.ToolTip = ControllerStatus.Text;
+
+        // Counters of a controller's parts.
+        _screen.ShowControllers();
     }
 
     /// <summary>The window the runtime program runs in, full screen or not.</summary>

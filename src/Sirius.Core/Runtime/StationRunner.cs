@@ -139,6 +139,9 @@ public sealed class StationRunner : ObservableObject, IDisposable
     private bool _inPass;
     private StationState _state;
     private StationCounts _counts = StationCounts.Zero;
+    private StationTiming _timing = StationTiming.Zero;
+    private string? _countsPath;
+    private DateTime _countsSaved;
     private InspectionSnapshot? _last;
     private string? _lastError;
     private long _serial;
@@ -228,6 +231,9 @@ public sealed class StationRunner : ObservableObject, IDisposable
                 RecipeName = Path.GetFileName(path),
             };
 
+            // Its counts carry on from the last run (F4).
+            runner.KeepCountsIn(StationCountsFile.PathFor(path));
+
             if (station.Saving.IsOn)
             {
                 if (InspectionRecorders.Factory?.Invoke(project, station) is { } recorder)
@@ -290,6 +296,38 @@ public sealed class StationRunner : ObservableObject, IDisposable
     {
         get => _counts;
         private set => SetProperty(ref _counts, value);
+    }
+
+    /// <summary>How long its inspections take: average, worst, the last.</summary>
+    public StationTiming Timing
+    {
+        get => _timing;
+        private set => SetProperty(ref _timing, value);
+    }
+
+    /// <summary>
+    /// Keeps the counts and timing in <paramref name="path"/>, carrying on
+    /// from what it holds (F4). Written at most once a second while
+    /// inspecting, and when the station closes.
+    /// </summary>
+    public void KeepCountsIn(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        _countsPath = path;
+        (Counts, Timing) = StationCountsFile.Load(path);
+    }
+
+    /// <summary>Writes the counts, now or - <paramref name="soon"/> - when a second has passed since the last time.</summary>
+    private void SaveCounts(bool soon = false)
+    {
+        if (_countsPath is not { } path || (soon && DateTime.UtcNow - _countsSaved < TimeSpan.FromSeconds(1)))
+            return;
+
+        _countsSaved = DateTime.UtcNow;
+
+        if (StationCountsFile.Save(path, Counts, Timing) is { } problem)
+            LastError = problem;
     }
 
     /// <summary>The latest inspection. Its pictures are valid only until the next starts; see <see cref="InspectionSnapshot"/>.</summary>
@@ -390,8 +428,13 @@ public sealed class StationRunner : ObservableObject, IDisposable
         await _loop.ConfigureAwait(true);
     }
 
-    /// <summary>Starts the station's counts again from zero. Counter nodes in the recipe keep their own.</summary>
-    public void ResetCounts() => Counts = StationCounts.Zero;
+    /// <summary>Starts the station's counts and timing again from zero. Counter nodes in the recipe keep their own.</summary>
+    public void ResetCounts()
+    {
+        Counts = StationCounts.Zero;
+        Timing = StationTiming.Zero;
+        SaveCounts();
+    }
 
     // ---- settings on the line ----------------------------------------------
 
@@ -634,7 +677,9 @@ public sealed class StationRunner : ObservableObject, IDisposable
         };
 
         Counts = Counts.Add(verdict, result.Failed > 0);
+        Timing = Timing.Add(snapshot.Duration);
         LastError = result.Failed > 0 ? FailureText() : null;
+        SaveCounts(soon: true);
         Last = snapshot;
 
         Keep(scheduler, snapshot);
@@ -768,6 +813,9 @@ public sealed class StationRunner : ObservableObject, IDisposable
         _disposed = true;
         _run?.Cancel();
         _scheduler?.Dispose();
+
+        // What a second's throttle held back.
+        SaveCounts();
 
         // Last: it writes out what it was given, which no longer needs the station.
         Recorder?.Dispose();

@@ -36,6 +36,9 @@ public sealed class StationRecipes
 
     public IReadOnlyList<string> StationNames => _project.Stations.Select(station => station.Name).ToArray();
 
+    /// <summary>The project's controllers, whose parts a counter can count.</summary>
+    public IReadOnlyList<string> ControllerNames => _project.Controllers.Select(controller => controller.Name).ToArray();
+
     /// <summary>The station called <paramref name="name"/>, or null.</summary>
     public Station? Station(string? name) => name is null ? null : _project.Find(name);
 

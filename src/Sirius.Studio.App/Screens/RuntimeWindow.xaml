@@ -99,6 +99,13 @@
                     BorderBrush="{StaticResource Surface.Border}"
                     BorderThickness="1"
                     Padding="8,4">
+                <DockPanel VerticalAlignment="Center">
+                <!-- How long an inspection takes: the average and the worst, what a deadline must allow for. -->
+                <TextBlock DockPanel.Dock="Bottom"
+                           Text="{Binding Timing}"
+                           FontSize="10"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{StaticResource Text.Secondary}" />
                 <UniformGrid Columns="4" VerticalAlignment="Center">
                     <StackPanel>
                         <TextBlock Text="Total" FontSize="11" Foreground="{StaticResource Text.Secondary}" />
@@ -109,7 +116,7 @@
                         <TextBlock Text="{Binding Passed}" FontSize="{Binding FontSize}" FontWeight="SemiBold" Foreground="#B7E8A0" />
                     </StackPanel>
                     <StackPanel>
-                        <TextBlock Text="Fail" FontSize="11" Foreground="{StaticResource Text.Secondary}" />
+                        <TextBlock Text="{Binding FailLabel}" FontSize="11" Foreground="{StaticResource Text.Secondary}" />
                         <TextBlock Text="{Binding Failed}" FontSize="{Binding FontSize}" FontWeight="SemiBold" Foreground="#F8C4C4" />
                     </StackPanel>
                     <StackPanel>
@@ -117,6 +124,7 @@
                         <TextBlock Text="{Binding Yield}" FontSize="{Binding FontSize}" FontWeight="SemiBold" Foreground="{StaticResource Text.Primary}" />
                     </StackPanel>
                 </UniformGrid>
+                </DockPanel>
             </Border>
         </DataTemplate>
 

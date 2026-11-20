@@ -324,6 +324,10 @@ public sealed class ScreenTests : IDisposable
             Assert.Equal(400, image.Picture!.PixelWidth);
             Assert.Equal("1", counter.Total);
 
+            // How long it took, average and worst, under the counts.
+            Assert.StartsWith("Average ", counter.Timing, StringComparison.Ordinal);
+            Assert.Contains(" ms · worst ", counter.Timing, StringComparison.Ordinal);
+
             WpfTestHost.Wait(trigger.Command.ExecuteAsync(null));
 
             Assert.Equal("FAIL", verdict.Text);

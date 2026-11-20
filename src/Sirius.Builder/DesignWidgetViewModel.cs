@@ -60,7 +60,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
     {
         WidgetKind.Image => "Image Viewer",
         WidgetKind.Verdict => "PASS / FAIL",
-        WidgetKind.Counter => "Total · Pass · Fail · Yield",
+        WidgetKind.Counter => "Total · Pass · Fail · Yield · time",
         WidgetKind.Button => "Button",
         WidgetKind.Setting => Widget.Style == SettingStyle.Stepper ? "Setting" : $"Setting · {StyleLabel(Widget.Style)}",
         WidgetKind.Logo => "Logo",
@@ -75,6 +75,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         WidgetKind.Button when IsNavigation => Widget.Action == WidgetAction.OpenScreen ? $"{ButtonCaption}  ·  opens {Widget.Screen ?? "?"}" : ButtonCaption,
         WidgetKind.Button => $"{ButtonCaption}  ·  {(Widget.Station ?? "all stations")}",
         WidgetKind.Logo => Widget.File ?? "no picture chosen",
+        WidgetKind.Counter when !string.IsNullOrWhiteSpace(Widget.Controller) => $"{Widget.Controller}: parts",
         WidgetKind.Setting when Widget.Style == SettingStyle.Range => $"{Widget.Station ?? "?"} › {Widget.Name ?? "?"} – {Widget.HighName ?? "?"}",
         _ when ScreenLayout.NeedsName(Kind) => $"{Widget.Station ?? "?"} › {Widget.Name ?? "?"}",
         _ => Widget.Station ?? "?",
@@ -181,23 +182,43 @@ public sealed class DesignWidgetViewModel : ObservableObject
         _ => "Text",
     };
 
-    public IReadOnlyList<StationOption> StationOptions =>
-        Kind == WidgetKind.Button ? _owner.ButtonStationOptions : _owner.StationOptions;
+    public IReadOnlyList<StationOption> StationOptions => Kind switch
+    {
+        WidgetKind.Button => _owner.ButtonStationOptions,
+        WidgetKind.Counter => _owner.CounterOptions,
+        _ => _owner.StationOptions,
+    };
 
     // ---- the properties ---------------------------------------------------
 
     /// <summary>The station, as the station list's value: empty is every station, for a button.</summary>
+    /// <remarks>
+    /// A counter's may name a controller instead, as
+    /// <see cref="ScreenDesignerViewModel.ControllerPrefix"/> and its name:
+    /// it then counts that controller's parts, and names no station.
+    /// </remarks>
     public string StationValue
     {
-        get => Widget.Station ?? string.Empty;
+        get => !string.IsNullOrWhiteSpace(Widget.Controller)
+            ? ScreenDesignerViewModel.ControllerPrefix + Widget.Controller
+            : Widget.Station ?? string.Empty;
         set
         {
-            var station = string.IsNullOrEmpty(value) ? null : value;
+            var controller = Kind == WidgetKind.Counter && value?.StartsWith(ScreenDesignerViewModel.ControllerPrefix, StringComparison.Ordinal) == true
+                ? value[ScreenDesignerViewModel.ControllerPrefix.Length..]
+                : null;
 
-            if (station == Widget.Station)
+            var station = controller is not null || string.IsNullOrEmpty(value) ? null : value;
+
+            if (station == Widget.Station && controller == Widget.Controller)
                 return;
 
-            _owner.Edit(() => Widget.Station = station);
+            _owner.Edit(() =>
+            {
+                Widget.Station = station;
+                Widget.Controller = controller;
+            });
+
             RefreshChoices();
             Raise();
         }
@@ -702,7 +723,12 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 "Shows", "Station", PropertyEditor.Choice,
                 () => StationValue,
                 value => StationValue = value as string ?? string.Empty,
-                Kind == WidgetKind.Button ? "The station the button acts on, or every station." : "The station it shows.",
+                Kind switch
+                {
+                    WidgetKind.Button => "The station the button acts on, or every station.",
+                    WidgetKind.Counter => "The station whose pictures it counts, or a controller whose parts it counts: rejects, late and not inspected.",
+                    _ => "The station it shows.",
+                },
                 options: () => StationOptions.Select(option => new PropertyOption(option.Label, option.Value)).ToArray(),
                 visible: () => !IsNavigation);
         }

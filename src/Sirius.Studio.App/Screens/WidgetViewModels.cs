@@ -7,6 +7,7 @@ using Sirius.Core.Nodes;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
 using Sirius.Core.Shapes;
+using Sirius.Plc.Workflows;
 using Sirius.Studio.App.Imaging;
 using Sirius.Vision;
 
@@ -224,27 +225,92 @@ public sealed class VerdictWidgetViewModel(Widget widget) : WidgetViewModel(widg
     }
 }
 
-/// <summary>A station's counts.</summary>
+/// <summary>
+/// A station's counts of pictures - or, given a controller, its counts of
+/// parts (F25): rejects in place of fails, and the late and not inspected
+/// said under them.
+/// </summary>
 public sealed class CounterWidgetViewModel(Widget widget) : WidgetViewModel(widget)
 {
     private StationCounts _counts = StationCounts.Zero;
+    private StationTiming _timing = StationTiming.Zero;
+    private PartCounts? _parts;
+    private PartRecord? _lastPart;
 
-    public string Total => _counts.Total.ToString(CultureInfo.CurrentCulture);
+    /// <summary>The controller whose parts it counts, or null for a station's pictures.</summary>
+    public string? Controller => string.IsNullOrWhiteSpace(Widget.Controller) ? null : Widget.Controller;
 
-    public string Passed => _counts.Passed.ToString(CultureInfo.CurrentCulture);
+    public string Total => _parts is { } parts
+        ? parts.Total.ToString(CultureInfo.CurrentCulture)
+        : _counts.Total.ToString(CultureInfo.CurrentCulture);
 
-    public string Failed => _counts.Failed.ToString(CultureInfo.CurrentCulture);
+    /// <summary>"Fail", or "Reject" for parts - failed, late and not inspected together.</summary>
+    public string FailLabel => Controller is null ? "Fail" : "Reject";
 
-    public string Yield => _counts.Passed + _counts.Failed == 0
-        ? "—"
-        : _counts.Yield.ToString("0.0", CultureInfo.CurrentCulture) + " %";
+    /// <summary>
+    /// For a station, "Average 120 ms · worst 340 ms"; for parts, the late and
+    /// not inspected and the last part; empty before any.
+    /// </summary>
+    public string Timing
+    {
+        get
+        {
+            if (Controller is not null)
+                return PartLine();
+
+            return _timing.Count == 0
+                ? string.Empty
+                : $"Average {Milliseconds(_timing.Average)} · worst {Milliseconds(_timing.Worst)}";
+        }
+    }
+
+    private string PartLine()
+    {
+        if (_parts is not { Total: > 0 } parts)
+            return string.Empty;
+
+        var line = $"Late {parts.Late} · not inspected {parts.NotInspected}";
+
+        return _lastPart is { } last
+            ? $"{line} · last {last.Id}: {last.VerdictWord}"
+            : line;
+    }
+
+    /// <summary>The controller's counts, as it has them now.</summary>
+    internal void PartsChanged(PartCounts counts, PartRecord? last)
+    {
+        if (_parts == counts && ReferenceEquals(_lastPart, last))
+            return;
+
+        _parts = counts;
+        _lastPart = last;
+        OnPropertyChanged(string.Empty);
+    }
+
+    internal static string Milliseconds(TimeSpan time) =>
+        time.TotalMilliseconds.ToString(time.TotalMilliseconds < 10 ? "0.0" : "0", CultureInfo.CurrentCulture) + " ms";
+
+    public string Passed => _parts is { } parts
+        ? parts.Passed.ToString(CultureInfo.CurrentCulture)
+        : _counts.Passed.ToString(CultureInfo.CurrentCulture);
+
+    public string Failed => _parts is { } parts
+        ? parts.Rejected.ToString(CultureInfo.CurrentCulture)
+        : _counts.Failed.ToString(CultureInfo.CurrentCulture);
+
+    public string Yield => _parts is { } parts
+        ? parts.Total == 0 ? "—" : parts.Yield.ToString("0.0", CultureInfo.CurrentCulture) + " %"
+        : _counts.Passed + _counts.Failed == 0
+            ? "—"
+            : _counts.Yield.ToString("0.0", CultureInfo.CurrentCulture) + " %";
 
     internal override void StationChanged(StationRunner station)
     {
-        if (_counts == station.Counts)
+        if (Controller is not null || (_counts == station.Counts && _timing == station.Timing))
             return;
 
         _counts = station.Counts;
+        _timing = station.Timing;
         OnPropertyChanged(string.Empty);
     }
 }
@@ -367,6 +433,11 @@ public sealed class ButtonWidgetViewModel : WidgetViewModel
             case WidgetAction.ResetCounts:
                 foreach (var station in targets)
                     station.ResetCounts();
+
+                // For every station: the controllers' parts too.
+                if (Station is null && _screens is ScreenViewModel screen)
+                    screen.ResetPartCounts();
+
                 break;
         }
     }

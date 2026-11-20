@@ -1393,8 +1393,27 @@ public sealed partial class BuilderViewModel : ObservableObject
             controller.Name,
             text => project.ControllerNameProblem(text, controller.Controller));
 
-        if (name is not null && name != controller.Name)
-            Guard(() => project.RenameController(controller.Controller, name), "Rename Controller");
+        if (name is null || name == controller.Name)
+            return;
+
+        var old = controller.Name;
+
+        Guard(() =>
+        {
+            project.RenameController(controller.Controller, name);
+
+            // Counters of its parts follow: in a screen open in a tab as a
+            // change to save, in a screen's file at once.
+            var open = Designers.Where(designer => designer.RenameController(old, name)).Select(designer => designer.Name).ToArray();
+            var written = ScreenSet.RenameController(project, old, name, Designers.Select(designer => designer.Name).ToArray());
+            var all = open.Concat(written).ToArray();
+
+            StatusText = all.Length == 0
+                ? $"Renamed {old} to {name}."
+                : open.Length == 0
+                    ? $"Renamed {old} to {name}; the counters of its parts on {string.Join(", ", all)} follow."
+                    : $"Renamed {old} to {name}; the counters of its parts on {string.Join(", ", all)} follow. Save {string.Join(", ", open)} to keep it.";
+        }, "Rename Controller");
     }
 
     private void RemoveController(ControllerViewModel? controller)

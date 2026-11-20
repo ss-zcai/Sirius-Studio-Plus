@@ -3398,6 +3398,26 @@ answering. The deadline lives on the Inspect node rather than the
 station, because it is the PLC's requirement for that part and the same
 station can serve two controllers.
 
+**Built (20 November), the station and the screen:**
+
+- **A station's processing time** (`StationTiming`): average, worst and
+  the last, shown under a Counter as "Average 120 ms · worst 340 ms" -
+  what a deadline has to allow for.
+- **A station's counts and timing are kept** beside its recipe
+  (`Top.counts.json`, as its line settings are), written at most once a
+  second while it inspects and when it closes, and carried on when it
+  opens again (F4). Reset Counts starts both again.
+- **A Counter can count a controller's parts**: its Station list in the
+  designer offers each controller after the stations, as "Line 1 PLC:
+  parts". It then shows Total, Pass, **Reject** (failed, late and not
+  inspected) and Yield, with the late, the not inspected and the last
+  part under them, refreshed every half second. A counter naming a
+  controller that is not running is said along the bottom. Reset Counts
+  for every station resets the controllers' parts too.
+- **A renamed controller** takes the counters of its parts with it, in
+  screens open in a tab and in screen files, as a renamed station does.
+  Its counts are named after its workflow file, which a rename keeps.
+
 **Cameras, met on the way.** A camera asked for while Studio is still
 looking for its drivers - a recipe opened as Studio starts - waits for
 them rather than being "not found" (a027e12). Each search is waited for

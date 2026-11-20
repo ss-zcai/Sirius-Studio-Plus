@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
+using Sirius.Plc.Workflows;
 using Sirius.Studio.App.ViewModels;
 
 namespace Sirius.Studio.App.Screens;
@@ -94,6 +95,7 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
     private readonly List<(ScreenPageViewModel Screen, WidgetViewModel Widget)> _all = [];
     private ScreenPageViewModel _page;
     private ScreenPageViewModel? _popup;
+    private IReadOnlyList<WorkflowRunner> _controllers = [];
 
     /// <summary>A screen alone, as a project had before there were several.</summary>
     public ScreenViewModel(Screen screen, ProjectRuntime runtime, string projectFolder, IEnumerable<string>? problems = null)
@@ -371,6 +373,58 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
         foreach (var button in AllWidgets.OfType<ButtonWidgetViewModel>())
             button.Refresh();
     }
+
+    // ---- controllers --------------------------------------------------------
+
+    /// <summary>
+    /// The project's controllers, whose parts its counters count; a counter
+    /// naming one that is not running is said as a problem.
+    /// </summary>
+    public void UseControllers(IReadOnlyList<WorkflowRunner> controllers)
+    {
+        _controllers = controllers ?? throw new ArgumentNullException(nameof(controllers));
+
+        var missing = _all
+            .Select(entry => entry.Widget)
+            .OfType<CounterWidgetViewModel>()
+            .Select(counter => counter.Controller)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(name => Controller(name) is null)
+            .Select(name => $"Counter: there is no controller '{name}' running.")
+            .ToArray();
+
+        if (missing.Length > 0)
+        {
+            _problems.AddRange(missing);
+            OnPropertyChanged(nameof(HasProblems));
+            OnPropertyChanged(nameof(ProblemText));
+        }
+
+        ShowControllers();
+    }
+
+    /// <summary>Brings each counter of a controller's parts up to date - every half second while running.</summary>
+    public void ShowControllers()
+    {
+        foreach (var counter in _all.Select(entry => entry.Widget).OfType<CounterWidgetViewModel>())
+        {
+            if (counter.Controller is { } name && Controller(name) is { } runner)
+                counter.PartsChanged(runner.PartCounts, runner.LastPart);
+        }
+    }
+
+    /// <summary>Starts every controller's part counts again - Reset Counts for every station.</summary>
+    internal void ResetPartCounts()
+    {
+        foreach (var runner in _controllers)
+            runner.ResetPartCounts();
+
+        ShowControllers();
+    }
+
+    private WorkflowRunner? Controller(string name) =>
+        _controllers.FirstOrDefault(runner => string.Equals(runner.Name, name, StringComparison.OrdinalIgnoreCase));
 
     public void Dispose()
     {

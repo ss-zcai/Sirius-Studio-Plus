@@ -121,6 +121,13 @@ public sealed class Widget
     [JsonPropertyName("station")]
     public string? Station { get; set; }
 
+    /// <summary>
+    /// For a counter: the controller whose parts it counts (F25), in place
+    /// of a station's pictures. Null for a station's.
+    /// </summary>
+    [JsonPropertyName("controller")]
+    public string? Controller { get; set; }
+
     /// <summary>The published name it shows: a view, a result, a setting.</summary>
     [JsonPropertyName("name")]
     public string? Name { get; set; }

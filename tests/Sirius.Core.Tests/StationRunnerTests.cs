@@ -255,6 +255,72 @@ public sealed class StationRunnerTests : IDisposable
         Assert.False(station.Start());
     }
 
+    // ---- counts kept, and timing (F4, F25) -------------------------------
+
+    /// <summary>
+    /// A station's counts and how long its inspections take - average and
+    /// worst - are kept beside its recipe and carried on when it is opened
+    /// again; a reset starts both again, and is kept too.
+    /// </summary>
+    [Fact]
+    public void A_stations_counts_and_timing_carry_on_after_a_restart()
+    {
+        var project = Project.Create(_folder, "Line", FolderRecipe(), "Top");
+        var path = StationCountsFile.PathFor(project.RecipePath(project.Stations[0]));
+        Assert.EndsWith(".counts.json", path);
+
+        WithoutContext(() =>
+        {
+            using (var station = StationRunner.Open(project, project.Stations[0]))
+            {
+                Assert.Equal(StationCounts.Zero, station.Counts);
+
+                for (var i = 0; i < 3; i++)
+                    station.TriggerAsync().GetAwaiter().GetResult();
+
+                Assert.Equal(3, station.Counts.Total);
+                Assert.Equal(3, station.Timing.Count);
+                Assert.True(station.Timing.Worst >= station.Timing.Average);
+                Assert.True(station.Timing.Average > TimeSpan.Zero);
+                Assert.Equal(station.Last!.Duration, station.Timing.Latest);
+            }
+
+            using (var station = StationRunner.Open(project, project.Stations[0]))
+            {
+                Assert.Equal(3, station.Counts.Total);
+                Assert.Equal(3, station.Timing.Count);
+
+                station.TriggerAsync().GetAwaiter().GetResult();
+                Assert.Equal(4, station.Counts.Total);
+
+                station.ResetCounts();
+                Assert.Equal(StationCounts.Zero, station.Counts);
+                Assert.Equal(StationTiming.Zero, station.Timing);
+            }
+
+            Assert.Equal((StationCounts.Zero, StationTiming.Zero), StationCountsFile.Load(path));
+        });
+
+        // Unreadable: started again, not a failure.
+        File.WriteAllText(path, "not json");
+        Assert.Equal((StationCounts.Zero, StationTiming.Zero), StationCountsFile.Load(path));
+    }
+
+    [Fact]
+    public void Timing_keeps_the_average_the_worst_and_the_last()
+    {
+        var timing = StationTiming.Zero
+            .Add(TimeSpan.FromMilliseconds(100))
+            .Add(TimeSpan.FromMilliseconds(300))
+            .Add(TimeSpan.FromMilliseconds(200));
+
+        Assert.Equal(3, timing.Count);
+        Assert.Equal(TimeSpan.FromMilliseconds(200), timing.Average);
+        Assert.Equal(TimeSpan.FromMilliseconds(300), timing.Worst);
+        Assert.Equal(TimeSpan.FromMilliseconds(200), timing.Latest);
+        Assert.Equal(TimeSpan.Zero, StationTiming.Zero.Average);
+    }
+
     // ---- several stations ----------------------------------------------
 
     [Fact]
