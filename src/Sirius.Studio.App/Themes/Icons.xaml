@@ -2385,44 +2385,6 @@
     </DrawingImage.Drawing>
   </DrawingImage>
 
-  <DrawingImage x:Key="Icon.ph_image_viewer">
-    <DrawingImage.Drawing>
-      <DrawingGroup>
-        <GeometryDrawing Brush="#00000000" Geometry="F1 M0,0L256,0L256,256L0,256Z" />
-        <DrawingGroup>
-          <DrawingGroup.Transform>
-            <MatrixTransform Matrix="-1,0,0,-1,256,240" />
-          </DrawingGroup.Transform>
-          <GeometryDrawing Geometry="F1 M48,48L208,48A16,16 0 0 1 224,64L224,176A16,16 0 0 1 208,192L48,192A16,16 0 0 1 32,176L32,64A16,16 0 0 1 48,48Z">
-            <GeometryDrawing.Pen>
-              <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-            </GeometryDrawing.Pen>
-          </GeometryDrawing>
-        </DrawingGroup>
-        <GeometryDrawing Geometry="F1 M160,224L96,224">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#80333333" Thickness="48" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-        <DrawingGroup>
-          <DrawingGroup.Transform>
-            <MatrixTransform Matrix="-1,0,0,-1,256,240" />
-          </DrawingGroup.Transform>
-          <GeometryDrawing Geometry="F1 M48,48L208,48A16,16 0 0 1 224,64L224,176A16,16 0 0 1 208,192L48,192A16,16 0 0 1 32,176L32,64A16,16 0 0 1 48,48Z">
-            <GeometryDrawing.Pen>
-              <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-            </GeometryDrawing.Pen>
-          </GeometryDrawing>
-        </DrawingGroup>
-        <GeometryDrawing Geometry="F1 M160,224L96,224">
-          <GeometryDrawing.Pen>
-            <Pen Brush="#FFFFFFFF" Thickness="16" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
-          </GeometryDrawing.Pen>
-        </GeometryDrawing>
-      </DrawingGroup>
-    </DrawingImage.Drawing>
-  </DrawingImage>
-
   <DrawingImage x:Key="Icon.ph_inspect">
     <DrawingImage.Drawing>
       <DrawingGroup>
