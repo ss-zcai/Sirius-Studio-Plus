@@ -579,6 +579,64 @@ public sealed class BuilderControllerTests : IDisposable
         });
     }
 
+    /// <summary>
+    /// The workflow's log, in the PLC window during a Test Run, follows its
+    /// newest line once it is long enough to scroll. Scrolling from inside
+    /// the list's change - before the list itself had taken the line in -
+    /// threw "An ItemsControl is inconsistent with its items source" and
+    /// closed Builder on the second part.
+    /// </summary>
+    [Fact]
+    public void The_plc_windows_workflow_log_scrolls_to_its_newest_line_without_falling_over()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var project = Project.Create(_root, "Line 7", new VisionGraph(), "Top");
+            var name = Unique("PLC");
+            var controller = Builder(project).AddController(name)!;
+
+            var runner = new WorkflowRunner(new VisionGraph(), new SimulatedPlc(), name: name);
+            var plc = new PlcViewModel(project, controller, runner);
+            var window = new PlcWindow(plc)
+            {
+                Width = 700,
+                Height = 420,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+                WindowStartupLocation = WindowStartupLocation.Manual,
+                Left = -20000,
+                Top = -20000,
+            };
+
+            try
+            {
+                window.Show();
+                WpfTestHost.Settle(window.Dispatcher);
+
+                // Line by line, as a workflow logs: far more than the list shows.
+                for (var line = 1; line <= 60; line++)
+                {
+                    plc.WorkflowLog.Add($"21:10:{line:00}.000  Info     Part {line}: PASS.");
+                    WpfTestHost.Settle(window.Dispatcher, passes: 2);
+                }
+
+                var list = (System.Windows.Controls.ListBox)window.FindName("WorkflowLogList");
+                Assert.Equal(60, list.Items.Count);
+
+                // The newest line is the one on view.
+                var last = (System.Windows.Controls.ListBoxItem?)list.ItemContainerGenerator.ContainerFromIndex(59);
+                Assert.NotNull(last);
+                Assert.True(last!.IsVisible);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
     [Fact]
     public void The_plc_window_tests_the_connection_reads_and_writes_and_sets_the_simulator()
     {

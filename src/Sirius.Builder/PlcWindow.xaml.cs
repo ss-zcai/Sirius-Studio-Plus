@@ -17,11 +17,24 @@ public partial class PlcWindow : Window
         Model = model;
         DataContext = model;
 
-        // The workflow's log follows its newest line.
+        // The workflow's log follows its newest line - once the list has
+        // taken the line in. This handler was added before the list's own,
+        // so scrolling from inside it made the list build its rows a line
+        // short of what it held: "An ItemsControl is inconsistent with its
+        // items source", which closed Builder on the second part of a Test
+        // Run, as soon as the log was long enough to scroll.
         model.WorkflowLog.CollectionChanged += (_, e) =>
         {
-            if (e.Action == NotifyCollectionChangedAction.Add && WorkflowLogList.Items.Count > 0)
-                WorkflowLogList.ScrollIntoView(WorkflowLogList.Items[^1]);
+            if (e.Action != NotifyCollectionChangedAction.Add)
+                return;
+
+            Dispatcher.BeginInvoke(
+                () =>
+                {
+                    if (IsLoaded && WorkflowLogList.Items.Count > 0)
+                        WorkflowLogList.ScrollIntoView(WorkflowLogList.Items[^1]);
+                },
+                System.Windows.Threading.DispatcherPriority.Background);
         };
     }
 

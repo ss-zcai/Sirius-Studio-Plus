@@ -12,6 +12,7 @@ public partial class App : Application
         // A node that misbehaves should surface as a message, not take the
         // application down mid-inspection.
         DispatcherUnhandledException += OnUnhandledException;
+        Diagnostics.CrashLog.Watch("Sirius Studio");
 
         DropMenusFromTheLeft();
         SystemParameters.StaticPropertyChanged += OnSystemParameterChanged;
@@ -95,6 +96,9 @@ public partial class App : Application
     private void OnUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         e.Handled = true;
+
+        // Before the guard: a fault met again while its dialog is up is counted too.
+        Diagnostics.CrashLog.Write("Sirius Studio", e.Exception);
 
         if (_reportingError)
             return;

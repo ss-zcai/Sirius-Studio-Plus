@@ -31,6 +31,9 @@ public static class SiriusHost
         App.DropMenusFromTheLeft();
 
         app.DispatcherUnhandledException += (_, e) => Report(e, title);
+
+        // A file to read afterwards, whatever ends it.
+        Diagnostics.CrashLog.Watch(title);
         return app;
     }
 
@@ -95,6 +98,9 @@ public static class SiriusHost
     private static void Report(DispatcherUnhandledExceptionEventArgs e, string title)
     {
         e.Handled = true;
+
+        // Before the guard: a fault met again while its dialog is up is counted too.
+        Diagnostics.CrashLog.Write(title, e.Exception);
 
         if (_reporting)
             return;
