@@ -135,16 +135,17 @@ PHOSPHOR = {
     # along a straight edge.
     "crosshair": "ph_calibrate",
 
-    # Sirius Builder's widgets: a picture for an image viewer, sliders for
+    # Sirius Builder's widgets - and Studio's Image Viewer node, the same
+    # thing - a picture for an image viewer, sliders for
     # a setting the operator moves, and a trademark for a logo. PASS / FAIL
     # shares the limit check's tick in a ring.
     "image": "ph_image",
     "sliders": "ph_sliders",
     "trademark": "ph_trademark",
 
-    # A project's screens: a monitor for a page, which fills the display,
-    # and a window for a popup, which opens over it.
-    "monitor": "ph_screen_page",
+    # A project's screens: a browser window for a page, which fills the
+    # display, and an app window for a popup, which opens over it.
+    "browser": "ph_screen_page",
     "app-window": "ph_screen_popup",
 
     # Lens Calibration is calibrated on a chessboard, so Phosphor's

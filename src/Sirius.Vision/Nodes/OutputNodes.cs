@@ -132,7 +132,7 @@ public sealed class LineChartNode : VisionNode, IGrowingPorts
     "Image Viewer",
     TypeKey = "output.viewer",
     Category = NodeCategory.Output,
-    Icon = "ph_image_viewer",
+    Icon = "ph_image",
     Description = "Terminal node; its input is shown in its own image panel.")]
 public sealed class ViewerNode : VisionNode, IGrowingPorts
 {
