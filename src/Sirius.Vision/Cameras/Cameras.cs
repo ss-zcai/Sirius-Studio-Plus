@@ -160,6 +160,9 @@ public static class CameraDrivers
     private static volatile bool _searching;
     private static Task _loading = Task.CompletedTask;
 
+    /// <summary>Searches for drivers under way, each with when it stops being waited for.</summary>
+    private static readonly List<(Task Search, DateTime GiveUpAt)> Searches = [];
+
     /// <summary>
     /// Whether the drivers beside the application are still being looked
     /// for - the first search, which waits for GigE cameras to answer.
@@ -229,7 +232,7 @@ public static class CameraDrivers
             _loaded = true;
             _searching = true;
 
-            _loading = Task.Run(() =>
+            var loading = Task.Run(() =>
             {
                 try
                 {
@@ -241,7 +244,9 @@ public static class CameraDrivers
                 }
             });
 
-            return _loading;
+            _loading = loading;
+            Searches.Add((loading, DateTime.UtcNow + SearchPatience));
+            return loading;
         }
     }
 
@@ -251,11 +256,15 @@ public static class CameraDrivers
         lock (Gate)
         {
             _searching = true;
-            _loading = search.ContinueWith(_ => _searching = false, TaskScheduler.Default);
+            Searches.Add((search.ContinueWith(_ => _searching = false, TaskScheduler.Default), DateTime.UtcNow + SearchPatience));
         }
     }
 
-    /// <summary>The longest a camera asked for waits for the first search for drivers.</summary>
+    /// <summary>
+    /// How long a search for drivers is waited for, from when it began - not
+    /// by each camera asked for, so one that never ends holds nothing up for
+    /// longer than this, once.
+    /// </summary>
     internal static TimeSpan SearchPatience { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
@@ -264,23 +273,43 @@ public static class CameraDrivers
     /// ran its Camera node before the Basler driver had joined: the camera
     /// was "not found", and found when run again a moment later.
     /// </summary>
+    /// <summary>
+    /// For a test: told, on the asking thread, as a camera asked for starts
+    /// waiting for the searches in hand.
+    /// </summary>
+    internal static event Action? WaitingForSearch;
+
     private static void WaitForSearch()
     {
-        Task loading;
+        var pending = PendingSearches();
 
-        lock (Gate)
-            loading = _loading;
+        WaitingForSearch?.Invoke();
 
-        if (loading.IsCompleted)
-            return;
-
-        try
+        foreach (var (search, giveUpAt) in pending)
         {
-            loading.Wait(SearchPatience);
+            var left = giveUpAt - DateTime.UtcNow;
+
+            if (left <= TimeSpan.Zero)
+                continue;
+
+            try
+            {
+                search.Wait(left);
+            }
+            catch (AggregateException)
+            {
+                // A driver that failed to load is kept in LoadProblems; the rest are there.
+            }
         }
-        catch (AggregateException)
+    }
+
+    /// <summary>The searches still running and not yet given up on; the rest are forgotten.</summary>
+    private static (Task Search, DateTime GiveUpAt)[] PendingSearches()
+    {
+        lock (Gate)
         {
-            // A driver that failed to load is kept in LoadProblems; the rest are there.
+            Searches.RemoveAll(entry => entry.Search.IsCompleted || DateTime.UtcNow >= entry.GiveUpAt);
+            return Searches.ToArray();
         }
     }
 
@@ -391,7 +420,31 @@ public static class CameraDrivers
                 return open;
         }
 
-        WaitForSearch();
+        // Among the drivers there already; only when it is not found there,
+        // and drivers are still being looked for, wait for them and look
+        // again - so a camera whose driver has joined is never held up by
+        // the search for the others.
+        if (OpenFound(serial, out var opened))
+            return opened;
+
+        if (IsSearchPending())
+        {
+            WaitForSearch();
+
+            if (OpenFound(serial, out opened))
+                return opened;
+        }
+
+        return null;
+    }
+
+    /// <summary>Whether drivers are still being looked for in the background.</summary>
+    private static bool IsSearchPending() => PendingSearches().Length > 0;
+
+    /// <summary>The camera with <paramref name="serial"/>, opened from the drivers there now; false when none lists it.</summary>
+    private static bool OpenFound(string serial, out ICamera? result)
+    {
+        result = null;
 
         foreach (var driver in All)
         {
@@ -428,16 +481,18 @@ public static class CameraDrivers
                 if (!_closed && !Open.TryGetValue(serial, out kept))
                 {
                     Open[serial] = camera;
-                    return camera;
+                    result = camera;
+                    return true;
                 }
             }
 
             Close(camera);
 
-            return kept ?? throw Closed();
+            result = kept ?? throw Closed();
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     /// <summary>How long a camera found but not opened is tried again for.</summary>
@@ -510,14 +565,22 @@ public static class CameraDrivers
     }
 
     /// <summary>Closes every open camera. The next grab opens its camera again.</summary>
-    public static void CloseAll()
+    public static void CloseAll() => CloseWhere(_ => true);
+
+    /// <summary>
+    /// Closes the open cameras <paramref name="which"/> picks - for a test,
+    /// which closes its own and not those another is grabbing from.
+    /// </summary>
+    internal static void CloseWhere(Func<CameraInfo, bool> which)
     {
         ICamera[] cameras;
 
         lock (Gate)
         {
-            cameras = Open.Values.ToArray();
-            Open.Clear();
+            cameras = Open.Values.Where(camera => which(camera.Info)).ToArray();
+
+            foreach (var camera in cameras)
+                Open.Remove(camera.Info.Serial);
         }
 
         foreach (var camera in cameras)

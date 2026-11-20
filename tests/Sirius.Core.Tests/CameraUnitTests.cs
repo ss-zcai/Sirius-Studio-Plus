@@ -33,7 +33,9 @@ public sealed class CameraUnitTests : IDisposable
 
     public void Dispose()
     {
-        CameraDrivers.CloseAll();
+        // Its own cameras only: closing every one closed the cameras other
+        // test classes were grabbing from at the same moment.
+        CameraDrivers.CloseWhere(camera => camera.Driver is "Simulated" or "Lossy" or "Busy");
 
         try
         {
@@ -257,13 +259,30 @@ public sealed class CameraUnitTests : IDisposable
     {
         var driver = new LossyCameraDriver("LOSSY-SEARCH");
         var search = new TaskCompletionSource();
-        CameraDrivers.SearchUnderWay(search.Task);
+        var waiting = new ManualResetEventSlim();
+        var asker = 0;
 
-        var asked = Task.Run(() => CameraDrivers.Acquire(driver.Device));
+        // This test's own request, not another test's waiting on a search too.
+        void OnWaiting()
+        {
+            if (Environment.CurrentManagedThreadId == Volatile.Read(ref asker))
+                waiting.Set();
+        }
+
+        CameraDrivers.SearchUnderWay(search.Task);
+        CameraDrivers.WaitingForSearch += OnWaiting;
+
+        var asked = Task.Run(() =>
+        {
+            Volatile.Write(ref asker, Environment.CurrentManagedThreadId);
+            return CameraDrivers.Acquire(driver.Device);
+        });
 
         try
         {
-            Assert.False(asked.Wait(TimeSpan.FromMilliseconds(300)));
+            // Not found among the drivers there: waiting for the search.
+            Assert.True(waiting.Wait(TimeSpan.FromSeconds(20)), "never waited for the search");
+            Assert.False(asked.IsCompleted);
             Assert.True(CameraDrivers.IsSearching);
 
             // The driver joins as the search ends.
@@ -276,6 +295,7 @@ public sealed class CameraUnitTests : IDisposable
         }
         finally
         {
+            CameraDrivers.WaitingForSearch -= OnWaiting;
             search.TrySetResult();
 
             if (asked.Wait(TimeSpan.FromSeconds(10)) && asked.Result is { } camera)

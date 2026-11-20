@@ -32,8 +32,13 @@ public sealed class SimulatedCameraDriver : ICameraDriver
         private const int Width = 640;
         private const int Height = 480;
 
-        private readonly object _gate = new();
-        private int _frame;
+        /// <summary>
+        /// The frame count, for every opening of the camera: closed and opened
+        /// again - Builder's camera window, or every camera closed while a
+        /// recipe still used it - it carries on, as a real camera's picture
+        /// does, rather than showing its first frame again.
+        /// </summary>
+        private static int _frame;
 
         public CameraInfo Info { get; } = info;
 
@@ -47,9 +52,7 @@ public sealed class SimulatedCameraDriver : ICameraDriver
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            int frame;
-            lock (_gate)
-                frame = _frame++;
+            var frame = Interlocked.Increment(ref _frame) - 1;
 
             // Brighter with longer exposure and more gain, as a real one is:
             // 10 ms at 0 dB is the picture as drawn.
