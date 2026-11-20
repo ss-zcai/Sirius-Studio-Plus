@@ -30,6 +30,10 @@ public static class Program
 
         var model = new BuilderViewModel();
         var window = new BuilderWindow(model);
+
+        // Where it was, maximised or not, as Studio does.
+        Sirius.Studio.App.Layout.WindowPlacement.Remember(window, Path.Combine(SiriusHost.SettingsFolder, "builder-window.json"));
+
         window.Closed += (_, _) => app.Shutdown();
 
         window.Loaded += (_, _) =>

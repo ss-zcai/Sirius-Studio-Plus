@@ -158,4 +158,78 @@ public class WindowPlacementTests
             Assert.Equal(900, window.Height);
             Assert.Equal(WindowState.Normal, window.WindowState);
         });
+
+    // ---- remembered by Builder and Sirius IV, as by Studio -----------------------
+
+    /// <summary>
+    /// Builder and Sirius IV did not keep where their window was - maximised
+    /// or not - and opened at the markup's size every time.
+    /// </summary>
+    [Fact]
+    public void A_window_remembered_opens_as_it_was_closed_unless_the_close_is_called_off()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "sirius-placement-" + Guid.NewGuid().ToString("N") + ".json");
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            try
+            {
+                // Kept maximised: opened maximised, before it is shown.
+                new WindowPlacement(100, 100, 1280, 800, Maximised: true).Write(path);
+                var maximised = new Window();
+                WindowPlacement.Remember(maximised, path);
+                Assert.Equal(WindowState.Maximized, maximised.WindowState);
+                Assert.Equal(1280, maximised.Width);
+
+                // Closed windowed: kept so, with its size.
+                File.Delete(path);
+                var window = new Window
+                {
+                    Width = 640,
+                    Height = 420,
+                    Left = -20000,
+                    Top = -20000,
+                    ShowInTaskbar = false,
+                    ShowActivated = false,
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                };
+
+                WindowPlacement.Remember(window, path);
+                window.Show();
+                window.Close();
+
+                var kept = WindowPlacement.Read(path)!;
+                Assert.False(kept.Maximised);
+                Assert.Equal((640.0, 420.0), (kept.Width, kept.Height));
+
+                // A close called off - "save changes?" answered Cancel - keeps nothing.
+                File.Delete(path);
+                var staying = new Window
+                {
+                    Width = 500,
+                    Height = 300,
+                    Left = -20000,
+                    Top = -20000,
+                    ShowInTaskbar = false,
+                    ShowActivated = false,
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                };
+
+                var refuse = true;
+                staying.Closing += (_, e) => e.Cancel = refuse;
+                WindowPlacement.Remember(staying, path);
+                staying.Show();
+                staying.Close();
+                Assert.False(File.Exists(path));
+
+                refuse = false;
+                staying.Close();
+                Assert.True(File.Exists(path));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        });
+    }
 }

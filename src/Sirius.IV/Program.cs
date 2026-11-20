@@ -34,6 +34,9 @@ public static class Program
             StartWith = args.FirstOrDefault(arg => !arg.StartsWith("--", StringComparison.Ordinal)),
         };
 
+        // Where it was, maximised or not, as Studio does.
+        Sirius.Studio.App.Layout.WindowPlacement.Remember(window, Path.Combine(SiriusHost.SettingsFolder, "iv-window.json"));
+
         window.Closed += (_, _) => app.Shutdown();
         app.Run(window);
         return 0;

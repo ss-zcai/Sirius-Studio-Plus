@@ -113,6 +113,27 @@ public sealed record WindowPlacement(
             window.WindowState = WindowState.Maximized;
     }
 
+    /// <summary>
+    /// Opens <paramref name="window"/> where it was last closed - maximised
+    /// or not - and keeps where it is when it closes, in
+    /// <paramref name="path"/>. Call before it is shown.
+    /// </summary>
+    /// <remarks>
+    /// Kept as it starts to close, and only if it does close: a close called
+    /// off - "save changes?" answered Cancel - leaves the file as it was.
+    /// </remarks>
+    public static void Remember(Window window, string path)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        Read(path)?.ApplyTo(window, Desktop);
+
+        WindowPlacement? closing = null;
+        window.Closing += (_, _) => closing = Of(window);
+        window.Closed += (_, _) => closing?.Write(path);
+    }
+
     public static WindowPlacement? Read(string path)
     {
         try
