@@ -34,8 +34,9 @@ solid on a real machine, before several pictures or speed:
    Then ~~**F30**, Find Rectangle~~ - done 19 November (decision 82).
 4. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
    the HslCommunication download and a bench PLC from you.
-5. **F25** - the part record and part counts, deadlines, the handshake;
-   with **F4**, counts that survive a restart.
+5. ~~**F25**~~ - done 20 November (decision 83): the part record and
+   part counts, deadlines, the handshake; with ~~**F4**~~, counts that
+   survive a restart.
 6. **User levels** (F2) - the login popup that F24 made room for, and
    the PLC and camera windows in Edge behind them (F23c, F29).
 7. **F26**, then **F27** and **F28**, when a line asks for them - sized
@@ -203,8 +204,9 @@ from you before they start.
   - a **tab bar** of pages along the top of the running window, if
     buttons are not enough (S).
 - ~~**F3. Signal out**~~ - done as F23: a verdict reaches the PLC.
-- **F4. Counts that survive a restart** (S-M). Counts start from zero
-  each session. Wanted by the runtime anyway.
+- ~~**F4. Counts that survive a restart**~~ - done 20 November with F25
+  (decision 83): a station's counts and timing beside its recipe, a
+  controller's part counts beside its workflow.
 - **F20. Saved images and their annotations** - the runtime's half done
   (decision 73, `annotation-format.md`): a station keeps none, failed or
   all of its pictures, with a `.sann` beside each; **Sirius IV**
@@ -237,8 +239,9 @@ first**, then several pictures per part, then speed; the hardware trigger
 at a later stage. Its questions (section 14.6) - line speeds, shots per
 part, how the PLC tracks parts - size F26-F28.
 
-- **F25. The part, with the single picture** (M) - **next, with the
-  single-picture work**. A part record - part ID, its shots, the
+- ~~**F25. The part, with the single picture**~~ - done 20 November
+  (decision 83), but for which version of the line settings judged a
+  part, which comes with F27's settings versioned. As designed: a part record - part ID, its shots, the
   combined verdict, timing, the settings that judged it - and part counts
   from the controller (total, passed, failed, late, not inspected), on
   the screen and kept with F4. A frame and part ID on every result,

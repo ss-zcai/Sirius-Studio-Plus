@@ -83,8 +83,26 @@ inspect one after the other, not at once.
 ### 2.3 Time limits
 
 Every step has one: 5 s unless the node says otherwise - Inspect has its
-own **Timeout** (10 s), Wait For its own, Pulse its width plus 5 s. Past
+own **Deadline** (10 s), Wait For its own, Pulse its width plus 5 s. Past
 it the step fails, and **Failed** fires.
+
+Inspect's deadline is the station's: past it the PLC is answered at once,
+the part is **LATE** - a reject - and the inspection is cancelled, the
+station stopping at its next node.
+
+### 2.5 Parts
+
+A pass that inspects is a **part** (F25). The controller numbers parts
+from 1, carrying on over a restart; a part's **ID** is a value Gather read
+called **Part ID** (PartId, part_id), or else its number. Its verdict is
+**PASS** when every inspection of it passed, **FAIL** when one failed or
+could not judge, **LATE** past a deadline, and **NOT INSPECTED** when a
+station was busy or faulted.
+
+The controller counts them - total, passed, failed, late, not inspected -
+and keeps the counts beside the workflow (`Line 1 PLC.counts.json`), so a
+restart carries on. A Counter on a screen shows them: choose the
+controller's **parts** as its station in Builder's designer.
 
 ### 2.4 Edges, and what a Monitor does not see
 
@@ -170,12 +188,14 @@ Without a trigger it runs once every value wired in has been read.
 | | |
 |---|---|
 | In | ● **Trigger** · ○ **Part** (from Gather) |
-| Settings | **Station** (one of the project's), **Timeout** (ms, 10000) |
-| Out | ● **Done** (whatever the verdict) · ● **Pass** · ● **Fail** · ● **Failed** (could not inspect: busy, faulted, too slow) · ○ **Verdict** (PASS, FAIL, ERROR, NONE) · ○ **Passed** · ○ **Result** |
+| Settings | **Station** (one of the project's), **Deadline** (ms, 10000) |
+| Out | ● **Done** (whatever the verdict) · ● **Pass** · ● **Fail** · ● **Failed** (could not inspect: busy, faulted, past its deadline) · ○ **Verdict** (PASS, FAIL, ERROR, NONE) · ○ **Passed** · ○ **Result** |
 
 The part's values go with the inspection: into its picture's `.sann` as
-`"part": { "PalletId": 12, ... }` - the part ID pictures from two
-stations are matched on - and the station's snapshot.
+`"part": { "PalletId": 12, ..., "Part ID": "1043", "Shot": 1 }` - the
+part ID pictures from two stations are matched on - and the station's
+snapshot. Part ID is added when Gather has none; Shot is which
+inspection of the part this is.
 
 **Station Result** - *starts a pass* whenever a station has inspected,
 however it was started: a PLC, a button, running.
@@ -194,8 +214,25 @@ Result is for a station running by itself, or triggered by hardware.
 | | |
 |---|---|
 | In | ○ **Result** |
-| Settings | **Name** - a published result (Diameter, Count, Code) or a part value (PalletId) |
+| Settings | **Name** - a published result (Diameter, Count, Code), a part value (PalletId), **Part ID**, or **Frame** (the picture's number at its station) |
 | Out | ○ **Value** |
+
+**Handshake** - keeps the PLC told how the vision system is, with nothing
+to wire. It watches rather than starts passes.
+
+| | |
+|---|---|
+| Settings | **Ready**, **Busy** (bits), **Error Code** (a word); blank: not written · **Poll Interval** (ms, 20) |
+
+- **Ready** is on while the PLC is connected, every station the workflow
+  inspects with is ready, and no part is in hand.
+- **Busy** is on from a part's trigger - the start of a pass that can
+  inspect - to its answer written.
+- **Error Code**: **0** OK (pass or fail), **1** a station faulted or not
+  inspecting, **2** late, **3** the camera, **4** the recipe (a node failed,
+  or no verdict). The last part's - or 1 while a station is faulted.
+
+Each is written when it changes, and all again after a lost connection.
 
 ---
 

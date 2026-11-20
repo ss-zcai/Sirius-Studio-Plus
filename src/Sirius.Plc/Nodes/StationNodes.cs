@@ -37,8 +37,14 @@ public sealed record InspectionResult(
             snapshot.Verdict.Passed,
             snapshot.NodeErrors,
             new PartValues(results),
-            snapshot.Part);
+            snapshot.Part)
+        {
+            SourceFailed = snapshot.SourceFailed,
+        };
     }
+
+    /// <summary>Whether the node taking the picture failed - the camera's fault, not the recipe's.</summary>
+    public bool SourceFailed { get; init; }
 
     /// <summary>
     /// A published result by name, or else a value of the part's - its Part
@@ -236,6 +242,8 @@ public sealed class StationResultNode : WorkflowEventNode
         else if (!check.HasStation(Station))
             yield return $"There is no station called '{Station}'.";
     }
+
+    public override bool StartsPart => true;
 
     protected internal override async Task WatchAsync(WorkflowWatch watch, CancellationToken cancellationToken)
     {

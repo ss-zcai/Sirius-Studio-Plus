@@ -91,6 +91,12 @@ public sealed record InspectionSnapshot(
     /// pallet ID and position - or null when nothing said.
     /// </summary>
     public PartValues? Part { get; init; }
+
+    /// <summary>
+    /// Whether a node taking the picture - a Camera, an Image Sequence -
+    /// failed: a camera's fault rather than the recipe's.
+    /// </summary>
+    public bool SourceFailed { get; init; }
 }
 
 /// <summary>
@@ -674,6 +680,8 @@ public sealed class StationRunner : ObservableObject, IDisposable
             ReadPublished(scheduler))
         {
             Part = part is { Count: > 0 } ? part : null,
+            SourceFailed = result.Failed > 0 && GraphTree.AllNodes(Recipe, enabledOnly: true)
+                .Any(node => node.Status == NodeStatus.Error && node.Descriptor.Category == NodeCategory.Source),
         };
 
         Counts = Counts.Add(verdict, result.Failed > 0);

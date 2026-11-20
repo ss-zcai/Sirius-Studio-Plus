@@ -96,6 +96,8 @@ public sealed class WorkflowRunner : IAsyncDisposable
     private string? _lastEvent;
     private string? _lastError;
 
+    private int _busy;
+
     private readonly object _partGate = new();
     private PartCounts _partCounts = PartCounts.Zero;
     private long _nextPart = 1;
@@ -187,6 +189,20 @@ public sealed class WorkflowRunner : IAsyncDisposable
         SaveCounts();
         StatusChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Whether a part is in hand: from the start of a pass that can inspect
+    /// to its end, its answer written.
+    /// </summary>
+    public bool IsBusy => Volatile.Read(ref _busy) > 0;
+
+    /// <summary>The stations its workflow has inspect, by name.</summary>
+    public IReadOnlyList<string> StationsInspected =>
+        Workflow.Nodes.OfType<Nodes.InspectNode>()
+            .Where(node => node.Enabled && node.Station.Length > 0)
+            .Select(node => node.Station)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     /// <summary>A part has been judged: after its pass, and before <see cref="PassFinished"/>.</summary>
     public event EventHandler<PartRecord>? PartFinished;
@@ -374,6 +390,26 @@ public sealed class WorkflowRunner : IAsyncDisposable
         var pass = new WorkflowPass(number, request.Start, Workflow.GetSelfAndDownstream(request.Start));
         var ran = new List<string>();
 
+        // A pass that can inspect holds a part from its start: Busy to the PLC.
+        var holdsPart = pass.Reached.OfType<WorkflowNode>().Any(node => node.Inspects && node.Enabled) ||
+                        request.Start.StartsPart;
+
+        if (holdsPart)
+            Interlocked.Increment(ref _busy);
+
+        try
+        {
+            await RunReachedAsync(request, pass, ran, clock, number, stop).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (holdsPart)
+                Interlocked.Decrement(ref _busy);
+        }
+    }
+
+    private async Task RunReachedAsync(PassRequest request, WorkflowPass pass, List<string> ran, Stopwatch clock, int number, CancellationToken stop)
+    {
         Volatile.Write(ref _lastEvent, $"{request.Start.Name}: {request.What}");
         Write(WorkflowLogLevel.Info, request.Start, $"{request.What} (pass {number})");
 

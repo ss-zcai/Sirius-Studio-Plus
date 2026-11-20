@@ -22,6 +22,9 @@ public interface IStationBus
     /// <exception cref="ArgumentException">There is no station of that name.</exception>
     Task<InspectionSnapshot?> InspectAsync(string station, PartValues? part, CancellationToken cancellationToken);
 
+    /// <summary>How <paramref name="station"/> is - ready, inspecting, faulted - or null when not known.</summary>
+    StationState? StateOf(string station) => null;
+
     /// <summary>
     /// Raised after every inspection of every station, however it was
     /// started - on the stations' thread, so a handler copies what it needs
@@ -55,6 +58,9 @@ public sealed class ProjectStationBus : IStationBus, IDisposable
     }
 
     public IReadOnlyList<string> Stations => _runtime.Stations.Select(station => station.Name).ToArray();
+
+    /// <remarks>Read as it is, from whichever thread asks: a state is one value, and a moment old is fine.</remarks>
+    public StationState? StateOf(string station) => _runtime.Find(station)?.State;
 
     public event EventHandler<InspectionSnapshot>? Inspected;
 

@@ -3418,6 +3418,22 @@ station can serve two controllers.
   screens open in a tab and in screen files, as a renamed station does.
   Its counts are named after its workflow file, which a rename keeps.
 
+**Built (20 November), the handshake:**
+
+- **A Handshake node** for a workflow, with Ready, Busy and Error Code
+  addresses - each optional - written whenever they change, and all again
+  after a lost connection, with nothing to wire. It watches; it does not
+  start passes.
+- **Ready**: connected, every station the workflow inspects with ready
+  (from the station bus, which now says a station's state), no part in
+  hand. **Busy**: from the start of a pass that can inspect - or one a
+  Station Result started - to its end, the answer written.
+- **Error Code**: 0 OK, pass or fail; 1 a station faulted or not
+  inspecting; 2 late; 3 the camera - an inspection now says whether a
+  Source node failed; 4 the recipe, a node failed or no verdict. The last
+  part's, or 1 while a station is faulted. The codes are ours until the
+  PLC team's signal list says otherwise.
+
 **Cameras, met on the way.** A camera asked for while Studio is still
 looking for its drivers - a recipe opened as Studio starts - waits for
 them rather than being "not found" (a027e12). Each search is waited for

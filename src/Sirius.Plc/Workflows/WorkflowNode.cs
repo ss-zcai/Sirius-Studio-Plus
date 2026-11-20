@@ -108,6 +108,9 @@ public abstract class WorkflowEventNode : WorkflowNode
     /// </summary>
     protected internal abstract Task WatchAsync(WorkflowWatch watch, CancellationToken cancellationToken);
 
+    /// <summary>Whether a pass it starts is a part already - a station's result heard of.</summary>
+    public virtual bool StartsPart => false;
+
     /// <summary>Its outputs are set when it raises a pass; it has nothing else to do in one.</summary>
     protected internal sealed override Task RunAsync(WorkflowStep step) => Task.CompletedTask;
 }

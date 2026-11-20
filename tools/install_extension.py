@@ -166,6 +166,10 @@ PHOSPHOR = {
     # Find Rectangle (F30): the corners of a frame, found - beside Find
     # Circle and Find Line in the toolbox.
     "frame-corners": "ph_find_rectangle",
+
+    # A controller's Handshake (F25): the PLC and the vision system
+    # keeping each other told - Ready, Busy, an error code.
+    "handshake": "ph_handshake",
 }
 
 # source file -> the resource key it supplies

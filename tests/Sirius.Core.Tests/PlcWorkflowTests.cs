@@ -178,6 +178,17 @@ public sealed class PlcWorkflowTests : IDisposable
         /// <summary>Busy or faulted: inspects nothing.</summary>
         public bool Busy { get; set; }
 
+        /// <summary>How each station says it is.</summary>
+        public StationState State { get; set; } = StationState.Ready;
+
+        /// <summary>The source - the camera - fails, with a node error.</summary>
+        public bool CameraFails { get; set; }
+
+        /// <summary>A node of the recipe fails.</summary>
+        public bool RecipeFails { get; set; }
+
+        public StationState? StateOf(string station) => State;
+
         /// <summary>Whether the last inspection asked for was cancelled while it ran.</summary>
         public bool WasCancelled { get; private set; }
 
@@ -206,7 +217,12 @@ public sealed class PlcWorkflowTests : IDisposable
                 }
             }
 
-            var snapshot = Snapshot(station, Passes, Interlocked.Increment(ref _serial)) with { Part = part };
+            var snapshot = Snapshot(station, Passes, Interlocked.Increment(ref _serial)) with
+            {
+                Part = part,
+                NodeErrors = CameraFails || RecipeFails ? 1 : 0,
+                SourceFailed = CameraFails,
+            };
             Inspected?.Invoke(this, snapshot);
             return snapshot;
         }
@@ -837,6 +853,129 @@ public sealed class PlcWorkflowTests : IDisposable
         Assert.Empty(pass.Failed);
         Assert.Contains(plc.Writes, written => written.Address == "DB34.40" && Equals(written.Value, (short)1));
         Assert.Contains(plc.Writes, written => written.Address == "DB34.42" && Equals(written.Value, 1));
+    }
+
+    // ---- the handshake (F25) -------------------------------------------------------------
+
+    private static LineWorkflow WithHandshake(out HandshakeNode handshake)
+    {
+        var line = new LineWorkflow();
+        handshake = new HandshakeNode { ReadyAddress = "DB34.20.3", BusyAddress = "DB34.20.4", ErrorAddress = "DB34.32", PollInterval = 5 };
+        line.Graph.Add(handshake);
+        return line;
+    }
+
+    /// <summary>
+    /// Ready while the stations are ready and no part is in hand; Busy from
+    /// a part's trigger to its answer; the error code the part left - each
+    /// written as it changes, with nothing wired.
+    /// </summary>
+    [Fact]
+    public async Task The_handshake_tells_the_plc_ready_busy_and_the_parts_error_code()
+    {
+        var plc = Line();
+        var stations = new FakeStations { Takes = TimeSpan.FromMilliseconds(300) };
+        var line = WithHandshake(out _);
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        Assert.Empty(runner.Check());
+        await StartAsync(runner, plc);
+
+        await Until(() => Equals(plc.Get("DB34.20.3"), true));
+        Assert.Equal(false, plc.Get("DB34.20.4"));
+        Assert.Equal((short)0, plc.Get("DB34.32", PlcType.Int16));
+
+        // A part in hand: Busy, and not Ready.
+        var pass = PassAfter(runner, () => plc.Set("DB34.20.0", true));
+        await Until(() => Equals(plc.Get("DB34.20.4"), true));
+        Assert.Equal(false, plc.Get("DB34.20.3"));
+
+        await pass;
+        await Until(() => Equals(plc.Get("DB34.20.4"), false) && Equals(plc.Get("DB34.20.3"), true));
+
+        // Busy came before the answer was written, and went after it.
+        var writes = plc.Writes.Select(written => written.Address).ToList();
+        Assert.True(
+            writes.IndexOf("DB34.20.4") < writes.IndexOf("DB34.28") && writes.LastIndexOf("DB34.20.4") > writes.LastIndexOf("DB34.28"),
+            string.Join(", ", writes));
+
+        // The next part late: error code 2.
+        line.Inspect.Timeout = 100;
+        plc.Set("DB34.20.0", false);
+        var readsSince = plc.Reads;
+        await Until(() => plc.Reads > readsSince + 1);
+        stations.Takes = TimeSpan.FromSeconds(5);
+
+        await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+        await Until(() => Equals(plc.Get("DB34.32", PlcType.Int16), HandshakeCodes.Late));
+    }
+
+    /// <summary>A station faulted: not Ready, and error code 1 until it is back.</summary>
+    [Fact]
+    public async Task A_faulted_station_takes_ready_away_and_says_so_in_the_code()
+    {
+        var plc = Line();
+        var stations = new FakeStations();
+        var line = WithHandshake(out _);
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+        await Until(() => Equals(plc.Get("DB34.20.3"), true));
+
+        stations.State = StationState.Faulted;
+        await Until(() => Equals(plc.Get("DB34.20.3"), false) && Equals(plc.Get("DB34.32", PlcType.Int16), HandshakeCodes.StationFault));
+
+        stations.State = StationState.Ready;
+        await Until(() => Equals(plc.Get("DB34.20.3"), true) && Equals(plc.Get("DB34.32", PlcType.Int16), HandshakeCodes.Ok));
+    }
+
+    /// <summary>The code a part leaves: late, not inspected, the camera, the recipe - or nothing wrong, pass or fail.</summary>
+    [Fact]
+    public async Task A_parts_error_code_says_what_went_wrong()
+    {
+        var plc = Line();
+        var stations = new FakeStations();
+        var line = WithHandshake(out _);
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+
+        async Task<short> CodeAfterAPart()
+        {
+            plc.Set("DB34.20.0", false);
+            var readsSince = plc.Reads;
+            await Until(() => plc.Reads > readsSince + 1);
+
+            var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+            return HandshakeCodes.For(pass.Part!);
+        }
+
+        stations.Passes = false;
+        Assert.Equal(HandshakeCodes.Ok, await CodeAfterAPart());
+
+        stations.CameraFails = true;
+        Assert.Equal(HandshakeCodes.Camera, await CodeAfterAPart());
+        await Until(() => Equals(plc.Get("DB34.32", PlcType.Int16), HandshakeCodes.Camera));
+
+        stations.CameraFails = false;
+        stations.RecipeFails = true;
+        Assert.Equal(HandshakeCodes.Recipe, await CodeAfterAPart());
+
+        stations.RecipeFails = false;
+        stations.Busy = true;
+        Assert.Equal(HandshakeCodes.StationFault, await CodeAfterAPart());
+    }
+
+    [Fact]
+    public void A_handshake_with_no_address_says_so()
+    {
+        var graph = new VisionGraph();
+        graph.Add(new PlcMonitorNode { Name = "Ready", Address = "M0.0" });
+        graph.Add(new HandshakeNode { Name = "Handshake" });
+
+        var runner = new WorkflowRunner(graph, new SimulatedPlc(), new FakeStations());
+
+        Assert.Contains("Handshake: No address is given: Ready, Busy or Error Code.", runner.Check());
     }
 
     [Fact]

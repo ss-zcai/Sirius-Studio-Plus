@@ -55,6 +55,13 @@ same time: backlog items L1-L6, all set out in `licences.md`.
 - **Line profiles in Sirius IV**: a profile line drawn on a picture
   opens its chart, floated as in Studio, in the picture's own bits; IV
   drew the line and charted nothing.
+- **The part** (F25, F4, decision 83): a controller's pass that inspects
+  is a part - numbered, its ID from the PLC's Part ID, PASS, FAIL, LATE or
+  NOT INSPECTED - and counted, the counts kept over a restart, on a
+  Counter chosen as the controller's parts. A station's deadline answers
+  the PLC on time and cancels the inspection. Each station's processing
+  time, average and worst, under its counts, which are kept too. A
+  **Handshake** node writes Ready, Busy and an error code.
 - **A camera on a busy network**: a frame that comes incomplete is asked
   for again, up to three times (not on a hardware trigger, whose next
   frame is the next part's), and the camera is kept rather than let go;

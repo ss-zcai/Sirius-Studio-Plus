@@ -221,6 +221,15 @@ public sealed class WorkflowWatch
     /// <returns>Finished when the pass has - or at once, when the controller is stopping.</returns>
     public Task RaiseAsync(Action<WorkflowStep> outputs, string what) => _runner.Enqueue(Node, outputs, what);
 
+    /// <summary>Whether a part is in hand.</summary>
+    public bool IsBusy => _runner.IsBusy;
+
+    /// <summary>The last part judged, or null.</summary>
+    public PartRecord? LastPart => _runner.LastPart;
+
+    /// <summary>The stations the workflow has inspect.</summary>
+    public IReadOnlyList<string> StationsInspected => _runner.StationsInspected;
+
     public void Log(string message) => _runner.Write(WorkflowLogLevel.Info, Node, message);
 
     public void Warn(string message) => _runner.Write(WorkflowLogLevel.Warning, Node, message);
