@@ -498,6 +498,9 @@ public static class CameraDrivers
     /// <summary>How long a camera found but not opened is tried again for.</summary>
     internal static TimeSpan InUseGrace { get; set; } = TimeSpan.FromSeconds(3);
 
+    /// <summary>The fewest tries at opening a camera found, before it is said to be in use.</summary>
+    private const int InUseTries = 3;
+
     /// <summary>
     /// Opens a camera found, trying again for a moment when it will not open.
     /// Called holding <see cref="SdkGate"/>, which it lets go of while it waits.
@@ -513,7 +516,7 @@ public static class CameraDrivers
     {
         var waited = System.Diagnostics.Stopwatch.StartNew();
 
-        while (true)
+        for (var attempt = 1; ; attempt++)
         {
             try
             {
@@ -523,7 +526,9 @@ public static class CameraDrivers
             {
                 // Found but not opened: a GigE camera is controlled by one
                 // program at a time, and that is nearly always why.
-                if (waited.Elapsed >= InUseGrace)
+                // Three tries at least, however long the others took to let
+                // the SDKs go between them.
+                if (waited.Elapsed >= InUseGrace && attempt >= InUseTries)
                     throw new CameraInUseException(info, ex);
             }
 

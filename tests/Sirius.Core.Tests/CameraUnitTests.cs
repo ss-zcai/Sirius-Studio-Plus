@@ -35,7 +35,9 @@ public sealed class CameraUnitTests : IDisposable
     {
         // Its own cameras only: closing every one closed the cameras other
         // test classes were grabbing from at the same moment.
-        CameraDrivers.CloseWhere(camera => camera.Driver is "Simulated" or "Lossy" or "Busy");
+        CameraDrivers.CloseWhere(camera =>
+            camera.Driver is "Simulated" or "Busy" ||
+            camera.Serial is "LOSSY-OPEN" or "LOSSY-WINDOW" or "LOSSY-SEARCH");
 
         try
         {
