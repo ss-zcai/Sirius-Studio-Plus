@@ -476,8 +476,9 @@ public sealed class StationRunner : ObservableObject, IDisposable
     /// as it is finished; and keeps it for the next start.
     /// </summary>
     /// <param name="value">A number, on or off, a choice's name, or typed text.</param>
+    /// <param name="by">Who is changing it, when someone is logged in (F2): kept with it.</param>
     /// <returns>Why it was not changed, or not kept; null when all is well.</returns>
-    public string? ChangeSetting(string name, object? value)
+    public string? ChangeSetting(string name, object? value, string? by = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -512,7 +513,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
 
         try
         {
-            _line.Set(setting.Name, Tunable.ToStored(converted));
+            _line.Set(setting.Name, Tunable.ToStored(converted), by: by);
             _line.Save();
             return null;
         }

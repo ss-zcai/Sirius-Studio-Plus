@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
 
@@ -48,6 +49,7 @@ public sealed class SettingWidgetViewModel : WidgetViewModel
 
         LowerCommand = new RelayCommand(() => StepBy(-1), () => CanStep(-1));
         RaiseCommand = new RelayCommand(() => StepBy(+1), () => CanStep(+1));
+        UnlockCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(UnlockAsync);
 
         if (_station is not null)
             _station.SettingChanged += OnSettingChanged;
@@ -67,6 +69,34 @@ public sealed class SettingWidgetViewModel : WidgetViewModel
                 ? $"{Widget.Name} – {Widget.HighName}"
                 : Widget.Name ?? string.Empty;
         }
+    }
+
+    // ---- locked (F2) --------------------------------------------------------------
+
+    /// <summary>The level needed to change it: its own, or Technician.</summary>
+    public UserLevel Needs => ScreenLayout.NeedsFor(Widget);
+
+    /// <summary>Changeable, but not by who is logged in: shown with a lock, a touch asking for a login.</summary>
+    public bool IsLocked => CanChange && Access is { } access && !access.Session.Allows(Needs);
+
+    public bool IsUnlocked => !IsLocked;
+
+    /// <summary>"Log in as a Technician to change it."</summary>
+    public string LockHint => $"Log in as {UserLevels.WithArticle(Needs)} or above to change it.";
+
+    /// <summary>Asks for a login at its level.</summary>
+    public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand UnlockCommand { get; }
+
+    private async Task UnlockAsync()
+    {
+        if (Access is not null)
+            await Access.EnsureAsync(Needs, Label).ConfigureAwait(true);
+    }
+
+    internal override void AccessChanged()
+    {
+        OnPropertyChanged(nameof(IsLocked));
+        OnPropertyChanged(nameof(IsUnlocked));
     }
 
     // ---- which control --------------------------------------------------------
@@ -348,7 +378,14 @@ public sealed class SettingWidgetViewModel : WidgetViewModel
         if (_station is null || setting is null)
             return;
 
-        Problem = _station.ChangeSetting(setting.Name, value);
+        // Locked meanwhile - logged out while the box was open: not changed.
+        if (IsLocked)
+        {
+            Refresh(force: true);
+            return;
+        }
+
+        Problem = _station.ChangeSetting(setting.Name, value, Access?.Session.User?.Name);
 
         // Refused: the box goes back to what the setting holds.
         Refresh(force: true);

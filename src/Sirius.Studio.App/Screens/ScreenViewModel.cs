@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
 using Sirius.Plc.Workflows;
@@ -18,6 +19,25 @@ public interface IScreenNavigator
 
     /// <summary>Closes the popup, or - with none open - goes back to the page shown before.</summary>
     void Close();
+}
+
+/// <summary>Who is logged in, and asking for a login: what a widget needs of the screen it is on (F2).</summary>
+public interface IScreenAccess
+{
+    UserSession Session { get; }
+
+    /// <summary>
+    /// Whether what needs <paramref name="needed"/> may be done - asking for
+    /// a login first when it may not.
+    /// </summary>
+    /// <param name="what">What asks: a button's caption, a setting's label.</param>
+    Task<bool> EnsureAsync(UserLevel needed, string? what);
+
+    /// <summary>Logs out, or - no one logged in - asks who.</summary>
+    Task LogInOutAsync();
+
+    /// <summary>The level needed to open the screen called <paramref name="name"/>, or null when there is none.</summary>
+    UserLevel? NeedsToOpen(string? name);
 }
 
 /// <summary>One of a running project's screens: its widgets, and whether it is on view.</summary>
@@ -85,8 +105,11 @@ public sealed class ScreenPageViewModel : ObservableObject
 /// One popup at a time: a popup opened from a popup takes its place.
 /// </para>
 /// </remarks>
-public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavigator
+public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavigator, IScreenAccess
 {
+    private UserSession _session = UserSession.Open;
+    private LoginViewModel? _login;
+
     private readonly ProjectRuntime _runtime;
     private readonly Dictionary<StationRunner, (LiveDisplay Pacing, bool Undrawn)> _pacing = [];
     private readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -119,6 +142,11 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
 
         foreach (var page in Screens)
             _all.AddRange(page.Widgets.Select(widget => (page, widget)));
+
+        foreach (var (_, widget) in _all)
+            widget.Access = this;
+
+        LogInOutCommand = new AsyncRelayCommand(LogInOutAsync);
 
         _page = Screens[0];
         _page.IsShown = true;
@@ -223,6 +251,10 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
     public bool Open(string? name)
     {
         if (Find(name) is not { } screen)
+            return false;
+
+        // Locked: the button asked for a login first; anything else is refused.
+        if (!_session.Allows(ScreenLayout.NeedsFor(screen.Screen)))
             return false;
 
         if (screen.IsPopup)
@@ -374,6 +406,106 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
             button.Refresh();
     }
 
+    // ---- who is logged in (F2) ----------------------------------------------
+
+    /// <summary>Who is logged in. Nothing locked until <see cref="UseSession"/> gives the project's.</summary>
+    public UserSession Session => _session;
+
+    /// <summary>The login popup on view, or null.</summary>
+    public LoginViewModel? Login
+    {
+        get => _login;
+        private set
+        {
+            if (SetProperty(ref _login, value))
+                OnPropertyChanged(nameof(HasLogin));
+        }
+    }
+
+    public bool HasLogin => _login is not null;
+
+    /// <summary>The status line's button: log in, or out.</summary>
+    public IAsyncRelayCommand LogInOutCommand { get; }
+
+    /// <summary>The project's users and their levels, in force from now.</summary>
+    public void UseSession(UserSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        _session.PropertyChanged -= OnSessionChanged;
+        _session = session;
+        _session.PropertyChanged += OnSessionChanged;
+
+        OnPropertyChanged(nameof(Session));
+        SessionChanged();
+    }
+
+    private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(UserSession.User))
+            SessionChanged();
+    }
+
+    /// <summary>
+    /// What is locked follows; and a screen the level in force may not open
+    /// - an engineer's popup, left as they logged out - is closed.
+    /// </summary>
+    private void SessionChanged()
+    {
+        foreach (var (_, widget) in _all)
+            widget.AccessChanged();
+
+        if (_popup is { } popup && !_session.Allows(ScreenLayout.NeedsFor(popup.Screen)))
+            Popup = null;
+
+        if (!_session.Allows(ScreenLayout.NeedsFor(_page.Screen)))
+        {
+            _history.Clear();
+            Page = Screens[0];
+            OnPropertyChanged(nameof(CanGoBack));
+        }
+    }
+
+    public async Task<bool> EnsureAsync(UserLevel needed, string? what)
+    {
+        if (_session.Allows(needed))
+            return true;
+
+        return await AskAsync(new LoginViewModel(_session, needed, what)).ConfigureAwait(true) && _session.Allows(needed);
+    }
+
+    public async Task LogInOutAsync()
+    {
+        if (_session.IsLoggedIn)
+        {
+            _session.LogOut();
+            return;
+        }
+
+        if (_session.IsEnforced)
+            await AskAsync(new LoginViewModel(_session)).ConfigureAwait(true);
+    }
+
+    public UserLevel? NeedsToOpen(string? name) => Find(name) is { } screen ? ScreenLayout.NeedsFor(screen.Screen) : null;
+
+    /// <summary>Shows the login popup until it is answered; one at a time.</summary>
+    private async Task<bool> AskAsync(LoginViewModel login)
+    {
+        if (_login is { } asking)
+            return await asking.Result.ConfigureAwait(true);
+
+        Login = login;
+
+        try
+        {
+            return await login.Result.ConfigureAwait(true);
+        }
+        finally
+        {
+            Login = null;
+        }
+    }
+
     // ---- controllers --------------------------------------------------------
 
     /// <summary>
@@ -428,6 +560,8 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
 
     public void Dispose()
     {
+        _session.PropertyChanged -= OnSessionChanged;
+
         foreach (var (_, widget) in _all)
             widget.Detach();
 

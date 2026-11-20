@@ -251,7 +251,8 @@
                           Grid.Column="{Binding EditorColumn}"
                           Grid.ColumnSpan="{Binding EditorColumnSpan}"
                           HorizontalAlignment="{Binding EditorAlignment}"
-                          VerticalAlignment="Center">
+                          VerticalAlignment="Center"
+                          IsEnabled="{Binding IsUnlocked}">
 
                         <!-- Only shown -->
                         <TextBlock Text="{Binding DisplayText}"
@@ -396,6 +397,32 @@
                                   SelectedItem="{Binding SelectedChoice}"
                                   Visibility="{Binding IsChoiceEditor, Converter={StaticResource BoolToVisibility}}" />
                     </Grid>
+
+                    <!--
+                        Locked (F2): over the editors, a touch asks for a login
+                        at the level the setting needs.
+                    -->
+                    <Button Grid.Row="{Binding EditorRow}"
+                            Grid.Column="{Binding EditorColumn}"
+                            Grid.ColumnSpan="{Binding EditorColumnSpan}"
+                            Command="{Binding UnlockCommand}"
+                            ToolTip="{Binding LockHint}"
+                            Cursor="Hand"
+                            Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisibility}}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="#01000000">
+                                    <TextBlock Text="&#x1F512;"
+                                               FontFamily="Segoe UI Emoji"
+                                               FontSize="14"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,2,0"
+                                               Foreground="{StaticResource Text.Secondary}" />
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </Grid>
             </Border>
             <DataTemplate.Triggers>
@@ -490,6 +517,103 @@
             </Grid>
         </Viewbox>
 
+        <!--
+            The login popup (F2): over the page, the popup and the status
+            line alike. Who, from the project's users; the PIN on a keypad
+            - or the keyboard - as dots; what asked for it, and why not.
+        -->
+        <Grid x:Name="LoginLayer"
+              Grid.RowSpan="2"
+              Panel.ZIndex="10"
+              Visibility="{Binding HasLogin, Converter={StaticResource BoolToVisibility}}">
+            <Rectangle Fill="#B3000000" />
+            <Border DataContext="{Binding Login}"
+                    Width="440"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Padding="20"
+                    CornerRadius="6"
+                    Background="{StaticResource Surface.Canvas}"
+                    BorderBrush="{StaticResource Surface.Border}"
+                    BorderThickness="1">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.6" />
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Log In" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Text.Primary}" />
+                    <TextBlock Text="{Binding Prompt}" Margin="0,4,0,12" FontSize="14" TextWrapping="Wrap" Foreground="{StaticResource Text.Secondary}" />
+
+                    <ItemsControl x:Name="LoginNames" ItemsSource="{Binding Choices}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <ToggleButton Content="{Binding Name}"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              Style="{StaticResource TextToggleButton}"
+                                              MinWidth="120"
+                                              Height="40"
+                                              Margin="0,0,6,6"
+                                              FontSize="15"
+                                              Command="{Binding DataContext.ChooseCommand, ElementName=LoginNames}"
+                                              CommandParameter="{Binding Name}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Margin="0,8,0,8"
+                            Height="44"
+                            CornerRadius="3"
+                            Background="{StaticResource Surface.Panel}"
+                            BorderBrush="{StaticResource Surface.Border}"
+                            BorderThickness="1">
+                        <TextBlock Text="{Binding PinDots}"
+                                   FontSize="24"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource Text.Primary}" />
+                    </Border>
+
+                    <UniformGrid Columns="3" Rows="4">
+                        <UniformGrid.Resources>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Height" Value="54" />
+                                <Setter Property="Margin" Value="3" />
+                                <Setter Property="FontSize" Value="22" />
+                            </Style>
+                        </UniformGrid.Resources>
+                        <Button Content="1" Command="{Binding DigitCommand}" CommandParameter="1" />
+                        <Button Content="2" Command="{Binding DigitCommand}" CommandParameter="2" />
+                        <Button Content="3" Command="{Binding DigitCommand}" CommandParameter="3" />
+                        <Button Content="4" Command="{Binding DigitCommand}" CommandParameter="4" />
+                        <Button Content="5" Command="{Binding DigitCommand}" CommandParameter="5" />
+                        <Button Content="6" Command="{Binding DigitCommand}" CommandParameter="6" />
+                        <Button Content="7" Command="{Binding DigitCommand}" CommandParameter="7" />
+                        <Button Content="8" Command="{Binding DigitCommand}" CommandParameter="8" />
+                        <Button Content="9" Command="{Binding DigitCommand}" CommandParameter="9" />
+                        <Button Content="⌫" ToolTip="Delete the last digit" Command="{Binding BackCommand}" />
+                        <Button Content="0" Command="{Binding DigitCommand}" CommandParameter="0" />
+                        <Button Content="✓" ToolTip="Log in" Command="{Binding LogInCommand}" />
+                    </UniformGrid>
+
+                    <TextBlock Text="{Binding Problem}"
+                               Margin="0,8,0,0"
+                               FontSize="13"
+                               TextWrapping="Wrap"
+                               Foreground="#F8C4C4"
+                               Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}" />
+
+                    <DockPanel Margin="0,12,0,0" LastChildFill="False">
+                        <Button DockPanel.Dock="Right" Content="Log In" MinWidth="100" Height="36" Margin="6,0,0,0" Command="{Binding LogInCommand}" />
+                        <Button DockPanel.Dock="Right" Content="Cancel" MinWidth="100" Height="36" Command="{Binding CancelCommand}" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
         <Border Grid.Row="1"
                 Background="{StaticResource Surface.Panel}"
                 BorderBrush="{StaticResource Surface.Border}"
@@ -501,6 +625,21 @@
                         MinWidth="80"
                         ToolTip="Stop every station and close"
                         Click="OnExitClick" />
+                <!-- Who is logged in (F2), and Log In or Out; only with users in the project. -->
+                <StackPanel DockPanel.Dock="Right"
+                            Orientation="Horizontal"
+                            Margin="12,0,0,0"
+                            Visibility="{Binding Session.IsEnforced, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock x:Name="UserStatus"
+                               Text="{Binding Session.StatusText}"
+                               Margin="0,0,8,0"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource Text.Primary}" />
+                    <Button Content="{Binding Session.ActionText}"
+                            MinWidth="80"
+                            Command="{Binding LogInOutCommand}" />
+                </StackPanel>
                 <!-- The PLCs: connected or not, passes run, what last went wrong. -->
                 <TextBlock x:Name="ControllerStatus"
                            DockPanel.Dock="Right"

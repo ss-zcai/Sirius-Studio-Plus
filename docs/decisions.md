@@ -3441,3 +3441,50 @@ at most 30 seconds from when it began, and a camera whose driver is
 already there is not held up by it. A test that closed every camera
 closed other tests' too; it closes its own, and the simulated camera's
 frame count carries on when it is opened again.
+
+## 84. User levels (F2)
+
+Asked on 21 November 2026 (backlog item 6, `runtime-design.md` section
+6). Four choices were the user's, each the recommended way: named users
+with their own PIN; a level per widget and screen; logged out after 5
+minutes idle; users kept in the project.
+
+**Built (21 November):**
+
+- **Three levels**: **Operator** (anyone, no login), **Technician** and
+  **Engineer**, each allowed what the one below is.
+- **Users in the project** (`"users"` in the `.sproj`): a name, a level
+  and a PIN of 4 to 8 digits, kept only salted and hashed (PBKDF2), and
+  `"logOutMinutes"` - 5 by default, 0 for never. A hash keeps a PIN from
+  being read off the file; a four-digit PIN is not strong against someone
+  holding it, and is not meant to be - it is a cabinet lock, as levels on
+  a machine are.
+- **No users, nothing locked**: a project without users runs as before.
+  A project **with** users is written as format 2, and a screen asking
+  for a level as format 3, so a build that does not know levels refuses
+  them rather than show them unlocked.
+- **What needs a level** - a **Needs** property in Builder's designer on
+  every button and changeable setting, and on every page and popup but
+  the start screen. Left as its kind: a setting needs a Technician to
+  change, Reset Counts a Technician, the rest anyone. Leaving Edge, full
+  screen - Exit or Alt+F4 - needs an Engineer; a windowed Test Run closes
+  as before.
+- **On the line**: something locked asks for a login - a popup over the
+  screen with each user's name, the PIN on a keypad (or the keyboard) as
+  dots, and what asked: "Reset Counts needs a Technician or above". Given,
+  it goes on; cancelled, nothing is done. Logged in below what asked, the
+  popup stays and says so, for someone else. A locked setting shows a
+  padlock over its control, which asks when touched. Who is logged in is
+  along the bottom, with **Log In** / **Log Out**; a button can be **Log
+  In / Out** too.
+- **Logging out** - pressed, or after the idle minutes with no touch or
+  key - closes a screen the level left may not open, and locks again.
+- **Who changed a setting** is kept with it in the line settings file
+  (`"by"`).
+- **Builder: Run ▸ Users…** - add (name, level, PIN twice, masked),
+  rename, change level, set a PIN, remove; the idle minutes. Each change
+  is the project's at once.
+
+**Left:** the PLC and camera windows in Edge behind a level (F23c, F29);
+Windows accounts, if a customer asks; showing who changed what in
+Builder's Line Settings window.

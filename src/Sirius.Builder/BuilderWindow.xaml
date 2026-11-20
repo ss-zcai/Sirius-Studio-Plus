@@ -177,6 +177,9 @@
             </MenuItem>
             <MenuItem Header="_Run">
                 <MenuItem Header="_Test Run" InputGestureText="F5" Command="{Binding TestRunCommand}" />
+                <Separator />
+                <!-- Who may log in on the line, and at which level (F2). -->
+                <MenuItem Header="_Users…" Command="{Binding UsersCommand}" />
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Project" Tag="project" Click="OnShowPanelClick" />

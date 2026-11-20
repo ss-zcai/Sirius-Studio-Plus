@@ -161,7 +161,7 @@ public sealed class ScreenPagesTests : IDisposable
         Assert.Equal("Settings", opening.Widgets[0].Screen);
 
         // A newer format than this build reads is refused, saying so.
-        File.WriteAllText(path, "{ \"version\": 3, \"widgets\": [] }");
+        File.WriteAllText(path, "{ \"version\": 4, \"widgets\": [] }");
         Assert.Contains("newer version", Assert.Throws<InvalidDataException>(() => Screen.Load(path)).Message, StringComparison.Ordinal);
     }
 

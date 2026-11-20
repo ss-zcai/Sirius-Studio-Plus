@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Sirius.Core.Projects;
 
 namespace Sirius.Core.Screens;
 
@@ -45,6 +46,9 @@ public enum WidgetAction
 
     /// <summary>Opens another of the project's screens (<see cref="Widget.Screen"/>): a page in place of this one, or a popup over it.</summary>
     OpenScreen,
+
+    /// <summary>Logs in - asking who, and their PIN - or, logged in, out (F2).</summary>
+    LogInOut,
 
     /// <summary>Closes the popup it is on, or goes back to the page shown before.</summary>
     Close,
@@ -170,6 +174,14 @@ public sealed class Widget
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool ReadOnly { get; set; }
 
+    /// <summary>
+    /// The level needed to use it - press a button, change a setting -
+    /// when the project has users (F2). Null for the kind's own:
+    /// <see cref="ScreenLayout.NeedsFor(Widget)"/>.
+    /// </summary>
+    [JsonPropertyName("needs")]
+    public UserLevel? Needs { get; set; }
+
     /// <summary>A Setting's control for a number. Only a number has one; on / off and a choice keep theirs.</summary>
     [JsonPropertyName("style")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -210,7 +222,8 @@ public sealed class Screen
     /// screens - so a project using neither still opens in a build from
     /// before there were several.
     /// </summary>
-    public const int CurrentVersion = 2;
+    /// <summary>3 with a level asked for (F2), so a build that does not know levels refuses the screen rather than show it unlocked.</summary>
+    public const int CurrentVersion = 3;
 
     /// <summary>The start screen's name: the page shown first, and the one screen every project has.</summary>
     public const string StartName = "Main";
@@ -229,12 +242,24 @@ public sealed class Screen
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public ScreenKind Kind { get; set; }
 
-    /// <summary>The format this screen needs: 2 for a popup or a button opening or closing screens, else 1.</summary>
+    /// <summary>
+    /// The format this screen needs: 3 with a level asked for, 2 for a
+    /// popup or a button opening or closing screens, else 1.
+    /// </summary>
     [JsonIgnore]
     public int RequiredVersion =>
-        Kind == ScreenKind.Popup || Widgets.Any(widget => widget.Kind == WidgetKind.Button && widget.Action is WidgetAction.OpenScreen or WidgetAction.Close)
-            ? 2
-            : 1;
+        Needs is not null || Widgets.Any(widget => widget.Needs is not null || widget.Action is WidgetAction.LogInOut)
+            ? 3
+            : Kind == ScreenKind.Popup || Widgets.Any(widget => widget.Kind == WidgetKind.Button && widget.Action is WidgetAction.OpenScreen or WidgetAction.Close)
+                ? 2
+                : 1;
+
+    /// <summary>
+    /// The level needed to open it, when the project has users (F2); null
+    /// for anyone. The start screen is always open.
+    /// </summary>
+    [JsonPropertyName("needs")]
+    public UserLevel? Needs { get; set; }
 
     /// <summary>The canvas width in the screen's own units.</summary>
     [JsonPropertyName("width")]

@@ -1,0 +1,186 @@
+<Window x:Class="Sirius.Builder.UsersWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Sirius.Builder"
+        Title="Users"
+        Width="640"
+        Height="500"
+        MinWidth="520"
+        MinHeight="420"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Surface.Background}">
+
+    <!--
+        Who may log in on the line (F2): the list on the left, the one
+        chosen - or a new one - on the right. Each change is the project's
+        at once; PINs are typed into masked boxes and kept only as hashes.
+    -->
+    <Grid Margin="16,14,16,14" TextElement.Foreground="{StaticResource Text.Primary}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Grid.ColumnSpan="3"
+                   TextWrapping="Wrap"
+                   FontSize="11"
+                   Margin="0,0,0,10"
+                   Foreground="{StaticResource Text.Secondary}"
+                   Text="Who may log in on the line, in Sirius Edge and a Test Run. An Operator needs no login; a Technician changes settings and resets counts; an Engineer may do all, and leave Edge. With no users, nothing is locked. Choose what a button, setting or screen needs in its Needs property." />
+
+        <!-- The users -->
+        <DockPanel Grid.Row="1" Grid.Column="0">
+            <Button DockPanel.Dock="Bottom"
+                    Content="Remove"
+                    Margin="0,8,0,0"
+                    HorizontalAlignment="Left"
+                    MinWidth="90"
+                    Click="OnRemove"
+                    IsEnabled="{Binding HasSelection}" />
+            <Border BorderBrush="{StaticResource Surface.Border}"
+                    BorderThickness="1"
+                    Background="{StaticResource Surface.Panel}">
+                <Grid>
+                    <ListBox x:Name="UserList"
+                             ItemsSource="{Binding Users}"
+                             SelectedItem="{Binding Selected}"
+                             DisplayMemberPath="Text"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Foreground="{StaticResource Text.Primary}"
+                             ItemContainerStyle="{StaticResource DarkListBoxItem}" />
+                    <TextBlock Text="No users: nothing is locked."
+                               Margin="10"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Foreground="{StaticResource Text.Secondary}"
+                               Visibility="{Binding HasNoUsers, Converter={StaticResource BoolToVisibility}}" />
+                </Grid>
+            </Border>
+        </DockPanel>
+
+        <!-- The one chosen, and a new one -->
+        <ScrollViewer Grid.Row="1" Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="The one chosen" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <Grid IsEnabled="{Binding HasSelection}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Name" VerticalAlignment="Center" />
+                    <TextBox x:Name="NameBox"
+                             Grid.Row="0" Grid.Column="1"
+                             Margin="0,2"
+                             Text="{Binding Selected.Name, Mode=OneWay}"
+                             LostFocus="OnRename"
+                             KeyDown="OnRenameKey" />
+
+                    <TextBlock Grid.Row="1" Text="Level" VerticalAlignment="Center" />
+                    <ComboBox x:Name="LevelBox"
+                              Grid.Row="1" Grid.Column="1"
+                              Margin="0,2"
+                              ItemsSource="{x:Static local:UsersViewModel.Levels}"
+                              SelectedItem="{Binding Selected.Level, Mode=OneWay}"
+                              SelectionChanged="OnLevelChanged" />
+
+                    <TextBlock Grid.Row="2" Text="New PIN" VerticalAlignment="Center" />
+                    <PasswordBox x:Name="PinBox" Grid.Row="2" Grid.Column="1" Margin="0,2" MaxLength="8" />
+
+                    <TextBlock Grid.Row="3" Text="Again" VerticalAlignment="Center" />
+                    <PasswordBox x:Name="PinAgainBox" Grid.Row="3" Grid.Column="1" Margin="0,2" MaxLength="8" />
+
+                    <Button Grid.Row="4" Grid.Column="1"
+                            Content="Set PIN"
+                            HorizontalAlignment="Left"
+                            MinWidth="90"
+                            Margin="0,6,0,0"
+                            Click="OnSetPin" />
+                </Grid>
+
+                <TextBlock Text="Add a user" FontWeight="SemiBold" Margin="0,18,0,6" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Name" VerticalAlignment="Center" />
+                    <TextBox x:Name="NewNameBox" Grid.Row="0" Grid.Column="1" Margin="0,2" />
+
+                    <TextBlock Grid.Row="1" Text="Level" VerticalAlignment="Center" />
+                    <ComboBox x:Name="NewLevelBox"
+                              Grid.Row="1" Grid.Column="1"
+                              Margin="0,2"
+                              ItemsSource="{x:Static local:UsersViewModel.Levels}"
+                              SelectedIndex="1" />
+
+                    <TextBlock Grid.Row="2" Text="PIN" VerticalAlignment="Center" />
+                    <PasswordBox x:Name="NewPinBox" Grid.Row="2" Grid.Column="1" Margin="0,2" MaxLength="8" />
+
+                    <TextBlock Grid.Row="3" Text="Again" VerticalAlignment="Center" />
+                    <PasswordBox x:Name="NewPinAgainBox" Grid.Row="3" Grid.Column="1" Margin="0,2" MaxLength="8" />
+
+                    <Button Grid.Row="4" Grid.Column="1"
+                            Content="Add"
+                            HorizontalAlignment="Left"
+                            MinWidth="90"
+                            Margin="0,6,0,0"
+                            Click="OnAdd" />
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Idle -->
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,12,0,0">
+            <TextBlock Text="Log out after" VerticalAlignment="Center" />
+            <TextBox Width="60"
+                     Margin="8,0"
+                     TextAlignment="Right"
+                     Text="{Binding LogOutText, UpdateSourceTrigger=LostFocus}"
+                     KeyDown="OnCommitOnEnter" />
+            <TextBlock Text="minutes idle (0: never), back to Operator" VerticalAlignment="Center" Foreground="{StaticResource Text.Secondary}" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="3"
+                   Grid.ColumnSpan="3"
+                   Margin="0,8,0,0"
+                   TextWrapping="Wrap"
+                   Foreground="#DB5C5C"
+                   Text="{Binding Problem}" />
+
+        <DockPanel Grid.Row="4" Grid.ColumnSpan="3" Margin="0,8,0,0">
+            <Button DockPanel.Dock="Right" Content="Close" MinWidth="88" IsCancel="True" IsDefault="True" />
+            <TextBlock Text="{Binding Status}"
+                       VerticalAlignment="Center"
+                       FontSize="11"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{StaticResource Text.Secondary}" />
+        </DockPanel>
+    </Grid>
+</Window>

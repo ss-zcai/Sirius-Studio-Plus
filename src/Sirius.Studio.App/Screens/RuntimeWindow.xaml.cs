@@ -38,6 +38,7 @@ public partial class RuntimeWindow : Window
     private readonly ProjectStationBus _bus;
     private readonly ProjectControllers _controllers;
     private readonly System.Windows.Threading.DispatcherTimer _controllerClock;
+    private readonly System.Windows.Threading.DispatcherTimer _idleClock;
     private readonly ScreenViewModel _screen;
     private bool _closing;
     private bool _closed;
@@ -62,6 +63,17 @@ public partial class RuntimeWindow : Window
             [.. problems ?? [], .. unread, .. _controllers.Problems]);
 
         _screen.UseControllers(_controllers.Runners);
+
+        // The project's users (F2): nothing locked without any.
+        _screen.UseSession(new UserSession(project));
+
+        // Back to Operator after the project's idle minutes; any touch or key is use.
+        _idleClock = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        _idleClock.Tick += (_, _) => _screen.Session.CheckIdle();
+        _idleClock.Start();
+        PreviewMouseDown += (_, _) => _screen.Session.Touch();
+        PreviewKeyDown += (_, _) => _screen.Session.Touch();
+        PreviewTouchDown += (_, _) => _screen.Session.Touch();
 
         _controllerClock = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _controllerClock.Tick += (_, _) => ShowControllers();
@@ -144,6 +156,19 @@ public partial class RuntimeWindow : Window
     private void OnExitClick(object sender, RoutedEventArgs e) => Close();
 
     /// <summary>
+    /// Full screen - Edge on the line - leaving needs an engineer (F2):
+    /// asked for, and closed again once one has logged in.
+    /// </summary>
+    private bool ExitLocked =>
+        WindowStyle == WindowStyle.None && !_screen.Session.Allows(Sirius.Core.Screens.ScreenLayout.ExitNeeds);
+
+    private async Task ExitWhenAllowedAsync()
+    {
+        if (await _screen.EnsureAsync(Sirius.Core.Screens.ScreenLayout.ExitNeeds, "Exit").ConfigureAwait(true))
+            Close();
+    }
+
+    /// <summary>
     /// A setting's box: Enter changes the setting, Escape puts back what it
     /// holds - and neither closes the window.
     /// </summary>
@@ -186,6 +211,25 @@ public partial class RuntimeWindow : Window
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
+        // The login popup takes the keyboard: digits, Backspace, Enter, Escape.
+        if (_screen.Login is { } login)
+        {
+            e.Handled = true;
+
+            if (e.Key is >= Key.D0 and <= Key.D9)
+                login.Digit(((int)(e.Key - Key.D0)).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            else if (e.Key is >= Key.NumPad0 and <= Key.NumPad9)
+                login.Digit(((int)(e.Key - Key.NumPad0)).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            else if (e.Key == Key.Back)
+                login.Back();
+            else if (e.Key == Key.Enter)
+                login.LogIn();
+            else if (e.Key == Key.Escape)
+                login.Cancel();
+
+            return;
+        }
+
         // Escape closes a popup first, full screen or not.
         if (e.Key == Key.Escape && _screen.HasPopup)
         {
@@ -226,6 +270,13 @@ public partial class RuntimeWindow : Window
         if (_closing)
         {
             e.Cancel = true;
+            return;
+        }
+
+        if (ExitLocked)
+        {
+            e.Cancel = true;
+            Dispatcher.BeginInvoke(() => _ = ExitWhenAllowedAsync());
             return;
         }
 

@@ -82,6 +82,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         OpenSelectedCommand = new RelayCommand(() => OpenSelected(SelectedItem), () => SelectedItem is not null);
 
         AddCameraCommand = new RelayCommand(AskThenAddCamera, () => HasProject);
+        UsersCommand = new RelayCommand(ShowUsers, () => HasProject);
         OpenCameraCommand = new RelayCommand<CameraUnitViewModel>(camera => OpenCamera(camera));
         RenameCameraCommand = new RelayCommand<CameraUnitViewModel>(AskThenRenameCamera);
         RemoveCameraCommand = new RelayCommand<CameraUnitViewModel>(AskThenRemoveCamera);
@@ -524,6 +525,18 @@ public sealed partial class BuilderViewModel : ObservableObject
     public IRelayCommand<ScreenItemViewModel> RemoveScreenCommand { get; }
 
     public IRelayCommand AddCameraCommand { get; }
+
+    /// <summary>Who may log in on the line (F2).</summary>
+    public IRelayCommand UsersCommand { get; }
+
+    /// <summary>Shows the Users window; a test swaps it for its own.</summary>
+    internal Action<Window?, UsersViewModel> OpenUsersWindow { get; set; } = (owner, model) => UsersWindow.Show(owner, model);
+
+    private void ShowUsers()
+    {
+        if (_project is { } project)
+            OpenUsersWindow(Application.Current?.MainWindow, new UsersViewModel(project));
+    }
 
     public IRelayCommand<CameraUnitViewModel> OpenCameraCommand { get; }
 
@@ -1772,6 +1785,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         TestRunCommand.NotifyCanExecuteChanged();
         AddControllerCommand.NotifyCanExecuteChanged();
         AddCameraCommand.NotifyCanExecuteChanged();
+        UsersCommand.NotifyCanExecuteChanged();
         AddPageCommand.NotifyCanExecuteChanged();
         AddPopupCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasNoControllers));

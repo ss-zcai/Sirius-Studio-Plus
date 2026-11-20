@@ -4,8 +4,9 @@ using Sirius.Core.Graph;
 
 namespace Sirius.Core.Runtime;
 
-/// <summary>One setting changed on the line: its published name, its value, and when.</summary>
-public sealed record LineSetting(string Name, JsonElement Value, DateTime Changed)
+/// <summary>One setting changed on the line: its published name, its value, when, and by whom.</summary>
+/// <param name="By">Who was logged in when it was changed (F2), or null.</param>
+public sealed record LineSetting(string Name, JsonElement Value, DateTime Changed, string? By = null)
 {
     /// <summary>"140", "true", "Dark" - the value as written in the file.</summary>
     public string ValueText => Value.ValueKind switch
@@ -95,7 +96,7 @@ public sealed class LineSettings
                 if (string.IsNullOrWhiteSpace(entry.Name) || settings.Find(entry.Name) is not null)
                     continue;
 
-                settings._entries.Add(new LineSetting(entry.Name.Trim(), entry.Value.Clone(), entry.Changed));
+                settings._entries.Add(new LineSetting(entry.Name.Trim(), entry.Value.Clone(), entry.Changed, entry.By));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
@@ -113,11 +114,12 @@ public sealed class LineSettings
 
     /// <summary>Records a value for <paramref name="name"/>, replacing any - in memory; <see cref="Save"/> writes it.</summary>
     /// <param name="value">A number, true or false, or a choice's name (<see cref="Tunable.ToStored"/>).</param>
-    public void Set(string name, object? value, DateTime? changed = null)
+    /// <param name="by">Who changed it, when someone was logged in.</param>
+    public void Set(string name, object? value, DateTime? changed = null, string? by = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var entry = new LineSetting(name.Trim(), JsonSerializer.SerializeToElement(value), changed ?? DateTime.Now);
+        var entry = new LineSetting(name.Trim(), JsonSerializer.SerializeToElement(value), changed ?? DateTime.Now, by);
         var index = _entries.FindIndex(existing => string.Equals(existing.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
 
         if (index >= 0)
@@ -167,7 +169,7 @@ public sealed class LineSettings
         {
             Version = CurrentVersion,
             Settings = _entries
-                .Select(entry => new EntryRecord { Name = entry.Name, Value = entry.Value, Changed = entry.Changed })
+                .Select(entry => new EntryRecord { Name = entry.Name, Value = entry.Value, Changed = entry.Changed, By = entry.By })
                 .ToList(),
         };
 
@@ -199,5 +201,9 @@ public sealed class LineSettings
 
         [JsonPropertyName("changed")]
         public DateTime Changed { get; set; }
+
+        [JsonPropertyName("by")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? By { get; set; }
     }
 }

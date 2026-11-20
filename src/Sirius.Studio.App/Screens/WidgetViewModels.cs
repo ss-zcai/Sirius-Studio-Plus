@@ -4,6 +4,7 @@ using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Sirius.Core.Nodes;
+using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
 using Sirius.Core.Shapes;
@@ -35,6 +36,14 @@ public abstract class WidgetViewModel : ObservableObject
 
     /// <summary>The station it is bound to, or null for one bound to none - or to all.</summary>
     public string? Station => Widget.Station;
+
+    /// <summary>Who is logged in, and the login popup: the screen this is on.</summary>
+    internal IScreenAccess? Access { get; set; }
+
+    /// <summary>Someone logged in or out: what is locked may have changed.</summary>
+    internal virtual void AccessChanged()
+    {
+    }
 
     /// <summary>Whether it follows <paramref name="station"/>.</summary>
     internal bool Follows(StationRunner station) =>
@@ -389,6 +398,7 @@ public sealed class ButtonWidgetViewModel : WidgetViewModel
         WidgetAction.Trigger => Station is null ? "Trigger All" : "Trigger",
         WidgetAction.RunStop => Station is null ? "Run All" : "Run",
         WidgetAction.ResetCounts => "Reset Counts",
+        WidgetAction.LogInOut => Access?.Session.ActionText ?? "Log In",
         WidgetAction.OpenScreen => string.IsNullOrWhiteSpace(Widget.Screen) ? "Open" : Widget.Screen!,
         WidgetAction.Close => ScreenSet.CloseCaption(_on),
         _ => "?",
@@ -400,8 +410,27 @@ public sealed class ButtonWidgetViewModel : WidgetViewModel
     private IReadOnlyList<StationRunner> Targets =>
         Station is null ? _runtime.Stations : _runtime.Find(Station) is { } one ? [one] : [];
 
+    internal override void AccessChanged() => OnPropertyChanged(nameof(Caption));
+
     private async Task PressAsync()
     {
+        if (Widget.Action == WidgetAction.LogInOut)
+        {
+            if (Access is not null)
+                await Access.LogInOutAsync().ConfigureAwait(true);
+
+            return;
+        }
+
+        // Locked: logged in at the level it needs - and, to open a screen, that screen's - or not done.
+        var needed = ScreenLayout.NeedsFor(Widget);
+
+        if (Widget.Action == WidgetAction.OpenScreen && Access?.NeedsToOpen(Widget.Screen) is { } opens && opens > needed)
+            needed = opens;
+
+        if (Access is not null && !await Access.EnsureAsync(needed, Caption).ConfigureAwait(true))
+            return;
+
         switch (Widget.Action)
         {
             case WidgetAction.OpenScreen:

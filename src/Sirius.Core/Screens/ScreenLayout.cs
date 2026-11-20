@@ -378,6 +378,41 @@ public static class ScreenLayout
         System.Text.Json.JsonSerializer.Deserialize<Widget>(
             System.Text.Json.JsonSerializer.Serialize(widget, Screen.Options), Screen.Options)!;
 
+    /// <summary>
+    /// The level a widget needs, when the project has users (F2): its own,
+    /// or its kind's - Technician to change a setting or reset counts,
+    /// anyone for the rest.
+    /// </summary>
+    public static UserLevel NeedsFor(Widget widget)
+    {
+        ArgumentNullException.ThrowIfNull(widget);
+
+        return widget.Needs ?? KindNeeds(widget);
+    }
+
+    /// <summary>The level a widget of its kind needs when it says none.</summary>
+    public static UserLevel KindNeeds(Widget widget)
+    {
+        ArgumentNullException.ThrowIfNull(widget);
+
+        return widget.Kind switch
+        {
+            WidgetKind.Setting when !widget.ReadOnly => UserLevel.Technician,
+            WidgetKind.Button when widget.Action == WidgetAction.ResetCounts => UserLevel.Technician,
+            _ => UserLevel.Operator,
+        };
+    }
+
+    /// <summary>The level needed to open a screen: its own, or anyone. The start screen is always open.</summary>
+    public static UserLevel NeedsFor(Screen screen)
+    {
+        ArgumentNullException.ThrowIfNull(screen);
+        return ScreenSet.IsStart(screen.Name) ? UserLevel.Operator : screen.Needs ?? UserLevel.Operator;
+    }
+
+    /// <summary>The level needed to leave the running program.</summary>
+    public const UserLevel ExitNeeds = UserLevel.Engineer;
+
     /// <summary>Whether a widget of this kind shows a station's values.</summary>
     public static bool NeedsStation(WidgetKind kind) =>
         kind is WidgetKind.Image or WidgetKind.Verdict or WidgetKind.Value or WidgetKind.Counter or WidgetKind.Setting;

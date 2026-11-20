@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Sirius.Core.Projects;
 using Sirius.Core.Screens;
 
 namespace Sirius.Builder;
@@ -42,6 +43,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     private string _path;
     private string _name;
     private ScreenKind _kind;
+    private UserLevel? _needs;
 
     private string _saved;
     private string? _gesture;
@@ -122,6 +124,23 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// The level needed to open it, when the project has users (F2); null
+    /// for anyone. The start screen is always open.
+    /// </summary>
+    public UserLevel? Needs
+    {
+        get => IsStart ? null : _needs;
+        set
+        {
+            if (IsStart || value == _needs)
+                return;
+
+            Edit(() => _needs = value);
+            OnPropertyChanged();
+        }
+    }
+
     /// <summary>The screen's file.</summary>
     public string FilePath => _path;
 
@@ -181,6 +200,19 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
                     new PropertyOption("Page", ScreenKind.Page),
                     new PropertyOption("Popup", ScreenKind.Popup),
                 }),
+        new PropertyRow(
+            "Screen", "Needs", PropertyEditor.Choice,
+            () => Needs?.ToString() ?? string.Empty,
+            value => Needs = Enum.TryParse<UserLevel>(value as string, out var level) && level != UserLevel.Operator ? level : null,
+            "Who may open it on the line, when the project has users (Project ▸ Users). A button opening it asks " +
+            "someone below this level to log in first; logged out, it closes.",
+            options: () => new[]
+            {
+                new PropertyOption("Anyone", string.Empty),
+                new PropertyOption("Technician", nameof(UserLevel.Technician)),
+                new PropertyOption("Engineer", nameof(UserLevel.Engineer)),
+            },
+            visible: () => !IsStart),
         new PropertyRow(
             "Screen", "Width", PropertyEditor.Text,
             () => DesignWidgetViewModel.Number(Width),
@@ -600,6 +632,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     {
         Name = _name,
         Kind = Kind,
+        Needs = Needs,
         Width = _width,
         Height = _height,
         Generated = _generated,
@@ -746,6 +779,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         _height = screen.Height;
         _generated = screen.Generated;
         _kind = screen.Kind;
+        _needs = screen.Needs;
 
         Widgets.Clear();
 

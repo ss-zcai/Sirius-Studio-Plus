@@ -137,6 +137,11 @@ public sealed class Project
     private readonly List<Station> _stations = [];
     private readonly List<Controller> _controllers = [];
     private readonly List<CameraUnit> _cameras = [];
+    private readonly List<ProjectUser> _users = [];
+    private int _logOutMinutes = DefaultLogOutMinutes;
+
+    /// <summary>How long a user stays logged in, idle, by default.</summary>
+    public const int DefaultLogOutMinutes = 5;
 
     private Project(string filePath)
     {
@@ -159,6 +164,18 @@ public sealed class Project
 
     /// <summary>The cameras stations take their pictures from.</summary>
     public IReadOnlyList<CameraUnit> Cameras => _cameras;
+
+    /// <summary>
+    /// Who may log in on the line (F2). With none, nothing on the running
+    /// screens is locked: a project without users runs as before.
+    /// </summary>
+    public IReadOnlyList<ProjectUser> Users => _users;
+
+    /// <summary>Whether user levels are in force: there is someone to log in as.</summary>
+    public bool HasUsers => _users.Count > 0;
+
+    /// <summary>Minutes idle before a user is logged out, back to Operator; 0 for never.</summary>
+    public int LogOutMinutes => _logOutMinutes;
 
     /// <summary>Raised after stations, cameras or controllers are added, removed, renamed, reordered or changed.</summary>
     public event EventHandler? Changed;
@@ -337,6 +354,40 @@ public sealed class Project
             project._controllers.Add(controller);
         }
 
+        foreach (var record in document.Users ?? [])
+        {
+            var name = record.Name?.Trim() ?? string.Empty;
+
+            if (name.Length == 0)
+            {
+                warnings.Add("A user with no name was skipped.");
+                continue;
+            }
+
+            if (project._users.Any(user => Same(user.Name, name)))
+            {
+                warnings.Add($"User '{name}' is listed twice; the second was skipped.");
+                continue;
+            }
+
+            if (!Pins.IsKept(record.Pin))
+            {
+                warnings.Add($"User '{name}' has no PIN that can be checked, and was skipped: set one again in Builder.");
+                continue;
+            }
+
+            if (!Enum.TryParse<UserLevel>(record.Level, ignoreCase: true, out var level) || !Enum.IsDefined(level))
+            {
+                warnings.Add($"User '{name}': the level '{record.Level}' is not one this build knows; taken as Operator.");
+                level = UserLevel.Operator;
+            }
+
+            project._users.Add(new ProjectUser(name, level, record.Pin!));
+        }
+
+        if (document.LogOutMinutes is { } minutes)
+            project._logOutMinutes = Math.Clamp(minutes, 0, MaxLogOutMinutes);
+
         return new ProjectLoadResult(project, warnings);
     }
 
@@ -344,6 +395,7 @@ public sealed class Project
     {
         var document = new ProjectDocument
         {
+            Version = _users.Count > 0 ? 2 : 1,
             Stations = _stations
                 .Select(station => new StationRecord
                 {
@@ -394,6 +446,15 @@ public sealed class Project
                         Workflow = controller.Workflow,
                     })
                     .ToList(),
+
+            // Absent with none, so a project without user levels is written as before.
+            Users = _users.Count == 0
+                ? null
+                : _users
+                    .Select(user => new UserRecord { Name = user.Name, Level = user.Level.ToString(), Pin = user.Pin })
+                    .ToList(),
+
+            LogOutMinutes = _logOutMinutes == DefaultLogOutMinutes ? null : _logOutMinutes,
         };
 
         var temporary = FilePath + ".tmp";
@@ -632,6 +693,105 @@ public sealed class Project
         Changed?.Invoke(this, EventArgs.Empty);
         return camera;
     }
+
+    // ---- users (F2) --------------------------------------------------------
+
+    /// <summary>The longest idle time before a log-out that may be set: a working day.</summary>
+    public const int MaxLogOutMinutes = 600;
+
+    /// <summary>The user called <paramref name="name"/>, ignoring case, or null.</summary>
+    public ProjectUser? FindUser(string? name) =>
+        name is null ? null : _users.FirstOrDefault(user => Same(user.Name, name.Trim()));
+
+    /// <summary>Why <paramref name="name"/> cannot name a user, or null when it can.</summary>
+    public string? UserNameProblem(string? name, ProjectUser? except = null)
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+
+        if (trimmed.Length == 0)
+            return "A name is needed.";
+
+        if (trimmed.Length > MaxNameLength)
+            return $"A name can be at most {MaxNameLength} characters.";
+
+        if (trimmed.Any(char.IsControl))
+            return "A name cannot contain control characters.";
+
+        return _users.Any(user => user != except && Same(user.Name, trimmed))
+            ? $"There is already a user called '{trimmed}'."
+            : null;
+    }
+
+    /// <summary>Adds someone who may log in on the line.</summary>
+    /// <exception cref="ArgumentException">The name or the PIN cannot be used.</exception>
+    public ProjectUser AddUser(string name, UserLevel level, string pin)
+    {
+        if (UserNameProblem(name) is { } problem)
+            throw new ArgumentException(problem, nameof(name));
+
+        var user = new ProjectUser(name.Trim(), level, Pins.Hash(pin));
+        _users.Add(user);
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return user;
+    }
+
+    public void RenameUser(ProjectUser user, string name)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (UserNameProblem(name, user) is { } problem)
+            throw new ArgumentException(problem, nameof(name));
+
+        user.Name = name.Trim();
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetUserLevel(ProjectUser user, UserLevel level)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        user.Level = level;
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <exception cref="ArgumentException">The PIN cannot be used.</exception>
+    public void SetUserPin(ProjectUser user, string pin)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        user.Pin = Pins.Hash(pin);
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void RemoveUser(ProjectUser user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (_users.Remove(user))
+        {
+            Save();
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Sets how long a user stays logged in, idle; 0 for never.</summary>
+    public void SetLogOutMinutes(int minutes)
+    {
+        _logOutMinutes = Math.Clamp(minutes, 0, MaxLogOutMinutes);
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// The user <paramref name="name"/> with <paramref name="pin"/>, or null
+    /// when there is no such user or the PIN is not theirs.
+    /// </summary>
+    public ProjectUser? LogIn(string? name, string? pin) =>
+        FindUser(name) is { } user && user.Checks(pin) ? user : null;
 
     /// <summary>Renames a camera; the stations taking their pictures from it follow.</summary>
     public void RenameCamera(CameraUnit camera, string name)
@@ -908,7 +1068,8 @@ public sealed class Project
 
     private sealed class ProjectDocument
     {
-        public const int CurrentVersion = 1;
+        /// <summary>2 with users (F2): a build that does not know them refuses the project rather than run it unlocked.</summary>
+        public const int CurrentVersion = 2;
 
         [JsonPropertyName("version")]
         public int Version { get; set; } = CurrentVersion;
@@ -921,6 +1082,25 @@ public sealed class Project
 
         [JsonPropertyName("controllers")]
         public List<ControllerRecord>? Controllers { get; set; }
+
+        [JsonPropertyName("users")]
+        public List<UserRecord>? Users { get; set; }
+
+        [JsonPropertyName("logOutMinutes")]
+        public int? LogOutMinutes { get; set; }
+    }
+
+    private sealed class UserRecord
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("level")]
+        public string? Level { get; set; }
+
+        /// <summary>Salted and hashed: "pbkdf2$iterations$salt$hash".</summary>
+        [JsonPropertyName("pin")]
+        public string? Pin { get; set; }
     }
 
     private sealed class CameraRecord

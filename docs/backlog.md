@@ -37,8 +37,10 @@ solid on a real machine, before several pictures or speed:
 5. ~~**F25**~~ - done 20 November (decision 83): the part record and
    part counts, deadlines, the handshake; with ~~**F4**~~, counts that
    survive a restart.
-6. **User levels** (F2) - the login popup that F24 made room for, and
-   the PLC and camera windows in Edge behind them (F23c, F29).
+6. ~~**User levels** (F2)~~ - done 21 November (decision 84): users with
+   PINs in the project, a level per widget and screen, the login popup,
+   log-out when idle. Left: the PLC and camera windows in Edge behind
+   them (F23c, F29).
 7. **F26**, then **F27** and **F28**, when a line asks for them - sized
    by the answers to `runtime-design.md` sections 14.6 and 15.6.
 
@@ -197,8 +199,8 @@ from you before they start.
   beside it; buttons Open Screen and Close; a popup over the dimmed page,
   still running; each screen in its own tab in Builder, listed in the
   Project panel. Left, when asked:
-  - a screen or button **behind a user level**, with a login popup - comes
-    with user levels (F2);
+  - ~~a screen or button **behind a user level**, with a login popup~~ -
+    done with user levels (decision 84);
   - the **standard screen with a Settings popup** made for it, rather than
     the settings listed under each station (S);
   - a **tab bar** of pages along the top of the running window, if

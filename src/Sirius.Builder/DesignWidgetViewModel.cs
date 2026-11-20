@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Sirius.Core.Runtime;
+using Sirius.Core.Projects;
 using Sirius.Core.Screens;
 using Sirius.Studio.App;
 
@@ -89,11 +90,36 @@ public sealed class DesignWidgetViewModel : ObservableObject
             WidgetAction.ResetCounts => "Reset Counts",
             WidgetAction.OpenScreen => Widget.Screen ?? "Open",
             WidgetAction.Close => ScreenSet.CloseCaption(_owner.Kind),
+            WidgetAction.LogInOut => "Log In / Out",
             _ => "Trigger",
         };
 
     /// <summary>A button opening or closing a screen, which acts on no station.</summary>
-    public bool IsNavigation => Kind == WidgetKind.Button && Widget.Action is WidgetAction.OpenScreen or WidgetAction.Close;
+    public bool IsNavigation => Kind == WidgetKind.Button && Widget.Action is WidgetAction.OpenScreen or WidgetAction.Close or WidgetAction.LogInOut;
+
+    /// <summary>
+    /// A widget a level can lock (F2): a button - but Log In / Out, which is
+    /// how a level is had - and a setting the screen may change.
+    /// </summary>
+    public bool CanNeedLevel =>
+        (Kind == WidgetKind.Button && Widget.Action != WidgetAction.LogInOut) ||
+        (Kind == WidgetKind.Setting && !Widget.ReadOnly);
+
+    /// <summary>The level it needs, as the Needs list's value: empty for its kind's.</summary>
+    public string NeedsValue
+    {
+        get => Widget.Needs?.ToString() ?? string.Empty;
+        set
+        {
+            UserLevel? needs = Enum.TryParse<UserLevel>(value, out var level) ? level : null;
+
+            if (needs == Widget.Needs)
+                return;
+
+            _owner.Edit(() => Widget.Needs = needs);
+            Raise();
+        }
+    }
 
     /// <summary>An Open Screen button.</summary>
     public bool OpensScreen => Kind == WidgetKind.Button && Widget.Action == WidgetAction.OpenScreen;
@@ -757,7 +783,8 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 value => { if (value is WidgetAction action) Action = action; },
                 "Trigger inspects once; Run / Stop runs part after part; Reset Counts starts the counts from zero. " +
                 "Open Screen shows another of the project's screens - a page in place of this one, or a popup over it; " +
-                "Close closes a popup, or on a page goes back to the one shown before.",
+                "Close closes a popup, or on a page goes back to the one shown before. " +
+                "Log In / Out asks who is there, or logs them out.",
                 options: () => _owner.Actions.Select(action => new PropertyOption(ActionLabel(action), action)).ToArray());
 
             yield return new PropertyRow(
@@ -906,6 +933,26 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 visible: () => SettingNote is not null);
         }
 
+        // Built once with the rest, shown while it can apply: a button that
+        // becomes Log In / Out, or a setting made read-only, loses it.
+        if (Kind is WidgetKind.Button or WidgetKind.Setting)
+        {
+            yield return new PropertyRow(
+                "Access", "Needs", PropertyEditor.Choice,
+                () => NeedsValue,
+                value => NeedsValue = value as string ?? string.Empty,
+                "Who may use it on the line, when the project has users (Project ▸ Users): anyone, or someone " +
+                "logged in at this level or above. Pressed or touched by someone below it, it asks for a login.",
+                options: () => new[]
+                {
+                    new PropertyOption($"As its kind ({ScreenLayout.KindNeeds(Widget)})", string.Empty),
+                    new PropertyOption("Anyone", nameof(UserLevel.Operator)),
+                    new PropertyOption("Technician", nameof(UserLevel.Technician)),
+                    new PropertyOption("Engineer", nameof(UserLevel.Engineer)),
+                },
+                visible: () => CanNeedLevel);
+        }
+
         yield return new PropertyRow("Layout", "X", PropertyEditor.Text, () => Number(X), value => { if (Parse(value) is { } x) EditX = x; }, "From the screen's left edge.");
         yield return new PropertyRow("Layout", "Y", PropertyEditor.Text, () => Number(Y), value => { if (Parse(value) is { } y) EditY = y; }, "From the screen's top edge.");
         yield return new PropertyRow("Layout", "Width", PropertyEditor.Text, () => Number(Width), value => { if (Parse(value) is { } width) EditWidth = width; });
@@ -918,6 +965,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         WidgetAction.ResetCounts => "Reset Counts",
         WidgetAction.OpenScreen => "Open Screen",
         WidgetAction.Close => "Close / Back",
+        WidgetAction.LogInOut => "Log In / Out",
         _ => "Trigger",
     };
 

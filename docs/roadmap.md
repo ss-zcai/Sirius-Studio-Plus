@@ -62,6 +62,11 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   the PLC on time and cancels the inspection. Each station's processing
   time, average and worst, under its counts, which are kept too. A
   **Handshake** node writes Ready, Busy and an error code.
+- **User levels** (F2, decision 84): Operator, Technician and Engineer;
+  users with their own PINs in the project (Run ▸ Users in Builder); a
+  Needs level on each button, setting and screen; a login popup when
+  something locked is used; back to Operator after 5 minutes idle; who
+  changed a setting kept with it.
 - **A camera on a busy network**: a frame that comes incomplete is asked
   for again, up to three times (not on a hardware trigger, whose next
   frame is the next part's), and the camera is kept rather than let go;

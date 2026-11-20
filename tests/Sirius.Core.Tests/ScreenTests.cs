@@ -986,4 +986,228 @@ public sealed class ScreenTests : IDisposable
             window.Runtime.Dispose();
         });
     }
+
+    // ---- user levels (F2) ------------------------------------------------------------------
+
+    private static void Type(LoginViewModel login, string name, string pin)
+    {
+        login.Choose(name);
+
+        foreach (var digit in pin)
+            login.Digit(digit.ToString());
+
+        login.LogIn();
+    }
+
+    [Fact]
+    public void A_session_logs_in_by_name_and_pin_and_out_when_idle()
+    {
+        var project = Project.Create(_folder, "Line", new VisionGraph(), "Top");
+        Assert.True(UserSession.Open.Allows(UserLevel.Engineer));
+
+        project.AddUser("Ann", UserLevel.Technician, "1234");
+        project.SetLogOutMinutes(5);
+
+        var now = new DateTime(2026, 11, 21, 8, 0, 0, DateTimeKind.Utc);
+        var session = new UserSession(project) { Now = () => now };
+
+        Assert.True(session.IsEnforced);
+        Assert.Equal("Operator", session.StatusText);
+        Assert.Equal("Log In", session.ActionText);
+        Assert.False(session.Allows(UserLevel.Technician));
+
+        Assert.Equal("That PIN is not right.", session.TryLogIn("Ann", "4321"));
+        Assert.Equal("There is no user called 'Bo'.", session.TryLogIn("Bo", "1234"));
+        Assert.Null(session.TryLogIn("ann", "1234"));
+
+        Assert.Equal("Ann · Technician", session.StatusText);
+        Assert.Equal("Log Out", session.ActionText);
+        Assert.True(session.Allows(UserLevel.Technician));
+        Assert.False(session.Allows(UserLevel.Engineer));
+
+        // Used four minutes on: the clock starts again.
+        now = now.AddMinutes(4);
+        session.Touch();
+        now = now.AddMinutes(4);
+        Assert.False(session.CheckIdle());
+        Assert.True(session.IsLoggedIn);
+
+        // Five idle: back to Operator.
+        now = now.AddMinutes(1);
+        Assert.True(session.CheckIdle());
+        Assert.False(session.IsLoggedIn);
+        Assert.Equal(UserLevel.Operator, session.Level);
+    }
+
+    [Fact]
+    public void The_login_popup_takes_a_pin_on_its_keypad_and_says_what_is_wrong()
+    {
+        var project = Project.Create(_folder, "Line", new VisionGraph(), "Top");
+        project.AddUser("Ann", UserLevel.Technician, "1234");
+        project.AddUser("Bo", UserLevel.Engineer, "5678");
+
+        var session = new UserSession(project);
+        var login = new LoginViewModel(session, UserLevel.Engineer, "Settings");
+
+        Assert.Equal("Settings needs an Engineer or above.", login.Prompt);
+        Assert.Equal(["Ann", "Bo"], login.Choices.Select(choice => choice.Name));
+
+        login.Choose("Ann");
+        Assert.True(login.Choices[0].IsSelected);
+        login.Choose("Ann");
+        Assert.True(login.Choices[0].IsSelected);
+
+        foreach (var digit in "123456789")
+            login.Digit(digit.ToString());
+
+        Assert.Equal(new string('●', Pins.MaxLength), login.PinDots);
+        login.Back();
+        login.Digit("x");
+        Assert.Equal(new string('●', Pins.MaxLength - 1), login.PinDots);
+
+        // Not her PIN: said, and the dots cleared.
+        login.LogIn();
+        Assert.Equal("That PIN is not right.", login.Problem);
+        Assert.Equal(string.Empty, login.PinDots);
+
+        // Hers, but a technician: logged in, and the popup stays for an engineer.
+        Type(login, "Ann", "1234");
+        Assert.Equal("Ann is a Technician: this needs an Engineer or above.", login.Problem);
+        Assert.False(login.Result.IsCompleted);
+
+        Type(login, "Bo", "5678");
+        Assert.True(login.Result.IsCompletedSuccessfully);
+        Assert.True(login.Result.Result);
+        Assert.Equal("Bo", session.User!.Name);
+
+        var cancelled = new LoginViewModel(session);
+        cancelled.Cancel();
+        Assert.False(cancelled.Result.Result);
+    }
+
+    /// <summary>
+    /// With users in the project: a locked button asks for a login and goes
+    /// on once one is given; a setting is locked until a technician logs
+    /// in, and what they change is kept with their name; a locked screen
+    /// opens only for its level, and closes when they log out.
+    /// </summary>
+    [Fact]
+    public void Running_screens_lock_buttons_settings_and_screens_by_level()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            project.AddUser("Ann", UserLevel.Technician, "1234");
+            project.AddUser("Bo", UserLevel.Engineer, "5678");
+
+            var main = new Screen
+            {
+                Name = Screen.StartName,
+                Widgets =
+                [
+                    new Widget { Kind = WidgetKind.Button, Station = "Top", Action = WidgetAction.Trigger, Width = 100, Height = 30 },
+                    new Widget { Kind = WidgetKind.Button, Station = "Top", Action = WidgetAction.ResetCounts, Width = 100, Height = 30 },
+                    new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Limit", Width = 300, Height = 30 },
+                    new Widget { Kind = WidgetKind.Button, Action = WidgetAction.OpenScreen, Screen = "Setup", Width = 100, Height = 30 },
+                    new Widget { Kind = WidgetKind.Button, Action = WidgetAction.LogInOut, Width = 100, Height = 30 },
+                ],
+            };
+
+            var setup = new Screen { Name = "Setup", Kind = ScreenKind.Popup, Needs = UserLevel.Engineer, Width = 400, Height = 300 };
+
+            using var runtime = new ProjectRuntime(project);
+            using var view = new ScreenViewModel([main, setup], runtime, project.Folder);
+            view.UseSession(new UserSession(project));
+
+            var buttons = view.Widgets.OfType<ButtonWidgetViewModel>().ToArray();
+            var trigger = buttons[0];
+            var reset = buttons[1];
+            var open = buttons[2];
+            var logInOut = buttons[3];
+            var limit = view.Widgets.OfType<SettingWidgetViewModel>().Single();
+
+            // An operator may trigger.
+            WpfTestHost.Wait(trigger.Command.ExecuteAsync(null));
+            Assert.Equal(1, runtime.Stations[0].Counts.Total);
+            Assert.False(view.HasLogin);
+
+            // Reset Counts needs a technician: asked, cancelled, not done.
+            var pressing = reset.Command.ExecuteAsync(null);
+            Assert.True(view.HasLogin);
+            Assert.Equal("Reset Counts needs a Technician or above.", view.Login!.Prompt);
+            view.Login.Cancel();
+            WpfTestHost.Wait(pressing);
+            Assert.Equal(1, runtime.Stations[0].Counts.Total);
+
+            // The setting is locked; the box refuses a change.
+            Assert.True(limit.IsLocked);
+            limit.ValueText = "99";
+            Assert.Equal("128", limit.ValueText);
+
+            // Asked again, and given: done.
+            pressing = reset.Command.ExecuteAsync(null);
+            Type(view.Login!, "Ann", "1234");
+            WpfTestHost.Wait(pressing);
+            Assert.False(view.HasLogin);
+            Assert.Equal(0, runtime.Stations[0].Counts.Total);
+
+            // Unlocked now, and her change is kept with her name.
+            Assert.False(limit.IsLocked);
+            Assert.Equal("Log Out", logInOut.Caption);
+            limit.ValueText = "140";
+            Assert.Equal("140", limit.ValueText);
+            Assert.Equal("Ann", runtime.Stations[0].Line!.Find("Limit")!.By);
+
+            // Setup needs an engineer: Ann is asked to make way for one.
+            var opening = open.Command.ExecuteAsync(null);
+            Assert.True(view.HasLogin);
+            Type(view.Login!, "Bo", "5678");
+            WpfTestHost.Wait(opening);
+            Assert.Equal("Setup", view.Popup!.Name);
+
+            // Logged out: the engineer's popup closes, the setting locks again.
+            WpfTestHost.Wait(logInOut.Command.ExecuteAsync(null));
+            Assert.False(view.Session.IsLoggedIn);
+            Assert.Null(view.Popup);
+            Assert.True(limit.IsLocked);
+            Assert.Equal("Log In", logInOut.Caption);
+            Assert.False(view.Open("Setup"));
+
+            // Log In on its own asks who, with nothing asked for.
+            var loggingIn = logInOut.Command.ExecuteAsync(null);
+            Assert.Equal("Who are you?", view.Login!.Prompt);
+            Type(view.Login, "Ann", "1234");
+            WpfTestHost.Wait(loggingIn);
+            Assert.Equal("Ann", view.Session.User!.Name);
+        });
+    }
+
+    /// <summary>A project with no users locks nothing - as it ran before levels.</summary>
+    [Fact]
+    public void Without_users_nothing_is_locked()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", Recipe(), "Top");
+            var main = new Screen
+            {
+                Widgets =
+                [
+                    new Widget { Kind = WidgetKind.Button, Station = "Top", Action = WidgetAction.ResetCounts, Width = 100, Height = 30 },
+                    new Widget { Kind = WidgetKind.Setting, Station = "Top", Name = "Limit", Width = 300, Height = 30 },
+                ],
+            };
+
+            using var runtime = new ProjectRuntime(project);
+            using var view = new ScreenViewModel(main, runtime, project.Folder);
+            view.UseSession(new UserSession(project));
+
+            var limit = view.Widgets.OfType<SettingWidgetViewModel>().Single();
+            Assert.False(limit.IsLocked);
+            Assert.False(view.Session.IsEnforced);
+
+            WpfTestHost.Wait(view.Widgets.OfType<ButtonWidgetViewModel>().Single().Command.ExecuteAsync(null));
+            Assert.False(view.HasLogin);
+        });
+    }
 }
