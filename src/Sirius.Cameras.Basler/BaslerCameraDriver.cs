@@ -208,24 +208,38 @@ internal sealed class BaslerCamera : Sirius.Vision.Cameras.ICamera
                 ApplyTrigger();
 
             var milliseconds = (int)Math.Clamp(timeout.TotalMilliseconds, 1, int.MaxValue);
+            var clock = System.Diagnostics.Stopwatch.StartNew();
 
-            if (_trigger == CameraTrigger.Software)
+            for (var attempt = 1; ; attempt++)
             {
-                if (!_camera.WaitForFrameTriggerReady(milliseconds, TimeoutHandling.Return))
-                    throw new TimeoutException("The camera was not ready for a trigger.");
+                var remaining = Math.Max(1, milliseconds - (int)clock.ElapsedMilliseconds);
 
-                _camera.ExecuteSoftwareTrigger();
+                if (_trigger == CameraTrigger.Software)
+                {
+                    if (!_camera.WaitForFrameTriggerReady(remaining, TimeoutHandling.Return))
+                        throw new TimeoutException("The camera was not ready for a trigger.");
+
+                    _camera.ExecuteSoftwareTrigger();
+                }
+
+                using var result = Retrieve(remaining, cancellationToken)
+                    ?? throw new TimeoutException("No frame arrived.");
+
+                if (result.GrabSucceeded)
+                    return Convert(result);
+
+                // Incomplete - packets lost on the network - is tried again:
+                // triggered by software, triggered again; free running, the
+                // next frame. Not a hardware trigger's, whose next frame is the
+                // next part's; and not for ever.
+                if (_trigger == CameraTrigger.Hardware || attempt >= LostFrameTries || clock.ElapsedMilliseconds >= milliseconds)
+                    throw new FrameLostException(Info, result.ErrorDescription, attempt);
             }
-
-            using var result = Retrieve(milliseconds, cancellationToken)
-                ?? throw new TimeoutException("No frame arrived.");
-
-            if (!result.GrabSucceeded)
-                throw new InvalidOperationException($"The camera reported an error: {result.ErrorDescription}");
-
-            return Convert(result);
         }
     }
+
+    /// <summary>How many times a frame that came incomplete is asked for, in all.</summary>
+    private const int LostFrameTries = 3;
 
     /// <summary>
     /// The next frame, waited for in short slices so a hardware trigger

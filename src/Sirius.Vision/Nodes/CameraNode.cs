@@ -180,7 +180,7 @@ public sealed class CameraNode : VisionNode, IInspectionNode, IParameterChoices
                 ? $"No trigger arrived within {_timeout} ms."
                 : $"No frame arrived within {_timeout} ms.");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException and not FrameLostException)
         {
             // A camera that failed - unplugged, reset - is let go, so the
             // next inspection opens it afresh rather than failing for ever.

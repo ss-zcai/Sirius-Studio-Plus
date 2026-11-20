@@ -55,6 +55,28 @@ public sealed class CameraInUseException : InvalidOperationException
     public CameraInfo Camera { get; }
 }
 
+/// <summary>
+/// A frame that came incomplete - the network lost some of its packets -
+/// after the driver had tried again. The camera is still there and open:
+/// the next grab may well be whole, so it is not let go for this.
+/// </summary>
+public sealed class FrameLostException : InvalidOperationException
+{
+    public FrameLostException(CameraInfo camera, string makerSays, int times)
+        : base(
+            (times > 1
+                ? $"Frames from {camera.Label} came incomplete {times} times running"
+                : $"A frame from {camera.Label} came incomplete") +
+            ": the network is losing some of its packets. Check the cable and the network card - jumbo frames on, " +
+            "and for a Basler camera the pylon GigE filter driver, both set up by pylon's GigE Configurator - and " +
+            $"that nothing else is busy on the same network. ({makerSays})")
+    {
+        Camera = camera;
+    }
+
+    public CameraInfo Camera { get; }
+}
+
 /// <summary>An open camera.</summary>
 /// <remarks>
 /// Settings are applied as they are set; an implementation keeps the last
@@ -320,16 +342,7 @@ public static class CameraDrivers
                 if (info is null)
                     continue;
 
-                try
-                {
-                    camera = driver.Open(info);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    // Found but not opened: a GigE camera is controlled by one
-                    // program at a time, and that is nearly always why.
-                    throw new CameraInUseException(info, ex);
-                }
+                camera = OpenSoon(driver, info);
             }
 
             ICamera? kept = null;
@@ -351,6 +364,51 @@ public static class CameraDrivers
         }
 
         return null;
+    }
+
+    /// <summary>How long a camera found but not opened is tried again for.</summary>
+    internal static TimeSpan InUseGrace { get; set; } = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Opens a camera found, trying again for a moment when it will not open.
+    /// Called holding <see cref="SdkGate"/>, which it lets go of while it waits.
+    /// </summary>
+    /// <remarks>
+    /// A GigE camera is controlled by one program at a time, and one just let
+    /// go of - a camera window closed in Builder, Studio's recipe closed - can
+    /// take a moment to be free: it was said to be in use, and then opened
+    /// fine a few seconds later. Held by a program still running, it is still
+    /// said to be in use, after the grace.
+    /// </remarks>
+    private static ICamera OpenSoon(ICameraDriver driver, CameraInfo info)
+    {
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+
+        while (true)
+        {
+            try
+            {
+                return driver.Open(info);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Found but not opened: a GigE camera is controlled by one
+                // program at a time, and that is nearly always why.
+                if (waited.Elapsed >= InUseGrace)
+                    throw new CameraInUseException(info, ex);
+            }
+
+            Monitor.Exit(SdkGate);
+
+            try
+            {
+                Thread.Sleep(250);
+            }
+            finally
+            {
+                Monitor.Enter(SdkGate);
+            }
+        }
     }
 
     /// <summary>Lets a camera go - after it failed, so the next grab opens it afresh.</summary>

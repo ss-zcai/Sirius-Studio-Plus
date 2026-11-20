@@ -222,6 +222,74 @@ public sealed class CameraUnitTests : IDisposable
         Assert.Equal(BusyDriver.Serial, problem.Camera.Serial);
     }
 
+    /// <summary>
+    /// A camera just let go of by another program can take a moment to be
+    /// free: closed in Builder and opened in Studio, it was said to be in use,
+    /// and opened fine a few seconds later. It is tried again meanwhile.
+    /// </summary>
+    [Fact]
+    public void A_camera_just_let_go_of_elsewhere_is_tried_again_before_it_is_said_to_be_in_use()
+    {
+        var driver = new LossyCameraDriver("LOSSY-OPEN");
+        driver.RefuseOpens = 2;
+        CameraDrivers.Register(driver);
+
+        var camera = CameraDrivers.Acquire(driver.Device);
+
+        try
+        {
+            Assert.NotNull(camera);
+            Assert.Equal(3, driver.Opens);
+        }
+        finally
+        {
+            CameraDrivers.Release(camera!);
+        }
+    }
+
+    /// <summary>
+    /// A frame lost on the network - "The buffer was incompletely grabbed",
+    /// after the driver has tried again - is said, and the camera is kept:
+    /// it was let go of, and Live stopped, at the first.
+    /// </summary>
+    [Fact]
+    public void The_camera_window_keeps_the_camera_over_a_frame_lost_on_the_network()
+    {
+        var driver = new LossyCameraDriver("LOSSY-WINDOW");
+        CameraDrivers.Register(driver);
+
+        var project = Project.Create(_root, "Line", CameraRecipe(), "Top");
+        var unit = project.AddCamera("Top camera", new CameraSetup(driver.Device));
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            using var model = new CameraViewModel(project, unit);
+
+            driver.LoseFrames = 1;
+            WpfTestHost.Wait(model.GrabAsync());
+            Assert.Contains("came incomplete", model.Problem, StringComparison.Ordinal);
+            Assert.Contains("network card", model.Problem, StringComparison.Ordinal);
+            Assert.Null(model.Picture);
+
+            WpfTestHost.Wait(model.GrabAsync());
+            Assert.Null(model.Problem);
+            Assert.NotNull(model.Picture);
+
+            // Opened once: kept over the lost frame, not let go and opened again.
+            Assert.Equal(1, driver.Opens);
+
+            // Live goes past a lost frame, and on.
+            driver.LoseFrames = 2;
+            model.LiveCommand.Execute(null);
+            WpfTestHost.PumpUntil(() => driver.LoseFrames == 0 && model.Problem is null);
+            Assert.True(model.IsLive);
+            model.StopLive();
+            Assert.Equal(1, driver.Opens);
+        });
+    }
+
     // ---- Builder ---------------------------------------------------------------------------
 
     private BuilderViewModel Builder(Project project, MessageBoxResult answer = MessageBoxResult.No)

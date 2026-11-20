@@ -383,6 +383,61 @@
     </Style>
 
     <!--
+        A button that stays in when pressed - Live - looking like the buttons
+        beside it, and lit in the accent while in. The stock ToggleButton
+        draws itself near-white with a dotted focus box, as Live did beside
+        Grab.
+    -->
+    <Style x:Key="TextToggleButton" TargetType="ToggleButton">
+        <Setter Property="Background" Value="{StaticResource Surface.Node}" />
+        <Setter Property="Foreground" Value="{StaticResource Text.Primary}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Surface.Border}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="Margin" Value="2,0" />
+        <Setter Property="MinWidth" Value="64" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="3"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"
+                                          TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Surface.NodeHeader}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#3360A5FA" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#1A1B1E" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="#26282D" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#3A3D45" />
+                            <Setter Property="Foreground" Value="{StaticResource Text.Secondary}" />
+                            <Setter Property="Opacity" Value="0.65" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
         A socket plus its port name. The shape carries the data type (square =
         image, circle = otherwise, coloured per type) and the label carries the
         port's role, so the name is free to say something useful - "Source",

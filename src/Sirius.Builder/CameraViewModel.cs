@@ -345,16 +345,32 @@ public sealed partial class CameraViewModel : ObservableObject, IDisposable
 
     private async Task LiveAsync(CancellationToken token)
     {
+        var lostRunning = 0;
+
         while (!token.IsCancellationRequested)
         {
-            // A timeout - a hardware trigger not yet come - is waited out again; anything else stops.
-            if (await GrabOnceAsync(token).ConfigureAwait(true) is GrabResult.Failed)
+            // A timeout - a hardware trigger not yet come - is waited out
+            // again. A frame lost on the network is said and gone past - the
+            // next is usually whole - unless frames go on being lost; anything
+            // else stops.
+            switch (await GrabOnceAsync(token).ConfigureAwait(true))
             {
-                StopLive();
-                return;
+                case GrabResult.Lost when ++lostRunning < LiveLostLimit:
+                    continue;
+
+                case GrabResult.Lost or GrabResult.Failed:
+                    StopLive();
+                    return;
+
+                default:
+                    lostRunning = 0;
+                    break;
             }
         }
     }
+
+    /// <summary>Frames lost running - each already tried again by the driver - before Live gives up.</summary>
+    private const int LiveLostLimit = 10;
 
     /// <summary>Stops taking frames; the last stays on view.</summary>
     internal void StopLive()
@@ -373,6 +389,7 @@ public sealed partial class CameraViewModel : ObservableObject, IDisposable
     {
         Taken,
         TimedOut,
+        Lost,
         Failed,
         Cancelled,
     }
@@ -424,6 +441,12 @@ public sealed partial class CameraViewModel : ObservableObject, IDisposable
                 : $"No frame arrived within {timeout} ms.";
             return GrabResult.TimedOut;
         }
+        catch (FrameLostException ex)
+        {
+            Problem = ex.Message;
+            ViewText = IsLive ? "A frame was lost; Live goes on." : "Not taken.";
+            return GrabResult.Lost;
+        }
         catch (Exception ex)
         {
             Problem = ExceptionText(ex);
@@ -447,9 +470,10 @@ public sealed partial class CameraViewModel : ObservableObject, IDisposable
             camera.Gain = gain;
             return camera.Grab(TimeSpan.FromMilliseconds(timeout), token);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException and not TimeoutException)
+        catch (Exception ex) when (ex is not OperationCanceledException and not TimeoutException and not FrameLostException)
         {
             // Unplugged, reset: let it go, so the next grab opens it afresh.
+            // A frame lost on the network is neither: the camera is kept.
             CameraDrivers.Release(camera);
             _open = null;
             throw;

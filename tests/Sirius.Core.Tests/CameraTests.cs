@@ -100,6 +100,41 @@ public class CameraTests
         }
     }
 
+    /// <summary>
+    /// A frame lost on the network fails that inspection, saying so, and the
+    /// camera is kept for the next - not let go and opened again, which a
+    /// camera unplugged or reset needs and a lost packet does not.
+    /// </summary>
+    [Fact]
+    public void A_frame_lost_on_the_network_fails_the_inspection_and_keeps_the_camera()
+    {
+        var driver = new LossyCameraDriver("LOSSY-NODE");
+        CameraDrivers.Register(driver);
+        driver.LoseFrames = 1;
+
+        var (_, camera, scheduler) = Build(driver.Device);
+
+        try
+        {
+            using (scheduler)
+            {
+                scheduler.InspectAsync().GetAwaiter().GetResult();
+                Assert.Equal(NodeStatus.Error, camera.Status);
+                Assert.Contains("came incomplete", camera.StatusMessage, StringComparison.Ordinal);
+
+                scheduler.InspectAsync().GetAwaiter().GetResult();
+                Assert.NotEqual(NodeStatus.Error, camera.Status);
+                Assert.NotNull(scheduler.GetOutput<ImageData>(camera.ImageOut));
+                Assert.Equal(1, driver.Opens);
+            }
+        }
+        finally
+        {
+            if (CameraDrivers.Acquire(driver.Device) is { } open)
+                CameraDrivers.Release(open);
+        }
+    }
+
     [Fact]
     public void A_camera_is_found_by_its_serial_number()
     {

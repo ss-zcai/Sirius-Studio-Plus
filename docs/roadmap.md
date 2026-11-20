@@ -55,6 +55,11 @@ same time: backlog items L1-L6, all set out in `licences.md`.
 - **Line profiles in Sirius IV**: a profile line drawn on a picture
   opens its chart, floated as in Studio, in the picture's own bits; IV
   drew the line and charted nothing.
+- **A camera on a busy network**: a frame that comes incomplete is asked
+  for again, up to three times (not on a hardware trigger, whose next
+  frame is the next part's), and the camera is kept rather than let go;
+  Builder's Live goes on past one. A camera just let go of by another
+  program is tried again for three seconds before it is said to be in use.
 
 1.0.12 (16 November) brought a file saved over running its node again
 (decision 78), saved pictures and Sirius IV, and controllers.

@@ -377,11 +377,19 @@
                                                Foreground="{StaticResource Text.Secondary}"
                                                Text="Double-click: a station shows the start screen, a camera its window, a controller its workflow, a screen its design. Right-click a station to open its recipe in Studio, or choose its camera." />
 
-                                    <Grid>
-                                        <TextBlock TextWrapping="Wrap"
+                                    <DockPanel>
+                                        <!--
+                                            Above the list, not over it: a new
+                                            project has its start page, so the
+                                            list is never empty, and the two
+                                            were drawn on top of each other.
+                                        -->
+                                        <TextBlock DockPanel.Dock="Top"
+                                                   TextWrapping="Wrap"
                                                    FontSize="11"
+                                                   Margin="0,0,0,6"
                                                    Foreground="{StaticResource Text.Secondary}"
-                                                   Text="Nothing here yet. Add a station from a recipe made in Studio, then a controller for its PLC."
+                                                   Text="No stations yet. Add a station from a recipe made in Studio, then a controller for its PLC."
                                                    Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
 
                                         <ListBox x:Name="ProjectList"
@@ -605,7 +613,7 @@
                                                 </DataTemplate>
                                             </ListBox.Resources>
                                         </ListBox>
-                                    </Grid>
+                                    </DockPanel>
                                 </DockPanel>
                             </avalonDock:LayoutAnchorable>
                         </avalonDock:LayoutAnchorablePane>
