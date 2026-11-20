@@ -511,6 +511,80 @@ public sealed class PlcWorkflowTests : IDisposable
         Assert.Equal(2, runner.Log.Count(entry => entry.Message.StartsWith("Connected to", StringComparison.Ordinal)));
     }
 
+    /// <summary>
+    /// A read that fails - how a real driver first finds a connection gone,
+    /// before it says it is not connected - is a gap in the watching too: a
+    /// bit that rose meanwhile is no edge. The Monitor kept the value from
+    /// before the failure, and fired on the first read after it; the lost-PLC
+    /// test above failed now and then for it, when the cable was pulled
+    /// between the Monitor's look at the connection and its read.
+    /// </summary>
+    [Fact]
+    public async Task A_bit_that_rose_while_reads_failed_is_no_edge()
+    {
+        var plc = Line();
+        var driver = new FailingReads(plc);
+        var line = new LineWorkflow();
+
+        await using var runner = new WorkflowRunner(line.Graph, driver, new FakeStations());
+        await StartAsync(runner, plc);
+
+        // Reads fail, still connected; the bit rises meanwhile.
+        driver.Failing = true;
+        var failed = driver.Failed;
+        await Until(() => driver.Failed > failed);
+
+        plc.Set("DB34.20.0", true);
+        driver.Failing = false;
+
+        // Read again, after the Monitor's wait - and nothing fired.
+        var reads = plc.Reads;
+        await Until(() => plc.Reads > reads + 1);
+        Assert.Equal(0, runner.Passes);
+
+        // A rise it saw both sides of still fires.
+        plc.Set("DB34.20.0", false);
+        var readsSince = plc.Reads;
+        await Until(() => plc.Reads > readsSince + 1);
+        var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+        Assert.Equal(1, pass.Number);
+    }
+
+    /// <summary>The simulated PLC, whose reads can be made to fail while it says it is connected.</summary>
+    private sealed class FailingReads(SimulatedPlc plc) : IPlcDriver
+    {
+        private int _failed;
+
+        public volatile bool Failing;
+
+        /// <summary>Reads failed so far.</summary>
+        public int Failed => Volatile.Read(ref _failed);
+
+        public string Description => plc.Description;
+
+        public bool IsConnected => plc.IsConnected;
+
+        public Task ConnectAsync(CancellationToken cancellationToken) => plc.ConnectAsync(cancellationToken);
+
+        public Task DisconnectAsync() => plc.DisconnectAsync();
+
+        public string? AddressProblem(PlcVariable variable) => plc.AddressProblem(variable);
+
+        public Task<object> ReadAsync(PlcVariable variable, CancellationToken cancellationToken)
+        {
+            if (!Failing)
+                return plc.ReadAsync(variable, cancellationToken);
+
+            Interlocked.Increment(ref _failed);
+            throw new PlcException("No answer in time.");
+        }
+
+        public Task WriteAsync(PlcVariable variable, object value, CancellationToken cancellationToken) =>
+            plc.WriteAsync(variable, value, cancellationToken);
+
+        public ValueTask DisposeAsync() => plc.DisposeAsync();
+    }
+
     [Fact]
     public void A_check_names_what_is_wrong_before_anything_runs()
     {

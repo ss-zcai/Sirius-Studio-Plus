@@ -171,6 +171,11 @@ public sealed class PlcMonitorNode : WorkflowEventNode
             }
             catch (PlcException ex)
             {
+                // A gap in the watching as much as a lost connection is - and
+                // with a real PLC, usually how a lost one is found: the value
+                // from before it is not one to find an edge against after.
+                last = null;
+
                 if (ex.Message != problem)
                 {
                     problem = ex.Message;
