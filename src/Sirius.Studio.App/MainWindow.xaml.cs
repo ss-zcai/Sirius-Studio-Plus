@@ -194,7 +194,9 @@ public partial class MainWindow : Window
     {
         // Camera drivers too, off the UI thread: the first search for GigE
         // cameras waits for them to answer.
-        _ = Task.Run(() => Sirius.Vision.Cameras.CameraDrivers.LoadInstalled());
+        // Marked as under way at once, so a recipe opened with Studio waits
+        // for its camera's driver rather than finding the camera missing.
+        _ = Sirius.Vision.Cameras.CameraDrivers.LoadInstalledInBackground();
 
         var problem = await Task.Run(Sirius.Vision.NativeLibraries.Problem).ConfigureAwait(true);
 

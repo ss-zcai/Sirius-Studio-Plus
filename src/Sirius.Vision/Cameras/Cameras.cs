@@ -158,6 +158,7 @@ public static class CameraDrivers
     private static bool _loaded;
     private static bool _closed;
     private static volatile bool _searching;
+    private static Task _loading = Task.CompletedTask;
 
     /// <summary>
     /// Whether the drivers beside the application are still being looked
@@ -209,6 +210,77 @@ public static class CameraDrivers
         finally
         {
             _searching = false;
+        }
+    }
+
+    /// <summary>
+    /// <see cref="LoadInstalled"/> on a worker, for an application that
+    /// should not wait for it - marked as under way before this returns, so
+    /// a camera asked for meanwhile waits for it (<see cref="Acquire"/>)
+    /// rather than being reported missing.
+    /// </summary>
+    public static Task LoadInstalledInBackground(string? folder = null)
+    {
+        lock (Gate)
+        {
+            if (_loaded)
+                return _loading;
+
+            _loaded = true;
+            _searching = true;
+
+            _loading = Task.Run(() =>
+            {
+                try
+                {
+                    Load(folder ?? AppContext.BaseDirectory);
+                }
+                finally
+                {
+                    _searching = false;
+                }
+            });
+
+            return _loading;
+        }
+    }
+
+    /// <summary>For a test: a search for drivers under way until <paramref name="search"/> ends.</summary>
+    internal static void SearchUnderWay(Task search)
+    {
+        lock (Gate)
+        {
+            _searching = true;
+            _loading = search.ContinueWith(_ => _searching = false, TaskScheduler.Default);
+        }
+    }
+
+    /// <summary>The longest a camera asked for waits for the first search for drivers.</summary>
+    internal static TimeSpan SearchPatience { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Waits for the drivers being looked for in the background, if they
+    /// are. A recipe opened as Studio starts - from Builder's Open in Studio -
+    /// ran its Camera node before the Basler driver had joined: the camera
+    /// was "not found", and found when run again a moment later.
+    /// </summary>
+    private static void WaitForSearch()
+    {
+        Task loading;
+
+        lock (Gate)
+            loading = _loading;
+
+        if (loading.IsCompleted)
+            return;
+
+        try
+        {
+            loading.Wait(SearchPatience);
+        }
+        catch (AggregateException)
+        {
+            // A driver that failed to load is kept in LoadProblems; the rest are there.
         }
     }
 
@@ -318,6 +390,8 @@ public static class CameraDrivers
             if (Open.TryGetValue(serial, out var open))
                 return open;
         }
+
+        WaitForSearch();
 
         foreach (var driver in All)
         {

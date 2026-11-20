@@ -248,6 +248,42 @@ public sealed class CameraUnitTests : IDisposable
     }
 
     /// <summary>
+    /// A camera asked for while the drivers are still being looked for -
+    /// a recipe opened as Studio starts, from Builder's Open in Studio -
+    /// waits for them. It was "not found", and found when run again.
+    /// </summary>
+    [Fact]
+    public void A_camera_asked_for_while_drivers_are_looked_for_waits_for_them()
+    {
+        var driver = new LossyCameraDriver("LOSSY-SEARCH");
+        var search = new TaskCompletionSource();
+        CameraDrivers.SearchUnderWay(search.Task);
+
+        var asked = Task.Run(() => CameraDrivers.Acquire(driver.Device));
+
+        try
+        {
+            Assert.False(asked.Wait(TimeSpan.FromMilliseconds(300)));
+            Assert.True(CameraDrivers.IsSearching);
+
+            // The driver joins as the search ends.
+            CameraDrivers.Register(driver);
+            search.SetResult();
+
+            Assert.True(asked.Wait(TimeSpan.FromSeconds(10)));
+            Assert.NotNull(asked.Result);
+            Assert.False(CameraDrivers.IsSearching);
+        }
+        finally
+        {
+            search.TrySetResult();
+
+            if (asked.Wait(TimeSpan.FromSeconds(10)) && asked.Result is { } camera)
+                CameraDrivers.Release(camera);
+        }
+    }
+
+    /// <summary>
     /// A frame lost on the network - "The buffer was incompletely grabbed",
     /// after the driver has tried again - is said, and the camera is kept:
     /// it was let go of, and Live stopped, at the first.

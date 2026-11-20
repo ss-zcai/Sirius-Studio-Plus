@@ -16,6 +16,11 @@ public partial class App : Application
         DropMenusFromTheLeft();
         SystemParameters.StaticPropertyChanged += OnSystemParameterChanged;
 
+        // Camera drivers looked for from the first moment, off this thread -
+        // the GigE search waits for cameras to answer - and marked as under
+        // way, so a recipe loaded meanwhile waits for its camera's driver.
+        _ = Sirius.Vision.Cameras.CameraDrivers.LoadInstalledInBackground();
+
         base.OnStartup(e);
     }
 
