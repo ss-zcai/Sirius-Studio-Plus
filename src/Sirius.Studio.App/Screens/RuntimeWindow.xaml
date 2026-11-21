@@ -541,44 +541,44 @@
                     <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.6" />
                 </Border.Effect>
                 <StackPanel>
-                    <TextBlock Text="Log In" FontSize="28" FontWeight="SemiBold" Foreground="{StaticResource Text.Primary}" />
-                    <TextBlock Text="{Binding Prompt}" Margin="0,4,0,16" FontSize="17" TextWrapping="Wrap" Foreground="{StaticResource Text.Secondary}" />
+                    <TextBlock Text="Log In" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource Text.Primary}" />
+                    <TextBlock Text="{Binding Prompt}" Margin="0,4,0,14" FontSize="15" TextWrapping="Wrap" Foreground="{StaticResource Text.Secondary}" />
 
                     <!-- Who: a list however many users there are, its rows tall enough for a finger. -->
-                    <TextBlock Text="User" FontSize="15" Margin="0,0,0,4" Foreground="{StaticResource Text.Secondary}" />
+                    <TextBlock Text="User" FontSize="13" Margin="0,0,0,4" Foreground="{StaticResource Text.Secondary}" />
                     <Grid>
                         <ComboBox x:Name="LoginName"
                                   ItemsSource="{Binding Names}"
                                   SelectedItem="{Binding SelectedName}"
-                                  Height="56"
-                                  FontSize="22"
+                                  Height="48"
+                                  FontSize="18"
                                   Padding="14,0"
                                   MaxDropDownHeight="360">
                             <ComboBox.ItemContainerStyle>
                                 <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
-                                    <Setter Property="Padding" Value="14,12" />
-                                    <Setter Property="FontSize" Value="22" />
+                                    <Setter Property="Padding" Value="14,10" />
+                                    <Setter Property="FontSize" Value="18" />
                                 </Style>
                             </ComboBox.ItemContainerStyle>
                         </ComboBox>
                         <TextBlock Text="Choose who you are"
                                    Margin="15,0,0,0"
-                                   FontSize="22"
+                                   FontSize="18"
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False"
                                    Foreground="{StaticResource Text.Secondary}"
                                    Visibility="{Binding HasNoSelection, Converter={StaticResource BoolToVisibility}}" />
                     </Grid>
 
-                    <TextBlock Text="PIN" FontSize="15" Margin="0,14,0,4" Foreground="{StaticResource Text.Secondary}" />
+                    <TextBlock Text="PIN" FontSize="13" Margin="0,14,0,4" Foreground="{StaticResource Text.Secondary}" />
                     <Border Margin="0,0,0,10"
-                            Height="56"
+                            Height="48"
                             CornerRadius="3"
                             Background="{StaticResource Surface.Panel}"
                             BorderBrush="{StaticResource Surface.Border}"
                             BorderThickness="1">
                         <TextBlock Text="{Binding PinDots}"
-                                   FontSize="30"
+                                   FontSize="26"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
                                    Foreground="{StaticResource Text.Primary}" />
@@ -608,7 +608,7 @@
 
                     <TextBlock Text="{Binding Problem}"
                                Margin="0,10,0,0"
-                               FontSize="16"
+                               FontSize="14"
                                TextWrapping="Wrap"
                                Foreground="#F8C4C4"
                                Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}" />
