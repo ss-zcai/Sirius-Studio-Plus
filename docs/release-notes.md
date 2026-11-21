@@ -5,6 +5,48 @@ what is worth pointing a tester at.
 
 ---
 
+## Sirius IV 1.0.2 — 21 November 2026 (a package of its own)
+
+Sirius IV alone, for testing the image viewer:
+`SiriusIV-1.0.2-win-x64.zip`. Unzip anywhere and run `SiriusIV.exe`;
+nothing needs installing. The rest of the suite is unchanged since 1.0.13
+and comes with 1.0.14.
+
+### What to try first
+
+> Open a folder of pictures. On the viewer's toolbar, the **Rectangle**
+> tool: drag from one corner to the opposite one
+
+It reads **L × W** - and its angle once turned by its knob, which also
+marks the top. Drag a corner to resize it, an edge to move it; **T** moves
+the top to the next side.
+
+> The **Save ROIs** button, beside Save Image: **Save All ROIs As…**
+
+Every rectangle's crop, turned upright, saved as `name-1.png`,
+`name-2.png`… in the picture's own bits. **ROIs from All**, in the file
+list's toolbar, cuts the same rectangles from every picture listed - for
+building a training set.
+
+> The **Line Profile** tool: drag a line
+
+A chart of the intensity along it opens in a window of its own, with the
+band averaged across the line; in the picture's own values for a 12-bit
+one. Closing the chart takes the line away.
+
+### Also new
+
+- The window opens where it was left, maximised or not.
+- Measurements, rectangles and profile lines are kept in each picture's
+  `.sann` when saved (Ctrl+S), as before.
+
+### Known issues
+
+- A profile chart opens at the middle of the window each time; move it
+  where it suits.
+
+---
+
 ## 1.0.13 — 18 November 2026
 
 A project's screen can now be several: **pages and popups** beside the
