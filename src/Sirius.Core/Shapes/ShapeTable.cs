@@ -108,6 +108,26 @@ public sealed class ShapeTable
     public static ShapeTable Empty { get; } = new(["#"], []);
 
     /// <summary>
+    /// A table made elsewhere - with columns of its own before the
+    /// measurements, as Sirius IV's has - one row per shape, in the shapes' order.
+    /// </summary>
+    public static ShapeTable Of(IReadOnlyList<string> columns, IReadOnlyList<string[]> rows)
+    {
+        ArgumentNullException.ThrowIfNull(columns);
+        ArgumentNullException.ThrowIfNull(rows);
+        return new ShapeTable(columns, rows);
+    }
+
+    /// <summary>Every measurement any of the shapes carries, in reading order.</summary>
+    public static IReadOnlyList<string> MetricKeys(IEnumerable<Shape> shapes) => OrderedKeys(shapes);
+
+    /// <summary>A measurement's column heading: "Area", "Centre X"; its own name when not one of ours.</summary>
+    public static string Heading(string key) => Headings.GetValueOrDefault(key, key);
+
+    /// <summary>A measurement as the table shows it, in pixels.</summary>
+    public static string FormatMetric(string key, double? value) => Converted(key, value, null);
+
+    /// <summary>
     /// Measurements that are a length, and so convert by the scale; and the
     /// one that is an area, which converts by its square.
     /// </summary>
@@ -145,7 +165,7 @@ public sealed class ShapeTable
 
         var scale = calibration is { IsCalibrated: true } given ? given : (Calibration?)null;
 
-        var keys = OrderedKeys(set);
+        var keys = OrderedKeys(set.Shapes);
 
         // A point has a position, not a centre. "Centre X" is right for a
         // blob, which is somewhere around it; for a point it reads as though
@@ -187,11 +207,11 @@ public sealed class ShapeTable
     /// the row that happened to be first would be a confusing way to lose
     /// data.
     /// </remarks>
-    private static List<string> OrderedKeys(ShapeSet set)
+    private static List<string> OrderedKeys(IEnumerable<Shape> shapes)
     {
         var present = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var shape in set.Shapes)
+        foreach (var shape in shapes)
         {
             foreach (var key in shape.Metrics.Keys)
                 present.Add(key);

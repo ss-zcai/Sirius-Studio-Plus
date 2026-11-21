@@ -42,12 +42,16 @@ public sealed class ShapeTableControl : ContentControl
         _grid.SelectionChanged += OnGridSelectionChanged;
         _grid.PreviewMouseLeftButtonDown += OnGridClicked;
         _grid.PreviewKeyDown += OnGridKeyDown;
+        _grid.MouseDoubleClick += OnGridDoubleClicked;
 
         Content = _grid;
         Rebuild();
     }
 
     private bool _syncing;
+
+    /// <summary>The rows shown, in the shapes' order.</summary>
+    private IReadOnlyList<string[]> _rows = [];
 
     public static readonly DependencyProperty DataProperty = DependencyProperty.Register(
         nameof(Data),
@@ -74,6 +78,25 @@ public sealed class ShapeTableControl : ContentControl
         set => SetValue(CalibrationProperty, value);
     }
 
+    /// <summary>
+    /// A table made elsewhere, shown in place of <see cref="Data"/>'s: one
+    /// row per shape, in the shapes' order, with columns of its own.
+    /// </summary>
+    public static readonly DependencyProperty TableProperty = DependencyProperty.Register(
+        nameof(Table),
+        typeof(ShapeTable),
+        typeof(ShapeTableControl),
+        new FrameworkPropertyMetadata(null, OnDataChanged));
+
+    public ShapeTable? Table
+    {
+        get => (ShapeTable?)GetValue(TableProperty);
+        set => SetValue(TableProperty, value);
+    }
+
+    /// <summary>A row double-clicked - or Enter pressed on it: the shape's index, counting from zero.</summary>
+    public event EventHandler<int>? RowActivated;
+
     public static readonly DependencyProperty SelectedIndexProperty = DependencyProperty.Register(
         nameof(SelectedIndex),
         typeof(int),
@@ -83,7 +106,10 @@ public sealed class ShapeTableControl : ContentControl
             FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
             OnSelectedIndexChanged));
 
-    /// <summary>The selected row, counting from zero, or -1 for none.</summary>
+    /// <summary>
+    /// The selected shape, counting from zero, or -1 for none: its place in
+    /// the set, not the row it is on - which a sort moves.
+    /// </summary>
     public int SelectedIndex
     {
         get => (int)GetValue(SelectedIndexProperty);
@@ -115,14 +141,16 @@ public sealed class ShapeTableControl : ContentControl
         {
             var index = SelectedIndex;
 
-            if (index < 0 || index >= _grid.Items.Count)
+            if (index < 0 || index >= _rows.Count)
             {
                 _grid.UnselectAll();
                 return;
             }
 
-            _grid.SelectedIndex = index;
-            _grid.ScrollIntoView(_grid.Items[index]);
+            // By the row, not by where it sits: sorted, the grid's tenth row
+            // is not the tenth shape.
+            _grid.SelectedItem = _rows[index];
+            _grid.ScrollIntoView(_rows[index]);
         }
         finally
         {
@@ -152,11 +180,41 @@ public sealed class ShapeTableControl : ContentControl
 
     private void OnGridKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Enter && ShapeOf(_grid.SelectedItem) is var chosen and >= 0)
+        {
+            RowActivated?.Invoke(this, chosen);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key != Key.Escape)
             return;
 
         _grid.UnselectAll();
         e.Handled = true;
+    }
+
+    private void OnGridDoubleClicked(object sender, MouseButtonEventArgs e)
+    {
+        var hit = e.OriginalSource as DependencyObject;
+
+        while (hit is not null and not DataGridRow)
+            hit = VisualTreeHelper.GetParent(hit);
+
+        if (hit is DataGridRow row && ShapeOf(row.Item) is var index and >= 0)
+            RowActivated?.Invoke(this, index);
+    }
+
+    /// <summary>The shape a row is, by its place among the rows as made - not as sorted.</summary>
+    private int ShapeOf(object? item)
+    {
+        for (var i = 0; i < _rows.Count; i++)
+        {
+            if (ReferenceEquals(_rows[i], item))
+                return i;
+        }
+
+        return -1;
     }
 
     private void OnGridSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -168,7 +226,7 @@ public sealed class ShapeTableControl : ContentControl
 
         try
         {
-            SelectedIndex = _grid.SelectedIndex;
+            SelectedIndex = ShapeOf(_grid.SelectedItem);
         }
         finally
         {
@@ -178,7 +236,7 @@ public sealed class ShapeTableControl : ContentControl
 
     private void Rebuild()
     {
-        var table = ShapeTable.From(Data, Calibration);
+        var table = Table ?? ShapeTable.From(Data, Calibration);
 
         // Columns are rebuilt only when they actually differ, so re-running a
         // graph does not throw away the sort the operator clicked.
@@ -197,6 +255,7 @@ public sealed class ShapeTableControl : ContentControl
             }
         }
 
+        _rows = table.Rows;
         _grid.ItemsSource = table.Rows;
 
         // A re-run replaces every row, which clears the grid's selection; the

@@ -126,6 +126,7 @@ public sealed class BrowserViewModel : ObservableObject
         SaveCommand = new RelayCommand(() => Save(), () => HasUnsavedChanges);
         ReadSettings();
         ArrangeTiles();
+        Annotations = new AnnotationsViewModel(this);
     }
 
     // ---- the folder ----------------------------------------------------------
@@ -745,6 +746,10 @@ public sealed class BrowserViewModel : ObservableObject
         while (Tiles.Count < places)
             Tiles.Add(new TileViewModel(this) { Number = Tiles.Count + 1 });
 
+        // The panel's viewer gone with the layout: it follows the first.
+        if (_current is null || !Tiles.Contains(_current))
+            CurrentTile = Tiles.FirstOrDefault();
+
         OnPropertyChanged(nameof(Columns));
         OnPropertyChanged(nameof(Rows));
         TilesArranged?.Invoke(this, EventArgs.Empty);
@@ -901,6 +906,133 @@ public sealed class BrowserViewModel : ObservableObject
     {
         _unsaved.Clear();
         Announce();
+    }
+
+    // ---- the Annotations panel, and layers on and off (F20b) ----------------------------
+
+    private readonly HashSet<string> _hiddenLayers = new(StringComparer.OrdinalIgnoreCase);
+    private TileViewModel? _current;
+
+    /// <summary>What the viewer last clicked shows: its picture's results and shapes, as tables.</summary>
+    public AnnotationsViewModel Annotations { get; }
+
+    /// <summary>The viewer last clicked, or made active; the first when none has been.</summary>
+    public TileViewModel? CurrentTile
+    {
+        get => _current;
+        set
+        {
+            if (value is not null && !Tiles.Contains(value))
+                return;
+
+            SetProperty(ref _current, value);
+        }
+    }
+
+    /// <summary>
+    /// Whether a layer is drawn. Switched by name, for every viewer and
+    /// every picture after - the same viewer's shapes compared across
+    /// pictures - until switched on again. Not kept between sessions.
+    /// </summary>
+    public bool IsLayerShown(string layer) => !_hiddenLayers.Contains(layer);
+
+    public void SetLayerShown(string layer, bool shown)
+    {
+        if (!(shown ? _hiddenLayers.Remove(layer) : _hiddenLayers.Add(layer)))
+            return;
+
+        foreach (var tile in Tiles)
+            tile.LayersChanged();
+
+        LayersChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>A layer was switched on or off.</summary>
+    public event EventHandler? LayersChanged;
+
+    // ---- annotations exported as CSV ----------------------------------------------------
+
+    private bool _exporting;
+
+    /// <summary>Annotations are being written out; another export waits.</summary>
+    public bool IsExporting
+    {
+        get => _exporting;
+        private set => SetProperty(ref _exporting, value);
+    }
+
+    /// <summary>
+    /// The pictures chosen in the list - with the rest of each matched set
+    /// chosen - in list order.
+    /// </summary>
+    internal IReadOnlyList<ImageFileItem> ChosenPictures() =>
+        _match.IsOn ? _chosen.SelectMany(item => item.Set).Distinct().ToArray() : _chosen;
+
+    /// <summary>
+    /// Reads each picture's annotation file and writes them all to one CSV,
+    /// a row per picture or per shape, on a worker.
+    /// </summary>
+    /// <returns>The rows written, and how many pictures had no annotations.</returns>
+    internal async Task<(int Rows, int Without)> ExportAsync(IReadOnlyList<ImageFileItem> pictures, bool perShape, string path)
+    {
+        IsExporting = true;
+        Activity = $"Reading annotations: 0 of {pictures.Count} pictures";
+
+        var progress = new Progress<int>(done =>
+        {
+            if (IsExporting)
+                Activity = $"Reading annotations: {done} of {pictures.Count} pictures";
+        });
+
+        try
+        {
+            return await Task.Run(() => Export(pictures, perShape, path, progress));
+        }
+        finally
+        {
+            IsExporting = false;
+            Activity = null;
+        }
+    }
+
+    internal static (int Rows, int Without) Export(IReadOnlyList<ImageFileItem> pictures, bool perShape, string path, IProgress<int>? progress = null)
+    {
+        var read = new List<AnnotationPicture>(pictures.Count);
+        var without = 0;
+
+        foreach (var picture in pictures)
+        {
+            var annotations = System.IO.File.Exists(picture.AnnotationPath)
+                ? AnnotationFile.TryLoad(picture.AnnotationPath, out _)
+                : null;
+
+            if (annotations is null)
+                without++;
+
+            read.Add(new AnnotationPicture(picture.RelativePath, annotations, picture.Verdict));
+
+            if (read.Count % 50 == 0)
+                progress?.Report(read.Count);
+        }
+
+        // Written beside, then put in place: a failure part way leaves no half a file.
+        var temporary = path + ".writing";
+
+        try
+        {
+            int rows;
+
+            using (var writer = new StreamWriter(temporary, append: false, AnnotationCsv.Encoding))
+                rows = perShape ? AnnotationCsv.WriteShapes(writer, read) : AnnotationCsv.WritePictures(writer, read);
+
+            System.IO.File.Move(temporary, path, overwrite: true);
+            return (rows, without);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(temporary))
+                System.IO.File.Delete(temporary);
+        }
     }
 
     // ---- ROIs from every picture ------------------------------------------------------

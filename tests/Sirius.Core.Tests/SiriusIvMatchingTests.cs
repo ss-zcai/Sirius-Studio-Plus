@@ -516,11 +516,13 @@ public sealed class SiriusIvMatchingTests : IDisposable
                 Assert.Same(window.ViewerTabs[2].Parent.Parent, window.ViewerTabs[3].Parent.Parent);
                 Assert.NotSame(window.ViewerTabs[0].Parent.Parent, window.ViewerTabs[2].Parent.Parent);
 
-                // One again: one tab, one pane, and the files still beside it.
+                // One again: one tab, one pane, and the files and annotations still beside it.
                 model.Layout = ViewerLayout.Single;
                 Assert.Single(window.ViewerTabs);
                 Assert.Single(Panes());
-                Assert.Single(docking.Layout.Descendents().OfType<AvalonDock.Layout.LayoutAnchorable>());
+                Assert.Equal(
+                    ["annotations", "files"],
+                    docking.Layout.Descendents().OfType<AvalonDock.Layout.LayoutAnchorable>().Select(panel => panel.ContentId).Order());
             }
             finally
             {

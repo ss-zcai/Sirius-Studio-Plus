@@ -722,7 +722,8 @@ public partial class ImageViewer : UserControl
 
     // ---- view transform -------------------------------------------------
 
-    private double Scale => SceneTransform.Matrix.M11;
+    /// <summary>Screen pixels per picture pixel.</summary>
+    internal double Scale => SceneTransform.Matrix.M11;
 
     /// <summary>One screen pixel, expressed in image units at the current zoom.</summary>
     private double ScreenPixel => _savingPixel ?? 1 / Math.Max(Scale, 1e-6);
@@ -760,6 +761,32 @@ public partial class ImageViewer : UserControl
         matrix.Translate(
             (Surface.ActualWidth - (_lastImageSize.Width * scale)) / 2,
             (Surface.ActualHeight - (_lastImageSize.Height * scale)) / 2);
+
+        SceneTransform.Matrix = matrix;
+        OnTransformChanged();
+    }
+
+    /// <summary>
+    /// Zooms to a part of the picture - a shape chosen in a table - centred,
+    /// with room round it: three times its size, at least 48 pixels, so a
+    /// small shape is seen with what is near it.
+    /// </summary>
+    /// <param name="area">In the picture's pixels.</param>
+    public void ZoomTo(Rect area)
+    {
+        if (area.IsEmpty || _lastImageSize == Size.Empty || Surface.ActualWidth <= 0 || Surface.ActualHeight <= 0)
+            return;
+
+        var width = Math.Max(area.Width * 3, 48);
+        var height = Math.Max(area.Height * 3, 48);
+
+        var scale = Math.Clamp(Math.Min(Surface.ActualWidth / width, Surface.ActualHeight / height), MinZoom, MaxZoom);
+        var centreX = area.X + (area.Width / 2);
+        var centreY = area.Y + (area.Height / 2);
+
+        var matrix = new Matrix();
+        matrix.Scale(scale, scale);
+        matrix.Translate((Surface.ActualWidth / 2) - (centreX * scale), (Surface.ActualHeight / 2) - (centreY * scale));
 
         SceneTransform.Matrix = matrix;
         OnTransformChanged();

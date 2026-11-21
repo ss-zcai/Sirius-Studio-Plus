@@ -125,6 +125,13 @@ public sealed class WpfTestHost : IDisposable
         task.GetAwaiter().GetResult();
     }
 
+    /// <summary>As <see cref="Wait(Task, int)"/>, giving the task's result.</summary>
+    public static T Wait<T>(Task<T> task, int timeoutSeconds = 30)
+    {
+        Wait((Task)task, timeoutSeconds);
+        return task.GetAwaiter().GetResult();
+    }
+
     /// <summary>Pumps the user-interface thread's dispatcher until <paramref name="condition"/> holds.</summary>
     public static void PumpUntil(Func<bool> condition, int timeoutSeconds = 30)
     {

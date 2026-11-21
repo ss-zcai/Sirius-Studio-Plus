@@ -52,6 +52,12 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   body, by calipers across the four sides of a turned region - fitted
   as a true rectangle, or as four lines for a part not square, and held
   square with a checkbox.
+- **Sirius IV's Annotations panel** (F20b, decision 85): below the
+  viewers, the picture last clicked - its results, and its shapes a row
+  each with their layer, place, size and measurements; a row picking its
+  shape, double-clicked zooming to it; layers switched on and off in
+  every viewer; **Export Annotations as CSV** (Ctrl+E), a row per picture
+  or per shape, for the pictures chosen or all listed.
 - **Line profiles in Sirius IV**: a profile line drawn on a picture
   opens its chart, floated as in Studio, in the picture's own bits; IV
   drew the line and charted nothing.

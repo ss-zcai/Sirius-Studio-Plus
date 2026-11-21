@@ -40,6 +40,7 @@ public sealed class TileViewModel : ObservableObject
     private bool _showsFolder;
     private bool _isProfilingEnabled;
     private LineProfileSource? _profileSource;
+    private int _selectedShape = -1;
 
     /// <param name="owner">The window it is in, which keeps every picture's measurements; null for a viewer on its own.</param>
     public TileViewModel(BrowserViewModel? owner = null)
@@ -192,11 +193,34 @@ public sealed class TileViewModel : ObservableObject
         return LineProfileSource.From(image);
     }
 
-    /// <summary>Every layer of its annotation file, drawn as one.</summary>
+    /// <summary>The layers of its annotation file that are switched on, drawn as one.</summary>
     public ShapeSet? Shapes
     {
         get => _shapes;
         private set => SetProperty(ref _shapes, value);
+    }
+
+    /// <summary>
+    /// The shape picked - on the picture, or in the Annotations panel - by
+    /// its place in <see cref="Shapes"/>; -1 for none.
+    /// </summary>
+    public int SelectedShapeIndex
+    {
+        get => _selectedShape;
+        set => SetProperty(ref _selectedShape, value);
+    }
+
+    /// <summary>The annotation file's layers switched on, in its order: what <see cref="Shapes"/> draws.</summary>
+    public IReadOnlyList<AnnotationLayer> ShownLayers =>
+        _annotations?.Layers.Where(layer => _owner?.IsLayerShown(layer.Name) ?? true).ToArray() ?? [];
+
+    /// <summary>A layer switched on or off: drawn again, and nothing left picked.</summary>
+    internal void LayersChanged()
+    {
+        SelectedShapeIndex = -1;
+        Shapes = _annotations is { } annotations && _picture is { } picture
+            ? Frame(annotations, ShownLayers, picture.PixelWidth, picture.PixelHeight)
+            : null;
     }
 
     /// <summary>Its annotation file, when it has one that could be read.</summary>
@@ -262,7 +286,7 @@ public sealed class TileViewModel : ObservableObject
             text.AppendLine(annotations.Grade is null ? annotations.VerdictWord : $"{annotations.VerdictWord} ({annotations.Grade})");
 
             foreach (var (name, value) in annotations.Results)
-                text.AppendLine(CultureInfo.CurrentCulture, $"{name}: {Format(value)}");
+                text.AppendLine(CultureInfo.CurrentCulture, $"{name}: {AnnotationTable.Display(value)}");
 
             foreach (var layer in annotations.Layers)
                 text.AppendLine(CultureInfo.CurrentCulture, $"Layer {layer.Name}: {layer.Shapes.Count} shape{(layer.Shapes.Count == 1 ? string.Empty : "s")}");
@@ -293,6 +317,7 @@ public sealed class TileViewModel : ObservableObject
         var showing = ++_showing;
         File = file;
         Problem = null;
+        SelectedShapeIndex = -1;
 
         if (file is null)
         {
@@ -344,7 +369,7 @@ public sealed class TileViewModel : ObservableObject
             ProfileSource = loaded.Profile;
             Annotations = loaded.Annotations;
             Shapes = loaded.Annotations is { } annotations && loaded.Picture is { } picture
-                ? Frame(annotations, picture.PixelWidth, picture.PixelHeight)
+                ? Frame(annotations, ShownLayers, picture.PixelWidth, picture.PixelHeight)
                 : null;
 
             // The picture's own measurements: drawn and not saved, or saved.
@@ -405,19 +430,11 @@ public sealed class TileViewModel : ObservableObject
     /// The shapes, in the frame of the picture shown - which is the frame they
     /// were saved in unless the picture has been changed since.
     /// </summary>
-    private static ShapeSet Frame(AnnotationFile annotations, int width, int height)
-    {
-        var shapes = annotations.AllShapes();
-        return new ShapeSet(shapes.Shapes, annotations.Width > 0 ? annotations.Width : width, annotations.Height > 0 ? annotations.Height : height);
-    }
-
-    private static string Format(object? value) => value switch
-    {
-        double number => number.ToString("0.###", CultureInfo.CurrentCulture),
-        bool flag => flag ? "Yes" : "No",
-        null => "—",
-        _ => Convert.ToString(value, CultureInfo.CurrentCulture) ?? string.Empty,
-    };
+    private static ShapeSet Frame(AnnotationFile annotations, IReadOnlyList<AnnotationLayer> layers, int width, int height) =>
+        new(
+            layers.SelectMany(layer => layer.Shapes).ToArray(),
+            annotations.Width > 0 ? annotations.Width : width,
+            annotations.Height > 0 ? annotations.Height : height);
 
     internal sealed record Loaded(BitmapSource? Picture, AnnotationFile? Annotations, string? Problem, LineProfileSource? Profile = null);
 }

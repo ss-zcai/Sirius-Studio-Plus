@@ -23,6 +23,7 @@ public partial class ViewerWindow : Window
     public static readonly RoutedUICommand CopyPathCommand = new("Copy Full Path", nameof(CopyPathCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand ShowInExplorerCommand = new("Show in Explorer", nameof(ShowInExplorerCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand CropAllCommand = new("ROIs from All Pictures", nameof(CropAllCommand), typeof(ViewerWindow));
+    public static readonly RoutedUICommand ExportCommand = new("Export Annotations as CSV", nameof(ExportCommand), typeof(ViewerWindow));
 
     private readonly BrowserViewModel _model;
     private bool _choosing;
@@ -42,6 +43,13 @@ public partial class ViewerWindow : Window
         // A tab for each viewer, in the layout's grid.
         ArrangeViewerTabs();
         model.TilesArranged += (_, _) => ArrangeViewerTabs();
+
+        // The Annotations panel follows the viewer whose tab is made active.
+        Docking.ActiveContentChanged += (_, _) =>
+        {
+            if (Docking.ActiveContent is ContentControl { Content: TileViewModel tile })
+                _model.CurrentTile = tile;
+        };
 
         model.PropertyChanged += (_, e) =>
         {
@@ -126,6 +134,99 @@ public partial class ViewerWindow : Window
     {
         FilesPanel.Show();
         FilesPanel.IsActive = true;
+    }
+
+    private void OnShowAnnotations(object sender, RoutedEventArgs e)
+    {
+        AnnotationsPanel.Show();
+        AnnotationsPanel.IsActive = true;
+    }
+
+    // ---- the Annotations panel (F20b) ---------------------------------------------------
+
+    /// <summary>Each viewer on screen, by the model it shows - to zoom one to a shape.</summary>
+    private readonly Dictionary<TileViewModel, Sirius.Studio.App.Controls.ImageViewer> _viewers = [];
+
+    /// <summary>A viewer clicked: the panel shows its picture.</summary>
+    private void OnViewerPressed(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: TileViewModel tile })
+            _model.CurrentTile = tile;
+    }
+
+    /// <summary>A shape's row double-clicked: its viewer zooms to it - and, in step, the others.</summary>
+    private void OnShapeActivated(object? sender, int index) => ZoomToShape(_model.CurrentTile, index);
+
+    internal void ZoomToShape(TileViewModel? tile, int index)
+    {
+        if (tile?.Shapes is not { } shapes || index < 0 || index >= shapes.Shapes.Count)
+            return;
+
+        if (!_viewers.TryGetValue(tile, out var viewer))
+            return;
+
+        var bounds = shapes.Shapes[index].Bounds;
+        tile.SelectedShapeIndex = index;
+        viewer.ZoomTo(new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height));
+    }
+
+    private void OnCanExport(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = _model is { HasFolder: true, IsExporting: false, IsCropping: false } && _model.Files.Count > 0;
+
+    /// <summary>
+    /// The pictures' annotations as one CSV: the ones chosen or all listed,
+    /// a row per picture or per shape, then where to save it.
+    /// </summary>
+    private async void OnExport(object sender, ExecutedRoutedEventArgs e)
+    {
+        const string title = "Export Annotations as CSV";
+
+        var chosen = _model.ChosenPictures();
+        var listed = _model.ListedPictures();
+
+        if (ExportWindow.Ask(this, chosen.Count, listed.Count) is not { } answer)
+            return;
+
+        var pictures = answer.ChosenOnly ? chosen : listed;
+        if (pictures.Count == 0)
+            return;
+
+        var folderName = Path.GetFileName(Path.TrimEndingDirectorySeparator(_model.Folder ?? "pictures"));
+        var dialog = new SaveFileDialog
+        {
+            Title = title,
+            Filter = "CSV (comma-separated) (*.csv)|*.csv",
+            FileName = $"{folderName}-{(answer.PerShape ? "shapes" : "results")}.csv",
+            InitialDirectory = _model.Folder ?? string.Empty,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        (int Rows, int Without) result;
+
+        try
+        {
+            result = await _model.ExportAsync(pictures, answer.PerShape, dialog.FileName);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Dialog.Error($"{Path.GetFileName(dialog.FileName)} could not be written: {ex.Message}", title, this);
+            return;
+        }
+        finally
+        {
+            CommandManager.InvalidateRequerySuggested();
+        }
+
+        var rows = answer.PerShape
+            ? $"{result.Rows:N0} shape{(result.Rows == 1 ? string.Empty : "s")} from {pictures.Count:N0} picture{(pictures.Count == 1 ? string.Empty : "s")}"
+            : $"{result.Rows:N0} picture{(result.Rows == 1 ? string.Empty : "s")}";
+        var without = result.Without > 0
+            ? $"\n\n{result.Without:N0} had no annotation file{(answer.PerShape ? " and add no rows" : ": their rows have only the file and its verdict")}."
+            : string.Empty;
+
+        Dialog.Inform($"Wrote {rows} to {dialog.FileName}.{without}", title, this);
     }
 
     // ---- searching the names ------------------------------------------------------------
@@ -272,14 +373,27 @@ public partial class ViewerWindow : Window
 
     private void OnViewerLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is Sirius.Studio.App.Controls.ImageViewer viewer)
-            Sync.Add(viewer);
+        if (sender is not Sirius.Studio.App.Controls.ImageViewer viewer)
+            return;
+
+        Sync.Add(viewer);
+
+        if (viewer.DataContext is TileViewModel tile)
+            _viewers[tile] = viewer;
     }
 
     private void OnViewerUnloaded(object sender, RoutedEventArgs e)
     {
-        if (sender is Sirius.Studio.App.Controls.ImageViewer viewer)
-            Sync.Remove(viewer);
+        if (sender is not Sirius.Studio.App.Controls.ImageViewer viewer)
+            return;
+
+        Sync.Remove(viewer);
+
+        foreach (var (tile, shown) in _viewers.ToArray())
+        {
+            if (ReferenceEquals(shown, viewer))
+                _viewers.Remove(tile);
+        }
     }
 
     // ---- the viewers' tabs -----------------------------------------------------------------

@@ -190,6 +190,40 @@ Builder opens a station's folder in it; so does
   wrote there, or in a new one for a picture that had none. Closing, or
   opening another folder, with measurements not saved asks first.
 
-**To come:** a panel listing the annotations as a table, exported as CSV;
-switching layers on and off; annotations from Run Folder and
-`sirius-run.exe` (F20's batch half).
+- **Annotations**, docked below the viewers (View ▸ Annotations): the
+  picture in the viewer last clicked, with its verdict, and two tabs.
+  **Results**: station, recipe, inspection, time, verdict and grade,
+  size; what was known about the part (`Part · PalletId`); then every
+  result, by published name. **Shapes**: a row for each shape of the
+  layers switched on - its number, layer, kind, label, centre (X, Y) and
+  size (W, H: a turned box's sides, an ellipse's axes, a circle's
+  diameter, else the box it fits in), then a column for each measurement
+  any of them carries. A row clicked picks its shape on the picture, and
+  a shape clicked there picks its row; double-clicked (or Enter), the
+  viewer zooms to it - the others with it, while Sync is on. Sorting a
+  column keeps each row with its shape.
+- **Layers on and off**: a tick box for each of the picture's layers,
+  with its count, along the top of the panel. A layer switched off is
+  gone from every viewer and every picture after, until switched on - for
+  comparing one viewer's shapes across pictures. Not kept between
+  sessions.
+- **Export Annotations as CSV…** (Ctrl+E, File menu, or the panel's
+  button): the pictures chosen in the list, or all listed as filtered and
+  searched - with each matched set's other pictures - as one CSV, a row
+  for each **picture** (file, station, recipe, inspection, time, verdict,
+  grade, node errors, a `Part: name` column for each part value, then a
+  column for each result) or for each **shape** (file, station,
+  inspection, verdict, the shape's number on its picture, layer, kind,
+  label, X, Y, W, H, then a column for each measurement). Columns are
+  gathered across all the pictures, in the order first met, so a recipe
+  changed part way keeps both its old and its new results; a picture
+  without an annotation file has a row of just its file and verdict, or
+  no shape rows. Every layer is exported, switched on or not. Numbers
+  with a full stop and to six places, whatever the machine's language;
+  times as `2026-11-21 14:23:05.123`; yes/no as `TRUE`/`FALSE`; UTF-8
+  with its mark, so Excel opens it as written. In code:
+  `Sirius.Core.Annotations.AnnotationCsv`, `AnnotationTable` the panel's
+  tables.
+
+**To come:** annotations from Run Folder and `sirius-run.exe` (F20's batch
+half).

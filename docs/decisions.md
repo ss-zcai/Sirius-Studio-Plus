@@ -3496,3 +3496,53 @@ minutes idle; users kept in the project.
 **Left:** the PLC and camera windows in Edge behind a level (F23c, F29);
 Windows accounts, if a customer asks; showing who changed what in
 Builder's Line Settings window.
+
+## 85. Sirius IV's Annotations panel and CSV export (F20b)
+
+Asked on 21 November 2026, as the start of F20. Four choices were the
+user's, each the recommended way: the panel docked below the viewers;
+Results and Shapes tabs; the CSV a row per picture or per shape, chosen at
+export; a layer switched off in every viewer, by name.
+
+**Built (21 November):**
+
+- **The Annotations panel**, below the viewers, follows the viewer last
+  clicked - or whose tab was made active - and says which ("Viewer 2 ·
+  0042_FAIL.png") when there are several. **Results**: what is known
+  about the picture, the part, then every result. **Shapes**: the shapes
+  of the layers switched on, in the order the viewer draws them, so a row
+  and a shape share their number and their selection. Its own columns -
+  number, layer, kind, label, centre and size - then the measurements, as
+  Studio's Shape Table orders and names them.
+- **Size** is a shape's own where it has one - a turned box's sides, an
+  ellipse's axes, a circle's diameter - else the box it fits in: a turned
+  box's upright bounding box would read as a size it is not.
+- **Double-click zooms** the viewer to the shape, with three times its
+  size round it (at least 48 pixels), so a small shape is seen in its
+  place; Sync View takes the others along.
+- **Layers by name, for the session.** Switched off in every viewer and
+  on every picture after: comparing pictures is what IV is for, and a
+  layer off in one viewer only would make two of a part look different.
+  Not kept between sessions, so IV never opens hiding shapes nobody
+  remembers hiding.
+- **One CSV, either way round.** A row per picture is a data log - the
+  results over a shift; a row per shape is the old ICB's Export Features,
+  as one file rather than an `.xlsx` per picture. Columns are gathered
+  across all the pictures in the order first met, so a recipe changed part
+  way keeps both. Every layer is exported, on or off: what is drawn is a
+  way of looking, not a choice of data. Numbers in the invariant culture
+  (a decimal comma makes a CSV unreadable to half the programs that open
+  it), UTF-8 with its mark for Excel. Which pictures: those chosen when
+  several are, else all listed, as filtered and searched - matched sets
+  whole.
+- **In `Sirius.Core.Annotations`** - `AnnotationTable` and
+  `AnnotationCsv` - not in Sirius IV, so the batch half (F20a) and any
+  tool can write the same file.
+- **Fixed on the way:** a sorted shape table picked the shape at the
+  row's place rather than the row's shape - sorted, the first row lit the
+  first shape whatever was on it. Studio's Shape Table had it too.
+
+**Left:** F20a (Run Folder and `sirius-run.exe` writing `.sann`), F20c
+and F20d (a disk quota, one pass in N), F20e (matching on the part),
+F20f (loose ends). Numbers in the Shapes table sort as text; a table of a
+few dozen rows rarely needs more, and the CSV is the place to sort many.

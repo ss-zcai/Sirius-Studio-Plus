@@ -216,10 +216,12 @@ from you before they start.
   Sync View, a tab per viewer. Left:
   - **F20a. The batch half** (S-M): Run Folder and `sirius-run.exe`
     writing the same `.sann` beside each image they run.
-  - **F20b. Sirius IV, next panels** (M each): the annotations as a
-    table (shapes and their measurements, results), a row double-clicked
-    zooming to its shape, and exported as one CSV across the pictures
-    chosen (the old ICB's Export Features); layers switched on and off.
+  - ~~**F20b. Sirius IV, next panels**~~ - done 21 November 2026
+    (decision 85): the Annotations panel below the viewers - Results and
+    Shapes tabs, a row picking its shape and double-clicked zooming to
+    it; layers switched on and off in every viewer; Export Annotations
+    as CSV, a row per picture or per shape, the pictures chosen or all
+    listed.
   - **F20e. Matching on the part** (S-M) - **now possible**: matching by
     name is done (12 November); since F23a a picture's `.sann` carries the
     part's values (`"part": { "PalletId": 12 }`), so a match rule "same

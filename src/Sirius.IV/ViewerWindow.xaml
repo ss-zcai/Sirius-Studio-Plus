@@ -21,8 +21,9 @@
     <!--
         Sirius IV: the pictures of a folder in a panel on the left, and one
         or several viewers in the middle showing the ones chosen, each with
-        the shapes from its annotation file drawn over it. Other panels -
-        the annotations as a table - come later, docked beside these.
+        the shapes from its annotation file drawn over it; below them, the
+        Annotations panel - the results and shapes of the picture in the
+        viewer last clicked, and its layers switched on and off.
     -->
     <Window.Resources>
         <Style x:Key="ToolbarTextButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
@@ -157,8 +158,10 @@
                 <Grid>
                     <controls:ImageViewer Loaded="OnViewerLoaded"
                                           Unloaded="OnViewerUnloaded"
+                                          PreviewMouseDown="OnViewerPressed"
                                           ImageSource="{Binding Picture}"
                                           Shapes="{Binding Shapes}"
+                                          SelectedShapeIndex="{Binding SelectedShapeIndex, Mode=TwoWay}"
                                           Measurements="{Binding Measurements, Mode=TwoWay}"
                                           IsProfilingEnabled="{Binding IsProfilingEnabled, Mode=TwoWay}"
                                           ProfileSource="{Binding ProfileSource}"
@@ -177,6 +180,7 @@
     <Window.InputBindings>
         <KeyBinding Key="O" Modifiers="Control" Command="{x:Static local:ViewerWindow.OpenFolderCommand}" />
         <KeyBinding Key="F" Modifiers="Control" Command="{x:Static local:ViewerWindow.SearchCommand}" />
+        <KeyBinding Key="E" Modifiers="Control" Command="{x:Static local:ViewerWindow.ExportCommand}" />
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
         <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SetLayoutCommand}" CommandParameter="{x:Static local:ViewerLayout.Single}" />
@@ -193,6 +197,7 @@
         <CommandBinding Command="{x:Static local:ViewerWindow.SearchCommand}" Executed="OnSearch" />
         <CommandBinding Command="{x:Static local:ViewerWindow.MatchCommand}" Executed="OnMatch" />
         <CommandBinding Command="{x:Static local:ViewerWindow.CropAllCommand}" Executed="OnCropAll" CanExecute="OnCanCropAll" />
+        <CommandBinding Command="{x:Static local:ViewerWindow.ExportCommand}" Executed="OnExport" CanExecute="OnCanExport" />
         <CommandBinding Command="{x:Static local:ViewerWindow.CopyNameCommand}" Executed="OnCopyName" CanExecute="OnCanUseChosen" />
         <CommandBinding Command="{x:Static local:ViewerWindow.CopyPathCommand}" Executed="OnCopyPath" CanExecute="OnCanUseChosen" />
         <CommandBinding Command="{x:Static local:ViewerWindow.ShowInExplorerCommand}" Executed="OnShowInExplorer" CanExecute="OnCanUseChosen" />
@@ -211,6 +216,7 @@
                 <MenuItem Header="_Open Folder…" InputGestureText="Ctrl+O" Command="{x:Static local:ViewerWindow.OpenFolderCommand}" />
                 <MenuItem Header="_Refresh" InputGestureText="F5" Command="{Binding RefreshCommand}" />
                 <MenuItem Header="_Save Measurements" InputGestureText="Ctrl+S" Command="{Binding SaveCommand}" />
+                <MenuItem Header="_Export Annotations as CSV…" InputGestureText="Ctrl+E" Command="{x:Static local:ViewerWindow.ExportCommand}" />
                 <Separator />
                 <MenuItem Header="Copy _Name" InputGestureText="Ctrl+C" Command="{x:Static local:ViewerWindow.CopyNameCommand}" />
                 <MenuItem Header="Copy Full _Path" InputGestureText="Ctrl+Shift+C" Command="{x:Static local:ViewerWindow.CopyPathCommand}" />
@@ -231,6 +237,7 @@
                 <MenuItem Header="Include _Sub-folders" IsCheckable="True" IsChecked="{Binding IncludeSubfolders}" />
                 <Separator />
                 <MenuItem Header="_Files" Click="OnShowFiles" />
+                <MenuItem Header="_Annotations" Click="OnShowAnnotations" />
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About Sirius IV…" Click="OnAboutClick" />
@@ -624,7 +631,85 @@
                         from there: stacked, side by side, as tabs, or out on a
                         screen of their own. Choosing a layout puts them back.
                     -->
-                    <avalonDock:LayoutDocumentPane />
+                    <avalonDock:LayoutPanel Orientation="Vertical">
+                        <avalonDock:LayoutDocumentPane />
+
+                        <!-- The picture in the viewer last clicked: its results, its shapes, its layers. -->
+                        <avalonDock:LayoutAnchorablePane DockHeight="230">
+                            <avalonDock:LayoutAnchorable x:Name="AnnotationsPanel" Title="Annotations" ContentId="annotations" CanClose="False">
+                                <DockPanel DataContext="{Binding Annotations}" Margin="6,4,6,6">
+                                    <!-- Which picture, how it went; its layers; export. -->
+                                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                                        <Button DockPanel.Dock="Right"
+                                                Content="Export CSV…"
+                                                ToolTip="The annotations of the pictures chosen, or all listed, as one CSV (Ctrl+E)"
+                                                Command="{x:Static local:ViewerWindow.ExportCommand}" />
+                                        <TextBlock Text="{Binding Caption}"
+                                                   ToolTip="{Binding Caption}"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxWidth="420"
+                                                   Foreground="{StaticResource Text.Primary}" />
+                                        <Border Style="{StaticResource VerdictBadge}">
+                                            <TextBlock Text="{Binding Verdict}" FontSize="10" FontWeight="SemiBold" Foreground="White" />
+                                        </Border>
+                                        <StackPanel Orientation="Horizontal"
+                                                    Margin="16,0,8,0"
+                                                    VerticalAlignment="Center"
+                                                    Visibility="{Binding HasLayers, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="Layers:" Margin="0,0,6,0" VerticalAlignment="Center" Foreground="{StaticResource Text.Secondary}" />
+                                            <ItemsControl x:Name="LayerToggles" ItemsSource="{Binding Layers}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Horizontal" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox Content="{Binding Text}"
+                                                                  IsChecked="{Binding IsShown}"
+                                                                  Margin="0,0,12,0"
+                                                                  VerticalAlignment="Center"
+                                                                  ToolTip="Draw this layer - in every viewer, on every picture" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <Grid>
+                                        <TabControl x:Name="AnnotationTabs" Visibility="{Binding HasAnnotations, Converter={StaticResource BoolToVisibility}}">
+                                            <TabItem Header="{Binding ResultsHeader}">
+                                                <DataGrid ItemsSource="{Binding Facts}"
+                                                          AutoGenerateColumns="False"
+                                                          IsReadOnly="True"
+                                                          CanUserAddRows="False"
+                                                          HeadersVisibility="Column"
+                                                          GridLinesVisibility="Horizontal">
+                                                    <DataGrid.Columns>
+                                                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" MinWidth="160" />
+                                                        <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*" />
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                            </TabItem>
+                                            <TabItem Header="{Binding ShapesHeader}">
+                                                <controls:ShapeTableControl x:Name="ShapeTable"
+                                                                            Table="{Binding Shapes}"
+                                                                            SelectedIndex="{Binding SelectedShapeIndex, Mode=TwoWay}"
+                                                                            RowActivated="OnShapeActivated"
+                                                                            ToolTip="Click a row to pick its shape on the picture; double-click to zoom to it" />
+                                            </TabItem>
+                                        </TabControl>
+                                        <TextBlock Text="{Binding EmptyText}"
+                                                   Margin="4,8"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{StaticResource Text.Secondary}"
+                                                   Visibility="{Binding HasAnnotations, Converter={StaticResource InverseBoolToVisibility}}" />
+                                    </Grid>
+                                </DockPanel>
+                            </avalonDock:LayoutAnchorable>
+                        </avalonDock:LayoutAnchorablePane>
+                    </avalonDock:LayoutPanel>
                 </avalonDock:LayoutPanel>
             </avalonDock:LayoutRoot>
         </avalonDock:DockingManager>
