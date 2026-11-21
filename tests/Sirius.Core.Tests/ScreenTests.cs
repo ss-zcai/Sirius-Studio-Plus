@@ -855,6 +855,52 @@ public sealed class ScreenTests : IDisposable
             Assert.Equal(System.Windows.Media.Color.FromRgb(0x17, 0x18, 0x1A), ((System.Windows.Media.SolidColorBrush)viewer.Background).Color);
         });
 
+    /// <summary>
+    /// The login popup's keys, buttons and list draw their text at the size
+    /// set on them. The theme gives every TextBlock 12 points, which beat a
+    /// key's 28: the keypad was set large and drawn small.
+    /// </summary>
+    [Fact]
+    public void The_login_popup_draws_its_keys_and_list_at_their_size()
+    {
+        var project = Project.Create(_folder, "Line", Recipe(), "Top");
+        project.AddUser("Ann", UserLevel.Technician, "1234");
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var window = RuntimeWindow.Create(project, fullScreen: false);
+            window.ShowActivated = false;
+            window.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+            window.Left = -20000;
+            window.Top = -20000;
+
+            try
+            {
+                window.Show();
+                _ = window.Screen.LogInOutAsync();
+                WpfTestHost.Settle(window.Dispatcher);
+
+                var layer = (System.Windows.DependencyObject)window.FindName("LoginLayer");
+                var texts = Descendants(layer).OfType<System.Windows.Controls.TextBlock>().ToArray();
+
+                Assert.Equal(28, texts.Single(text => text.Text == "5").FontSize);
+                Assert.Equal(18, texts.Single(text => text.Text == "Cancel").FontSize);
+
+                // Ann, the only one, already chosen: shown in the list at its size.
+                Assert.Equal(18, texts.Single(text => text.Text == "Ann").FontSize);
+
+                window.Screen.Login!.Cancel();
+            }
+            finally
+            {
+                window.Close();
+                WpfTestHost.Settle(window.Dispatcher);
+            }
+        });
+    }
+
     private static IEnumerable<System.Windows.DependencyObject> Descendants(System.Windows.DependencyObject root)
     {
         for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)

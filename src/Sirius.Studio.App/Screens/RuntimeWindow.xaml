@@ -540,6 +540,17 @@
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.6" />
                 </Border.Effect>
+                <Border.Resources>
+                    <!--
+                        The theme gives every TextBlock 12 points, and a style
+                        beats the size a button or list passes down: a string
+                        on a key or in the list came out at 12 whatever its
+                        FontSize. This takes the size of the control it is in.
+                    -->
+                    <DataTemplate x:Key="LoginText">
+                        <TextBlock Text="{Binding}" FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=Control}}" />
+                    </DataTemplate>
+                </Border.Resources>
                 <StackPanel>
                     <TextBlock Text="Log In" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource Text.Primary}" />
                     <TextBlock Text="{Binding Prompt}" Margin="0,4,0,14" FontSize="15" TextWrapping="Wrap" Foreground="{StaticResource Text.Secondary}" />
@@ -553,7 +564,8 @@
                                   Height="48"
                                   FontSize="18"
                                   Padding="14,0"
-                                  MaxDropDownHeight="360">
+                                  MaxDropDownHeight="360"
+                                  ItemTemplate="{StaticResource LoginText}">
                             <ComboBox.ItemContainerStyle>
                                 <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
                                     <Setter Property="Padding" Value="14,10" />
@@ -590,6 +602,7 @@
                                 <Setter Property="Height" Value="64" />
                                 <Setter Property="Margin" Value="4" />
                                 <Setter Property="FontSize" Value="28" />
+                                <Setter Property="ContentTemplate" Value="{StaticResource LoginText}" />
                             </Style>
                         </UniformGrid.Resources>
                         <Button Content="1" Command="{Binding DigitCommand}" CommandParameter="1" />
@@ -614,8 +627,8 @@
                                Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}" />
 
                     <DockPanel Margin="0,16,0,0" LastChildFill="False">
-                        <Button DockPanel.Dock="Right" Content="Log In" MinWidth="140" Height="52" FontSize="18" Margin="8,0,0,0" Command="{Binding LogInCommand}" />
-                        <Button DockPanel.Dock="Right" Content="Cancel" MinWidth="140" Height="52" FontSize="18" Command="{Binding CancelCommand}" />
+                        <Button DockPanel.Dock="Right" Content="Log In" MinWidth="140" Height="52" FontSize="18" ContentTemplate="{StaticResource LoginText}" Margin="8,0,0,0" Command="{Binding LogInCommand}" />
+                        <Button DockPanel.Dock="Right" Content="Cancel" MinWidth="140" Height="52" FontSize="18" ContentTemplate="{StaticResource LoginText}" Command="{Binding CancelCommand}" />
                     </DockPanel>
                 </StackPanel>
             </Border>
