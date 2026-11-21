@@ -991,7 +991,7 @@ public sealed class ScreenTests : IDisposable
 
     private static void Type(LoginViewModel login, string name, string pin)
     {
-        login.Choose(name);
+        login.SelectedName = name;
 
         foreach (var digit in pin)
             login.Digit(digit.ToString());
@@ -1050,12 +1050,17 @@ public sealed class ScreenTests : IDisposable
         var login = new LoginViewModel(session, UserLevel.Engineer, "Settings");
 
         Assert.Equal("Settings needs an Engineer or above.", login.Prompt);
-        Assert.Equal(["Ann", "Bo"], login.Choices.Select(choice => choice.Name));
+        // Only who could do it is offered - Bo, so Bo already chosen.
+        Assert.Equal(["Bo"], login.Names);
+        Assert.Equal("Bo", login.SelectedName);
 
-        login.Choose("Ann");
-        Assert.True(login.Choices[0].IsSelected);
-        login.Choose("Ann");
-        Assert.True(login.Choices[0].IsSelected);
+        // Anyone, to just log in; none chosen until someone has logged in.
+        var anyone = new LoginViewModel(session);
+        Assert.Equal(["Ann", "Bo"], anyone.Names);
+        Assert.True(anyone.HasNoSelection);
+
+        // A name not offered is still held to the level.
+        login.SelectedName = "Ann";
 
         foreach (var digit in "123456789")
             login.Digit(digit.ToString());
@@ -1079,6 +1084,10 @@ public sealed class ScreenTests : IDisposable
         Assert.True(login.Result.IsCompletedSuccessfully);
         Assert.True(login.Result.Result);
         Assert.Equal("Bo", session.User!.Name);
+
+        // Logged out, the next popup offers whoever was last.
+        session.LogOut();
+        Assert.Equal("Bo", new LoginViewModel(session).SelectedName);
 
         var cancelled = new LoginViewModel(session);
         cancelled.Cancel();

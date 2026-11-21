@@ -37,6 +37,22 @@ public sealed class UserSession : ObservableObject
     /// <summary>Who can log in, by name.</summary>
     public IReadOnlyList<string> Names => _project?.Users.Select(user => user.Name).ToArray() ?? [];
 
+    /// <summary>
+    /// Who can do what needs <paramref name="needed"/>, by name: everyone
+    /// for null - or when no one could, so the popup is never empty.
+    /// </summary>
+    public IReadOnlyList<string> NamesFor(UserLevel? needed)
+    {
+        if (_project is null)
+            return [];
+
+        var able = _project.Users.Where(user => needed is not { } level || user.Level >= level).Select(user => user.Name).ToArray();
+        return able.Length > 0 ? able : Names;
+    }
+
+    /// <summary>Who logged in last, still known once they log out: the popup offers them first.</summary>
+    public string? LastName { get; private set; }
+
     /// <summary>The user logged in, or null - Operator.</summary>
     public ProjectUser? User
     {
@@ -84,6 +100,7 @@ public sealed class UserSession : ObservableObject
             return _project.FindUser(name) is null ? $"There is no user called '{name}'." : "That PIN is not right.";
 
         User = user;
+        LastName = user.Name;
         Touch();
         return null;
     }
@@ -109,8 +126,9 @@ public sealed class UserSession : ObservableObject
 }
 
 /// <summary>
-/// The login popup: who, their PIN on a keypad, and - when something asked
-/// for it - what needs which level.
+/// The login popup: who, from a list of those who may do what asked; their
+/// PIN on a keypad; and - when something asked for it - what needs which
+/// level.
 /// </summary>
 public sealed class LoginViewModel : ObservableObject
 {
@@ -131,23 +149,23 @@ public sealed class LoginViewModel : ObservableObject
             ? $"{(string.IsNullOrWhiteSpace(what) ? "This" : what)} needs {UserLevels.WithArticle(level)} or above."
             : "Who are you?";
 
-        Names = session.Names;
-        Choices = Names.Select(name => new LoginChoice(name)).ToArray();
-        SelectedName = Names.Count == 1 ? Names[0] : session.User?.Name;
+        // Only those who could do it: a short list, and no one picked who
+        // would be turned away after typing their PIN.
+        Names = session.NamesFor(needed);
+
+        // Whoever is in, else whoever was last, else the only one.
+        SelectedName = Listed(session.User?.Name) ?? Listed(session.LastName) ?? (Names.Count == 1 ? Names[0] : null);
 
         DigitCommand = new RelayCommand<string>(Digit);
         BackCommand = new RelayCommand(Back);
         LogInCommand = new RelayCommand(LogIn);
         CancelCommand = new RelayCommand(Cancel);
-        ChooseCommand = new RelayCommand<string>(Choose);
     }
 
     public string Prompt { get; }
 
+    /// <summary>The users offered, in the project's order.</summary>
     public IReadOnlyList<string> Names { get; }
-
-    /// <summary>A button for each user, the one chosen lit.</summary>
-    public IReadOnlyList<LoginChoice> Choices { get; }
 
     public string? SelectedName
     {
@@ -155,24 +173,18 @@ public sealed class LoginViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _selected, value))
+            {
                 Problem = null;
-
-            ShowChosen();
+                OnPropertyChanged(nameof(HasNoSelection));
+            }
         }
     }
 
-    /// <summary>A user's button pressed: theirs lit, the rest not - pressed again, it stays lit.</summary>
-    public void Choose(string? name)
-    {
-        SelectedName = name;
-        ShowChosen();
-    }
+    /// <summary>No one chosen yet: the list says "Choose who you are".</summary>
+    public bool HasNoSelection => _selected is null;
 
-    private void ShowChosen()
-    {
-        foreach (var choice in Choices)
-            choice.IsSelected = string.Equals(choice.Name, _selected, StringComparison.OrdinalIgnoreCase);
-    }
+    private string? Listed(string? name) =>
+        name is null ? null : Names.FirstOrDefault(listed => string.Equals(listed, name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The PIN typed, as dots.</summary>
     public string PinDots => new('●', _pin.Length);
@@ -199,8 +211,6 @@ public sealed class LoginViewModel : ObservableObject
     public IRelayCommand LogInCommand { get; }
 
     public IRelayCommand CancelCommand { get; }
-
-    public IRelayCommand<string> ChooseCommand { get; }
 
     public void Digit(string? digit)
     {
@@ -252,19 +262,5 @@ public sealed class LoginViewModel : ObservableObject
     {
         _pin = string.Empty;
         OnPropertyChanged(nameof(PinDots));
-    }
-}
-
-/// <summary>One user's button on the login popup.</summary>
-public sealed class LoginChoice(string name) : ObservableObject
-{
-    private bool _isSelected;
-
-    public string Name { get; } = name;
-
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set => SetProperty(ref _isSelected, value);
     }
 }

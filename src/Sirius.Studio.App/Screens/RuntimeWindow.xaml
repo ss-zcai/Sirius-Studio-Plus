@@ -519,8 +519,9 @@
 
         <!--
             The login popup (F2): over the page, the popup and the status
-            line alike. Who, from the project's users; the PIN on a keypad
-            - or the keyboard - as dots; what asked for it, and why not.
+            line alike. Who, from a list of the users who may do what asked;
+            the PIN on a keypad - or the keyboard - as dots; what asked for
+            it, and why not. Sized for a finger on a touch screen.
         -->
         <Grid x:Name="LoginLayer"
               Grid.RowSpan="2"
@@ -528,7 +529,7 @@
               Visibility="{Binding HasLogin, Converter={StaticResource BoolToVisibility}}">
             <Rectangle Fill="#B3000000" />
             <Border DataContext="{Binding Login}"
-                    Width="440"
+                    Width="480"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Padding="20"
@@ -540,38 +541,44 @@
                     <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.6" />
                 </Border.Effect>
                 <StackPanel>
-                    <TextBlock Text="Log In" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Text.Primary}" />
-                    <TextBlock Text="{Binding Prompt}" Margin="0,4,0,12" FontSize="14" TextWrapping="Wrap" Foreground="{StaticResource Text.Secondary}" />
+                    <TextBlock Text="Log In" FontSize="28" FontWeight="SemiBold" Foreground="{StaticResource Text.Primary}" />
+                    <TextBlock Text="{Binding Prompt}" Margin="0,4,0,16" FontSize="17" TextWrapping="Wrap" Foreground="{StaticResource Text.Secondary}" />
 
-                    <ItemsControl x:Name="LoginNames" ItemsSource="{Binding Choices}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <ToggleButton Content="{Binding Name}"
-                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                              Style="{StaticResource TextToggleButton}"
-                                              MinWidth="120"
-                                              Height="40"
-                                              Margin="0,0,6,6"
-                                              FontSize="15"
-                                              Command="{Binding DataContext.ChooseCommand, ElementName=LoginNames}"
-                                              CommandParameter="{Binding Name}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <!-- Who: a list however many users there are, its rows tall enough for a finger. -->
+                    <TextBlock Text="User" FontSize="15" Margin="0,0,0,4" Foreground="{StaticResource Text.Secondary}" />
+                    <Grid>
+                        <ComboBox x:Name="LoginName"
+                                  ItemsSource="{Binding Names}"
+                                  SelectedItem="{Binding SelectedName}"
+                                  Height="56"
+                                  FontSize="22"
+                                  Padding="14,0"
+                                  MaxDropDownHeight="360">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                    <Setter Property="Padding" Value="14,12" />
+                                    <Setter Property="FontSize" Value="22" />
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                        </ComboBox>
+                        <TextBlock Text="Choose who you are"
+                                   Margin="15,0,0,0"
+                                   FontSize="22"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False"
+                                   Foreground="{StaticResource Text.Secondary}"
+                                   Visibility="{Binding HasNoSelection, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
 
-                    <Border Margin="0,8,0,8"
-                            Height="44"
+                    <TextBlock Text="PIN" FontSize="15" Margin="0,14,0,4" Foreground="{StaticResource Text.Secondary}" />
+                    <Border Margin="0,0,0,10"
+                            Height="56"
                             CornerRadius="3"
                             Background="{StaticResource Surface.Panel}"
                             BorderBrush="{StaticResource Surface.Border}"
                             BorderThickness="1">
                         <TextBlock Text="{Binding PinDots}"
-                                   FontSize="24"
+                                   FontSize="30"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
                                    Foreground="{StaticResource Text.Primary}" />
@@ -580,9 +587,9 @@
                     <UniformGrid Columns="3" Rows="4">
                         <UniformGrid.Resources>
                             <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                <Setter Property="Height" Value="54" />
-                                <Setter Property="Margin" Value="3" />
-                                <Setter Property="FontSize" Value="22" />
+                                <Setter Property="Height" Value="64" />
+                                <Setter Property="Margin" Value="4" />
+                                <Setter Property="FontSize" Value="28" />
                             </Style>
                         </UniformGrid.Resources>
                         <Button Content="1" Command="{Binding DigitCommand}" CommandParameter="1" />
@@ -600,15 +607,15 @@
                     </UniformGrid>
 
                     <TextBlock Text="{Binding Problem}"
-                               Margin="0,8,0,0"
-                               FontSize="13"
+                               Margin="0,10,0,0"
+                               FontSize="16"
                                TextWrapping="Wrap"
                                Foreground="#F8C4C4"
                                Visibility="{Binding HasProblem, Converter={StaticResource BoolToVisibility}}" />
 
-                    <DockPanel Margin="0,12,0,0" LastChildFill="False">
-                        <Button DockPanel.Dock="Right" Content="Log In" MinWidth="100" Height="36" Margin="6,0,0,0" Command="{Binding LogInCommand}" />
-                        <Button DockPanel.Dock="Right" Content="Cancel" MinWidth="100" Height="36" Command="{Binding CancelCommand}" />
+                    <DockPanel Margin="0,16,0,0" LastChildFill="False">
+                        <Button DockPanel.Dock="Right" Content="Log In" MinWidth="140" Height="52" FontSize="18" Margin="8,0,0,0" Command="{Binding LogInCommand}" />
+                        <Button DockPanel.Dock="Right" Content="Cancel" MinWidth="140" Height="52" FontSize="18" Command="{Binding CancelCommand}" />
                     </DockPanel>
                 </StackPanel>
             </Border>

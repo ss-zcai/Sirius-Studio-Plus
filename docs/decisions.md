@@ -3470,10 +3470,18 @@ minutes idle; users kept in the project.
   screen - Exit or Alt+F4 - needs an Engineer; a windowed Test Run closes
   as before.
 - **On the line**: something locked asks for a login - a popup over the
-  screen with each user's name, the PIN on a keypad (or the keyboard) as
-  dots, and what asked: "Reset Counts needs a Technician or above". Given,
-  it goes on; cancelled, nothing is done. Logged in below what asked, the
-  popup stays and says so, for someone else. A locked setting shows a
+  screen with a list of the users who may do what asked, the PIN on a
+  keypad (or the keyboard) as dots, and what asked: "Reset Counts needs a
+  Technician or above". Given, it goes on; cancelled, nothing is done.
+  The list offers whoever is logged in, else whoever was last, else the
+  only one. Logged in below what asked, the popup stays and says so, for
+  someone else. Sized for a finger on a touch screen: tall list rows,
+  keypad keys and buttons, larger type.
+- **A list, not a button per user** (changed the same day, after the
+  user tried it): a button for each name grew the popup with every user
+  added. A dropdown stays one row however many there are, and listing
+  only those of the level needed keeps it short and turns no one away
+  after their PIN. A locked setting shows a
   padlock over its control, which asks when touched. Who is logged in is
   along the bottom, with **Log In** / **Log Out**; a button can be **Log
   In / Out** too.
