@@ -610,6 +610,88 @@ public class RoiTests : IDisposable
         Assert.True(RoisFromAllWindow.Describe([new(a, three)], (a, three), 120).SameForAll);
     }
 
+    /// <summary>
+    /// A crop is in its picture's own format: a 12-bit TIF's are TIFs that
+    /// keep every value - a line's pictures, cut for training - into a
+    /// folder made for them.
+    /// </summary>
+    [Fact]
+    public void A_tif_picture_gives_tif_crops_that_keep_its_bits()
+    {
+        var path = Path.Combine(_folder, "part_FAIL.tif");
+
+        using (var picture = Numbered(40, 30))
+            CvInvoke.Imwrite(path, picture);
+
+        var output = Path.Combine(_folder, "station ROIs");
+        RoiBatch.Roi[] one = [new(new(20, 10), new(30, 10), new(30, 30))];
+        var targets = RoiBatch.Targets([new ImageFileItem(path, _folder)], one, output);
+
+        Assert.Equal(Path.Combine(output, "part_FAIL-1.tif"), Assert.Single(targets).Path);
+
+        var result = RoiBatch.Run(targets);
+        Assert.Equal(1, result.Saved);
+
+        using var crop = CvInvoke.Imread(targets[0].Path, ImreadModes.Unchanged);
+        Assert.Equal(DepthType.Cv16U, crop.Depth);
+        Assert.Equal(1020, Values(crop)[0]);
+
+        Assert.Equal(".tif", RoiBatch.ExtensionFor("a.TIFF"));
+        Assert.Equal(".jpg", RoiBatch.ExtensionFor("a.jpeg"));
+        Assert.Equal(".bmp", RoiBatch.ExtensionFor("a.bmp"));
+        Assert.Equal(".png", RoiBatch.ExtensionFor("a.png"));
+    }
+
+    [Fact]
+    public void The_rois_are_offered_a_folder_beside_the_pictures_not_among_them()
+    {
+        Assert.Equal(@"D:\Line\images\Top ROIs", RoisFromAllWindow.SuggestedFolder(@"D:\Line\images\Top"));
+        Assert.Equal(@"D:\Line\images\Top ROIs", RoisFromAllWindow.SuggestedFolder(@"D:\Line\images\Top\"));
+        Assert.Equal(@"D:\ROIs", RoisFromAllWindow.SuggestedFolder(@"D:\"));
+        Assert.EndsWith("ROIs", RoisFromAllWindow.SuggestedFolder(null), StringComparison.Ordinal);
+    }
+
+    /// <summary>Each choice's words wrap inside the window: the second ran off its edge, "…each of the 14".</summary>
+    [Fact]
+    public void The_rois_window_wraps_its_choices_inside_it()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var picture = new ImageFileItem(Path.Combine(_folder, "20261122-114526-844_000007_FAIL.tif"), _folder);
+            RoiBatch.Roi[] three = [new(new(0, 0), new(1, 0), new(1, 1)), new(new(0, 0), new(1, 0), new(1, 1)), new(new(0, 0), new(1, 0), new(1, 1))];
+
+            var window = RoisFromAllWindow.Unshown([new(picture, three)], (picture, three), 14, @"D:\Line\images\Circularity Check");
+            window.ShowActivated = false;
+            window.ShowInTaskbar = false;
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Left = -20000;
+            window.Top = -20000;
+
+            try
+            {
+                window.Show();
+                WpfTestHost.Settle(window.Dispatcher);
+
+                var root = (FrameworkElement)window.Content;
+
+                foreach (var name in new[] { "OwnText", "SameText" })
+                {
+                    var text = (System.Windows.Controls.TextBlock)window.FindName(name);
+                    var right = text.TranslatePoint(new Point(text.ActualWidth, 0), root).X;
+                    Assert.True(right <= root.ActualWidth + 0.5, $"{name} runs to {right:0}, past {root.ActualWidth:0}.");
+                }
+
+                Assert.Equal(@"D:\Line\images\Circularity Check ROIs", ((System.Windows.Controls.TextBox)window.FindName("FolderBox")).Text);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
     /// <summary>Reports at once, on the calling thread, so the test can count them.</summary>
     private sealed class SyncProgress(Action<int> report) : IProgress<int>
     {

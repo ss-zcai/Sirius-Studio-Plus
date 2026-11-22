@@ -106,8 +106,9 @@ and the shapes the recipe found drawn over it, its results in a tooltip.
 - Measure, and save the measurements with the picture.
 - **ROIs from All**: the rectangles drawn on each picture cut from it -
   or those drawn on one picture cut from every picture in the list, for a
-  set of training samples - saved as `<picture>-1.png`, `-2`, in the
-  pictures' own bits.
+  set of training samples - saved as `<picture>-1`, `-2` in each
+  picture's own format and bits (a 12-bit TIF's as 12-bit TIFs), in a
+  folder of their own beside the pictures.
 
 ### sirius-run - from a script
 

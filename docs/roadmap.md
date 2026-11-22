@@ -54,7 +54,9 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   square with a checkbox.
 - **ROIs from All cuts each picture's own** rectangles, where they were
   drawn; one picture's from every picture is still offered, for a
-  training set (decision 81, changed 22 November).
+  training set. Crops keep their picture's format (TIF crops from TIFs)
+  and go into a folder beside the pictures (decision 81, changed 22
+  November).
 - **TIF for saved pictures** (decision 86): lossless, 10-, 12- and
   16-bit kept; where a station starts. And **Export Pictures with
   Annotations Drawn** in Sirius IV (Ctrl+Shift+E): the pictures chosen, or

@@ -412,26 +412,27 @@ public partial class ViewerWindow : Window
             return;
         }
 
-        if (RoisFromAllWindow.Ask(this, own, source, pictures.Count) is not { } sameForAll)
+        if (RoisFromAllWindow.Ask(this, own, source, pictures.Count, _model.Folder) is not { } answer)
             return;
 
-        var dialog = new OpenFolderDialog
+        var folder = answer.Folder;
+        var targets = answer.SameForAll
+            ? RoiBatch.Targets(pictures, source!.Value.Rois, folder)
+            : RoiBatch.Targets(own, folder);
+
+        // Never over a picture itself: a crop named as one, in the pictures' own folder.
+        var originals = pictures.Select(picture => Path.GetFullPath(picture.Path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (targets.FirstOrDefault(target => originals.Contains(Path.GetFullPath(target.Path))) is { } over)
         {
-            Title = "Choose the folder for the ROI images",
-            InitialDirectory = _model.Folder ?? string.Empty,
-        };
-
-        if (dialog.ShowDialog(this) != true)
+            Dialog.Warn($"{Path.GetFileName(over.Path)} would be cut over a picture of that name. Choose another folder.", title, this);
             return;
+        }
 
-        var targets = sameForAll
-            ? RoiBatch.Targets(pictures, source!.Value.Rois, dialog.FolderName)
-            : RoiBatch.Targets(own, dialog.FolderName);
         var existing = targets.Count(t => File.Exists(t.Path));
 
         if (existing > 0 &&
             !Dialog.Confirm(
-                $"{existing:N0} of the {targets.Count:N0} ROI images are in {dialog.FolderName} already, and will be replaced. Go on?",
+                $"{existing:N0} of the {targets.Count:N0} ROI images are in {folder} already, and will be replaced. Go on?",
                 title,
                 this))
         {
@@ -442,7 +443,7 @@ public partial class ViewerWindow : Window
         CommandManager.InvalidateRequerySuggested();
 
         var summary = $"Saved {result.Saved:N0} ROI image{(result.Saved == 1 ? string.Empty : "s")} " +
-                      $"from {result.Pictures:N0} picture{(result.Pictures == 1 ? string.Empty : "s")}.";
+                      $"from {result.Pictures:N0} picture{(result.Pictures == 1 ? string.Empty : "s")} into {folder}.";
 
         if (result.Problems.Count == 0)
         {

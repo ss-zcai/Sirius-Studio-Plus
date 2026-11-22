@@ -3303,7 +3303,10 @@ every picture, for a deep-learning tool later.
   rectangles by default - drawn, saved or not - since four drawn on one,
   four on another and three on a third gave three from each, all the
   third's; the shown picture's from every picture is the other choice,
-  offered first only when no other picture has any. Two pictures of one name - two cameras' folders -
+  offered first only when no other picture has any. Crops are in their
+  picture's own format - a 12-bit TIF's are 12-bit TIFs, not PNGs - and go
+  by default into a folder beside the one open ("Top ROIs" beside "Top"),
+  made when cut: inside it, the list would show them among the pictures. Two pictures of one name - two cameras' folders -
   are told apart by their folders. Read from each file, so the crops
   keep its bits; done on a worker with its progress on the toolbar; a
   picture that cannot be read is listed at the end, and the rest go on.

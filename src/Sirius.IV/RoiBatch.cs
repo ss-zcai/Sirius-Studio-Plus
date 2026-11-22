@@ -15,9 +15,9 @@ namespace Sirius.IV;
 /// </summary>
 /// <remarks>
 /// Each picture's crops are named after it and numbered as its rectangles
-/// are - <c>&lt;picture&gt;-1.png</c>, <c>-2</c> - into one folder. Read
-/// from the file each time, not from what a viewer shows, so a 12-bit
-/// picture gives 12-bit crops, saved as 16-bit PNG.
+/// are - <c>&lt;picture&gt;-1.tif</c>, <c>-2</c> - into one folder, in the
+/// picture's own format. Read from the file each time, not from what a
+/// viewer shows, so a 12-bit TIF gives 12-bit TIF crops.
 /// </remarks>
 internal static class RoiBatch
 {
@@ -76,12 +76,27 @@ internal static class RoiBatch
                     .Replace(Path.AltDirectorySeparatorChar, '_');
             }
 
+            var extension = ExtensionFor(picture.Path);
+
             for (var number = 1; number <= rois.Count; number++)
-                targets.Add(new Target(picture, number, Path.Combine(folder, $"{stem}-{number}.png"), rois[number - 1]));
+                targets.Add(new Target(picture, number, Path.Combine(folder, $"{stem}-{number}{extension}"), rois[number - 1]));
         }
 
         return targets;
     }
+
+    /// <summary>
+    /// A crop's extension: its picture's own, so a TIF's crops are TIFs and a
+    /// PNG's PNGs; ".tiff" and ".jpeg" written as ".tif" and ".jpg"; PNG for
+    /// a kind it cannot be written as.
+    /// </summary>
+    internal static string ExtensionFor(string picture) => Path.GetExtension(picture).ToLowerInvariant() switch
+    {
+        ".tif" or ".tiff" => ".tif",
+        ".jpg" or ".jpeg" => ".jpg",
+        ".bmp" => ".bmp",
+        _ => ".png",
+    };
 
     /// <summary>
     /// Cuts and writes every target, a picture at a time, saying after each
@@ -114,6 +129,8 @@ internal static class RoiBatch
                 {
                     foreach (var target in picture)
                     {
+                        Directory.CreateDirectory(Path.GetDirectoryName(target.Path)!);
+
                         var roi = target.Roi;
                         using var crop = RoiCrop.Cut(source, roi.TopLeft, roi.TopRight, roi.BottomRight);
                         RoiCrop.Save(crop, target.Path, BitsOf(source));
