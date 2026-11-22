@@ -52,6 +52,9 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   body, by calipers across the four sides of a turned region - fitted
   as a true rectangle, or as four lines for a part not square, and held
   square with a checkbox.
+- **12-bit pictures without a `.sann` in Sirius IV** - crops among them -
+  are shown as 12 bits, judged by their brightest value, not nearly black;
+  and IV's viewers offer the bit-depth picker Studio's have.
 - **ROIs from All cuts each picture's own** rectangles, where they were
   drawn; one picture's from every picture is still offered, for a
   training set. Crops keep their picture's format (TIF crops from TIFs)

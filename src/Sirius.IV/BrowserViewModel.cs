@@ -910,6 +910,29 @@ public sealed class BrowserViewModel : ObservableObject
         Announce();
     }
 
+    // ---- how 16-bit pictures are shown ------------------------------------------------
+
+    private int _displayBits = Sirius.Studio.App.Imaging.MatImageConverter.Auto;
+
+    /// <summary>
+    /// How 16-bit pictures are shown: Auto - the bits a station's annotation
+    /// file says, or judged by the picture - or 16, 14, 12, 10 bits, or
+    /// stretched. One choice for every viewer, so pictures side by side are
+    /// shown alike; not kept between sessions.
+    /// </summary>
+    public int DisplayBits
+    {
+        get => _displayBits;
+        set
+        {
+            if (!SetProperty(ref _displayBits, value))
+                return;
+
+            foreach (var tile in Tiles)
+                tile.DisplayBitsChanged();
+        }
+    }
+
     // ---- the Annotations panel, and layers on and off (F20b) ----------------------------
 
     private readonly HashSet<string> _hiddenLayers = new(StringComparer.OrdinalIgnoreCase);
@@ -1100,7 +1123,8 @@ public sealed class BrowserViewModel : ObservableObject
 
                 try
                 {
-                    var loaded = await Task.Run(() => TileViewModel.Load(picture));
+                    var display = DisplayBits;
+                    var loaded = await Task.Run(() => TileViewModel.Load(picture, displayBits: display));
 
                     if (loaded.Picture is not { } image)
                     {

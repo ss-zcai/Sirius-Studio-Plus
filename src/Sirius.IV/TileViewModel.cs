@@ -41,6 +41,8 @@ public sealed class TileViewModel : ObservableObject
     private bool _isProfilingEnabled;
     private LineProfileSource? _profileSource;
     private int _selectedShape = -1;
+    private bool _isSixteenBit;
+    private int _displayBits = Sirius.Studio.App.Imaging.MatImageConverter.Auto;
 
     /// <param name="owner">The window it is in, which keeps every picture's measurements; null for a viewer on its own.</param>
     public TileViewModel(BrowserViewModel? owner = null)
@@ -179,9 +181,9 @@ public sealed class TileViewModel : ObservableObject
     /// <summary>The file, read again for profiling; null when it no longer reads.</summary>
     private static LineProfileSource? ProfileOf(ImageFileItem file)
     {
-        var bits = System.IO.File.Exists(file.AnnotationPath)
-            && AnnotationFile.TryLoad(file.AnnotationPath, out _) is { Bits: > 0 and var said }
-            ? said
+        var said = System.IO.File.Exists(file.AnnotationPath)
+            && AnnotationFile.TryLoad(file.AnnotationPath, out _) is { Bits: > 0 and var bits }
+            ? bits
             : (int?)null;
 
         using var mat = CvInvoke.Imread(file.Path, ImreadModes.Unchanged);
@@ -189,7 +191,7 @@ public sealed class TileViewModel : ObservableObject
         if (mat.IsEmpty)
             return null;
 
-        using var image = ImageData.CopyOf(mat, bits: bits);
+        using var image = ImageData.CopyOf(mat, bits: said ?? BitsOf(mat));
         return LineProfileSource.From(image);
     }
 
@@ -208,6 +210,46 @@ public sealed class TileViewModel : ObservableObject
     {
         get => _selectedShape;
         set => SetProperty(ref _selectedShape, value);
+    }
+
+    /// <summary>Whether the picture is 16-bit - 10, 12 or 14 bits in 16 - when the viewer offers how to show it.</summary>
+    public bool IsSixteenBit
+    {
+        get => _isSixteenBit;
+        private set => SetProperty(ref _isSixteenBit, value);
+    }
+
+    /// <summary>
+    /// How a 16-bit picture is shown - Auto, 16, 14, 12, 10 bits or
+    /// stretched - bound both ways to the viewer's picker. The window's
+    /// choice, for every viewer alike; this viewer's own when on its own.
+    /// </summary>
+    public int DisplayBits
+    {
+        get => _owner?.DisplayBits ?? _displayBits;
+        set
+        {
+            if (value == DisplayBits)
+                return;
+
+            if (_owner is not null)
+            {
+                _owner.DisplayBits = value;
+                return;
+            }
+
+            _displayBits = value;
+            DisplayBitsChanged();
+        }
+    }
+
+    /// <summary>The way 16-bit pictures are shown changed: the picture is read and shown again.</summary>
+    internal void DisplayBitsChanged()
+    {
+        OnPropertyChanged(nameof(DisplayBits));
+
+        if (_file is { } file && _isSixteenBit)
+            _ = LoadAsync(file, ++_showing);
     }
 
     /// <summary>The annotation file's layers switched on, in its order: what <see cref="Shapes"/> draws.</summary>
@@ -347,7 +389,8 @@ public sealed class TileViewModel : ObservableObject
         try
         {
             var profile = _isProfilingEnabled;
-            loaded = await Task.Run(() => Load(file, profile)).ConfigureAwait(true);
+            var display = DisplayBits;
+            loaded = await Task.Run(() => Load(file, profile, display)).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Emgu.CV.Util.CvException or ArgumentException)
         {
@@ -366,6 +409,7 @@ public sealed class TileViewModel : ObservableObject
         Apply(() =>
         {
             Picture = loaded.Picture;
+            IsSixteenBit = loaded.SixteenBit;
             ProfileSource = loaded.Profile;
             Annotations = loaded.Annotations;
             Shapes = loaded.Annotations is { } annotations && loaded.Picture is { } picture
@@ -400,10 +444,36 @@ public sealed class TileViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The picture, decoded as it was saved - 12 bits as 12 - and its
-    /// annotation file; prepared for line profiles too, when <paramref name="profile"/>.
+    /// The bits a 16-bit picture with nothing beside it to say so uses,
+    /// judged by its brightest value: a 12-bit camera's frame never passes
+    /// 4095 - a crop cut from one, saved without its <c>.sann</c>, shown as
+    /// 16 bits would be nearly black. 10, 12, 14 or 16; null for a picture
+    /// that is not 16-bit.
     /// </summary>
-    internal static Loaded Load(ImageFileItem file, bool profile = false)
+    internal static int? BitsOf(Mat mat)
+    {
+        if (mat.Depth != DepthType.Cv16U)
+            return null;
+
+        mat.MinMax(out _, out var highest, out _, out _);
+        var brightest = highest.Length == 0 ? 0 : highest.Max();
+
+        return brightest switch
+        {
+            <= 1023 => 10,
+            <= 4095 => 12,
+            <= 16383 => 14,
+            _ => 16,
+        };
+    }
+
+    /// <summary>
+    /// The picture, decoded as it was saved - 12 bits as 12, by its
+    /// annotation file or else its brightest value - shown as
+    /// <paramref name="displayBits"/> says, and its annotation file;
+    /// prepared for line profiles too, when <paramref name="profile"/>.
+    /// </summary>
+    internal static Loaded Load(ImageFileItem file, bool profile = false, int displayBits = Sirius.Studio.App.Imaging.MatImageConverter.Auto)
     {
         AnnotationFile? annotations = null;
         string? problem = null;
@@ -416,14 +486,15 @@ public sealed class TileViewModel : ObservableObject
         if (mat.IsEmpty)
             return new Loaded(null, annotations, $"{file.Name} is not a picture that can be read.");
 
-        var bits = annotations?.Bits is > 0 and var said ? said : (int?)null;
+        var bits = annotations?.Bits is > 0 and var said ? said : BitsOf(mat);
         using var image = ImageData.CopyOf(mat, bits: bits);
 
         return new Loaded(
-            MatImageConverter.ToBitmapSource(image),
+            MatImageConverter.ToBitmapSource(image, displayBits),
             annotations,
             problem,
-            profile ? LineProfileSource.From(image) : null);
+            profile ? LineProfileSource.From(image) : null,
+            mat.Depth == DepthType.Cv16U);
     }
 
     /// <summary>
@@ -436,5 +507,5 @@ public sealed class TileViewModel : ObservableObject
             annotations.Width > 0 ? annotations.Width : width,
             annotations.Height > 0 ? annotations.Height : height);
 
-    internal sealed record Loaded(BitmapSource? Picture, AnnotationFile? Annotations, string? Problem, LineProfileSource? Profile = null);
+    internal sealed record Loaded(BitmapSource? Picture, AnnotationFile? Annotations, string? Problem, LineProfileSource? Profile = null, bool SixteenBit = false);
 }

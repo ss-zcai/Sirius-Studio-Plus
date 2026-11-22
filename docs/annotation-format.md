@@ -179,7 +179,12 @@ Builder opens a station's folder in it; so does
 - **Sync** (Ctrl+L, on by default): the viewers zoomed and scrolled as one
   - the same pixel in the same place in each - and the pointer's place on
   one marked with a small cross on the others.
-- Each viewer is Studio's: zoom, pan, pixel values, 12-bit display, save.
+- Each viewer is Studio's: zoom, pan, pixel values, save. A **16-bit
+  picture** - 10, 12 or 14 bits carried in 16 - is shown by the bits its
+  `.sann` says; with no `.sann`, as a crop has none, by its brightest
+  value (up to 1023 is 10-bit, 4095 12-bit, 16383 14-bit). The viewer's
+  picker - Auto, 16, 14, 12, 10-bit or Stretch - shows beside its tools
+  for a 16-bit picture, and the choice is every viewer's.
   The shapes from the annotation file are drawn over the picture; the
   tab's tooltip lists the station, time, results and layers.
 - **Measurements belong to their picture.** Drawn with the viewer's

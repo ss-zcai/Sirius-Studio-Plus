@@ -162,6 +162,8 @@
                                           ImageSource="{Binding Picture}"
                                           Shapes="{Binding Shapes}"
                                           SelectedShapeIndex="{Binding SelectedShapeIndex, Mode=TwoWay}"
+                                          IsSixteenBit="{Binding IsSixteenBit}"
+                                          DisplayBits="{Binding DisplayBits, Mode=TwoWay}"
                                           Measurements="{Binding Measurements, Mode=TwoWay}"
                                           IsProfilingEnabled="{Binding IsProfilingEnabled, Mode=TwoWay}"
                                           ProfileSource="{Binding ProfileSource}"

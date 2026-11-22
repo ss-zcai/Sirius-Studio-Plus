@@ -321,6 +321,71 @@ public sealed class SiriusIvAnnotationsTests : IDisposable
         return data;
     }
 
+    [Theory]
+    [InlineData(1000, 10)]
+    [InlineData(4000, 12)]
+    [InlineData(4095, 12)]
+    [InlineData(16000, 14)]
+    [InlineData(60000, 16)]
+    public void A_16_bit_picture_with_nothing_to_say_its_bits_is_judged_by_its_brightest(int brightest, int bits)
+    {
+        using var mat = new Mat(10, 10, DepthType.Cv16U, 1);
+        mat.SetTo(new MCvScalar(5));
+        using (var corner = new Mat(mat, new System.Drawing.Rectangle(0, 0, 1, 1)))
+            corner.SetTo(new MCvScalar(brightest));
+
+        Assert.Equal(bits, TileViewModel.BitsOf(mat));
+
+        using var eight = new Mat(10, 10, DepthType.Cv8U, 1);
+        Assert.Null(TileViewModel.BitsOf(eight));
+    }
+
+    /// <summary>
+    /// A 12-bit crop - cut from a station's TIF, with no .sann beside it -
+    /// shown as 12 bits, not nearly black as 16; and the window's choice of
+    /// how 16-bit pictures are shown is every viewer's.
+    /// </summary>
+    [Fact]
+    public void A_12_bit_crop_is_shown_as_12_bits_and_the_display_choice_is_every_viewers()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            foreach (var name in new[] { "crop-1.tif", "crop-2.tif" })
+            {
+                using var mat = new Mat(20, 20, DepthType.Cv16U, 1);
+                mat.SetTo(new MCvScalar(2000));
+                CvInvoke.Imwrite(Path.Combine(_folder, name), mat);
+            }
+
+            var model = Open(_folder);
+            model.Layout = ViewerLayout.Two;
+            model.Choose([model.Files[0]]);
+            WpfTestHost.PumpUntil(() => model.Tiles.All(tile => !tile.IsLoading));
+
+            var tile = model.Tiles[0];
+            Assert.True(tile.IsSixteenBit);
+
+            // 2000 of 4095: about half way up.
+            Assert.InRange(Grey(tile.Picture!), 115, 135);
+
+            // Shown as 16 bits, chosen on one viewer: both, and nearly black.
+            tile.DisplayBits = 16;
+            Assert.Equal(16, model.DisplayBits);
+            Assert.Equal(16, model.Tiles[1].DisplayBits);
+            WpfTestHost.PumpUntil(() => model.Tiles.All(t => !t.IsLoading) && Grey(model.Tiles[1].Picture!) < 20);
+            Assert.InRange(Grey(tile.Picture!), 0, 20);
+        });
+    }
+
+    /// <summary>The middle pixel's grey, as shown.</summary>
+    private static byte Grey(System.Windows.Media.Imaging.BitmapSource picture)
+    {
+        var grey = new System.Windows.Media.Imaging.FormatConvertedBitmap(picture, System.Windows.Media.PixelFormats.Gray8, null, 0);
+        var pixel = new byte[1];
+        grey.CopyPixels(new System.Windows.Int32Rect(picture.PixelWidth / 2, picture.PixelHeight / 2, 1, 1), pixel, 1, 0);
+        return pixel[0];
+    }
+
     /// <summary>A picture's own ROIs: drawn and not saved, else saved in its .sann; none for one without.</summary>
     [Fact]
     public void Each_pictures_own_rois_are_found_saved_or_not()
