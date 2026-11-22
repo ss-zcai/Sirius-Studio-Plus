@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.IO;
 using Emgu.CV;
 using Emgu.CV.CvEnum;

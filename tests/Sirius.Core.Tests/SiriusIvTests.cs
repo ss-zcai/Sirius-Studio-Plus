@@ -923,6 +923,49 @@ public sealed class SiriusIvTests : IDisposable
         });
     }
 
+    /// <summary>At the size it opens at, every setting shows: nothing to scroll.</summary>
+    [Fact]
+    public void The_image_saving_window_opens_with_room_for_every_setting()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+            var project = Project.Create(_folder, "Line", new VisionGraph(), "Top");
+            var window = ImageSavingWindow.Unshown(new ImageSavingViewModel(project, project.Stations[0]));
+            window.ShowActivated = false;
+            window.ShowInTaskbar = false;
+            window.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+            window.Left = -20000;
+            window.Top = -20000;
+
+            try
+            {
+                window.Show();
+                WpfTestHost.Settle(window.Dispatcher);
+
+                var scrollers = AllBelow(window).OfType<System.Windows.Controls.ScrollViewer>().ToArray();
+                Assert.NotEmpty(scrollers);
+                Assert.All(scrollers, scroller => Assert.Equal(0, scroller.ScrollableHeight));
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    private static IEnumerable<System.Windows.DependencyObject> AllBelow(System.Windows.DependencyObject root)
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            yield return child;
+
+            foreach (var below in AllBelow(child))
+                yield return below;
+        }
+    }
+
     [Fact]
     public void Days_that_are_not_a_number_are_refused_in_words()
     {

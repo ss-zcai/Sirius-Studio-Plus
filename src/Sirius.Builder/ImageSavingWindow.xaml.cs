@@ -23,6 +23,9 @@ public partial class ImageSavingWindow : Window
             "to show. Saving happens beside the inspection and never slows it.";
     }
 
+    /// <summary>The window, made and not shown - for a test.</summary>
+    internal static ImageSavingWindow Unshown(ImageSavingViewModel model) => new(model);
+
     /// <summary>Shows the window; returns whether the settings were changed.</summary>
     public static bool Show(Window? owner, ImageSavingViewModel model)
     {

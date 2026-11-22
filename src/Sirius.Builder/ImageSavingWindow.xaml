@@ -4,9 +4,9 @@
         xmlns:local="clr-namespace:Sirius.Builder"
         Title="Image Saving"
         Width="620"
-        Height="470"
+        Height="660"
         MinWidth="460"
-        MinHeight="360"
+        MinHeight="480"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource Surface.Background}">
