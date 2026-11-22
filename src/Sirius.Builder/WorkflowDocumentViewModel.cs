@@ -375,9 +375,13 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
     public string PropertySubtitle => Editor.SelectedNode?.Node.Descriptor.Description
                                       ?? "Choose a node to set it up. Drag nodes in from the left; wire a trigger (round, filled) to a trigger.";
 
+    /// <summary>The chosen node, for its help - what it does, and what goes in and out of it.</summary>
+    public VisionNode? HelpNode => Editor.SelectedNode?.Node;
+
     private void ShowProperties()
     {
         Properties = Editor.SelectedNode is { } selected ? Rows(selected.Node) : [];
+        OnPropertyChanged(nameof(HelpNode));
         OnPropertyChanged(nameof(PropertyTitle));
         OnPropertyChanged(nameof(PropertySubtitle));
     }

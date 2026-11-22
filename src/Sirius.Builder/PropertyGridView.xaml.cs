@@ -47,6 +47,9 @@ public partial class PropertyGridView : UserControl
     public static readonly DependencyProperty SubtitleProperty =
         DependencyProperty.Register(nameof(Subtitle), typeof(string), typeof(PropertyGridView));
 
+    public static readonly DependencyProperty HelpNodeProperty =
+        DependencyProperty.Register(nameof(HelpNode), typeof(Sirius.Core.Graph.VisionNode), typeof(PropertyGridView), new PropertyMetadata(null, OnHelpNodeChanged));
+
     public PropertyGridView()
     {
         InitializeComponent();
@@ -68,6 +71,23 @@ public partial class PropertyGridView : UserControl
     {
         get => (string?)GetValue(SubtitleProperty);
         set => SetValue(SubtitleProperty, value);
+    }
+
+    /// <summary>A workflow node, whose help the ? opens; null - a widget, a screen - and there is no ?.</summary>
+    public Sirius.Core.Graph.VisionNode? HelpNode
+    {
+        get => (Sirius.Core.Graph.VisionNode?)GetValue(HelpNodeProperty);
+        set => SetValue(HelpNodeProperty, value);
+    }
+
+    private static void OnHelpNodeChanged(DependencyObject owner, DependencyPropertyChangedEventArgs e) =>
+        ((PropertyGridView)owner).HelpButton.Visibility = e.NewValue is null ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>Studio's help window, read off the node itself, so it cannot disagree with it.</summary>
+    private void OnHelpClick(object sender, RoutedEventArgs e)
+    {
+        if (HelpNode is { } node)
+            new Sirius.Studio.App.NodeHelpWindow(node) { Owner = Window.GetWindow(this) }.Show();
     }
 
     private static void OnCategoriesChanged(DependencyObject owner, DependencyPropertyChangedEventArgs e) =>

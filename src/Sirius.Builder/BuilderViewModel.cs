@@ -194,6 +194,9 @@ public sealed partial class BuilderViewModel : ObservableObject
 
     public string? PropertySubtitle => ActiveWorkflow?.PropertySubtitle ?? Designer?.PropertySubtitle;
 
+    /// <summary>The workflow node chosen, whose help the Properties panel's ? opens; none for a widget or screen.</summary>
+    public Sirius.Core.Graph.VisionNode? PropertyHelpNode => ActiveWorkflow?.HelpNode;
+
     private void ActiveChanged()
     {
         foreach (var command in _activeCommands)
@@ -202,6 +205,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         OnPropertyChanged(nameof(PropertyCategories));
         OnPropertyChanged(nameof(PropertyTitle));
         OnPropertyChanged(nameof(PropertySubtitle));
+        OnPropertyChanged(nameof(PropertyHelpNode));
     }
 
     private void OnActiveWorkflowChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -218,6 +222,10 @@ public sealed partial class BuilderViewModel : ObservableObject
 
             case nameof(WorkflowDocumentViewModel.PropertySubtitle):
                 OnPropertyChanged(nameof(PropertySubtitle));
+                break;
+
+            case nameof(WorkflowDocumentViewModel.HelpNode):
+                OnPropertyChanged(nameof(PropertyHelpNode));
                 break;
 
             case nameof(WorkflowDocumentViewModel.StatusText) when sender is WorkflowDocumentViewModel { StatusText.Length: > 0 } workflow:

@@ -715,7 +715,8 @@
                         <avalonDock:LayoutAnchorable Title="Properties" ContentId="properties" CanClose="False">
                             <local:PropertyGridView Categories="{Binding PropertyCategories}"
                                                     Title="{Binding PropertyTitle}"
-                                                    Subtitle="{Binding PropertySubtitle}" />
+                                                    Subtitle="{Binding PropertySubtitle}"
+                                                    HelpNode="{Binding PropertyHelpNode}" />
                         </avalonDock:LayoutAnchorable>
                     </avalonDock:LayoutAnchorablePane>
                 </avalonDock:LayoutPanel>

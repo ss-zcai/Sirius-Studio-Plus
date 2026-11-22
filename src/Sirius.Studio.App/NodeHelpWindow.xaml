@@ -28,7 +28,7 @@
                 aligned by their tops - and Consolas, shorter in the ascent
                 than the interface font, then sits a pixel or two high.
             -->
-            <TextBlock Margin="0,2,0,0" FontSize="11" Foreground="{StaticResource Text.Secondary}"><Run Text="{Binding Category, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding TypeKey, Mode=OneWay}" FontFamily="Consolas" ToolTip="What a saved recipe records for this tool" /></TextBlock>
+            <TextBlock Margin="0,2,0,0" FontSize="11" Foreground="{StaticResource Text.Secondary}"><Run Text="{Binding Category, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding TypeKey, Mode=OneWay}" FontFamily="Consolas" ToolTip="What a saved recipe or project records for this tool" /></TextBlock>
 
             <TextBlock Text="{Binding Summary}"
                        TextWrapping="Wrap"

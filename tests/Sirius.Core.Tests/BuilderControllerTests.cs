@@ -355,6 +355,60 @@ public sealed class BuilderControllerTests : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Every node in a controller's palette has its help, as Studio's tools
+    /// do: the Properties panel's ? for the node chosen, none for a screen.
+    /// </summary>
+    [Fact]
+    public void Every_workflow_node_has_its_help_from_the_properties_panel()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var project = Project.Create(_root, "Line 5", new VisionGraph(), "Top");
+            var model = Builder(project);
+            model.AddController("PLC 1");
+
+            var grid = new PropertyGridView();
+            var help = grid.FindName("HelpButton") as System.Windows.Controls.Button;
+            Assert.NotNull(help);
+
+            // The screen in front: nothing to explain.
+            Assert.Null(model.PropertyHelpNode);
+            Assert.Equal(Visibility.Collapsed, help.Visibility);
+
+            // Its tab in front, as the window makes it; no node chosen yet.
+            var document = model.OpenWorkflow(model.Controllers[0])!;
+            model.ActiveWorkflow = document;
+            document.Editor.SelectedNode = null;
+            Assert.Null(model.PropertyHelpNode);
+
+            foreach (var item in document.Palette.SelectMany(group => group.Items))
+            {
+                var node = document.AddNode(item, new Point(100, 400));
+                document.Editor.SelectedNode = node;
+
+                Assert.Same(node.Node, model.PropertyHelpNode);
+
+                var about = new Sirius.Studio.App.ViewModels.NodeHelpViewModel(node.Node);
+                Assert.Equal(item.DisplayName, about.Title);
+                Assert.False(string.IsNullOrWhiteSpace(item.Description), $"{item.DisplayName} has no description");
+                Assert.True(about.HasInputs || about.HasOutputs || about.HasParameters, item.DisplayName);
+
+                var window = new Sirius.Studio.App.NodeHelpWindow(node.Node);
+                window.Show();
+                WpfTestHost.Settle(window.Dispatcher);
+                window.Close();
+            }
+
+            grid.HelpNode = document.Editor.SelectedNode!.Node;
+            Assert.Equal(Visibility.Visible, help.Visibility);
+            grid.HelpNode = null;
+            Assert.Equal(Visibility.Collapsed, help.Visibility);
+        });
+    }
+
     [Fact]
     public void A_workflow_opens_in_a_tab_is_edited_through_its_settings_and_saved()
     {
