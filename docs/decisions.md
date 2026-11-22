@@ -3546,3 +3546,27 @@ export; a layer switched off in every viewer, by name.
 and F20d (a disk quota, one pass in N), F20e (matching on the part),
 F20f (loose ends). Numbers in the Shapes table sort as text; a table of a
 few dozen rows rarely needs more, and the CSV is the place to sort many.
+
+## 86. TIF for saved pictures; drawn copies made in Sirius IV
+
+Asked on 22 November 2026: "Normally we save image as TIF and annotation
+apart. Sometimes we save them as PNG" - annotations drawn on - "as they
+would like to view elsewhere."
+
+- **TIF** is a format a station saves in, and the one it starts at. It
+  keeps every value of a 10-, 12- or 16-bit frame, as PNG does (LZW, as
+  OpenCV writes it). Stations already saving keep the format their project
+  names; a project from before TIF that names none meant PNG and reads so.
+- **No drawn pictures at runtime** - the user's choice. A station keeps
+  the picture as taken and its `.sann`: it can be inspected again, and its
+  layers switched on and off. A drawn copy is for a person, so it is made
+  when one is wanted, in Sirius IV: **Export Pictures with Annotations
+  Drawn**, for the pictures chosen or all listed, into a folder of their
+  own with their day folders.
+- **Drawn as the viewer draws.** A viewer never shown draws each one -
+  `ImageViewer.RenderPicture`, the same drawing as Save Image with
+  Overlays - so a picture exported looks as it does on screen: the layers
+  switched on, measurements drawn by hand, the label sizes. Each is read
+  on a worker, drawn on the window's thread, written on a worker.
+- **Never over a picture**: a folder that would write `part.png` over the
+  `part.png` it was drawn from is refused before anything is written.

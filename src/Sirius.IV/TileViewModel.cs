@@ -430,7 +430,7 @@ public sealed class TileViewModel : ObservableObject
     /// The shapes, in the frame of the picture shown - which is the frame they
     /// were saved in unless the picture has been changed since.
     /// </summary>
-    private static ShapeSet Frame(AnnotationFile annotations, IReadOnlyList<AnnotationLayer> layers, int width, int height) =>
+    internal static ShapeSet Frame(AnnotationFile annotations, IReadOnlyList<AnnotationLayer> layers, int width, int height) =>
         new(
             layers.SelectMany(layer => layer.Shapes).ToArray(),
             annotations.Width > 0 ? annotations.Width : width,

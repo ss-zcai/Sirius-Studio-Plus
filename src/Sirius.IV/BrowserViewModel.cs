@@ -8,6 +8,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Sirius.Core.Annotations;
 using Sirius.Core.Graph;
+using Sirius.Core.Shapes;
+using System.Windows.Media.Imaging;
 
 namespace Sirius.IV;
 
@@ -1032,6 +1034,104 @@ public sealed class BrowserViewModel : ObservableObject
         {
             if (System.IO.File.Exists(temporary))
                 System.IO.File.Delete(temporary);
+        }
+    }
+
+    // ---- pictures with their annotations drawn on -------------------------------------
+
+    /// <summary>A picture to draw, and the PNG it is written to.</summary>
+    internal sealed record DrawnTarget(ImageFileItem Picture, string Path);
+
+    /// <summary>How an export of drawn pictures went.</summary>
+    internal sealed record DrawnResult(int Written, IReadOnlyList<string> Problems);
+
+    /// <summary>
+    /// Where each picture's drawn copy goes: its own name as a PNG, in the
+    /// sub-folder it was in - a station's day - under <paramref name="folder"/>.
+    /// Two pictures that would share a name - part.tif and part.bmp - keep
+    /// their own kind in it: part_tif.png.
+    /// </summary>
+    internal static IReadOnlyList<DrawnTarget> DrawnTargets(IReadOnlyList<ImageFileItem> pictures, string folder)
+    {
+        var stems = pictures
+            .GroupBy(picture => System.IO.Path.ChangeExtension(picture.RelativePath, null), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return pictures.Select(picture =>
+        {
+            var stem = System.IO.Path.ChangeExtension(picture.RelativePath, null);
+            var name = stems.Contains(stem) ? $"{stem}_{System.IO.Path.GetExtension(picture.Path).TrimStart('.').ToLowerInvariant()}" : stem;
+            return new DrawnTarget(picture, System.IO.Path.GetFullPath(System.IO.Path.Combine(folder, name + ".png")));
+        }).ToArray();
+    }
+
+    /// <summary>
+    /// The shapes to draw on a picture: its annotation file's layers that
+    /// are switched on, as the viewers show them.
+    /// </summary>
+    internal ShapeSet? ShapesToDraw(AnnotationFile? annotations, int width, int height) =>
+        annotations is null
+            ? null
+            : TileViewModel.Frame(annotations, annotations.Layers.Where(layer => IsLayerShown(layer.Name)).ToArray(), width, height);
+
+    /// <summary>
+    /// Each picture with its annotations drawn on - the layers switched on,
+    /// and the measurements drawn by hand, saved or not - written as a PNG.
+    /// Read on a worker, drawn by <paramref name="draw"/> here, written on a
+    /// worker again.
+    /// </summary>
+    /// <param name="draw">Draws a picture as Save Image with Overlays does; frozen.</param>
+    internal async Task<DrawnResult> ExportDrawnAsync(
+        IReadOnlyList<DrawnTarget> targets,
+        Func<BitmapSource, ShapeSet?, IReadOnlyList<MeasurementRecord>, BitmapSource> draw)
+    {
+        IsExporting = true;
+        var problems = new List<string>();
+        var written = 0;
+
+        try
+        {
+            for (var i = 0; i < targets.Count; i++)
+            {
+                Activity = $"Drawing pictures: {i} of {targets.Count}";
+                var (picture, path) = targets[i];
+
+                try
+                {
+                    var loaded = await Task.Run(() => TileViewModel.Load(picture));
+
+                    if (loaded.Picture is not { } image)
+                    {
+                        problems.Add(loaded.Problem ?? $"{picture.RelativePath} could not be read.");
+                        continue;
+                    }
+
+                    var measurements = UnsavedFor(picture) ?? loaded.Annotations?.Measurements ?? [];
+                    var drawn = draw(image, ShapesToDraw(loaded.Annotations, image.PixelWidth, image.PixelHeight), measurements);
+
+                    await Task.Run(() =>
+                    {
+                        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
+                        Sirius.Studio.App.Imaging.ImageFileWriter.Save(drawn, path);
+                    });
+
+                    written++;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException
+                                               or InvalidOperationException or ArgumentException or Emgu.CV.Util.CvException)
+                {
+                    problems.Add($"{picture.RelativePath}: {ex.Message}");
+                }
+            }
+
+            return new DrawnResult(written, problems);
+        }
+        finally
+        {
+            IsExporting = false;
+            Activity = null;
         }
     }
 

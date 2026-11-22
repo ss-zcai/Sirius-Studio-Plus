@@ -252,7 +252,7 @@ public sealed class ImageRecorder : IInspectionRecorder
 
         var path = FreePath(folder, ImageSaving.FileStem(job.Time, job.Serial, job.Verdict), ExtensionFor(job.Pixels.Depth));
 
-        Save(job.Pixels, path, Saving.Format);
+        Save(job.Pixels, path);
 
         if (job.Annotations is { } annotations)
         {
@@ -285,21 +285,25 @@ public sealed class ImageRecorder : IInspectionRecorder
     /// <summary>
     /// The extension to write: the one chosen, unless the picture is deeper
     /// than 8 bits and the format cannot hold it - then PNG, which can, so a
-    /// 12-bit frame is never quietly cut to 8.
+    /// 12-bit frame is never quietly cut to 8. TIF and PNG hold it as it is.
     /// </summary>
     private string ExtensionFor(DepthType depth) =>
-        depth == DepthType.Cv8U ? ImageSaving.ExtensionOf(Saving.Format) : ".png";
+        depth == DepthType.Cv8U || ImageSaving.KeepsDeepPictures(Saving.Format) ? ImageSaving.ExtensionOf(Saving.Format) : ".png";
 
-    private static void Save(Mat pixels, string path, ImageFileFormat format)
+    private static void Save(Mat pixels, string path)
     {
         // OpenCV picks the format by the extension, so the temporary file keeps it.
         var temporary = Path.ChangeExtension(path, ".saving" + Path.GetExtension(path));
 
         try
         {
-            var written = format == ImageFileFormat.Jpeg && path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
-                ? CvInvoke.Imwrite(temporary, pixels, new KeyValuePair<ImwriteFlags, int>(ImwriteFlags.JpegQuality, 95))
-                : CvInvoke.Imwrite(temporary, pixels);
+            // LZW for TIF (libtiff's 5): lossless, and asked for rather than left to OpenCV's default.
+            var written = Path.GetExtension(path).ToLowerInvariant() switch
+            {
+                ".jpg" => CvInvoke.Imwrite(temporary, pixels, new KeyValuePair<ImwriteFlags, int>(ImwriteFlags.JpegQuality, 95)),
+                ".tif" => CvInvoke.Imwrite(temporary, pixels, new KeyValuePair<ImwriteFlags, int>(ImwriteFlags.TiffCompression, 5)),
+                _ => CvInvoke.Imwrite(temporary, pixels),
+            };
 
             if (!written)
                 throw new IOException($"OpenCV could not write {Path.GetFileName(path)}.");

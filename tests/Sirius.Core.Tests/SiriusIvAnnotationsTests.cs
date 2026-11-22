@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.IO;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
@@ -210,6 +210,114 @@ public sealed class SiriusIvAnnotationsTests : IDisposable
             // Nothing left beside it.
             Assert.Equal(["results.csv", "shapes.csv"], Directory.GetFiles(Path.GetDirectoryName(results)!).Select(Path.GetFileName).Order());
         });
+    }
+
+    [Fact]
+    public void A_drawn_picture_keeps_its_name_and_day_folder_as_a_png()
+    {
+        var folder = Path.Combine(_folder, "station");
+        var pictures = new[]
+        {
+            new ImageFileItem(Path.Combine(folder, "2026-11-22", "0001_FAIL.tif"), folder),
+            new ImageFileItem(Path.Combine(folder, "2026-11-22", "0002_PASS.tif"), folder),
+            new ImageFileItem(Path.Combine(folder, "2026-11-22", "0002_PASS.bmp"), folder),
+        };
+
+        var targets = BrowserViewModel.DrawnTargets(pictures, Path.Combine(_folder, "drawn"));
+
+        Assert.Equal(
+            [
+                Path.Combine(_folder, "drawn", "2026-11-22", "0001_FAIL.png"),
+                Path.Combine(_folder, "drawn", "2026-11-22", "0002_PASS_tif.png"),
+                Path.Combine(_folder, "drawn", "2026-11-22", "0002_PASS_bmp.png"),
+            ],
+            targets.Select(target => target.Path));
+    }
+
+    /// <summary>
+    /// Each picture written with its annotations drawn on, as Save Image with
+    /// Overlays draws them: the layers switched on, and measurements drawn by
+    /// hand; the picture itself left alone.
+    /// </summary>
+    [Fact]
+    public void Pictures_are_written_with_the_layers_switched_on_and_measurements_drawn()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+            var model = Open(Pictures());
+
+            // A measurement drawn by hand on the first, saved with it.
+            var first = model.Files[0];
+            var annotations = AnnotationFile.TryLoad(first.AnnotationPath, out _)!;
+            new AnnotationFile
+            {
+                Image = annotations.Image,
+                Width = annotations.Width,
+                Height = annotations.Height,
+                Layers = annotations.Layers,
+                Measurements = [new Sirius.Core.Graph.MeasurementRecord("PointToPoint", [new Point2(20, 85), new Point2(90, 85)], "#FFFF0000", null)],
+            }.Save(first.AnnotationPath);
+
+            model.SetLayerShown("Holes", false);
+
+            var drawer = new ImageViewer();
+            drawer.Measure(new System.Windows.Size(800, 600));
+            drawer.Arrange(new System.Windows.Rect(0, 0, 800, 600));
+
+            var output = Path.Combine(_folder, "drawn");
+            var targets = BrowserViewModel.DrawnTargets(model.ListedPictures(), output);
+            var result = WpfTestHost.Wait(model.ExportDrawnAsync(targets, drawer.RenderPicture));
+
+            Assert.Equal(3, result.Written);
+            Assert.Empty(result.Problems);
+            Assert.Null(model.Activity);
+
+            using var drawn = CvInvoke.Imread(Path.Combine(output, "0001_FAIL.png"), ImreadModes.ColorBgr);
+            Assert.Equal((200, 100), (drawn.Width, drawn.Height));
+
+            // The body's rectangle, outlined in its colour - the grey under it no longer grey.
+            Assert.True(Coloured(drawn, 10, 30), "The Main View layer's rectangle is not drawn.");
+
+            // The measurement, in red.
+            var red = Pixel(drawn, 55, 85);
+            Assert.True(red[2] > 150 && red[1] < 120, $"The measurement is not drawn red: {string.Join(",", red)}.");
+
+            // The Holes layer, switched off: left out.
+            Assert.False(Coloured(drawn, 126, 50), "A layer switched off was drawn.");
+
+            // A picture without annotations: written as it is.
+            using var plain = CvInvoke.Imread(Path.Combine(output, "0003_PASS.png"), ImreadModes.ColorBgr);
+            Assert.Equal(90, CvInvoke.Mean(plain).V0, 0);
+
+            // The pictures themselves untouched.
+            Assert.False(File.Exists(Path.Combine(_folder, "0001_FAIL.sann.png")));
+            using var original = CvInvoke.Imread(first.Path, ImreadModes.Unchanged);
+            Assert.Equal(1, original.NumberOfChannels);
+        });
+    }
+
+    /// <summary>Whether any pixel within a pixel of (x, y) is not grey.</summary>
+    private static bool Coloured(Mat picture, int x, int y)
+    {
+        for (var dy = -1; dy <= 1; dy++)
+        {
+            for (var dx = -1; dx <= 1; dx++)
+            {
+                var pixel = Pixel(picture, x + dx, y + dy);
+                if (pixel.Max() - pixel.Min() > 30 || Math.Abs(pixel[0] - 90) > 30)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static byte[] Pixel(Mat picture, int x, int y)
+    {
+        var data = new byte[3];
+        System.Runtime.InteropServices.Marshal.Copy(picture.DataPointer + (y * picture.Step) + (x * 3), data, 0, 3);
+        return data;
     }
 
     [Fact]

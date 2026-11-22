@@ -23,9 +23,16 @@ public enum ImageSavePolicy
 /// <summary>The file a saved picture is written as.</summary>
 public enum ImageFileFormat
 {
-    /// <summary>Lossless, and keeps 10-, 12- and 16-bit pictures as they are. The default.</summary>
+    /// <summary>Lossless, and keeps 10-, 12- and 16-bit pictures as they are.</summary>
     [System.ComponentModel.Description("PNG")]
     Png,
+
+    /// <summary>
+    /// Lossless (LZW), and keeps 10-, 12- and 16-bit pictures as they are:
+    /// what lines usually keep, beside their annotations. The default.
+    /// </summary>
+    [System.ComponentModel.Description("TIF")]
+    Tiff,
 
     /// <summary>Small, but lossy and 8-bit only: a deeper picture is written as PNG instead.</summary>
     [System.ComponentModel.Description("JPEG")]
@@ -54,7 +61,7 @@ public enum ImageFileFormat
 /// </param>
 public sealed record ImageSaving(
     ImageSavePolicy Policy = ImageSavePolicy.None,
-    ImageFileFormat Format = ImageFileFormat.Png,
+    ImageFileFormat Format = ImageFileFormat.Tiff,
     string? Folder = null,
     int KeepDays = 0,
     bool Annotations = true)
@@ -129,7 +136,7 @@ public sealed record ImageSaving(
 
             var which = Policy == ImageSavePolicy.All ? "Saves every image" : "Saves failed images";
             var kept = KeepDays > 0 ? $", {KeepDays} days" : string.Empty;
-            return $"{which}, {Format.ToString().ToUpperInvariant()}{kept}";
+            return $"{which}, {NameOf(Format)}{kept}";
         }
     }
 
@@ -176,8 +183,19 @@ public sealed record ImageSaving(
     /// <summary>The extension a picture in <paramref name="format"/> is written with.</summary>
     public static string ExtensionOf(ImageFileFormat format) => format switch
     {
+        ImageFileFormat.Tiff => ".tif",
         ImageFileFormat.Jpeg => ".jpg",
         ImageFileFormat.Bmp => ".bmp",
         _ => ".png",
     };
+
+    /// <summary>"TIF", "PNG", "JPEG", "BMP" - as the format is offered.</summary>
+    public static string NameOf(ImageFileFormat format) => format switch
+    {
+        ImageFileFormat.Tiff => "TIF",
+        _ => format.ToString().ToUpperInvariant(),
+    };
+
+    /// <summary>Whether <paramref name="format"/> keeps a picture deeper than 8 bits as it is: PNG and TIF.</summary>
+    public static bool KeepsDeepPictures(ImageFileFormat format) => format is ImageFileFormat.Png or ImageFileFormat.Tiff;
 }

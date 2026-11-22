@@ -2,12 +2,26 @@ using System.Windows;
 
 namespace Sirius.IV;
 
-/// <summary>What to export as CSV: the pictures chosen or all listed, a row per picture or per shape.</summary>
+/// <summary>
+/// What to export as CSV: the pictures chosen or all listed, a row per
+/// picture or per shape. Or, drawn: which pictures to write with their
+/// annotations drawn on.
+/// </summary>
 public partial class ExportWindow : Window
 {
-    private ExportWindow(int chosen, int listed)
+    private ExportWindow(int chosen, int listed, bool drawn = false)
     {
         InitializeComponent();
+
+        if (drawn)
+        {
+            Title = "Export Pictures with Annotations Drawn";
+            RowsChoice.Visibility = Visibility.Collapsed;
+            Note.Text = "Each picture as a PNG, drawn as Save Image with Overlays draws it: the layers switched on, and " +
+                        "measurements drawn by hand. Each keeps its name, in its own sub-folder - a station's day - " +
+                        "under the folder you choose next. The pictures themselves are left as they are.";
+        }
+
         Sirius.Studio.App.DarkTitleBar.Apply(this);
 
         ChosenOption.Content = chosen == 1 ? "The picture chosen in the list" : $"The {chosen:N0} pictures chosen in the list";
@@ -29,6 +43,13 @@ public partial class ExportWindow : Window
             return null;
 
         return (window.ChosenOption.IsChecked == true, window.ShapeOption.IsChecked == true);
+    }
+
+    /// <summary>Asks which pictures to draw; null when cancelled, else whether only those chosen.</summary>
+    public static bool? AskDrawn(Window owner, int chosen, int listed)
+    {
+        var window = new ExportWindow(chosen, listed, drawn: true) { Owner = owner };
+        return window.ShowDialog() == true ? window.ChosenOption.IsChecked == true : null;
     }
 
     private void OnExport(object sender, RoutedEventArgs e) => DialogResult = true;

@@ -52,6 +52,11 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   body, by calipers across the four sides of a turned region - fitted
   as a true rectangle, or as four lines for a part not square, and held
   square with a checkbox.
+- **TIF for saved pictures** (decision 86): lossless, 10-, 12- and
+  16-bit kept; where a station starts. And **Export Pictures with
+  Annotations Drawn** in Sirius IV (Ctrl+Shift+E): the pictures chosen, or
+  all listed, as PNGs drawn as Save Image with Overlays draws them - the
+  station itself still keeps only the picture as taken and its `.sann`.
 - **Sirius IV's Annotations panel** (F20b, decision 85): below the
   viewers, the picture last clicked - its results, and its shapes a row
   each with their layer, place, size and measurements; a row picking its

@@ -181,6 +181,7 @@
         <KeyBinding Key="O" Modifiers="Control" Command="{x:Static local:ViewerWindow.OpenFolderCommand}" />
         <KeyBinding Key="F" Modifiers="Control" Command="{x:Static local:ViewerWindow.SearchCommand}" />
         <KeyBinding Key="E" Modifiers="Control" Command="{x:Static local:ViewerWindow.ExportCommand}" />
+        <KeyBinding Key="E" Modifiers="Control+Shift" Command="{x:Static local:ViewerWindow.ExportDrawnCommand}" />
         <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
         <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
         <KeyBinding Key="D1" Modifiers="Control" Command="{Binding SetLayoutCommand}" CommandParameter="{x:Static local:ViewerLayout.Single}" />
@@ -198,6 +199,7 @@
         <CommandBinding Command="{x:Static local:ViewerWindow.MatchCommand}" Executed="OnMatch" />
         <CommandBinding Command="{x:Static local:ViewerWindow.CropAllCommand}" Executed="OnCropAll" CanExecute="OnCanCropAll" />
         <CommandBinding Command="{x:Static local:ViewerWindow.ExportCommand}" Executed="OnExport" CanExecute="OnCanExport" />
+        <CommandBinding Command="{x:Static local:ViewerWindow.ExportDrawnCommand}" Executed="OnExportDrawn" CanExecute="OnCanExport" />
         <CommandBinding Command="{x:Static local:ViewerWindow.CopyNameCommand}" Executed="OnCopyName" CanExecute="OnCanUseChosen" />
         <CommandBinding Command="{x:Static local:ViewerWindow.CopyPathCommand}" Executed="OnCopyPath" CanExecute="OnCanUseChosen" />
         <CommandBinding Command="{x:Static local:ViewerWindow.ShowInExplorerCommand}" Executed="OnShowInExplorer" CanExecute="OnCanUseChosen" />
@@ -217,6 +219,7 @@
                 <MenuItem Header="_Refresh" InputGestureText="F5" Command="{Binding RefreshCommand}" />
                 <MenuItem Header="_Save Measurements" InputGestureText="Ctrl+S" Command="{Binding SaveCommand}" />
                 <MenuItem Header="_Export Annotations as CSV…" InputGestureText="Ctrl+E" Command="{x:Static local:ViewerWindow.ExportCommand}" />
+                <MenuItem Header="Export Pictures with Annotations _Drawn…" InputGestureText="Ctrl+Shift+E" Command="{x:Static local:ViewerWindow.ExportDrawnCommand}" />
                 <Separator />
                 <MenuItem Header="Copy _Name" InputGestureText="Ctrl+C" Command="{x:Static local:ViewerWindow.CopyNameCommand}" />
                 <MenuItem Header="Copy Full _Path" InputGestureText="Ctrl+Shift+C" Command="{x:Static local:ViewerWindow.CopyPathCommand}" />

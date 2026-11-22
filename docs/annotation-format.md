@@ -12,7 +12,7 @@ Chosen per station in **Sirius Builder ▸ Station ▸ Image Saving…**:
 | Setting | |
 |---|---|
 | **Save** | None, Failed only, or All. *Failed only* keeps failures and inspections a node went wrong in. |
-| **Format** | PNG (the default: lossless, keeps 10-, 12- and 16-bit), JPEG or BMP. JPEG and BMP hold 8 bits, so a deeper picture is written as PNG whichever is chosen. |
+| **Format** | TIF (the default since 22 November 2026: lossless, keeps 10-, 12- and 16-bit), PNG (the same), JPEG or BMP. JPEG and BMP hold 8 bits, so a deeper picture is written as PNG whichever of them is chosen. A project written before TIF, saying no format, means PNG. |
 | **Annotations** | A `.sann` file beside each picture. On by default. |
 | **Folder** | Blank for the project's `images` folder. A folder inside the project is kept relative to it; another drive suits a line that saves everything. |
 | **Keep for (days)** | Older days' folders are deleted when the station starts and as each day begins. 0 keeps everything. |
@@ -21,7 +21,7 @@ The settings are the station's, in the `.sproj`:
 
 ```json
 { "name": "Top", "recipe": "recipes/Top.sgraph",
-  "images": { "save": "failed", "format": "png", "keepDays": 30 } }
+  "images": { "save": "failed", "format": "tiff", "keepDays": 30 } }
 ```
 
 A station saves into a folder of its own name, with a folder for each day:
@@ -224,6 +224,18 @@ Builder opens a station's folder in it; so does
   with its mark, so Excel opens it as written. In code:
   `Sirius.Core.Annotations.AnnotationCsv`, `AnnotationTable` the panel's
   tables.
+
+- **Export Pictures with Annotations Drawn…** (Ctrl+Shift+E, File menu):
+  the pictures chosen, or all listed, each written as a PNG with its
+  annotations drawn on - as the viewer's Save Image with Overlays draws
+  them: the layers switched on, and measurements drawn by hand, saved or
+  not. For showing pictures to someone without Sirius IV. Each keeps its
+  name, as `.png`, in its own sub-folder (a station's day) under the
+  folder chosen; two of one name and different kinds (`part.tif`,
+  `part.bmp`) become `part_tif.png` and `part_bmp.png`. A folder that
+  would draw a PNG over its own picture is refused. A station never saves
+  drawn pictures itself: it keeps the picture as taken and its `.sann`,
+  and drawn copies are made here when wanted.
 
 **To come:** annotations from Run Folder and `sirius-run.exe` (F20's batch
 half).

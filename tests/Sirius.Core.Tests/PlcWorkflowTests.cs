@@ -1126,7 +1126,7 @@ public sealed class PlcWorkflowTests : IDisposable
             // Closing the station writes what it queued: the picture, and its part in the .sann.
             stationRuntime.Dispose();
 
-            var picture = Directory.GetFiles(Path.Combine(project.Folder, "images", "Top"), "*.png", SearchOption.AllDirectories).Single();
+            var picture = Directory.GetFiles(Path.Combine(project.Folder, "images", "Top"), "*.tif", SearchOption.AllDirectories).Single();
             var annotations = AnnotationFile.TryLoad(AnnotationFile.PathFor(picture), out var problem);
 
             Assert.Null(problem);

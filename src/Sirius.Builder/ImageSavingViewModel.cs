@@ -140,8 +140,9 @@ public sealed class ImageSavingViewModel : ObservableObject
             "Saving", "Format", PropertyEditor.Choice,
             () => _draft.Format,
             value => { if (value is ImageFileFormat format) Change(_draft with { Format = format }); },
-            "PNG keeps every value, 10-, 12- and 16-bit too, and can be inspected again exactly. JPEG is smaller but lossy; " +
-            "JPEG and BMP hold 8 bits only, so a deeper picture is saved as PNG whichever is chosen.",
+            "TIF and PNG keep every value, 10-, 12- and 16-bit too, and can be inspected again exactly; TIF is what lines " +
+            "usually keep. JPEG is smaller but lossy; JPEG and BMP hold 8 bits only, so a deeper picture is saved as PNG " +
+            "whichever of them is chosen.",
             options: () => Enum.GetValues<ImageFileFormat>().Select(format => new PropertyOption(TypeNames.OptionName(format), format)).ToArray(),
             enabled: On);
 

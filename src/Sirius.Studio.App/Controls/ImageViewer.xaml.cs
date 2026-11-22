@@ -1558,6 +1558,26 @@ public partial class ImageViewer : UserControl
     /// out - it is a handle for editing, not a result.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// A picture with its shapes and measurements drawn on, as Save Image
+    /// with Overlays draws it - by a viewer never shown, for saving many at
+    /// once (Sirius IV's Export Pictures with Annotations Drawn).
+    /// </summary>
+    /// <returns>Frozen, so it can be written out on a worker.</returns>
+    public BitmapSource RenderPicture(BitmapSource image, ShapeSet? shapes, IReadOnlyList<MeasurementRecord>? measurements)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+
+        ImageSource = image;
+        SelectedShapeIndex = -1;
+        Shapes = shapes;
+
+        // Set after the picture: one of another size clears what was there.
+        Measurements = measurements ?? [];
+
+        return RenderWithOverlays();
+    }
+
     private BitmapSource RenderWithOverlays()
     {
         var image = ImageSource!;

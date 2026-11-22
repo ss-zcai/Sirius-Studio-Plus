@@ -24,6 +24,7 @@ public partial class ViewerWindow : Window
     public static readonly RoutedUICommand ShowInExplorerCommand = new("Show in Explorer", nameof(ShowInExplorerCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand CropAllCommand = new("ROIs from All Pictures", nameof(CropAllCommand), typeof(ViewerWindow));
     public static readonly RoutedUICommand ExportCommand = new("Export Annotations as CSV", nameof(ExportCommand), typeof(ViewerWindow));
+    public static readonly RoutedUICommand ExportDrawnCommand = new("Export Pictures with Annotations Drawn", nameof(ExportDrawnCommand), typeof(ViewerWindow));
 
     private readonly BrowserViewModel _model;
     private bool _choosing;
@@ -168,6 +169,82 @@ public partial class ViewerWindow : Window
         var bounds = shapes.Shapes[index].Bounds;
         tile.SelectedShapeIndex = index;
         viewer.ZoomTo(new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height));
+    }
+
+    /// <summary>
+    /// The pictures chosen, or all listed, written as PNGs with their
+    /// annotations drawn on - for showing them to someone without Sirius IV.
+    /// </summary>
+    private async void OnExportDrawn(object sender, ExecutedRoutedEventArgs e)
+    {
+        const string title = "Export Pictures with Annotations Drawn";
+
+        var chosen = _model.ChosenPictures();
+        var listed = _model.ListedPictures();
+
+        if (ExportWindow.AskDrawn(this, chosen.Count, listed.Count) is not { } chosenOnly)
+            return;
+
+        var pictures = chosenOnly ? chosen : listed;
+        if (pictures.Count == 0)
+            return;
+
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Choose the folder for the drawn pictures",
+            InitialDirectory = _model.Folder ?? string.Empty,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        var targets = BrowserViewModel.DrawnTargets(pictures, dialog.FolderName);
+
+        // Never over a picture itself: a PNG drawn into its own folder would be.
+        if (targets.FirstOrDefault(target => string.Equals(target.Path, Path.GetFullPath(target.Picture.Path), StringComparison.OrdinalIgnoreCase)) is { } over)
+        {
+            Dialog.Warn(
+                $"{over.Picture.Name} would be drawn over itself. Choose another folder - one of its own, such as a new \"drawn\" folder.",
+                title,
+                this);
+            return;
+        }
+
+        var existing = targets.Count(target => File.Exists(target.Path));
+        var ask = $"Draw {pictures.Count:N0} picture{(pictures.Count == 1 ? string.Empty : "s")} with {(pictures.Count == 1 ? "its" : "their")} annotations, " +
+                  $"as PNG, into {dialog.FolderName}?" +
+                  (existing > 0 ? $"\n\n{existing:N0} of the files are there already, and will be replaced." : string.Empty);
+
+        if (!Dialog.Confirm(ask, title, this))
+            return;
+
+        // A viewer of its own, never shown, draws each as Save Image with Overlays does.
+        var drawer = new Sirius.Studio.App.Controls.ImageViewer();
+        drawer.Measure(new Size(800, 600));
+        drawer.Arrange(new Rect(0, 0, 800, 600));
+
+        BrowserViewModel.DrawnResult result;
+
+        try
+        {
+            result = await _model.ExportDrawnAsync(targets, drawer.RenderPicture);
+        }
+        finally
+        {
+            CommandManager.InvalidateRequerySuggested();
+        }
+
+        var summary = $"Wrote {result.Written:N0} drawn picture{(result.Written == 1 ? string.Empty : "s")} to {dialog.FolderName}.";
+
+        if (result.Problems.Count == 0)
+        {
+            Dialog.Inform(summary, title, this);
+            return;
+        }
+
+        var listedProblems = string.Join("\n", result.Problems.Take(8));
+        var more = result.Problems.Count > 8 ? $"\n…and {result.Problems.Count - 8} more." : string.Empty;
+        Dialog.Warn($"{summary}\n\n{result.Problems.Count} could not be drawn:\n{listedProblems}{more}", title, this);
     }
 
     private void OnCanExport(object sender, CanExecuteRoutedEventArgs e) =>

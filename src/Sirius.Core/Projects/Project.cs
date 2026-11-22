@@ -1172,7 +1172,7 @@ public sealed class Project
         [JsonPropertyName("save")]
         public string? Save { get; set; }
 
-        /// <summary>png, jpeg or bmp.</summary>
+        /// <summary>tiff, png, jpeg or bmp; png when not said - what a file from before TIF meant.</summary>
         [JsonPropertyName("format")]
         public string? Format { get; set; }
 

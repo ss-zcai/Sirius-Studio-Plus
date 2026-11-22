@@ -95,6 +95,31 @@ public sealed class ImageSavingTests : IDisposable
         Assert.Throws<ArgumentException>(() => project.SetSaving(station, saving with { KeepDays = -1 }));
     }
 
+    /// <summary>
+    /// TIF is offered and is where a station starts; a project written
+    /// before TIF, saying no format, still reads as the PNG it meant.
+    /// </summary>
+    [Fact]
+    public void A_station_starts_at_tif_and_an_older_file_without_a_format_is_png()
+    {
+        var project = Project.Create(_folder, "Line", new VisionGraph(), "Top");
+        var station = project.Stations[0];
+
+        Assert.Equal(ImageFileFormat.Tiff, station.Saving.Format);
+        Assert.Equal(".tif", ImageSaving.ExtensionOf(ImageFileFormat.Tiff));
+        Assert.Equal("Saves every image, TIF, 7 days", new ImageSaving(ImageSavePolicy.All, KeepDays: 7).Summary);
+
+        project.SetSaving(station, new ImageSaving(ImageSavePolicy.All));
+        Assert.Contains("\"format\": \"tiff\"", File.ReadAllText(project.FilePath));
+        Assert.Equal(ImageFileFormat.Tiff, Project.Load(project.FilePath).Project.Stations[0].Saving.Format);
+
+        File.WriteAllText(project.FilePath, System.Text.RegularExpressions.Regex.Replace(File.ReadAllText(project.FilePath), @",\s*""format"": ""tiff""", string.Empty));
+        Assert.DoesNotContain("tiff", File.ReadAllText(project.FilePath), StringComparison.Ordinal);
+        var older = Project.Load(project.FilePath);
+        Assert.Empty(older.Warnings);
+        Assert.Equal(ImageFileFormat.Png, older.Project.Stations[0].Saving.Format);
+    }
+
     [Fact]
     public void Pictures_go_in_the_project_images_folder_unless_another_is_named()
     {
@@ -268,10 +293,10 @@ public sealed class ImageSavingTests : IDisposable
         Assert.Null(station.SavingProblem);
 
         var folder = Path.Combine(project.Folder, "images", "Top");
-        var picture = Assert.Single(Saved(folder, "*.png"));
+        var picture = Assert.Single(Saved(folder, "*.tif"));
 
         Assert.Equal(ImageSaving.DayFolder(DateTime.Now), Path.GetFileName(Path.GetDirectoryName(picture)));
-        Assert.Matches(@"^\d{8}-\d{6}-\d{3}_000002_FAIL\.png$", Path.GetFileName(picture));
+        Assert.Matches(@"^\d{8}-\d{6}-\d{3}_000002_FAIL\.tif$", Path.GetFileName(picture));
 
         // The picture as the camera - here the sequence - took it.
         using (var saved = CvInvoke.Imread(picture, ImreadModes.Unchanged))
@@ -326,6 +351,27 @@ public sealed class ImageSavingTests : IDisposable
         using var saved = CvInvoke.Imread(pictures[1], ImreadModes.Unchanged);
         Assert.Equal(DepthType.Cv16U, saved.Depth);
         Assert.Equal(200, CvInvoke.Mean(saved).V0);
+    }
+
+    /// <summary>A 12-bit frame kept as TIF - as lines keep them - is kept as it is, every value.</summary>
+    [Fact]
+    public void A_deep_picture_is_kept_as_tif_when_tif_is_chosen()
+    {
+        var project = ProjectSaving(new ImageSaving(ImageSavePolicy.All, ImageFileFormat.Tiff), bits: 12);
+        RunThree(project);
+
+        var folder = Path.Combine(project.Folder, "images", "Top");
+
+        Assert.Empty(Saved(folder, "*.png"));
+        var pictures = Saved(folder, "*.tif");
+        Assert.Equal(3, pictures.Length);
+
+        using var saved = CvInvoke.Imread(pictures[1], ImreadModes.Unchanged);
+        Assert.Equal(DepthType.Cv16U, saved.Depth);
+        Assert.Equal(200, CvInvoke.Mean(saved).V0);
+
+        // Compressed (LZW): a plain frame is far smaller than its 240 KB of pixels.
+        Assert.True(new FileInfo(pictures[1]).Length < 40_000, $"{new FileInfo(pictures[1]).Length} bytes: not compressed.");
     }
 
     [Fact]
