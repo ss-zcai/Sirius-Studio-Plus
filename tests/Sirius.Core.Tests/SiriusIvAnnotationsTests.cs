@@ -8,6 +8,7 @@ using Sirius.Core.Shapes;
 using Sirius.IV;
 using Sirius.Studio.App.Controls;
 using Xunit;
+using MeasurementRecordAlias = Sirius.Core.Graph.MeasurementRecord;
 
 namespace Sirius.Core.Tests;
 
@@ -318,6 +319,32 @@ public sealed class SiriusIvAnnotationsTests : IDisposable
         var data = new byte[3];
         System.Runtime.InteropServices.Marshal.Copy(picture.DataPointer + (y * picture.Step) + (x * 3), data, 0, 3);
         return data;
+    }
+
+    /// <summary>A picture's own ROIs: drawn and not saved, else saved in its .sann; none for one without.</summary>
+    [Fact]
+    public void Each_pictures_own_rois_are_found_saved_or_not()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = Open(Pictures());
+            static MeasurementRecordAlias Rect(double x) =>
+                new("Rectangle", [new Point2(x, 10), new Point2(x + 20, 10), new Point2(x + 20, 30)], "#FF00FF00", null);
+
+            // Saved on the first: two.
+            var first = model.Files[0];
+            var annotations = AnnotationFile.TryLoad(first.AnnotationPath, out _)!;
+            new AnnotationFile { Image = annotations.Image, Width = 200, Height = 100, Measurements = [Rect(10), Rect(50)] }.Save(first.AnnotationPath);
+
+            // Drawn on the second, not saved: one.
+            model.Measured(model.Files[1], [Rect(100)], [], 200, 100);
+
+            var cuts = WpfTestHost.Wait(model.OwnRoisAsync(model.ListedPictures()));
+
+            Assert.Equal([2, 1, 0], cuts.Select(cut => cut.Rois.Count));
+            Assert.Equal(100, cuts[1].Rois[0].TopLeft.X);
+            Assert.Null(model.Activity);
+        });
     }
 
     [Fact]

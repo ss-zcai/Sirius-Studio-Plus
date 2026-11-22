@@ -386,26 +386,33 @@ public partial class ViewerWindow : Window
         e.CanExecute = _model is { HasFolder: true, IsCropping: false };
 
     /// <summary>
-    /// The rectangles drawn on a picture, cut from every picture in the list
-    /// into a folder chosen for them.
+    /// ROIs cut from the pictures in the list into a folder chosen for them:
+    /// each picture's own rectangles, or those on the picture shown cut from
+    /// every picture.
     /// </summary>
     private async void OnCropAll(object sender, ExecutedRoutedEventArgs e)
     {
         const string title = "ROIs from All Pictures";
 
-        if (_model.RoiSource() is not { } source)
+        var pictures = _model.ListedPictures();
+        if (pictures.Count == 0)
+            return;
+
+        var own = (await _model.OwnRoisAsync(pictures)).Where(cut => cut.Rois.Count > 0).ToArray();
+        var source = _model.RoiSource();
+
+        if (own.Length == 0 && source is null)
         {
             Dialog.Inform(
-                "Draw a rectangle round each ROI on one picture first, with the viewer's Rectangle tool.\n\n" +
-                "Every picture in the list is then cut by the same rectangles, and each crop saved " +
-                "as picture-1.png, picture-2.png… in the folder you choose.",
+                "Draw a rectangle round each ROI first, with the viewer's Rectangle tool - on each picture you want " +
+                "cut, or on one picture to cut the same places from all.\n\n" +
+                "Each crop is saved as picture-1.png, picture-2.png… in the folder you choose.",
                 title,
                 this);
             return;
         }
 
-        var pictures = _model.ListedPictures();
-        if (pictures.Count == 0)
+        if (RoisFromAllWindow.Ask(this, own, source, pictures.Count) is not { } sameForAll)
             return;
 
         var dialog = new OpenFolderDialog
@@ -417,20 +424,21 @@ public partial class ViewerWindow : Window
         if (dialog.ShowDialog(this) != true)
             return;
 
-        var targets = RoiBatch.Targets(pictures, source.Rois.Count, dialog.FolderName);
+        var targets = sameForAll
+            ? RoiBatch.Targets(pictures, source!.Value.Rois, dialog.FolderName)
+            : RoiBatch.Targets(own, dialog.FolderName);
         var existing = targets.Count(t => File.Exists(t.Path));
-        var rois = source.Rois.Count;
 
-        var ask =
-            $"Cut {rois} ROI{(rois == 1 ? string.Empty : "s")}, as drawn on {source.Picture.Name}, " +
-            $"from each of {pictures.Count:N0} picture{(pictures.Count == 1 ? string.Empty : "s")} - " +
-            $"{targets.Count:N0} files - into {dialog.FolderName}?" +
-            (existing > 0 ? $"\n\n{existing:N0} of the files are there already, and will be replaced." : string.Empty);
-
-        if (!Dialog.Confirm(ask, title, this))
+        if (existing > 0 &&
+            !Dialog.Confirm(
+                $"{existing:N0} of the {targets.Count:N0} ROI images are in {dialog.FolderName} already, and will be replaced. Go on?",
+                title,
+                this))
+        {
             return;
+        }
 
-        var result = await _model.CropAllAsync(targets, source.Rois);
+        var result = await _model.CropAllAsync(targets);
         CommandManager.InvalidateRequerySuggested();
 
         var summary = $"Saved {result.Saved:N0} ROI image{(result.Saved == 1 ? string.Empty : "s")} " +

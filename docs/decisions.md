@@ -3299,7 +3299,11 @@ every picture, for a deep-learning tool later.
 - **Sirius IV ▸ ROIs from All**: the rectangles on the first viewer that
   has any, cut from every picture in the list as it is filtered (a
   matched set's pictures included) into a folder chosen for them, as
-  `<picture>-<n>.png`. Two pictures of one name - two cameras' folders -
+  `<picture>-<n>.png`. *Changed 22 November 2026:* each picture's own
+  rectangles by default - drawn, saved or not - since four drawn on one,
+  four on another and three on a third gave three from each, all the
+  third's; the shown picture's from every picture is the other choice,
+  offered first only when no other picture has any. Two pictures of one name - two cameras' folders -
   are told apart by their folders. Read from each file, so the crops
   keep its bits; done on a worker with its progress on the toolbar; a
   picture that cannot be read is listed at the end, and the rest go on.

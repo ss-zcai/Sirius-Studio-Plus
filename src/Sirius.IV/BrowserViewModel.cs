@@ -1181,9 +1181,38 @@ public sealed class BrowserViewModel : ObservableObject
     internal IReadOnlyList<ImageFileItem> ListedPictures() =>
         _match.IsOn ? Files.SelectMany(item => item.Set).Distinct().ToArray() : Files.ToArray();
 
+    /// <summary>
+    /// The rectangles drawn on each picture: those not yet saved, else those
+    /// in its <c>.sann</c> - read on a worker. A picture with none has none.
+    /// </summary>
+    internal async Task<IReadOnlyList<RoiBatch.Cut>> OwnRoisAsync(IReadOnlyList<ImageFileItem> pictures)
+    {
+        // What is drawn and not saved is here, on this thread; the rest is on disk.
+        var unsaved = pictures.Select(picture => UnsavedFor(picture)).ToArray();
+
+        Activity = $"Finding the ROIs drawn on {pictures.Count} pictures";
+
+        try
+        {
+            return await Task.Run(() => pictures.Select((picture, i) =>
+            {
+                var measurements = unsaved[i]
+                    ?? (System.IO.File.Exists(picture.AnnotationPath)
+                        ? AnnotationFile.TryLoad(picture.AnnotationPath, out _)?.Measurements
+                        : null)
+                    ?? [];
+
+                return new RoiBatch.Cut(picture, RoiBatch.From(measurements));
+            }).ToArray());
+        }
+        finally
+        {
+            Activity = null;
+        }
+    }
+
     /// <summary>Cuts the ROIs from each picture into their files, on a worker.</summary>
-    internal async Task<RoiBatch.Result> CropAllAsync(
-        IReadOnlyList<RoiBatch.Target> targets, IReadOnlyList<RoiBatch.Roi> rois)
+    internal async Task<RoiBatch.Result> CropAllAsync(IReadOnlyList<RoiBatch.Target> targets)
     {
         var pictures = targets.Select(t => t.Picture).Distinct().Count();
 
@@ -1199,7 +1228,7 @@ public sealed class BrowserViewModel : ObservableObject
 
         try
         {
-            return await Task.Run(() => RoiBatch.Run(targets, rois, progress));
+            return await Task.Run(() => RoiBatch.Run(targets, progress));
         }
         finally
         {

@@ -499,7 +499,8 @@ public class RoiTests : IDisposable
             new ImageFileItem(Path.Combine(_folder, "other.png"), _folder),
         };
 
-        var targets = RoiBatch.Targets(pictures, 2, "C:\\rois");
+        var two = new RoiBatch.Roi[] { new(new(0, 0), new(5, 0), new(5, 5)), new(new(1, 1), new(6, 1), new(6, 6)) };
+        var targets = RoiBatch.Targets(pictures, two, "C:\\rois");
 
         Assert.Equal(
             new[] { "Cam1_part-1.png", "Cam1_part-2.png", "Cam2_part-1.png", "Cam2_part-2.png", "other-1.png", "other-2.png" },
@@ -534,7 +535,7 @@ public class RoiTests : IDisposable
         var reports = new List<int>();
 
         var result = RoiBatch.Run(
-            RoiBatch.Targets(pictures, rois.Count, output), rois, new SyncProgress(reports.Add));
+            RoiBatch.Targets(pictures, rois, output), new SyncProgress(reports.Add));
 
         Assert.Equal(3, result.Pictures);
         Assert.Equal(4, result.Saved);
@@ -547,6 +548,66 @@ public class RoiTests : IDisposable
         Assert.Equal(10, second.Width);
         Assert.Equal(20, second.Height);
         Assert.Equal(1020, Values(second)[0]);
+    }
+
+    /// <summary>
+    /// Each picture's own rectangles, where they were drawn: four on one,
+    /// three on another, none on a third - which writes nothing.
+    /// </summary>
+    [Fact]
+    public void Sirius_iv_cuts_each_pictures_own_rectangles_from_it()
+    {
+        var paths = new[] { "a.png", "b.png", "c.png" }.Select(name => Path.Combine(_folder, name)).ToArray();
+
+        foreach (var path in paths)
+        {
+            using var picture = Numbered(40, 30);
+            CvInvoke.Imwrite(path, picture);
+        }
+
+        var pictures = paths.Select(path => new ImageFileItem(path, _folder)).ToArray();
+        RoiBatch.Roi Box(int x, int y, int w, int h) => new(new(x, y), new(x + w, y), new(x + w, y + h));
+
+        var cuts = new RoiBatch.Cut[]
+        {
+            new(pictures[0], [Box(0, 0, 4, 4), Box(5, 0, 4, 4), Box(10, 0, 4, 4), Box(15, 0, 4, 4)]),
+            new(pictures[1], [Box(0, 0, 8, 2), Box(0, 5, 8, 2), Box(0, 10, 8, 3)]),
+            new(pictures[2], []),
+        };
+
+        var output = Directory.CreateDirectory(Path.Combine(_folder, "own")).FullName;
+        var targets = RoiBatch.Targets(cuts, output);
+
+        Assert.Equal(
+            ["a-1.png", "a-2.png", "a-3.png", "a-4.png", "b-1.png", "b-2.png", "b-3.png"],
+            targets.Select(target => Path.GetFileName(target.Path)));
+
+        var result = RoiBatch.Run(targets);
+
+        Assert.Equal((2, 7), (result.Pictures, result.Saved));
+        Assert.Empty(result.Problems);
+
+        // b's own third rectangle: 8 × 3, not a's 4 × 4.
+        using var third = CvInvoke.Imread(Path.Combine(output, "b-3.png"), ImreadModes.Unchanged);
+        Assert.Equal((8, 3), (third.Width, third.Height));
+        Assert.False(File.Exists(Path.Combine(output, "c-1.png")));
+    }
+
+    [Fact]
+    public void Rois_from_all_offers_each_pictures_own_unless_only_the_one_shown_has_any()
+    {
+        var a = new ImageFileItem(Path.Combine(_folder, "a.png"), _folder);
+        var b = new ImageFileItem(Path.Combine(_folder, "b.png"), _folder);
+        RoiBatch.Roi[] three = [new(new(0, 0), new(1, 0), new(1, 1)), new(new(0, 0), new(1, 0), new(1, 1)), new(new(0, 0), new(1, 0), new(1, 1))];
+
+        // Drawn on two: each its own.
+        var (own, same, sameForAll) = RoisFromAllWindow.Describe([new(a, three), new(b, three[..1])], (b, three[..1]), 120);
+        Assert.Equal("Each picture's own ROIs - 4 ROIs drawn on 2 pictures", own);
+        Assert.Equal("The 1 ROI on b.png, cut from each of the 120 pictures listed", same);
+        Assert.False(sameForAll);
+
+        // Drawn only on the one shown: the same places from all, as a training set begins.
+        Assert.True(RoisFromAllWindow.Describe([new(a, three)], (a, three), 120).SameForAll);
     }
 
     /// <summary>Reports at once, on the calling thread, so the test can count them.</summary>

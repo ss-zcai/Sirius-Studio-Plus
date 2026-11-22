@@ -9,12 +9,12 @@ using Sirius.Studio.App.Imaging;
 namespace Sirius.IV;
 
 /// <summary>
-/// The same rectangles cut from every picture in the list: a day's
-/// pictures turned into a set of ROI images, for training a model or
-/// collecting samples.
+/// Rectangles cut from the pictures in the list: each picture's own, drawn
+/// on it - or the same ones, drawn on one, from every picture, turning a
+/// day's pictures into a set of ROI images for training a model.
 /// </summary>
 /// <remarks>
-/// Each picture's crops are named after it and numbered as the rectangles
+/// Each picture's crops are named after it and numbered as its rectangles
 /// are - <c>&lt;picture&gt;-1.png</c>, <c>-2</c> - into one folder. Read
 /// from the file each time, not from what a viewer shows, so a 12-bit
 /// picture gives 12-bit crops, saved as 16-bit PNG.
@@ -28,7 +28,10 @@ internal static class RoiBatch
     public sealed record Result(int Pictures, int Saved, IReadOnlyList<string> Problems, bool Cancelled = false);
 
     /// <summary>One file to write: a picture's crop by one rectangle.</summary>
-    public sealed record Target(ImageFileItem Picture, int Number, string Path);
+    public sealed record Target(ImageFileItem Picture, int Number, string Path, Roi Roi);
+
+    /// <summary>A picture and the rectangles to cut from it.</summary>
+    public sealed record Cut(ImageFileItem Picture, IReadOnlyList<Roi> Rois);
 
     /// <summary>The rectangles among a picture's measurements, in the order drawn.</summary>
     public static IReadOnlyList<Roi> From(IEnumerable<MeasurementRecord> measurements) =>
@@ -40,22 +43,29 @@ internal static class RoiBatch
                 new Point(m.Points[2].X, m.Points[2].Y)))
             .ToArray();
 
+    /// <summary>The same rectangles from every picture.</summary>
+    public static IReadOnlyList<Target> Targets(IReadOnlyList<ImageFileItem> pictures, IReadOnlyList<Roi> rois, string folder) =>
+        Targets(pictures.Select(picture => new Cut(picture, rois)).ToArray(), folder);
+
     /// <summary>
-    /// Every file a run writes. Named after the picture, or - where two
-    /// pictures of one name are in the list, from two cameras' folders -
-    /// after its path from the folder open, so neither overwrites the other.
+    /// Every file a run writes: each picture's rectangles, numbered from 1 on
+    /// it. Named after the picture, or - where two pictures of one name are
+    /// in the list, from two cameras' folders - after its path from the
+    /// folder open, so neither overwrites the other. A picture with no
+    /// rectangles writes nothing.
     /// </summary>
-    public static IReadOnlyList<Target> Targets(IReadOnlyList<ImageFileItem> pictures, int rois, string folder)
+    public static IReadOnlyList<Target> Targets(IReadOnlyList<Cut> cuts, string folder)
     {
-        var alike = pictures
+        var alike = cuts
+            .Select(cut => cut.Picture)
             .GroupBy(p => Path.GetFileNameWithoutExtension(p.Name), StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)
             .Select(group => group.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var targets = new List<Target>(pictures.Count * rois);
+        var targets = new List<Target>();
 
-        foreach (var picture in pictures)
+        foreach (var (picture, rois) in cuts)
         {
             var stem = Path.GetFileNameWithoutExtension(picture.Name);
 
@@ -66,8 +76,8 @@ internal static class RoiBatch
                     .Replace(Path.AltDirectorySeparatorChar, '_');
             }
 
-            for (var number = 1; number <= rois; number++)
-                targets.Add(new Target(picture, number, Path.Combine(folder, $"{stem}-{number}.png")));
+            for (var number = 1; number <= rois.Count; number++)
+                targets.Add(new Target(picture, number, Path.Combine(folder, $"{stem}-{number}.png"), rois[number - 1]));
         }
 
         return targets;
@@ -80,7 +90,6 @@ internal static class RoiBatch
     /// </summary>
     public static Result Run(
         IReadOnlyList<Target> targets,
-        IReadOnlyList<Roi> rois,
         IProgress<int>? progress = null,
         CancellationToken cancel = default)
     {
@@ -105,7 +114,7 @@ internal static class RoiBatch
                 {
                     foreach (var target in picture)
                     {
-                        var roi = rois[target.Number - 1];
+                        var roi = target.Roi;
                         using var crop = RoiCrop.Cut(source, roi.TopLeft, roi.TopRight, roi.BottomRight);
                         RoiCrop.Save(crop, target.Path, BitsOf(source));
                         saved++;
