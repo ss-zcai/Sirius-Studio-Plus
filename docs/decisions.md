@@ -3616,3 +3616,28 @@ passed and failed alike.
 - **Dropped:** F20d (one pass in N) - lines keep all or the failures; a
   good picture is kept by hand. **Later:** F20e (matching on the part),
   after several shots per part.
+
+## 88. A folder run writes a .sann beside each picture (F20a)
+
+Asked on 22 November 2026: "As if the images are from image sequence
+which is from a folder. What we need to do is just save the sann file in
+that folder." No new program: Run Folder in Studio and `sirius-run.exe`,
+which share `FolderRun`.
+
+- **Beside each picture, always** - in Studio, as a station saves
+  annotations on by default; its summary says how many were written.
+  `sirius-run --no-annotations` for a script that must not write into the
+  folder.
+- **The same file a station writes**: the inspection read off the recipe
+  by one piece of code for both (`InspectionCapture`: the picture taken,
+  each viewer's shapes, every published value), and described by the
+  station's own `ImageRecorder.Describe`.
+- **A picture run again keeps what is about it**: a station's `.sann`
+  keeps its station, inspection number, time, part, bits (a 12-bit TIF
+  read back as 16 bits still says 12) and measurements drawn by hand; the
+  recipe, verdict, results and shapes become this run's. A picture
+  without one gets no station and no inspection number - it was not a
+  station's - and the time it was run.
+- **Written as it goes**, on the run's own thread: a few kilobytes a
+  picture, not worth a queue. One that cannot be written is said at the
+  end; the run goes on.

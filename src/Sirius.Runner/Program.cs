@@ -31,16 +31,18 @@ public static class Program
     private const int CouldNotRun = 2;
 
     private const string Usage =
-        "Usage: sirius-run <recipe.sgraph> [--folder <folder>] [--quiet]\n\n" +
+        "Usage: sirius-run <recipe.sgraph> [--folder <folder>] [--quiet] [--no-annotations]\n\n" +
         "Runs the recipe over every image of its Image Sequence, each one an inspection,\n" +
-        "and prints each verdict and a summary.\n\n" +
-        "  --folder <folder>  Run over this folder instead of the one the recipe names.\n" +
-        "  --quiet            Print the summary only.\n\n" +
+        "prints each verdict and a summary, and writes a .sann beside each image - what\n" +
+        "was found on it, for Sirius IV.\n\n" +
+        "  --folder <folder>    Run over this folder instead of the one the recipe names.\n" +
+        "  --quiet              Print the summary only.\n" +
+        "  --no-annotations     Write no .sann files.\n\n" +
         "Exit code: 0 all passed, 1 some failed, 2 could not run.";
 
     public static async Task<int> Main(string[] args)
     {
-        if (!TryParse(args, out var recipe, out var folder, out var quiet, out var problem))
+        if (!TryParse(args, out var recipe, out var folder, out var quiet, out var problem, out var noAnnotations))
         {
             Console.Error.WriteLine(problem is null ? Usage : $"{problem}\n\n{Usage}");
             return problem is null ? AllPassed : CouldNotRun;
@@ -48,7 +50,7 @@ public static class Program
 
         try
         {
-            return await RunAsync(recipe!, folder, quiet).ConfigureAwait(false);
+            return await RunAsync(recipe!, folder, quiet, annotate: !noAnnotations).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -63,7 +65,7 @@ public static class Program
         }
     }
 
-    private static async Task<int> RunAsync(string recipe, string? folder, bool quiet)
+    internal static async Task<int> RunAsync(string recipe, string? folder, bool quiet, bool annotate = true)
     {
         if (NativeLibraries.Problem() is { } native)
         {
@@ -116,6 +118,7 @@ public static class Program
         };
 
         using var scheduler = new GraphScheduler(graph);
+        var annotations = annotate ? new Sirius.Vision.Runtime.FolderAnnotations(Path.GetFileName(recipe)) : null;
 
         var summary = await FolderRun.RunAsync(
             graph,
@@ -128,9 +131,13 @@ public static class Program
 
                 return Task.CompletedTask;
             },
-            cancellation.Token).ConfigureAwait(false);
+            cancellation.Token,
+            annotations is null ? null : annotations.Write).ConfigureAwait(false);
 
         Console.WriteLine(summary.Describe());
+
+        if (annotations is not null)
+            Console.WriteLine(annotations.Describe());
 
         return summary.Failed > 0 ? SomeFailed : AllPassed;
     }
@@ -208,12 +215,17 @@ public static class Program
     }
 
     internal static bool TryParse(
-        string[] args, out string? recipe, out string? folder, out bool quiet, out string? problem)
+        string[] args, out string? recipe, out string? folder, out bool quiet, out string? problem) =>
+        TryParse(args, out recipe, out folder, out quiet, out problem, out _);
+
+    internal static bool TryParse(
+        string[] args, out string? recipe, out string? folder, out bool quiet, out string? problem, out bool noAnnotations)
     {
         recipe = null;
         folder = null;
         quiet = false;
         problem = null;
+        noAnnotations = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -224,6 +236,10 @@ public static class Program
 
                 case "--quiet":
                     quiet = true;
+                    break;
+
+                case "--no-annotations":
+                    noAnnotations = true;
                     break;
 
                 case "--folder" when i + 1 < args.Length:

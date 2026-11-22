@@ -1317,6 +1317,9 @@ public sealed class MainViewModel : ObservableObject
         var refreshed = System.Diagnostics.Stopwatch.StartNew();
         FolderRunSummary? summary = null;
 
+        // A .sann beside each picture, as a station writes (F20a): Sirius IV shows what was found.
+        var annotations = new Sirius.Vision.Runtime.FolderAnnotations(_currentFilePath is null ? null : Path.GetFileName(_currentFilePath));
+
         IsRunning = true;
 
         try
@@ -1337,7 +1340,8 @@ public sealed class MainViewModel : ObservableObject
                         refreshed.Restart();
                     }
                 },
-                cancellation.Token).ConfigureAwait(true);
+                cancellation.Token,
+                annotations.Write).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {
@@ -1365,7 +1369,7 @@ public sealed class MainViewModel : ObservableObject
         if (summary is not null)
         {
             StatusText = summary.Describe();
-            Dialog.Inform(summary.Describe(), "Run Folder");
+            Dialog.Inform($"{summary.Describe()}\n\n{annotations.Describe()}", "Run Folder");
         }
     }
 

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using Sirius.Core.Nodes;
+using Sirius.Core.Runtime;
 
 namespace Sirius.Core.Graph;
 
@@ -137,12 +138,19 @@ public static class FolderRun
     /// Steps <paramref name="sequence"/> through its images, inspecting each.
     /// </summary>
     /// <param name="afterEach">Called after each image, before the next - for progress.</param>
+    /// <param name="keep">
+    /// Given each inspection - its picture, what the viewers drew, what the
+    /// recipe published - and the image's file, while the pictures are still
+    /// the run's: where an annotation file is written beside it (F20a). Null
+    /// keeps nothing.
+    /// </param>
     public static async Task<FolderRunSummary> RunAsync(
         VisionGraph graph,
         GraphScheduler scheduler,
         ISequenceNode sequence,
         Func<FolderRunItem, Task>? afterEach,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<InspectionRecord, string>? keep = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(scheduler);
@@ -164,6 +172,7 @@ public static class FolderRun
             // image.
             sequence.Index = index;
 
+            var inspected = Stopwatch.StartNew();
             var result = await scheduler.InspectAsync(cancellationToken).ConfigureAwait(true);
 
             if (result.Cancelled)
@@ -183,6 +192,22 @@ public static class FolderRun
                 result.Failed);
 
             summary.Add(item);
+
+            if (keep is not null && sequence.CurrentPath is { } path)
+            {
+                var snapshot = new InspectionSnapshot(
+                    string.Empty,
+                    index,
+                    DateTime.Now,
+                    item.Verdict,
+                    inspected.Elapsed,
+                    item.NodeErrors,
+                    InspectionCapture.Published(graph, scheduler));
+
+                keep(
+                    new InspectionRecord(snapshot, null, InspectionCapture.Acquired(graph, scheduler), InspectionCapture.Viewers(graph, scheduler)),
+                    path);
+            }
 
             if (afterEach is not null)
                 await afterEach(item).ConfigureAwait(true);

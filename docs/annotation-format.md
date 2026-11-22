@@ -260,5 +260,22 @@ Builder opens a station's folder in it; so does
   drawn pictures itself: it keeps the picture as taken and its `.sann`,
   and drawn copies are made here when wanted.
 
-**To come:** annotations from Run Folder and `sirius-run.exe` (F20's batch
-half).
+---
+
+## 4. A folder run's annotations
+
+**Run Folder** in Studio and **`sirius-run.exe`** write a `.sann` beside
+each picture they run, in the picture's own folder, as a station writes
+one beside each picture it saves: the recipe (its file name), the verdict,
+every published result, and the shapes each image viewer drew. Sirius IV
+then shows a folder judged at the desk as it shows a station's.
+
+A picture with a `.sann` already - a station's, being run again - keeps
+what is about the picture: its station, inspection, time, part, bits and
+measurements drawn by hand. What the run found replaces the rest. A
+`.sann` that cannot be written - a read-only folder - is said at the end,
+and the run goes on. `sirius-run --no-annotations` writes none.
+
+In code: `FolderRun.RunAsync`'s `keep`, given each inspection as a
+station's recorder is (`InspectionCapture`), and
+`Sirius.Vision.Runtime.FolderAnnotations`, which writes them.

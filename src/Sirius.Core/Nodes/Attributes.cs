@@ -116,6 +116,12 @@ public interface ISequenceNode
 
     /// <summary>What the current item is called, or null when there is none.</summary>
     string? CurrentName { get; }
+
+    /// <summary>
+    /// The current item's file, in full, when it is one - where a folder
+    /// run writes its annotation file beside it; null otherwise.
+    /// </summary>
+    string? CurrentPath => null;
 }
 
 /// <summary>

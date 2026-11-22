@@ -98,6 +98,10 @@ public sealed class ImageSequenceNode : VisionNode, ISequenceNode
     public string? CurrentName =>
         Count == 0 ? null : IoPath.GetFileName(_files[Clamp(_index) - 1]);
 
+    /// <summary>The current picture's file, in full.</summary>
+    public string? CurrentPath =>
+        Count == 0 ? null : IoPath.GetFullPath(_files[Clamp(_index) - 1]);
+
     /// <summary>
     /// Re-reads the folder listing.
     /// </summary>

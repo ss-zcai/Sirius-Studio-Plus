@@ -227,7 +227,7 @@ public sealed class ImageRecorder : IInspectionRecorder
     /// found on this picture - shapes measured on a picture of another size
     /// would not sit where they belong, and are left out.
     /// </summary>
-    internal static AnnotationFile Describe(InspectionRecord record, ImageData image)
+    public static AnnotationFile Describe(InspectionRecord record, ImageData image)
     {
         var layers = new List<AnnotationLayer>();
 

@@ -214,8 +214,9 @@ from you before they start.
   all of its pictures, with a `.sann` beside each; **Sirius IV**
   (`SiriusIV.exe`) browses them - file list, sorting, measuring, matching,
   Sync View, a tab per viewer. Left:
-  - **F20a. The batch half** (S-M): Run Folder and `sirius-run.exe`
-    writing the same `.sann` beside each image they run.
+  - ~~**F20a. The batch half**~~ - done 22 November 2026 (decision 88):
+    Run Folder and `sirius-run.exe` write a `.sann` beside each picture
+    they run; a station's picture run again keeps what is about it.
   - ~~**F20b. Sirius IV, next panels**~~ - done 21 November 2026
     (decision 85): the Annotations panel below the viewers - Results and
     Shapes tabs, a row picking its shape and double-clicked zooming to

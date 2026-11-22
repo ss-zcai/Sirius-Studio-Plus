@@ -724,71 +724,11 @@ public sealed class StationRunner : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>
-    /// The picture the recipe took: its camera's, else its image sequence's,
-    /// else any source node's - the first output carrying pixels.
-    /// </summary>
-    private object? Acquired(GraphScheduler scheduler)
-    {
-        var nodes = Recipe.Nodes.Where(node => node.Enabled).ToArray();
+    private object? Acquired(GraphScheduler scheduler) => InspectionCapture.Acquired(Recipe, scheduler);
 
-        var sources = nodes.Where(node => node is IInspectionNode)
-            .Concat(nodes.Where(node => node is ISequenceNode))
-            .Concat(nodes.Where(node => node.Descriptor.Category == NodeCategory.Source));
+    private List<ViewerRecord> Viewers(GraphScheduler scheduler) => InspectionCapture.Viewers(Recipe, scheduler);
 
-        foreach (var node in sources)
-        {
-            foreach (var output in node.Outputs)
-            {
-                if (scheduler.GetOutput(output) is IPixelValues picture)
-                    return picture;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>Each image viewer in the recipe: its picture and what is drawn on it.</summary>
-    private List<ViewerRecord> Viewers(GraphScheduler scheduler)
-    {
-        var viewers = new List<ViewerRecord>();
-
-        foreach (var node in Recipe.Nodes.Where(node => node.Enabled && node.Descriptor.TypeKey == "output.viewer"))
-        {
-            var inputs = node.Inputs.Where(input => !node.IsParameterPort(input)).ToArray();
-
-            if (inputs.Length == 0)
-                continue;
-
-            viewers.Add(new ViewerRecord(
-                node.Name,
-                scheduler.GetInput(inputs[0]),
-                inputs.Skip(1).Select(scheduler.GetInput).OfType<Shapes.ShapeSet>().ToArray()));
-        }
-
-        return viewers;
-    }
-
-    /// <summary>Every published name's value, as the inspection just left it.</summary>
-    private Dictionary<string, object?> ReadPublished(GraphScheduler scheduler)
-    {
-        var values = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var item in Publishing.In(Recipe).Where(item => item.Found))
-        {
-            values[item.Name] = item.Kind switch
-            {
-                PublishedKind.Result => item.Node.FindOutput(item.Entry.Member) is { } port ? scheduler.GetOutput(port) : null,
-                PublishedKind.Setting => item.Node.Descriptor.Parameters.First(p => p.Name == item.Entry.Member).GetValue(item.Node),
-                _ => new ViewFrame(item.Node.Inputs
-                    .Where(input => !item.Node.IsParameterPort(input))
-                    .Select(input => new KeyValuePair<string, object?>(input.Name, scheduler.GetInput(input)))
-                    .ToArray()),
-            };
-        }
-
-        return values;
-    }
+    private Dictionary<string, object?> ReadPublished(GraphScheduler scheduler) => InspectionCapture.Published(Recipe, scheduler);
 
     /// <summary>"Find Circle 1: no circle found" - the failed nodes and their messages.</summary>
     private string FailureText() =>

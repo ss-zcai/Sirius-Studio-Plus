@@ -2,10 +2,13 @@ using System.IO;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
+using Sirius.Core.Annotations;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Serialization;
+using Sirius.Core.Shapes;
 using Sirius.Vision.Nodes;
+using Sirius.Vision.Runtime;
 using Xunit;
 
 namespace Sirius.Core.Tests;
@@ -158,6 +161,130 @@ public class FolderRunTests
 
         Assert.Equal(1, code);
         Assert.Equal(5, File.ReadAllLines(log.LogFile).Length);
+
+        // A .sann beside each image, naming the recipe; none when told not to.
+        var written = Directory.GetFiles(folder, "*.sann");
+        Assert.Equal(4, written.Length);
+        Assert.Equal("recipe.sgraph", AnnotationFile.TryLoad(written[0], out _)!.Recipe);
+
+        var other = Folder();
+        Sirius.Runner.Program.Main([recipe, "--folder", other, "--quiet", "--no-annotations"]).GetAwaiter().GetResult();
+        Assert.Empty(Directory.GetFiles(other, "*.sann"));
+
+        Assert.True(Sirius.Runner.Program.TryParse([recipe, "--no-annotations"], out _, out _, out _, out _, out var no));
+        Assert.True(no);
+    }
+
+    /// <summary>The recipe with an image viewer drawing the circle found, and its radius published.</summary>
+    private static (VisionGraph Graph, ImageSequenceNode Sequence) Viewed(string folder)
+    {
+        var (graph, sequence, _, _) = Recipe(folder);
+        var find = graph.Nodes.OfType<FindCircleNode>().Single();
+        var viewer = new ViewerNode { Name = "Main View" };
+
+        graph.Add(viewer);
+        graph.TryConnect(sequence.ImageOut, viewer.ImageIn);
+        graph.TryConnect(find.CircleOut, viewer.ShapesIn);
+
+        Publishing.Publish(graph, find, PublishedKind.Result, "Radius", "Radius");
+        Publishing.Publish(graph, viewer, PublishedKind.View, string.Empty, "Main View");
+
+        return (graph, sequence);
+    }
+
+    /// <summary>
+    /// A folder run writes a .sann beside each picture (F20a), as a station
+    /// does beside each it saves: the verdict, the results, the shapes each
+    /// viewer drew - for Sirius IV to show.
+    /// </summary>
+    [Fact]
+    public void A_folder_run_writes_a_sann_beside_each_picture()
+    {
+        var folder = Folder();
+        var (graph, sequence) = Viewed(folder);
+
+        using var scheduler = CreateScheduler(graph);
+        var annotations = new FolderAnnotations("Discs.sgraph");
+
+        FolderRun.RunAsync(graph, scheduler, sequence, null, CancellationToken.None, annotations.Write).GetAwaiter().GetResult();
+
+        Assert.Equal(4, annotations.Written);
+        Assert.Empty(annotations.Problems);
+        Assert.Equal("Annotations: 4 .sann files written beside the pictures.", annotations.Describe());
+
+        var good = AnnotationFile.TryLoad(Path.Combine(folder, "part_1.sann"), out var problem);
+        Assert.Null(problem);
+        Assert.Equal(("part_1.png", "Discs.sgraph", true), (good!.Image, good.Recipe, good.Passed));
+        Assert.Equal((400, 400), (good.Width, good.Height));
+        Assert.Equal(80, Convert.ToDouble(good.Results.Single(result => result.Key == "Radius").Value, System.Globalization.CultureInfo.InvariantCulture), 0);
+
+        var layer = Assert.Single(good.Layers);
+        Assert.Equal("Main View", layer.Name);
+        Assert.IsType<CircleShape>(Assert.Single(layer.Shapes));
+
+        Assert.False(AnnotationFile.TryLoad(Path.Combine(folder, "part_4.sann"), out _)!.Passed);
+    }
+
+    /// <summary>
+    /// A station's picture run again: what is about the picture - station,
+    /// inspection, time, part, bits, measurements drawn by hand - is kept;
+    /// what this run found replaces the rest.
+    /// </summary>
+    [Fact]
+    public void A_station_picture_run_again_keeps_what_is_about_the_picture()
+    {
+        var folder = Folder();
+        var taken = new DateTime(2026, 11, 21, 9, 30, 0);
+
+        new AnnotationFile
+        {
+            Image = "part_1.png",
+            Width = 400,
+            Height = 400,
+            Station = "Top",
+            Recipe = "Old.sgraph",
+            Serial = 42,
+            Time = taken,
+            Passed = false,
+            Results = [new("Radius", 1.0)],
+            Part = [new("PalletId", 12L)],
+            Measurements = [new MeasurementRecord("PointToPoint", [new Point2(10, 10), new Point2(50, 10)], "#F59E0B", null)],
+        }.Save(Path.Combine(folder, "part_1.sann"));
+
+        var (graph, sequence) = Viewed(folder);
+        using var scheduler = CreateScheduler(graph);
+        var annotations = new FolderAnnotations("New.sgraph");
+
+        FolderRun.RunAsync(graph, scheduler, sequence, null, CancellationToken.None, annotations.Write).GetAwaiter().GetResult();
+
+        var again = AnnotationFile.TryLoad(Path.Combine(folder, "part_1.sann"), out _)!;
+
+        Assert.Equal(("Top", 42L, taken), (again.Station, again.Serial, again.Time));
+        Assert.Equal(12L, again.Part.Single().Value);
+        Assert.Single(again.Measurements);
+
+        Assert.Equal(("New.sgraph", true), (again.Recipe, again.Passed));
+        Assert.Equal(80, Convert.ToDouble(again.Results.Single().Value, System.Globalization.CultureInfo.InvariantCulture), 0);
+    }
+
+    /// <summary>A folder that cannot be written to is said, not thrown: the run goes on.</summary>
+    [Fact]
+    public void An_annotation_file_that_cannot_be_written_is_said_and_the_run_goes_on()
+    {
+        var folder = Folder();
+        var blocked = Path.Combine(folder, "part_2.sann");
+        Directory.CreateDirectory(blocked);
+
+        var (graph, sequence) = Viewed(folder);
+        using var scheduler = CreateScheduler(graph);
+        var annotations = new FolderAnnotations("Discs.sgraph");
+
+        var summary = FolderRun.RunAsync(graph, scheduler, sequence, null, CancellationToken.None, annotations.Write).GetAwaiter().GetResult();
+
+        Assert.Equal(4, summary.Items.Count);
+        Assert.Equal(3, annotations.Written);
+        Assert.StartsWith("part_2.png", Assert.Single(annotations.Problems), StringComparison.Ordinal);
+        Assert.StartsWith("Annotations: 3 written; 1 could not be", annotations.Describe(), StringComparison.Ordinal);
     }
 
     [Fact]

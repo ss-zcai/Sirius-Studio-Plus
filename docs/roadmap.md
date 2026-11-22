@@ -52,6 +52,10 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   body, by calipers across the four sides of a turned region - fitted
   as a true rectangle, or as four lines for a part not square, and held
   square with a checkbox.
+- **A folder run's annotations** (F20a, decision 88): Run Folder and
+  `sirius-run.exe` write a `.sann` beside each picture they run - the
+  verdict, results and shapes - so Sirius IV shows a folder judged at the
+  desk as it shows a station's. `sirius-run --no-annotations` writes none.
 - **Housekeeping of saved pictures** (F20c, decision 87): a most size
   and a free space left on the drive beside Keep for (days) - the oldest
   passed pictures go first, then the oldest failures - and a sample of
