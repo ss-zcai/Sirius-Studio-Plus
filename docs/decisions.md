@@ -3577,3 +3577,42 @@ would like to view elsewhere."
   on a worker, drawn on the window's thread, written on a worker.
 - **Never over a picture**: a folder that would write `part.png` over the
   `part.png` it was drawn from is refused before anything is written.
+
+## 87. Housekeeping of saved pictures, and a sample kept (F20c)
+
+Asked on 22 November 2026: "Housekeeping is always an issue on site.
+Sometimes customer asks for a small sample of old batch images (like 1%)
+to keep some records." Four choices were the user's, each the
+recommended way: both a most size and a free space left; oldest passed
+first; the sample in a Kept folder never deleted by itself; spread evenly,
+passed and failed alike.
+
+**Built (22 November):**
+
+- **Three settings beside Keep for (days)**, in a Housekeeping group of
+  Image Saving: Most size (GB), Leave free (GB), Keep a sample (%); each 0
+  - off - until set, so nothing is deleted that was not before.
+- **Oldest passed first, then oldest failures**: the failures are what
+  someone comes back for. Over the size, down to 90% of it; under the free
+  space, until 1 GB more is free - so a round is not run after every
+  picture.
+- **The sample by inspection number** - 1% keeps the multiples of 100 -
+  not by place in a folder: the same pictures are kept whether a day goes
+  whole, past its days, or a picture at a time, by size, whatever was
+  deleted from it before. Moved with its `.sann` to
+  `<station>\Kept\<day>\`; Kept is not a day, so housekeeping never
+  touches it, and it is not counted in the station's size. Its size shows
+  in Image Saving, to be cleared by hand.
+- **Only what a station wrote**: within a day, only pictures named as a
+  station names them, with their `.sann`. A picture written in the last
+  minute is left - its `.sann` may not be beside it yet.
+- **Never in the way of saving**: a round runs on a thread of its own,
+  one at a time - when the station starts, as a day begins, and when a
+  limit is passed (the size kept as a running count after the first).
+- **A full disk is no longer for good**: stopped below 1 GB, saving
+  starts again once there is room, housekeeping's or made by hand - looked
+  for every 10 seconds. Before, it stayed stopped until the station was
+  started again.
+- **Dropped:** F20d (one pass in N) - lines keep all or the failures; a
+  good picture is kept by hand. **Later:** F20e (matching on the part),
+  after several shots per part.

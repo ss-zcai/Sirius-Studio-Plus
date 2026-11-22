@@ -966,6 +966,34 @@ public sealed class SiriusIvTests : IDisposable
         }
     }
 
+    /// <summary>Housekeeping's limits, typed in Builder: kept when numbers, refused in words when not.</summary>
+    [Fact]
+    public void Housekeeping_limits_are_typed_in_builder()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", new VisionGraph(), "Top");
+            var model = new ImageSavingViewModel(project, project.Stations[0]);
+            var rows = model.Categories.Single(category => category.Name == "Housekeeping").Rows;
+
+            Assert.Equal(["Keep for (days)", "Most size (GB)", "Leave free (GB)", "Keep a sample (%)", "Kept so far"], rows.Select(row => row.Name));
+            Assert.Equal("None yet", rows.Single(row => row.Name == "Kept so far").Value);
+
+            model.Categories.SelectMany(category => category.Rows).Single(row => row.Name == "Save").Value = ImageSavePolicy.All;
+            rows.Single(row => row.Name == "Most size (GB)").Value = "a lot";
+            Assert.False(model.Apply());
+            Assert.Equal("Most size is a number: 0 for none.", model.Problem);
+
+            rows.Single(row => row.Name == "Most size (GB)").Value = (200.5).ToString(System.Globalization.CultureInfo.CurrentCulture);
+            rows.Single(row => row.Name == "Leave free (GB)").Value = "20";
+            rows.Single(row => row.Name == "Keep a sample (%)").Value = "1";
+            Assert.True(model.Apply());
+
+            var saving = project.Stations[0].Saving;
+            Assert.Equal((200.5, 20.0, 1.0), (saving.MaxGigabytes, saving.LeaveFreeGigabytes, saving.SamplePercent));
+        });
+    }
+
     [Fact]
     public void Days_that_are_not_a_number_are_refused_in_words()
     {

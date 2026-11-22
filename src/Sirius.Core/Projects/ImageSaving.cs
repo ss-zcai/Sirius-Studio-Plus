@@ -59,18 +59,57 @@ public enum ImageFileFormat
 /// Writes a <c>.sann</c> file beside each picture: the shapes drawn on it,
 /// the verdict and the published results.
 /// </param>
+/// <param name="MaxGigabytes">
+/// The most the station's pictures may take, in GB; 0 for no limit. Over
+/// it, the oldest passed pictures go first, then the oldest failures.
+/// </param>
+/// <param name="LeaveFreeGigabytes">
+/// Free space always left on the drive the pictures are on, in GB; 0 for
+/// none beyond the 1 GB at which saving stops. Under it, pictures go as
+/// for <paramref name="MaxGigabytes"/>.
+/// </param>
+/// <param name="SamplePercent">
+/// Of the pictures housekeeping deletes - by days or by size - the share
+/// kept for records instead, moved to the station's <c>Kept</c> folder,
+/// which housekeeping never touches: 1 keeps every inspection numbered a
+/// multiple of 100. 0 keeps none.
+/// </param>
 public sealed record ImageSaving(
     ImageSavePolicy Policy = ImageSavePolicy.None,
     ImageFileFormat Format = ImageFileFormat.Tiff,
     string? Folder = null,
     int KeepDays = 0,
-    bool Annotations = true)
+    bool Annotations = true,
+    double MaxGigabytes = 0,
+    double LeaveFreeGigabytes = 0,
+    double SamplePercent = 0)
 {
     /// <summary>The project folder's own place for pictures.</summary>
     public const string DefaultFolder = "images";
 
     /// <summary>The longest a station can be told to keep pictures: ten years.</summary>
     public const int MaxKeepDays = 3650;
+
+    /// <summary>The most a size can be set to: a petabyte, beyond any disk a station has.</summary>
+    public const double MaxSizeGigabytes = 1_000_000;
+
+    /// <summary>The folder, under a station's, that housekeeping moves its sample to and never touches.</summary>
+    public const string KeptFolder = "Kept";
+
+    /// <summary>Whether housekeeping deletes anything at all: by days, by size, or by free space.</summary>
+    public bool HasHousekeeping => KeepDays > 0 || MaxGigabytes > 0 || LeaveFreeGigabytes > 0;
+
+    /// <summary>
+    /// Which inspections the sample keeps: one in this many, by number - 100
+    /// for 1%; 0 for none.
+    /// </summary>
+    public int SampleEvery => SamplePercent <= 0 ? 0 : Math.Max(1, (int)Math.Round(100 / Math.Min(SamplePercent, 100)));
+
+    /// <summary>Whether an inspection numbered <paramref name="serial"/> is in the sample kept.</summary>
+    public bool Samples(long serial) => SampleEvery > 0 && serial > 0 && serial % SampleEvery == 0;
+
+    /// <summary>Bytes in a GB, as Windows counts them.</summary>
+    public static long Bytes(double gigabytes) => (long)(gigabytes * (1L << 30));
 
     /// <summary>Saving nothing, which is where every station starts.</summary>
     public static ImageSaving Off { get; } = new();
@@ -111,6 +150,15 @@ public sealed record ImageSaving(
         if (KeepDays is < 0 or > MaxKeepDays)
             return $"Keep for must be between 0 (keep everything) and {MaxKeepDays} days.";
 
+        if (double.IsNaN(MaxGigabytes) || MaxGigabytes is < 0 or > MaxSizeGigabytes)
+            return "Most size is a number of GB, 0 for no limit.";
+
+        if (double.IsNaN(LeaveFreeGigabytes) || LeaveFreeGigabytes is < 0 or > MaxSizeGigabytes)
+            return "Leave free is a number of GB, 0 for none.";
+
+        if (double.IsNaN(SamplePercent) || SamplePercent is < 0 or > 100)
+            return "Keep a sample is a percentage from 0 (none) to 100.";
+
         if (!string.IsNullOrWhiteSpace(Folder))
         {
             try
@@ -136,7 +184,8 @@ public sealed record ImageSaving(
 
             var which = Policy == ImageSavePolicy.All ? "Saves every image" : "Saves failed images";
             var kept = KeepDays > 0 ? $", {KeepDays} days" : string.Empty;
-            return $"{which}, {NameOf(Format)}{kept}";
+            var most = MaxGigabytes > 0 ? string.Create(CultureInfo.CurrentCulture, $", {MaxGigabytes:0.#} GB at most") : string.Empty;
+            return $"{which}, {NameOf(Format)}{kept}{most}";
         }
     }
 

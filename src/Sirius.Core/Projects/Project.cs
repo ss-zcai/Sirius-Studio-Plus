@@ -306,7 +306,10 @@ public sealed class Project
                     ParseEnum(images.Format, ImageFileFormat.Png),
                     string.IsNullOrWhiteSpace(images.Folder) ? null : images.Folder,
                     images.KeepDays ?? 0,
-                    images.Annotations ?? true);
+                    images.Annotations ?? true,
+                    images.MaxGb ?? 0,
+                    images.LeaveFreeGb ?? 0,
+                    images.SamplePercent ?? 0);
 
                 if (saving.Problem() is { } problem)
                     warnings.Add($"Station '{name}': its image saving could not be used ({problem}); it saves nothing.");
@@ -414,6 +417,9 @@ public sealed class Project
                         Folder = station.Saving.Folder,
                         KeepDays = station.Saving.KeepDays == 0 ? null : station.Saving.KeepDays,
                         Annotations = station.Saving.Annotations ? null : false,
+                        MaxGb = station.Saving.MaxGigabytes == 0 ? null : station.Saving.MaxGigabytes,
+                        LeaveFreeGb = station.Saving.LeaveFreeGigabytes == 0 ? null : station.Saving.LeaveFreeGigabytes,
+                        SamplePercent = station.Saving.SamplePercent == 0 ? null : station.Saving.SamplePercent,
                     },
                 })
                 .ToList(),
@@ -1184,6 +1190,18 @@ public sealed class Project
 
         [JsonPropertyName("annotations")]
         public bool? Annotations { get; set; }
+
+        /// <summary>The most the station's pictures may take, in GB; absent for no limit.</summary>
+        [JsonPropertyName("maxGB")]
+        public double? MaxGb { get; set; }
+
+        /// <summary>Free space left on the drive, in GB; absent for none.</summary>
+        [JsonPropertyName("leaveFreeGB")]
+        public double? LeaveFreeGb { get; set; }
+
+        /// <summary>The share of pictures deleted kept in the Kept folder; absent for none.</summary>
+        [JsonPropertyName("samplePercent")]
+        public double? SamplePercent { get; set; }
     }
 
     private sealed class LimitRecord

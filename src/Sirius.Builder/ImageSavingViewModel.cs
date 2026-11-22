@@ -19,12 +19,22 @@ public sealed class ImageSavingViewModel : ObservableObject
     private string _keepText;
     private string? _problem;
 
+    /// <summary>What is typed in each number box - most size, leave free, sample - by its row's name.</summary>
+    private readonly Dictionary<string, string> _numbers = new(StringComparer.Ordinal);
+
+    private const string MostSize = "Most size (GB)";
+    private const string LeaveFree = "Leave free (GB)";
+    private const string Sample = "Keep a sample (%)";
+
     public ImageSavingViewModel(Project project, Station station)
     {
         _project = project ?? throw new ArgumentNullException(nameof(project));
         Station = station ?? throw new ArgumentNullException(nameof(station));
         _draft = station.Saving;
         _keepText = _draft.KeepDays.ToString(CultureInfo.InvariantCulture);
+        _numbers[MostSize] = Number(_draft.MaxGigabytes);
+        _numbers[LeaveFree] = Number(_draft.LeaveFreeGigabytes);
+        _numbers[Sample] = Number(_draft.SamplePercent);
         BrowseCommand = new RelayCommand(BrowseFolder);
         Categories = PropertyCategory.From(Rows());
     }
@@ -88,9 +98,59 @@ public sealed class ImageSavingViewModel : ObservableObject
     }
 
     private string? KeepProblem() =>
-        int.TryParse(_keepText, NumberStyles.Integer, CultureInfo.CurrentCulture, out _)
-            ? null
-            : "Keep for is a whole number of days: 0 keeps everything.";
+        !int.TryParse(_keepText, NumberStyles.Integer, CultureInfo.CurrentCulture, out _)
+            ? "Keep for is a whole number of days: 0 keeps everything."
+            : _numbers.Where(pair => Parse(pair.Value) is null).Select(pair => $"{pair.Key[..pair.Key.IndexOf(" (", StringComparison.Ordinal)]} is a number: 0 for none.").FirstOrDefault();
+
+    private static string Number(double value) => value.ToString("0.###", CultureInfo.CurrentCulture);
+
+    private static double? Parse(string text) =>
+        double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var value) ? value : null;
+
+    /// <summary>
+    /// The sample kept so far, from this machine's view of the folder - the
+    /// line's, when Builder runs on it: "1,204 pictures, 1.2 GB", or that
+    /// there is none.
+    /// </summary>
+    public string KeptText
+    {
+        get
+        {
+            var kept = Path.Combine(StationFolder, ImageSaving.KeptFolder);
+
+            // Counted once for a folder: the grid asks again at every change typed.
+            if (_kept is { } known && known.Folder == kept)
+                return known.Text;
+
+            _kept = (kept, CountKept(kept));
+            return _kept.Value.Text;
+        }
+    }
+
+    private (string Folder, string Text)? _kept;
+
+    private static string CountKept(string kept)
+    {
+        {
+            try
+            {
+                if (!Directory.Exists(kept))
+                    return "None yet";
+
+                var files = new DirectoryInfo(kept).EnumerateFiles("*", SearchOption.AllDirectories).ToArray();
+                var pictures = files.Count(file => !file.Extension.Equals(".sann", StringComparison.OrdinalIgnoreCase));
+                var bytes = files.Sum(file => file.Length);
+
+                return string.Create(
+                    CultureInfo.CurrentCulture,
+                    $"{pictures:N0} picture{(pictures == 1 ? string.Empty : "s")}, {bytes / (double)(1L << 30):0.##} GB, in {kept}");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return $"Could not be read: {ex.Message}";
+            }
+        }
+    }
 
     private void Change(ImageSaving draft)
     {
@@ -124,6 +184,23 @@ public sealed class ImageSavingViewModel : ObservableObject
             ? null
             : relative;
     }
+
+    /// <summary>A number of GB, or a percentage, typed; 0 for none.</summary>
+    private PropertyRow NumberRow(string name, Func<double, ImageSaving> with, string description) =>
+        new(
+            "Housekeeping", name, PropertyEditor.Text,
+            () => _numbers[name],
+            value =>
+            {
+                _numbers[name] = (value as string ?? string.Empty).Trim();
+
+                if (Parse(_numbers[name]) is { } number)
+                    Change(with(number));
+                else
+                    Problem = KeepProblem();
+            },
+            description,
+            enabled: () => _draft.IsOn);
 
     private IEnumerable<PropertyRow> Rows()
     {
@@ -170,7 +247,7 @@ public sealed class ImageSavingViewModel : ObservableObject
             description: "Where this station's pictures go.");
 
         yield return new PropertyRow(
-            "Where", "Keep for (days)", PropertyEditor.Text,
+            "Housekeeping", "Keep for (days)", PropertyEditor.Text,
             () => _keepText,
             value =>
             {
@@ -182,7 +259,33 @@ public sealed class ImageSavingViewModel : ObservableObject
                     Problem = KeepProblem();
             },
             "Days of pictures kept, today among them: older days' folders are deleted when the station starts and as each " +
-            "day begins. 0 keeps everything. Saving stops by itself when the disk has less than 1 GB free.",
+            "day begins. 0 keeps everything. Saving stops by itself when the disk has less than 1 GB free, and starts again " +
+            "once there is room.",
             enabled: On);
+
+        yield return NumberRow(
+            MostSize,
+            value => _draft with { MaxGigabytes = value },
+            "The most this station's pictures may take - its Kept sample not counted. Over it, the oldest passed pictures " +
+            "are deleted first, then the oldest failures, down to 90% of it. 0 for no limit.");
+
+        yield return NumberRow(
+            LeaveFree,
+            value => _draft with { LeaveFreeGigabytes = value },
+            "Free space always left on the drive the pictures are on, for Windows and everything else on the PC. Under it, " +
+            "pictures are deleted as for Most size, until 1 GB more than this is free. 0 for none.");
+
+        yield return NumberRow(
+            Sample,
+            value => _draft with { SamplePercent = value },
+            "Of the pictures housekeeping deletes - by days or by size - the share kept for records instead, moved with " +
+            "their .sann to the station's Kept folder, which is never deleted by itself. 1 keeps 1 in every 100 inspections, " +
+            "spread evenly through the day, passed and failed alike. 0 keeps none.");
+
+        yield return new PropertyRow(
+            "Housekeeping", "Kept so far", PropertyEditor.ReadOnly,
+            () => KeptText,
+            description: "The sample kept, in the station's Kept folder. Sirius IV opens it as any folder; delete it by hand " +
+                         "when it is no longer wanted.");
     }
 }

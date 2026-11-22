@@ -28,14 +28,20 @@ namespace Sirius.Vision.Runtime;
 /// <b>Where:</b> a folder for each day under the station's folder, and a
 /// name that says when, which inspection and how it went -
 /// <c>images\Top\2026-11-11\20261111-142305-123_000042_FAIL.png</c> - with
-/// <c>…_FAIL.sann</c> beside it. Day folders older than
-/// <see cref="ImageSaving.KeepDays"/> are deleted when saving starts and each
-/// time the day changes.
+/// <c>…_FAIL.sann</c> beside it.
+/// </para>
+/// <para>
+/// <b>Housekeeping</b> (F20c), on a thread of its own so saving never waits
+/// for it: days past those kept, and - over the station's most size, or
+/// under the free space it leaves - the oldest passed pictures, then the
+/// oldest failures; a sample kept aside. When saving starts, as each day
+/// begins, and when a limit is passed. See <see cref="ImageHousekeeper"/>.
 /// </para>
 /// <para>
 /// <b>A full disk stops it</b>, before Windows does: below
 /// <see cref="MinimumFreeBytes"/> free, nothing more is written and the
-/// station says so. The inspections carry on.
+/// station says so. The inspections carry on; saving starts again once
+/// housekeeping has made room.
 /// </para>
 /// </remarks>
 public sealed class ImageRecorder : IInspectionRecorder
@@ -51,6 +57,9 @@ public sealed class ImageRecorder : IInspectionRecorder
 
     private readonly Task _writer;
     private readonly Func<string, long> _freeSpace;
+    private readonly ImageHousekeeper? _housekeeper;
+    private Task _housekeeping = Task.CompletedTask;
+    private int _housekeepingRunning;
 
     private long _saved;
     private long _skipped;
@@ -72,8 +81,83 @@ public sealed class ImageRecorder : IInspectionRecorder
         Folder = folder;
         Station = station;
         _freeSpace = freeSpace ?? FreeSpace;
+
+        if (saving.HasHousekeeping)
+            _housekeeper = new ImageHousekeeper(saving, folder, _freeSpace);
+
         _writer = Task.Run(WriteAsync);
+
+        // What was left from before: old days, and a station already over its size.
+        Housekeep();
     }
+
+    /// <summary>How often a stopped station looks again for room - made by hand, perhaps.</summary>
+    internal TimeSpan FullRecheck { get; set; } = TimeSpan.FromSeconds(10);
+
+    private DateTime _fullCheckedAt;
+
+    /// <summary>Stopped for a full disk: whether there is room again, looked at now and then.</summary>
+    private bool RoomAgain()
+    {
+        var now = DateTime.UtcNow;
+
+        if (now - _fullCheckedAt < FullRecheck)
+            return false;
+
+        _fullCheckedAt = now;
+
+        if (_freeSpace(Folder) < MinimumFreeBytes)
+            return false;
+
+        _full = false;
+
+        if (_problem?.StartsWith("Saving pictures has stopped", StringComparison.Ordinal) == true)
+            _problem = null;
+
+        return true;
+    }
+
+    /// <summary>What the last round of housekeeping did, or null before one has finished.</summary>
+    public HousekeepingResult? LastHousekeeping { get; private set; }
+
+    /// <summary>A round of housekeeping, unless one is going: on a thread of its own.</summary>
+    private void Housekeep()
+    {
+        if (_housekeeper is not { } housekeeper || _disposed || Interlocked.CompareExchange(ref _housekeepingRunning, 1, 0) != 0)
+            return;
+
+        _housekeeping = Task.Run(() =>
+        {
+            try
+            {
+                var result = housekeeper.Run();
+                LastHousekeeping = result;
+
+                if (result.Problems.Count > 0)
+                    _problem = result.Problems[0] + (result.Problems.Count > 1 ? $" (and {result.Problems.Count - 1} more)" : string.Empty);
+
+                // Room made: saving goes on.
+                if (_full && _freeSpace(Folder) >= MinimumFreeBytes)
+                {
+                    _full = false;
+
+                    if (_problem?.StartsWith("Saving pictures has stopped", StringComparison.Ordinal) == true)
+                        _problem = null;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                _problem = $"Housekeeping in {Folder} went wrong: {ex.Message}";
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _housekeepingRunning, 0);
+            }
+        });
+    }
+
+    /// <summary>Waits for a round of housekeeping that is going - for a test.</summary>
+    internal void WaitForHousekeeping() => _housekeeping.Wait(TimeSpan.FromSeconds(30));
 
     /// <summary>The recorder for a station of a project; the runtime's <see cref="InspectionRecorders.Factory"/>.</summary>
     public static IInspectionRecorder? For(Project project, Station station) =>
@@ -102,7 +186,7 @@ public sealed class ImageRecorder : IInspectionRecorder
         if (_disposed)
             return;
 
-        if (_full)
+        if (_full && !RoomAgain())
         {
             Interlocked.Increment(ref _skipped);
             return;
@@ -231,22 +315,26 @@ public sealed class ImageRecorder : IInspectionRecorder
         var day = ImageSaving.DayFolder(job.Time);
         var folder = Path.Combine(Folder, day);
 
+        Directory.CreateDirectory(folder);
+
+        // A new day: the days kept move on.
         if (day != _day)
         {
+            var first = _day is null;
             _day = day;
-            Directory.CreateDirectory(folder);
-            ForgetOldDays(job.Time);
-        }
-        else
-        {
-            Directory.CreateDirectory(folder);
+
+            if (!first)
+                Housekeep();
         }
 
-        if (_freeSpace(folder) < MinimumFreeBytes)
+        var free = _freeSpace(folder);
+
+        if (free < MinimumFreeBytes)
         {
             _full = true;
             Interlocked.Increment(ref _skipped);
             _problem = $"Saving pictures has stopped: the disk holding {Folder} has less than 1 GB free.";
+            Housekeep();
             return;
         }
 
@@ -276,6 +364,14 @@ public sealed class ImageRecorder : IInspectionRecorder
         }
 
         Interlocked.Increment(ref _saved);
+
+        if (_housekeeper is { } housekeeper)
+        {
+            housekeeper.Added(Length(path) + Length(AnnotationFile.PathFor(path)));
+
+            if (housekeeper.IsDue(free))
+                Housekeep();
+        }
 
         // A write that went through puts right one that did not.
         if (_problem is { } problem && problem.StartsWith("A picture could not be saved", StringComparison.Ordinal))
@@ -328,28 +424,15 @@ public sealed class ImageRecorder : IInspectionRecorder
         return path;
     }
 
-    /// <summary>Deletes the day folders older than the days kept - today being the first of them.</summary>
-    private void ForgetOldDays(DateTime now)
+    private static long Length(string path)
     {
-        if (Saving.KeepDays <= 0 || !Directory.Exists(Folder))
-            return;
-
-        var oldest = now.Date.AddDays(1 - Saving.KeepDays);
-
-        foreach (var folder in Directory.EnumerateDirectories(Folder))
+        try
         {
-            if (ImageSaving.DayOf(Path.GetFileName(folder)) is { } day && day < oldest)
-            {
-                try
-                {
-                    Directory.Delete(folder, recursive: true);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    // Open in a viewer, perhaps; tried again tomorrow.
-                    _problem = $"An old day's pictures could not be deleted ({Path.GetFileName(folder)}): {ex.Message}";
-                }
-            }
+            return File.Exists(path) ? new FileInfo(path).Length : 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
         }
     }
 
@@ -377,6 +460,9 @@ public sealed class ImageRecorder : IInspectionRecorder
 
         if (!_writer.Wait(TimeSpan.FromSeconds(30)))
             _problem = "Saving pictures did not finish in time; some were not written.";
+
+        // A round going is let finish: a picture half moved to Kept is not left behind.
+        _housekeeping.Wait(TimeSpan.FromSeconds(30));
 
         while (_queue.Reader.TryRead(out var left))
             left.Pixels.Dispose();

@@ -222,18 +222,23 @@ from you before they start.
     it; layers switched on and off in every viewer; Export Annotations
     as CSV, a row per picture or per shape, the pictures chosen or all
     listed.
-  - **F20e. Matching on the part** (S-M) - **now possible**: matching by
-    name is done (12 November); since F23a a picture's `.sann` carries the
-    part's values (`"part": { "PalletId": 12 }`), so a match rule "same
-    part value" pairs two stations' pictures of one part, which no name
-    could.
-  - **F20c. A disk quota** (S-M), beside Keep for: when a size is reached,
-    oldest passes go first, then oldest failures (runtime design §8).
-  - **F20d. Failed and one pass in N** (S), the policy the runtime design
-    proposed beside none, failed and all.
-  - **F20f. Sirius IV loose ends** (S each): the viewers' arrangement
-    remembered between sessions; copy and move into class folders, and
-    the old ICB's measuring in mm, if wanted.
+  - **F20e. Matching on the part** (S-M) - **after F26**, several shots
+    of one part (user, 22 November): since F23a a picture's `.sann`
+    carries the part's values (`"part": { "PalletId": 12 }`), so a match
+    rule "same part value" pairs two stations' pictures of one part, which
+    no name could.
+  - ~~**F20c. A disk quota**~~ - done 22 November 2026 (decision 87): a
+    most size and a free space left beside Keep for, oldest passed first,
+    then oldest failures; a sample of what goes kept in the station's
+    Kept folder.
+  - ~~**F20d. Failed and one pass in N**~~ - dropped 22 November: lines
+    keep all pictures or the failures; a good one is kept by hand, from a
+    strip of recent pictures on the running screen if one comes.
+  - **F20f. Copy and Move to a folder in Sirius IV** (S): right-click a
+    picture - or several, or a matched set - or a toolbar button, with
+    each picture's `.sann` going with it and the last folders used
+    offered again. The viewers' arrangement remembered, and measuring in
+    mm, only if asked.
 
 ### Parts, shots and throughput
 

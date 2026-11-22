@@ -52,6 +52,12 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   body, by calipers across the four sides of a turned region - fitted
   as a true rectangle, or as four lines for a part not square, and held
   square with a checkbox.
+- **Housekeeping of saved pictures** (F20c, decision 87): a most size
+  and a free space left on the drive beside Keep for (days) - the oldest
+  passed pictures go first, then the oldest failures - and a sample of
+  what goes (1% keeps 1 in 100 inspections) moved to the station's Kept
+  folder for records. Saving, stopped by a full disk, starts again once
+  there is room.
 - **12-bit pictures without a `.sann` in Sirius IV** - crops among them -
   are shown as 12 bits, judged by their brightest value, not nearly black;
   and IV's viewers offer the bit-depth picker Studio's have.

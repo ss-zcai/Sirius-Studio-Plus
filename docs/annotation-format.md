@@ -16,12 +16,17 @@ Chosen per station in **Sirius Builder ▸ Station ▸ Image Saving…**:
 | **Annotations** | A `.sann` file beside each picture. On by default. |
 | **Folder** | Blank for the project's `images` folder. A folder inside the project is kept relative to it; another drive suits a line that saves everything. |
 | **Keep for (days)** | Older days' folders are deleted when the station starts and as each day begins. 0 keeps everything. |
+| **Most size (GB)** | The most the station's pictures may take, its Kept sample not counted. Over it, the oldest passed pictures go first, then the oldest failures, down to 90% of it. 0 for no limit. |
+| **Leave free (GB)** | Free space always left on the drive. Under it, pictures go as for Most size, until 1 GB more is free. 0 for none. |
+| **Keep a sample (%)** | Of the pictures housekeeping deletes, by days or by size, the share kept for records instead: moved with their `.sann` to the station's `Kept` folder, never deleted by itself. 1 keeps the inspections numbered a multiple of 100 - spread through the day, passed and failed alike. 0 keeps none. |
 
-The settings are the station's, in the `.sproj`:
+The settings are the station's, in the `.sproj` (the three limits only
+when set):
 
 ```json
 { "name": "Top", "recipe": "recipes/Top.sgraph",
-  "images": { "save": "failed", "format": "tiff", "keepDays": 30 } }
+  "images": { "save": "failed", "format": "tiff", "keepDays": 30,
+              "maxGB": 200, "leaveFreeGB": 20, "samplePercent": 1 } }
 ```
 
 A station saves into a folder of its own name, with a folder for each day:
@@ -31,8 +36,12 @@ Line 3/
   images/
     Top/
       2026-11-11/
-        20261111-142305-123_000042_FAIL.png
+        20261111-142305-123_000042_FAIL.tif
         20261111-142305-123_000042_FAIL.sann
+      Kept/
+        2026-10-02/
+          20261002-081500-007_000100_PASS.tif
+          20261002-081500-007_000100_PASS.sann
 ```
 
 The name is **when** (to the millisecond), **which inspection** (the
@@ -48,8 +57,17 @@ those keeps its first image viewer's picture.
 **Saving never slows the line.** The station copies the picture and
 carries on; a thread of its own encodes and writes. If the disk falls 16
 pictures behind, the next is not saved and the station says so. Below
-1 GB free, saving stops and says so; inspecting carries on. Problems show
-along the bottom of the running screen.
+1 GB free, saving stops and says so; inspecting carries on, and saving
+starts again once there is room - housekeeping's, or made by hand.
+Problems show along the bottom of the running screen.
+
+**Housekeeping** runs on a thread of its own too - when the station
+starts, as each day begins, and when a limit is passed - so it never
+holds up saving. Within a day folder it deletes only pictures named as a
+station names them, and their `.sann`; a day past the days kept goes
+whole. A picture written in the last minute is left, its `.sann` perhaps
+not yet beside it. Folders that are not days - `Kept` among them - are
+never touched.
 
 ---
 
