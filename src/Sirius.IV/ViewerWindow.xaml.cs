@@ -810,6 +810,168 @@ public partial class ViewerWindow : Window
         }
     }
 
+    // ---- copied or moved to a folder (F20f) ---------------------------------------------
+
+    /// <summary>The toolbar's To Folder: Copy to and Move to, each with the folders last used.</summary>
+    private void OnToFolderClick(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu
+        {
+            PlacementTarget = ToFolderButton,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+        };
+
+        menu.Items.Add(new MenuItem { Header = "Copy _to Folder", Tag = "copy" });
+        menu.Items.Add(new MenuItem { Header = "_Move to Folder", Tag = "move" });
+
+        foreach (var item in menu.Items.OfType<MenuItem>())
+            FillToFolder(item);
+
+        menu.IsOpen = true;
+    }
+
+    /// <summary>The list's right-click menu: its Copy to and Move to filled as it opens.</summary>
+    private void OnFileMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is ContextMenu menu)
+        {
+            foreach (var item in menu.Items.OfType<MenuItem>().Where(item => item.Tag is "copy" or "move"))
+                FillToFolder(item);
+        }
+    }
+
+    /// <summary>A Copy to or Move to: the folders last used, then Choose Folder; none chosen, nothing to do.</summary>
+    internal void FillToFolder(MenuItem item)
+    {
+        var move = item.Tag is "move";
+        var count = ChosenFiles.Count == 0 ? 0 : _model.ChosenPictures().Count;
+
+        item.Items.Clear();
+        item.IsEnabled = count > 0 && !_model.IsTransferring;
+
+        foreach (var folder in _model.RecentTargets)
+        {
+            var recent = new MenuItem { Header = folder.Replace("_", "__", StringComparison.Ordinal), ToolTip = folder };
+            recent.Click += async (_, _) => await ToFolderAsync(move, folder);
+            item.Items.Add(recent);
+        }
+
+        if (_model.RecentTargets.Count > 0)
+            item.Items.Add(new Separator());
+
+        var choose = new MenuItem { Header = "_Choose Folder…" };
+        choose.Click += async (_, _) => await ToFolderAsync(move, null);
+        item.Items.Add(choose);
+    }
+
+    /// <summary>Asks Yes / No / Cancel about names there already - a test answers for the user.</summary>
+    internal Func<string, string, MessageBoxResult>? AskTransfer { get; set; }
+
+    /// <summary>Asks OK or Cancel before a move, or a save first - a test answers for the user.</summary>
+    internal Func<string, string, bool>? ConfirmTransfer { get; set; }
+
+    /// <summary>
+    /// Copies or moves the pictures chosen - a matched set whole - with
+    /// their .sann, into a folder. A move is confirmed; names there already
+    /// are asked about; measurements drawn and not saved are saved first,
+    /// so they go with their pictures.
+    /// </summary>
+    internal async Task ToFolderAsync(bool move, string? folder)
+    {
+        var title = move ? "Move to Folder" : "Copy to Folder";
+        var pictures = _model.ChosenPictures();
+
+        if (pictures.Count == 0)
+            return;
+
+        if (folder is null)
+        {
+            var dialog = new OpenFolderDialog
+            {
+                Title = $"{(move ? "Move" : "Copy")} {Count(pictures.Count)} to…",
+                InitialDirectory = _model.RecentTargets.FirstOrDefault(Directory.Exists) ?? _model.Folder ?? string.Empty,
+            };
+
+            if (dialog.ShowDialog(this) != true)
+                return;
+
+            folder = dialog.FolderName;
+        }
+
+        var plan = BrowserViewModel.TransferPlan(pictures, folder);
+        var here = plan.Count(transfer => string.Equals(Path.GetFullPath(transfer.Picture.Path), transfer.Files[0].To, StringComparison.OrdinalIgnoreCase));
+
+        if (here == plan.Count)
+        {
+            Dialog.Inform($"{(pictures.Count == 1 ? "The picture is" : "The pictures are")} in {folder} already.", title, this);
+            return;
+        }
+
+        var existing = plan.Count(transfer => File.Exists(transfer.Files[0].To)) - here;
+        var unsaved = _model.UnsavedAmong(pictures);
+
+        var ask = new List<string>();
+
+        if (move)
+            ask.Add($"Move {Count(pictures.Count)}, with their annotation files, to {folder}?");
+
+        if (unsaved > 0)
+            ask.Add($"Measurements drawn on {unsaved} of them are not saved; they are saved into their annotation files first, so they go with them.");
+
+        if (existing > 0)
+            ask.Add($"{existing} of the same name {(existing == 1 ? "is" : "are")} there already. Yes replaces {(existing == 1 ? "it" : "them")}; No leaves {(existing == 1 ? "it" : "them")} and {(move ? "moves" : "copies")} the rest.");
+
+        var replace = true;
+
+        if (existing > 0)
+        {
+            // Yes replaces them, No leaves them and goes on with the rest, Cancel stops.
+            var answer = (AskTransfer ?? ((message, caption) => Dialog.Ask(message, caption, this)))(string.Join("\n\n", ask), title);
+
+            if (answer is MessageBoxResult.Cancel or MessageBoxResult.None)
+                return;
+
+            replace = answer == MessageBoxResult.Yes;
+        }
+        else if (ask.Count > 0 && !(ConfirmTransfer ?? ((message, caption) => Dialog.Confirm(message, caption, this)))(string.Join("\n\n", ask), title))
+        {
+            return;
+        }
+
+        if (unsaved > 0 && !_model.SaveFor(pictures))
+        {
+            Dialog.Warn($"Nothing was {(move ? "moved" : "copied")}: {_model.Problem}", title, this);
+            return;
+        }
+
+        BrowserViewModel.TransferResult result;
+
+        try
+        {
+            result = await _model.TransferAsync(plan, folder, move, replace);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Dialog.Error($"{folder} could not be used: {ex.Message}", title, this);
+            return;
+        }
+
+        var summary = $"{(move ? "Moved" : "Copied")} {Count(result.Done)} to {folder}." +
+                      (result.Skipped > 0 ? $" {result.Skipped} left as {(result.Skipped == 1 ? "it was" : "they were")}." : string.Empty);
+
+        if (result.Problems.Count == 0)
+        {
+            Dialog.Inform(summary, title, this);
+            return;
+        }
+
+        var listed = string.Join("\n", result.Problems.Take(8));
+        var more = result.Problems.Count > 8 ? $"\n…and {result.Problems.Count - 8} more." : string.Empty;
+        Dialog.Warn($"{summary}\n\n{result.Problems.Count} could not be:\n{listed}{more}", title, this);
+    }
+
+    private static string Count(int pictures) => pictures == 1 ? "1 picture" : $"{pictures:N0} pictures";
+
     private void OnExit(object sender, RoutedEventArgs e) => Close();
 
     /// <summary>Measurements not saved are asked about before they are lost.</summary>

@@ -235,11 +235,11 @@ from you before they start.
   - ~~**F20d. Failed and one pass in N**~~ - dropped 22 November: lines
     keep all pictures or the failures; a good one is kept by hand, from a
     strip of recent pictures on the running screen if one comes.
-  - **F20f. Copy and Move to a folder in Sirius IV** (S): right-click a
-    picture - or several, or a matched set - or a toolbar button, with
-    each picture's `.sann` going with it and the last folders used
-    offered again. The viewers' arrangement remembered, and measuring in
-    mm, only if asked.
+  - ~~**F20f. Copy and Move to a folder in Sirius IV**~~ - done 22
+    November 2026 (decision 89): To Folder on the toolbar and on
+    right-click, each picture's `.sann` going with it, the last five
+    folders offered again. The viewers' arrangement remembered, and
+    measuring in mm, only if asked.
 
 ### Parts, shots and throughput
 

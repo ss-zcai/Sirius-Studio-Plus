@@ -52,6 +52,8 @@ PHOSPHOR = {
     "arrow-u-up-right": "ph_redo",
     "scissors": "ph_cut",
     "copy": "ph_copy",
+    # Sirius IV's To Folder: copy or move the pictures chosen into another folder.
+    "folders": "ph_folders",
     "clipboard-text": "ph_paste",
     "palette": "ph_style",
     "selection-all": "ph_select_all",

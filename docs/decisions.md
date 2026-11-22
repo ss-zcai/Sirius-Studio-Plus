@@ -3641,3 +3641,27 @@ which share `FolderRun`.
 - **Written as it goes**, on the run's own thread: a few kilobytes a
   picture, not worth a queue. One that cannot be written is said at the
   end; the run goes on.
+
+## 89. Copy and Move to Folder in Sirius IV (F20f)
+
+Asked on 22 November 2026: "copy/move to folder by right clicking on one
+image (or a group if matching is set)... we could put a toolbar button of
+copying or moving into another folder." The old ICB's never-finished
+class folders, done this way instead.
+
+- **One toolbar button, To Folder**, opening Copy to Folder and Move to
+  Folder; the same two on the list's right-click menu. Each lists the
+  last five folders used - kept in Sirius IV's settings - then Choose
+  Folder…: sorting into a few class folders is two clicks a picture.
+- **The pictures chosen**, several at once, a matched set whole - as
+  every other action on the list takes them.
+- **Each with its `.sann`**, so a picture's annotations and hand
+  measurements are never parted from it; measurements not yet saved are
+  saved first, after saying so.
+- **Flat in the folder chosen**: a class folder holds pictures side by
+  side, whatever day folder they came from.
+- **Names there already** are asked about once - Yes replaces, No leaves
+  them and goes on, Cancel stops; two chosen pictures of one name, the
+  second is left. A move is always confirmed; a copy only when there is
+  something to ask. Done on a worker, its progress on the toolbar; the
+  list is read again after a move.

@@ -137,9 +137,13 @@
             </Style.Triggers>
         </Style>
 
-        <ContextMenu x:Key="FileMenu">
+        <ContextMenu x:Key="FileMenu" Opened="OnFileMenuOpened">
             <MenuItem Header="Copy _Name" InputGestureText="Ctrl+C" Command="{x:Static local:ViewerWindow.CopyNameCommand}" />
             <MenuItem Header="Copy Full _Path" InputGestureText="Ctrl+Shift+C" Command="{x:Static local:ViewerWindow.CopyPathCommand}" />
+            <Separator />
+            <!-- Filled as the menu opens: the folders last used, and Choose Folder. -->
+            <MenuItem Header="Copy _to Folder" Tag="copy" />
+            <MenuItem Header="_Move to Folder" Tag="move" />
             <Separator />
             <MenuItem Header="Show in _Explorer" Command="{x:Static local:ViewerWindow.ShowInExplorerCommand}" />
         </ContextMenu>
@@ -285,6 +289,15 @@
                         <StackPanel Orientation="Horizontal">
                             <Image Source="{StaticResource Icon.ph_redo}" Width="18" Height="18" />
                             <TextBlock Text="Refresh" Style="{StaticResource ToolbarLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ToFolderButton"
+                            Style="{StaticResource ToolbarTextButton}"
+                            ToolTip="Copy or move the pictures chosen - with their annotation files - into another folder"
+                            Click="OnToFolderClick">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Source="{StaticResource Icon.ph_folders}" Width="18" Height="18" />
+                            <TextBlock Text="To Folder" Style="{StaticResource ToolbarLabel}" />
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolbarTextButton}"

@@ -803,11 +803,23 @@ public sealed class BrowserViewModel : ObservableObject
     /// has none.
     /// </summary>
     /// <returns>Whether everything was saved; <see cref="Problem"/> says what was not.</returns>
-    public bool Save()
+    public bool Save() => SaveWhere(_ => true);
+
+    /// <summary>Saves the measurements of these pictures only - before they are moved, so they go with them.</summary>
+    internal bool SaveFor(IReadOnlyCollection<ImageFileItem> pictures)
+    {
+        var paths = pictures.Select(picture => picture.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return SaveWhere(unsaved => paths.Contains(unsaved.File.Path));
+    }
+
+    /// <summary>How many of these pictures have measurements not yet saved.</summary>
+    internal int UnsavedAmong(IEnumerable<ImageFileItem> pictures) => pictures.Count(picture => _unsaved.ContainsKey(picture.Path));
+
+    private bool SaveWhere(Func<Unsaved, bool> which)
     {
         var problems = new List<string>();
 
-        foreach (var unsaved in _unsaved.Values.ToArray())
+        foreach (var unsaved in _unsaved.Values.Where(which).ToArray())
         {
             if (Write(unsaved) is { } problem)
             {
@@ -1060,6 +1072,149 @@ public sealed class BrowserViewModel : ObservableObject
         }
     }
 
+    // ---- copied or moved to a folder (F20f) -------------------------------------------
+
+    /// <summary>How many folders pictures were last copied or moved to are offered again.</summary>
+    internal const int RecentTargetCount = 5;
+
+    private readonly List<string> _recentTargets = [];
+    private bool _transferring;
+
+    /// <summary>The folders pictures were last copied or moved to, the latest first.</summary>
+    public IReadOnlyList<string> RecentTargets => _recentTargets;
+
+    /// <summary>Pictures are being copied or moved; another waits.</summary>
+    public bool IsTransferring
+    {
+        get => _transferring;
+        private set => SetProperty(ref _transferring, value);
+    }
+
+    /// <summary>A picture to copy or move, and its files - it and its .sann - each with where it goes.</summary>
+    internal sealed record Transfer(ImageFileItem Picture, IReadOnlyList<(string From, string To)> Files);
+
+    /// <summary>What a copy or move did.</summary>
+    internal sealed record TransferResult(int Done, int Skipped, IReadOnlyList<string> Problems);
+
+    /// <summary>
+    /// Each picture and its .sann, into <paramref name="folder"/> by name -
+    /// a class folder holds them side by side, whatever day they came from.
+    /// </summary>
+    internal static IReadOnlyList<Transfer> TransferPlan(IReadOnlyList<ImageFileItem> pictures, string folder)
+    {
+        var into = System.IO.Path.GetFullPath(folder);
+
+        return pictures.Select(picture =>
+        {
+            var files = new List<(string, string)> { (picture.Path, System.IO.Path.Combine(into, picture.Name)) };
+
+            if (System.IO.File.Exists(picture.AnnotationPath))
+                files.Add((picture.AnnotationPath, System.IO.Path.Combine(into, System.IO.Path.GetFileName(picture.AnnotationPath))));
+
+            return new Transfer(picture, files);
+        }).ToArray();
+    }
+
+    /// <summary>
+    /// Copies or moves each picture with its .sann, on a worker. A picture
+    /// whose name is in the folder already is replaced, or - when
+    /// <paramref name="replace"/> is false - left out. Moved, the list is
+    /// read again.
+    /// </summary>
+    internal async Task<TransferResult> TransferAsync(IReadOnlyList<Transfer> plan, string folder, bool move, bool replace)
+    {
+        IsTransferring = true;
+        var doing = move ? "Moving" : "Copying";
+        Activity = $"{doing} pictures: 0 of {plan.Count}";
+
+        var progress = new Progress<int>(done =>
+        {
+            if (IsTransferring)
+                Activity = $"{doing} pictures: {done} of {plan.Count}";
+        });
+
+        TransferResult result;
+
+        try
+        {
+            result = await Task.Run(() => RunTransfer(plan, folder, move, replace, progress));
+        }
+        finally
+        {
+            IsTransferring = false;
+            Activity = null;
+        }
+
+        RememberTarget(folder);
+
+        if (move && result.Done > 0)
+            await RefreshAsync();
+
+        return result;
+    }
+
+    internal static TransferResult RunTransfer(IReadOnlyList<Transfer> plan, string folder, bool move, bool replace, IProgress<int>? progress = null)
+    {
+        Directory.CreateDirectory(folder);
+
+        var done = 0;
+        var skipped = 0;
+        var problems = new List<string>();
+        var written = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (picture, files) in plan)
+        {
+            var target = files[0].To;
+
+            // Where it is already, or a picture of its name put there in this same run.
+            if (string.Equals(System.IO.Path.GetFullPath(picture.Path), target, StringComparison.OrdinalIgnoreCase) ||
+                written.Contains(target) ||
+                (!replace && System.IO.File.Exists(target)))
+            {
+                skipped++;
+            }
+            else
+            {
+                try
+                {
+                    foreach (var (from, to) in files)
+                    {
+                        if (move)
+                            System.IO.File.Move(from, to, overwrite: true);
+                        else
+                            System.IO.File.Copy(from, to, overwrite: true);
+                    }
+
+                    written.Add(target);
+                    done++;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    problems.Add($"{picture.Name}: {ex.Message}");
+                }
+            }
+
+            progress?.Report(done + skipped + problems.Count);
+        }
+
+        return new TransferResult(done, skipped, problems);
+    }
+
+    /// <summary>A folder copied or moved to: offered first next time, kept between sessions.</summary>
+    internal void RememberTarget(string folder)
+    {
+        var full = System.IO.Path.GetFullPath(folder);
+
+        _recentTargets.RemoveAll(known => string.Equals(known, full, StringComparison.OrdinalIgnoreCase));
+        _recentTargets.Insert(0, full);
+
+        if (_recentTargets.Count > RecentTargetCount)
+            _recentTargets.RemoveRange(RecentTargetCount, _recentTargets.Count - RecentTargetCount);
+
+        OnPropertyChanged(nameof(RecentTargets));
+        SaveSettings();
+    }
+
     // ---- pictures with their annotations drawn on -------------------------------------
 
     /// <summary>A picture to draw, and the PNG it is written to.</summary>
@@ -1310,6 +1465,7 @@ public sealed class BrowserViewModel : ObservableObject
             _syncViews = settings.SyncViews;
             _includeSubfolders = settings.IncludeSubfolders;
             LastFolder = settings.Folder is { } folder && Directory.Exists(folder) ? folder : null;
+            _recentTargets.AddRange((settings.RecentTargets ?? []).Where(target => !string.IsNullOrWhiteSpace(target)).Take(RecentTargetCount));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -1335,6 +1491,7 @@ public sealed class BrowserViewModel : ObservableObject
                 SyncViews = _syncViews,
                 Descending = _descending,
                 IncludeSubfolders = _includeSubfolders,
+                RecentTargets = _recentTargets.Count == 0 ? null : [.. _recentTargets],
             }));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -1368,6 +1525,10 @@ public sealed class BrowserViewModel : ObservableObject
 
         [JsonPropertyName("includeSubfolders")]
         public bool IncludeSubfolders { get; set; } = true;
+
+        /// <summary>Folders pictures were last copied or moved to, the latest first.</summary>
+        [JsonPropertyName("recentTargets")]
+        public List<string>? RecentTargets { get; set; }
     }
 }
 
