@@ -252,8 +252,8 @@ Builder opens a station's folder in it; so does
   Folder** or **Move to Folder** - the pictures chosen, several with Ctrl
   or Shift, a matched set whole - each with its `.sann`, side by side in
   the folder chosen whatever day they came from: sorting pictures into
-  class folders. The last five folders used are offered first, kept
-  between sessions; **Choose Folder…** for another. Names there already
+  class folders. Each opens the folder dialog in the folder last used,
+  remembered between sessions, so the same one again is a click. Names there already
   are asked about - Yes replaces them, No leaves them and goes on with the
   rest. A move is confirmed, and the list read again after it.
   Measurements drawn and not saved are saved into their `.sann` first, so

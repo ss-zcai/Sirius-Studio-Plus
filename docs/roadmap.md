@@ -54,7 +54,7 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   square with a checkbox.
 - **To Folder in Sirius IV** (F20f, decision 89): the pictures chosen - a
   matched set whole - copied or moved into another folder, each with its
-  `.sann`; the last five folders offered again.
+  `.sann`; the folder dialog opens in the last folder used.
 - **A folder run's annotations** (F20a, decision 88): Run Folder and
   `sirius-run.exe` write a `.sann` beside each picture they run - the
   verdict, results and shapes - so Sirius IV shows a folder judged at the

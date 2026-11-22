@@ -198,7 +198,7 @@ public sealed class SiriusIvToFolderTests : IDisposable
     }
 
     [Fact]
-    public void The_menus_offer_the_folders_used_then_choose_and_nothing_with_none_chosen()
+    public void Copy_and_move_are_one_level_and_need_a_picture_chosen()
     {
         WpfTestHost.OnStaThread(() =>
         {
@@ -211,15 +211,15 @@ public sealed class SiriusIvToFolderTests : IDisposable
                 model.RememberTarget(Path.Combine(_folder, "class A"));
                 model.Choose([model.Files[0]]);
 
+                // Straight to the folder dialog: no second level, even with folders used before.
                 var move = new System.Windows.Controls.MenuItem { Tag = "move" };
-                window.FillToFolder(move);
+                window.ReadyToFolder(move);
 
                 Assert.True(move.IsEnabled);
-                var items = move.Items.OfType<System.Windows.Controls.MenuItem>().Select(item => (string)item.Header).ToArray();
-                Assert.Equal([Path.GetFullPath(Path.Combine(_folder, "class A")), "_Choose Folder…"], items);
+                Assert.Empty(move.Items);
 
                 model.Choose([]);
-                window.FillToFolder(move);
+                window.ReadyToFolder(move);
                 Assert.False(move.IsEnabled);
             }
             finally

@@ -141,9 +141,9 @@
             <MenuItem Header="Copy _Name" InputGestureText="Ctrl+C" Command="{x:Static local:ViewerWindow.CopyNameCommand}" />
             <MenuItem Header="Copy Full _Path" InputGestureText="Ctrl+Shift+C" Command="{x:Static local:ViewerWindow.CopyPathCommand}" />
             <Separator />
-            <!-- Filled as the menu opens: the folders last used, and Choose Folder. -->
-            <MenuItem Header="Copy _to Folder" Tag="copy" />
-            <MenuItem Header="_Move to Folder" Tag="move" />
+            <!-- Each opens the folder dialog, in the folder last used. -->
+            <MenuItem Header="Copy _to Folder…" Tag="copy" />
+            <MenuItem Header="_Move to Folder…" Tag="move" />
             <Separator />
             <MenuItem Header="Show in _Explorer" Command="{x:Static local:ViewerWindow.ShowInExplorerCommand}" />
         </ContextMenu>

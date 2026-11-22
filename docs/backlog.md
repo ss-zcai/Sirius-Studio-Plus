@@ -237,8 +237,8 @@ from you before they start.
     strip of recent pictures on the running screen if one comes.
   - ~~**F20f. Copy and Move to a folder in Sirius IV**~~ - done 22
     November 2026 (decision 89): To Folder on the toolbar and on
-    right-click, each picture's `.sann` going with it, the last five
-    folders offered again. The viewers' arrangement remembered, and
+    right-click, each picture's `.sann` going with it, the folder dialog
+    opening in the last folder used. The viewers' arrangement remembered, and
     measuring in mm, only if asked.
 
 ### Parts, shots and throughput

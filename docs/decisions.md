@@ -3649,10 +3649,12 @@ image (or a group if matching is set)... we could put a toolbar button of
 copying or moving into another folder." The old ICB's never-finished
 class folders, done this way instead.
 
-- **One toolbar button, To Folder**, opening Copy to Folder and Move to
-  Folder; the same two on the list's right-click menu. Each lists the
-  last five folders used - kept in Sirius IV's settings - then Choose
-  Folder…: sorting into a few class folders is two clicks a picture.
+- **One toolbar button, To Folder**, opening Copy to Folder… and Move to
+  Folder…; the same two on the list's right-click menu. Each opens the
+  folder dialog at once, in the folder last used - kept in Sirius IV's
+  settings - so the same folder again is a click. *Changed the same day:*
+  first built with a second level listing the last five folders, which
+  the user found one level too many.
 - **The pictures chosen**, several at once, a matched set whole - as
   every other action on the list takes them.
 - **Each with its `.sann`**, so a picture's annotations and hand

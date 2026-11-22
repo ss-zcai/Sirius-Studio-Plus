@@ -812,7 +812,7 @@ public partial class ViewerWindow : Window
 
     // ---- copied or moved to a folder (F20f) ---------------------------------------------
 
-    /// <summary>The toolbar's To Folder: Copy to and Move to, each with the folders last used.</summary>
+    /// <summary>The toolbar's To Folder: Copy to Folder and Move to Folder, each straight to the folder dialog.</summary>
     private void OnToFolderClick(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu
@@ -821,47 +821,41 @@ public partial class ViewerWindow : Window
             Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
         };
 
-        menu.Items.Add(new MenuItem { Header = "Copy _to Folder", Tag = "copy" });
-        menu.Items.Add(new MenuItem { Header = "_Move to Folder", Tag = "move" });
+        menu.Items.Add(new MenuItem { Header = "Copy _to Folder…", Tag = "copy" });
+        menu.Items.Add(new MenuItem { Header = "_Move to Folder…", Tag = "move" });
 
         foreach (var item in menu.Items.OfType<MenuItem>())
-            FillToFolder(item);
+            ReadyToFolder(item);
 
         menu.IsOpen = true;
     }
 
-    /// <summary>The list's right-click menu: its Copy to and Move to filled as it opens.</summary>
+    /// <summary>The list's right-click menu: its Copy to and Move to readied as it opens.</summary>
     private void OnFileMenuOpened(object sender, RoutedEventArgs e)
     {
         if (sender is ContextMenu menu)
         {
             foreach (var item in menu.Items.OfType<MenuItem>().Where(item => item.Tag is "copy" or "move"))
-                FillToFolder(item);
+                ReadyToFolder(item);
         }
     }
 
-    /// <summary>A Copy to or Move to: the folders last used, then Choose Folder; none chosen, nothing to do.</summary>
-    internal void FillToFolder(MenuItem item)
+    /// <summary>
+    /// A Copy to or Move to, one level: clicked, the folder dialog - opening
+    /// in the folder last used, so the same one again is a click. Nothing
+    /// chosen, nothing to do.
+    /// </summary>
+    internal void ReadyToFolder(MenuItem item)
     {
-        var move = item.Tag is "move";
-        var count = ChosenFiles.Count == 0 ? 0 : _model.ChosenPictures().Count;
+        item.IsEnabled = ChosenFiles.Count > 0 && !_model.IsTransferring;
+        item.Click -= OnToFolderItem;
+        item.Click += OnToFolderItem;
+    }
 
-        item.Items.Clear();
-        item.IsEnabled = count > 0 && !_model.IsTransferring;
-
-        foreach (var folder in _model.RecentTargets)
-        {
-            var recent = new MenuItem { Header = folder.Replace("_", "__", StringComparison.Ordinal), ToolTip = folder };
-            recent.Click += async (_, _) => await ToFolderAsync(move, folder);
-            item.Items.Add(recent);
-        }
-
-        if (_model.RecentTargets.Count > 0)
-            item.Items.Add(new Separator());
-
-        var choose = new MenuItem { Header = "_Choose Folder…" };
-        choose.Click += async (_, _) => await ToFolderAsync(move, null);
-        item.Items.Add(choose);
+    private async void OnToFolderItem(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem item)
+            await ToFolderAsync(item.Tag is "move", null);
     }
 
     /// <summary>Asks Yes / No / Cancel about names there already - a test answers for the user.</summary>

@@ -490,7 +490,7 @@ public sealed class SiriusIvTests : IDisposable
 
                 // The right-click menu.
                 Assert.Equal(
-                    ["Copy _Name", "Copy Full _Path", "Copy _to Folder", "_Move to Folder", "Show in _Explorer"],
+                    ["Copy _Name", "Copy Full _Path", "Copy _to Folder…", "_Move to Folder…", "Show in _Explorer"],
                     list.ContextMenu.Items.OfType<System.Windows.Controls.MenuItem>().Select(item => (string)item.Header));
 
                 // Sorted any way but by name, a folder's pictures are spread through the list: no headings.
