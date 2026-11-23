@@ -514,8 +514,9 @@ public sealed class GatherNode : WorkflowNode
     {
         Trigger = AddTrigger();
         _values = Enumerable.Range(1, Slots).Select(i => AddInput<object>($"Value {i}", isRequired: false)).ToArray();
-        PartOut = AddOutput<PartValues>("Part");
+        // Gathered over Part, as Inspect takes them - Trigger over Part - so the two wires run straight.
         Gathered = AddFired("Gathered");
+        PartOut = AddOutput<PartValues>("Part");
     }
 
     /// <summary>Optional: wired, it runs when triggered rather than when its values are in.</summary>

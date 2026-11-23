@@ -978,6 +978,18 @@ public sealed class PlcWorkflowTests : IDisposable
         Assert.Contains("Handshake: No address is given: Ready, Busy or Error Code.", runner.Check());
     }
 
+    /// <summary>Gather's outputs in Inspect's order - its trigger over the part - so the wires between them run straight.</summary>
+    [Fact]
+    public void Gather_gives_its_trigger_over_its_part_as_inspect_takes_them()
+    {
+        var gather = new GatherNode();
+        var inspect = new InspectNode();
+
+        Assert.Equal([gather.Gathered, gather.PartOut], gather.Outputs);
+        Assert.Equal(1, inspect.Inputs.ToList().IndexOf(inspect.PartIn));
+        Assert.Same(inspect.Trigger, inspect.Inputs[0]);
+    }
+
     [Fact]
     public void A_check_names_what_is_wrong_before_anything_runs()
     {
