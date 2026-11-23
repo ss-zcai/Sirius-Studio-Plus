@@ -289,6 +289,44 @@ public sealed class PlcWorkflowTests : IDisposable
         return plc;
     }
 
+    /// <summary>
+    /// What Builder lights its workflow by during a Test Run (F23f): each
+    /// node of a pass as it starts, finishes or fails, by its ID.
+    /// </summary>
+    [Fact]
+    public async Task Each_node_of_a_pass_is_told_as_it_starts_finishes_or_fails()
+    {
+        var plc = Line();
+        var stations = new FakeStations { Busy = true };
+        var line = new LineWorkflow();
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations, "Line 1 PLC");
+
+        var seen = new System.Collections.Concurrent.ConcurrentQueue<WorkflowNodeActivity>();
+        runner.NodeActivity += (_, activity) => seen.Enqueue(activity);
+
+        await StartAsync(runner, plc);
+        var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+        var told = seen.ToArray();
+
+        Assert.All(told, activity => Assert.Equal(pass.Number, activity.Pass));
+
+        WorkflowNodeState[] Of(VisionNode node) => told.Where(activity => activity.NodeId == node.Id).Select(activity => activity.State).ToArray();
+
+        // The node that started it, first: done, with nothing to run.
+        Assert.Equal((line.Monitor.Id, WorkflowNodeState.Done), (told[0].NodeId, told[0].State));
+
+        // A node that ran: started, then done, with how long it took.
+        Assert.Equal([WorkflowNodeState.Running, WorkflowNodeState.Done], Of(line.Tray));
+        Assert.Equal("Tray Number", told.First(activity => activity.NodeId == line.Tray.Id).Node);
+
+        // The station busy: Inspect started, then failed, saying why.
+        Assert.Equal([WorkflowNodeState.Running, WorkflowNodeState.Failed], Of(line.Inspect));
+        Assert.False(string.IsNullOrWhiteSpace(told.Last(activity => activity.NodeId == line.Inspect.Id).Message));
+
+        // What its Done would have started never ran, and is not told of.
+        Assert.Empty(Of(line.Done));
+    }
+
     [Fact]
     public async Task A_rising_bit_reads_the_part_has_it_inspected_and_answers_the_plc()
     {

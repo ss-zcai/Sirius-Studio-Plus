@@ -1052,7 +1052,20 @@ public sealed partial class BuilderViewModel : ObservableObject
         }
 
         StatusText = $"Running {project.Name}…";
-        RuntimeWindow.ShowWindowed(owner ?? Application.Current?.MainWindow, project, running => OpenSimulators(running));
+
+        try
+        {
+            RuntimeWindow.ShowWindowed(owner ?? Application.Current?.MainWindow, project, running =>
+            {
+                OpenSimulators(running);
+                WatchWorkflows(running);
+            });
+        }
+        finally
+        {
+            foreach (var workflow in Workflows)
+                workflow.StopWatching();
+        }
 
         // Let the cameras go, so Sirius Edge or Studio on this PC can open them.
         Sirius.Vision.Cameras.CameraDrivers.CloseAll();
@@ -1065,6 +1078,19 @@ public sealed partial class BuilderViewModel : ObservableObject
         StatusText = lineChanged.Length == 0
             ? "Test run closed."
             : $"Test run closed. Settings changed on the line for {string.Join(", ", lineChanged)} - right-click a station for Line Settings.";
+    }
+
+    /// <summary>
+    /// Each open workflow lit as its controller runs it: the node running
+    /// now, and how each went in the latest pass.
+    /// </summary>
+    internal void WatchWorkflows(RuntimeWindow running)
+    {
+        foreach (var runner in running.Controllers.Runners)
+        {
+            if (Workflows.FirstOrDefault(workflow => string.Equals(workflow.Controller.Name, runner.Name, StringComparison.OrdinalIgnoreCase)) is { } workflow)
+                workflow.Watch(runner);
+        }
     }
 
     /// <summary>

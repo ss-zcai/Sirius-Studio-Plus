@@ -179,8 +179,13 @@ from you before they start.
   - **F23f. Workflow loose ends** (S-M each), as use asks:
     - the **Result Log** writing the part's values, and a screen's Value
       widget showing one (PalletId);
-    - the **workflow editor**: renaming a node on the canvas, as Studio
-      does; each node's state lit while a Test Run runs; zoom to fit;
+    - ~~the **workflow editor**~~ - done 23 November 2026: a node renamed
+      by double-clicking its caption, as in Studio; while a Test Run runs,
+      the node running outlined in blue and how each went in the latest
+      pass on its dot (green done, red failed, why on hovering), matched
+      by node ID to the workflow as saved; Zoom In, Zoom Out and Fit on
+      the toolbar and View menu, the workflow framed when first shown;
+      a node's help from Properties (?);
     - **two Inspects at once** - within a pass they run one after the
       other today;
     - reading many addresses **in one exchange** (the default reads them

@@ -278,6 +278,28 @@ public partial class BuilderWindow : Window
     private void OnAboutClick(object sender, RoutedEventArgs e) =>
         About().ShowDialog();
 
+    /// <summary>Zoom In, Zoom Out and Fit, on the workflow in front.</summary>
+    private void OnZoomWorkflowClick(object sender, RoutedEventArgs e)
+    {
+        if (ActiveWorkflowView is not { } view || sender is not FrameworkElement { Tag: string how })
+            return;
+
+        switch (how)
+        {
+            case "in":
+                view.ZoomIn();
+                break;
+
+            case "out":
+                view.ZoomOut();
+                break;
+
+            default:
+                view.Fit();
+                break;
+        }
+    }
+
     /// <summary>Sirius Builder's About: Studio's window, with Builder's name, logo and version.</summary>
     internal AboutWindow About() =>
         new(

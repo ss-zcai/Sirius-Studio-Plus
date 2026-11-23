@@ -186,6 +186,23 @@
                 <MenuItem Header="_Widgets" Tag="widgets" Click="OnShowPanelClick" />
                 <MenuItem Header="_Properties" Tag="properties" Click="OnShowPanelClick" />
                 <Separator />
+                <!-- A workflow's canvas, when one is in front. -->
+                <MenuItem Header="Zoom _In" Tag="in" Click="OnZoomWorkflowClick" IsEnabled="{Binding IsWorkflowActive}">
+                    <MenuItem.Icon>
+                        <Image Source="{StaticResource Icon.ph_zoom_in}" Width="14" Height="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Zoom _Out" Tag="out" Click="OnZoomWorkflowClick" IsEnabled="{Binding IsWorkflowActive}">
+                    <MenuItem.Icon>
+                        <Image Source="{StaticResource Icon.ph_zoom_out}" Width="14" Height="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Fit Workflow to Window" Tag="fit" Click="OnZoomWorkflowClick" IsEnabled="{Binding IsWorkflowActive}">
+                    <MenuItem.Icon>
+                        <Image Source="{StaticResource Icon.ph_zoom_fit}" Width="14" Height="14" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator />
                 <MenuItem Header="_Reset Layout" Click="OnResetLayoutClick" />
             </MenuItem>
             <MenuItem Header="_Help">
@@ -263,6 +280,20 @@
                 </Button>
 
                 <Separator />
+
+                <!-- A workflow's canvas: shown while one is in front. -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsWorkflowActive, Converter={StaticResource BoolToVisibility}}">
+                    <Button Style="{StaticResource ToolbarButton}" ToolTip="Zoom in on the workflow" Tag="in" Click="OnZoomWorkflowClick">
+                        <Image Source="{StaticResource Icon.ph_zoom_in}" Width="18" Height="18" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" ToolTip="Zoom out of the workflow" Tag="out" Click="OnZoomWorkflowClick">
+                        <Image Source="{StaticResource Icon.ph_zoom_out}" Width="18" Height="18" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" ToolTip="Fit the workflow to the window" Tag="fit" Click="OnZoomWorkflowClick">
+                        <Image Source="{StaticResource Icon.ph_zoom_fit}" Width="18" Height="18" />
+                    </Button>
+                    <Separator />
+                </StackPanel>
 
                 <!--
                     Reset to Standard is in the Screen menu only, where it

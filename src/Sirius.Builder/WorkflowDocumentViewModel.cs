@@ -499,6 +499,103 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
         _ => type.ToString(),
     };
 
+    // ---- lit as a Test Run goes through it ---------------------------------------------
+
+    private WorkflowRunner? _running;
+    private SynchronizationContext? _ui;
+    private int _litPass;
+
+    /// <summary>A Test Run is running this workflow, and its nodes are lit as it goes.</summary>
+    public bool IsWatching => _running is not null;
+
+    /// <summary>
+    /// Lights each node as <paramref name="runner"/>'s passes go through it -
+    /// the node running now outlined, how each went in the latest pass on its
+    /// dot - until <see cref="StopWatching"/>. The runner runs the workflow
+    /// as saved; its nodes are matched to these by ID.
+    /// </summary>
+    public void Watch(WorkflowRunner runner)
+    {
+        ArgumentNullException.ThrowIfNull(runner);
+
+        StopWatching();
+        _running = runner;
+        _ui = SynchronizationContext.Current;
+        runner.NodeActivity += OnNodeActivity;
+        OnPropertyChanged(nameof(IsWatching));
+    }
+
+    /// <summary>The Test Run is over: the nodes back as they were.</summary>
+    public void StopWatching()
+    {
+        if (_running is { } runner)
+            runner.NodeActivity -= OnNodeActivity;
+
+        _running = null;
+        _litPass = 0;
+
+        foreach (var node in Editor.Nodes)
+            Unlit(node);
+
+        OnPropertyChanged(nameof(IsWatching));
+    }
+
+    private void OnNodeActivity(object? sender, WorkflowNodeActivity activity)
+    {
+        if (_ui is { } ui)
+            ui.Post(_ => Light(activity), null);
+        else
+            Light(activity);
+    }
+
+    /// <summary>One node's step, on the canvas: a new pass first puts out the last one's.</summary>
+    internal void Light(WorkflowNodeActivity activity)
+    {
+        if (_running is null)
+            return;
+
+        if (activity.Pass != _litPass)
+        {
+            _litPass = activity.Pass;
+
+            foreach (var other in Editor.Nodes)
+                Unlit(other);
+        }
+
+        if (Editor.Nodes.FirstOrDefault(node => node.Node.Id == activity.NodeId) is not { } lit)
+            return;
+
+        var ms = activity.Took.TotalMilliseconds.ToString("0", System.Globalization.CultureInfo.CurrentCulture);
+
+        switch (activity.State)
+        {
+            case WorkflowNodeState.Running:
+                lit.IsRunning = true;
+                lit.RunStatus = NodeStatus.Idle;
+                lit.RunMessage = $"Running - pass {activity.Pass}";
+                break;
+
+            case WorkflowNodeState.Done:
+                lit.IsRunning = false;
+                lit.RunStatus = NodeStatus.Ready;
+                lit.RunMessage = $"Done in {ms} ms - pass {activity.Pass}";
+                break;
+
+            case WorkflowNodeState.Failed:
+                lit.IsRunning = false;
+                lit.RunStatus = NodeStatus.Error;
+                lit.RunMessage = $"Failed - pass {activity.Pass}: {activity.Message}";
+                break;
+        }
+    }
+
+    private static void Unlit(NodeViewModel node)
+    {
+        node.IsRunning = false;
+        node.RunStatus = NodeStatus.Idle;
+        node.RunMessage = null;
+    }
+
     // ---- keeping up ------------------------------------------------------------------
 
     /// <summary>The controller was renamed or reconnected: the title, and the check against its driver.</summary>
@@ -593,6 +690,10 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
         Graph.StructureChanged -= OnStructureChanged;
         Editor.PropertyChanged -= OnEditorPropertyChanged;
         Document.Undo.Changed -= OnUndoChanged;
+
+        if (_running is { } runner)
+            runner.NodeActivity -= OnNodeActivity;
+
         Document.Dispose();
     }
 

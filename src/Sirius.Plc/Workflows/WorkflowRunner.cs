@@ -32,6 +32,24 @@ public sealed record WorkflowLogEntry(DateTime Time, WorkflowLogLevel Level, str
             $"{Time:HH:mm:ss.fff}  {Level,-7}  {(Node is null ? string.Empty : $"[{Node}] ")}{Message}");
 }
 
+/// <summary>Where a node of a pass is: started, finished or failed.</summary>
+public enum WorkflowNodeState
+{
+    Running,
+    Done,
+    Failed,
+}
+
+/// <summary>
+/// A node of a pass starting, finishing or failing - for an editor to light
+/// the node as a Test Run goes through it.
+/// </summary>
+/// <param name="Pass">The pass's number: a new number is a new pass.</param>
+/// <param name="NodeId">The node's ID, as its workflow file keeps it.</param>
+/// <param name="Took">How long it ran, once done or failed.</param>
+/// <param name="Message">Why it failed.</param>
+public sealed record WorkflowNodeActivity(int Pass, string NodeId, string Node, WorkflowNodeState State, TimeSpan Took, string? Message = null);
+
 /// <summary>How a pass of a workflow went.</summary>
 /// <param name="Ran">The nodes that ran and finished, in the order they ran.</param>
 /// <param name="Failed">The nodes that failed.</param>
@@ -222,6 +240,9 @@ public sealed class WorkflowRunner : IAsyncDisposable
 
     /// <summary>A pass has finished.</summary>
     public event EventHandler<WorkflowPassResult>? PassFinished;
+
+    /// <summary>A node of a pass started, finished or failed - on the pass's thread.</summary>
+    public event EventHandler<WorkflowNodeActivity>? NodeActivity;
 
     /// <summary>The controller started, stopped, connected or lost its connection.</summary>
     public event EventHandler? StatusChanged;
@@ -428,6 +449,7 @@ public sealed class WorkflowRunner : IAsyncDisposable
                     first.Commit();
                     pass.Ran.Add(node);
                     ran.Add(node.Name);
+                    Report(pass, node, WorkflowNodeState.Done, TimeSpan.Zero);
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
@@ -577,12 +599,15 @@ public sealed class WorkflowRunner : IAsyncDisposable
         limit.CancelAfter(timeout);
 
         var step = new WorkflowStep(this, pass, node, limit.Token);
+        var took = Stopwatch.StartNew();
+        Report(pass, node, WorkflowNodeState.Running, TimeSpan.Zero);
 
         try
         {
             await node.RunAsync(step).ConfigureAwait(false);
             step.Commit();
             pass.Ran.Add(node);
+            Report(pass, node, WorkflowNodeState.Done, took.Elapsed);
             return true;
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested)
@@ -623,9 +648,26 @@ public sealed class WorkflowRunner : IAsyncDisposable
             pass.MissedWhy = why;
     }
 
+    /// <summary>Tells whoever watches - an editor lighting its nodes - and never lets them stop the pass.</summary>
+    private void Report(WorkflowPass pass, VisionNode node, WorkflowNodeState state, TimeSpan took, string? message = null)
+    {
+        if (NodeActivity is not { } watchers)
+            return;
+
+        try
+        {
+            watchers(this, new WorkflowNodeActivity(pass.Number, node.Id, node.Name, state, took, message));
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Lighting a node is not worth a pass.
+        }
+    }
+
     private void Fail(WorkflowNode node, WorkflowPass pass, string message)
     {
         pass.Failed.Add(node);
+        Report(pass, node, WorkflowNodeState.Failed, TimeSpan.Zero, message);
         Volatile.Write(ref _lastError, $"{node.Name}: {message}");
         Write(WorkflowLogLevel.Error, node, message);
 

@@ -409,6 +409,147 @@ public sealed class BuilderControllerTests : IDisposable
         });
     }
 
+    /// <summary>
+    /// A Test Run lights the open workflow (F23f): the node running now, how
+    /// each went in the latest pass; a new pass puts out the last; the end
+    /// of the run puts out all - and none of it is a change to save.
+    /// </summary>
+    [Fact]
+    public void A_test_run_lights_the_workflow_as_it_goes()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var project = Project.Create(_root, "Line 5", new VisionGraph(), "Top");
+            var model = Builder(project);
+            model.AddController("PLC 1");
+            var document = model.OpenWorkflow(model.Controllers[0])!;
+
+            var inspect = document.Editor.Nodes.Single(node => node.Node is InspectNode);
+            var read = document.Editor.Nodes.Single(node => node.Node is PlcReadNode);
+
+            var runner = new WorkflowRunner(document.Graph, new SimulatedPlc(), null, "PLC 1");
+            document.Watch(runner);
+            Assert.True(document.IsWatching);
+
+            WorkflowNodeActivity Step(int pass, Sirius.Studio.App.ViewModels.NodeViewModel node, WorkflowNodeState state, string? why = null) =>
+                new(pass, node.Node.Id, node.Title, state, TimeSpan.FromMilliseconds(12), why);
+
+            document.Light(Step(1, read, WorkflowNodeState.Done));
+            document.Light(Step(1, inspect, WorkflowNodeState.Running));
+
+            Assert.True(inspect.IsRunning);
+            Assert.Equal((NodeStatus.Ready, "Done in 12 ms - pass 1"), (read.RunStatus, read.RunMessage));
+
+            document.Light(Step(1, inspect, WorkflowNodeState.Failed, "Top did not answer."));
+            Assert.False(inspect.IsRunning);
+            Assert.Equal(NodeStatus.Error, inspect.RunStatus);
+            Assert.Contains("Top did not answer.", inspect.RunMessage, StringComparison.Ordinal);
+
+            // A new pass: the last one's lights out before this one's.
+            document.Light(Step(2, read, WorkflowNodeState.Running));
+            Assert.Equal((NodeStatus.Idle, null), (inspect.RunStatus, inspect.RunMessage));
+            Assert.True(read.IsRunning);
+
+            document.StopWatching();
+            Assert.False(document.IsWatching);
+            Assert.All(document.Editor.Nodes, node => Assert.Equal((false, NodeStatus.Idle, (string?)null), (node.IsRunning, node.RunStatus, node.RunMessage)));
+            Assert.False(document.IsModified);
+
+            // Not watching, a late step from the run lights nothing.
+            document.Light(Step(3, read, WorkflowNodeState.Done));
+            Assert.Null(read.RunMessage);
+        });
+    }
+
+    /// <summary>
+    /// On the canvas, as in Studio (F23f): a node renamed on its caption, one
+    /// undo step; the workflow framed when first shown, and fitted again.
+    /// </summary>
+    [Fact]
+    public void A_workflow_node_is_renamed_on_its_caption_and_the_workflow_fits_the_window()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            var project = Project.Create(_root, "Line 5", new VisionGraph(), "Top");
+            var model = Builder(project);
+            model.AddController("PLC 1");
+            var document = model.OpenWorkflow(model.Controllers[0])!;
+
+            var view = new WorkflowEditorView { DataContext = document };
+            var window = new Window { Content = view, Width = 900, Height = 600, ShowActivated = false, WindowStyle = WindowStyle.None };
+            window.Show();
+
+            try
+            {
+                WpfTestHost.Settle(window.Dispatcher, 10);
+
+                // Every node in view, framed when first shown.
+                bool AllInView()
+                {
+                    var seen = new Rect(view.Canvas.ViewportLocation, view.Canvas.ViewportSize);
+                    return seen.Contains(view.Canvas.ItemsExtent);
+                }
+
+                Assert.True(AllInView(), $"{view.Canvas.ItemsExtent} not in {view.Canvas.ViewportLocation} {view.Canvas.ViewportSize}");
+
+                view.Canvas.ViewportLocation = new Point(5000, 5000);
+                WpfTestHost.Settle(window.Dispatcher);
+                Assert.False(AllInView());
+
+                view.Fit();
+                WpfTestHost.Settle(window.Dispatcher, 10);
+                Assert.True(AllInView());
+
+                // The caption of a node, double-clicked: its name edited there.
+                var caption = Descendants<System.Windows.Controls.TextBlock>(view).First(block => block.Tag is "NodeTitle" && block.Text == "Part Number");
+                var node = WorkflowEditorView.CaptionOf(caption);
+                Assert.NotNull(node);
+                Assert.Null(WorkflowEditorView.CaptionOf(Descendants<System.Windows.Controls.TextBlock>(view).First(block => block.Text == "PLC Read")));
+
+                node.IsEditingName = true;
+                WpfTestHost.Settle(window.Dispatcher);
+                var box = Descendants<System.Windows.Controls.TextBox>(view).Single(editor => editor.IsVisible);
+
+                box.Text = "Tray";
+                box.RaiseEvent(new System.Windows.Input.KeyEventArgs(
+                    System.Windows.Input.Keyboard.PrimaryDevice,
+                    PresentationSource.FromVisual(box)!,
+                    0,
+                    System.Windows.Input.Key.Enter) { RoutedEvent = System.Windows.Input.Keyboard.KeyDownEvent });
+
+                Assert.False(node.IsEditingName);
+                Assert.Equal("Tray", node.Node.Name);
+                Assert.True(document.IsModified);
+
+                document.UndoCommand.Execute(null);
+                Assert.Equal("Part Number", node.Node.Name);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+
+            if (child is T found)
+                yield return found;
+
+            foreach (var deeper in Descendants<T>(child))
+                yield return deeper;
+        }
+    }
+
     [Fact]
     public void A_workflow_opens_in_a_tab_is_edited_through_its_settings_and_saved()
     {

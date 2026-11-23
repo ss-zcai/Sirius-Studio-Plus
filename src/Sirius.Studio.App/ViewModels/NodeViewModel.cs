@@ -106,6 +106,34 @@ public sealed class NodeViewModel : ObservableObject
 
     public string? StatusMessage => Node.StatusMessage;
 
+    private bool _isRunning;
+    private NodeStatus _runStatus;
+    private string? _runMessage;
+
+    /// <summary>
+    /// Running now, in a run outside this editor - a controller's Test Run,
+    /// shown on its workflow in Builder.
+    /// </summary>
+    public bool IsRunning
+    {
+        get => _isRunning;
+        set => SetProperty(ref _isRunning, value);
+    }
+
+    /// <summary>How the node went in that run's latest pass: Idle when the pass did not reach it.</summary>
+    public NodeStatus RunStatus
+    {
+        get => _runStatus;
+        set => SetProperty(ref _runStatus, value);
+    }
+
+    /// <summary>What that pass said of it: how long it took, or why it failed.</summary>
+    public string? RunMessage
+    {
+        get => _runMessage;
+        set => SetProperty(ref _runMessage, value);
+    }
+
     public bool HasParameters => Parameters.Count > 0;
 
     /// <summary>Evaluation time, shown on the node as e.g. "4.2 ms".</summary>
