@@ -938,7 +938,8 @@ apart quietly.
 
 ### 15.5 Order
 
-**Step 1 built, 18 November 2026** (decision 80).
+**Step 1 built, 18 November 2026** (decision 80); **step 2, 23 November**
+(decision 90).
 
 1. Camera units in the project, stations naming theirs; the camera
    window - find, choose, live view, Grab, Save Image, exposure, gain,

@@ -26,9 +26,9 @@ solid on a real machine, before several pictures or speed:
 
 1. ~~**N9**, **N4**, then **N10** - pack 1.0.13~~ - done 18 November.
 2. ~~**F29, its first slice**~~ - done 18 November (decision 80):
-   cameras set up in Builder, without Studio. Its next slice - Open in
+   cameras set up in Builder, without Studio; ~~its second~~ - Open in
    Studio carrying the station's camera, Take from and Give to recipe -
-   is small and could follow at once.
+   23 November (decision 90).
 3. ~~**F31** and **F32**~~ - done 19 November (decision 81): a
    rectangle measured in every image viewer, its crops saved as ROIs.
    Then ~~**F30**, Find Rectangle~~ - done 19 November (decision 82).
@@ -365,9 +365,10 @@ part, how the PLC tracks parts - size F26-F28.
     own or as the recipe, Grab, Live, Save Image - a camera offered when
     a station is added from a recipe, Test Run and Edge using it, and a
     camera held by another program said plainly;
-  - **Studio and the line agreeing** (S-M): Open in Studio grabbing from
-    the station's camera with the line's settings; Take from recipe and
-    Give to recipe;
+  - ~~**Studio and the line agreeing**~~ - done 23 November 2026
+    (decision 90): Open in Studio grabbing from the station's camera with
+    the line's settings, saving the recipe's own; Take from Recipe and
+    Give to Recipe in the camera window;
   - **commissioning** (M): a GigE camera's IP, and the network card
     checked; Replace…; identity by the camera's user-defined name;
     Simulated and Folder camera units;

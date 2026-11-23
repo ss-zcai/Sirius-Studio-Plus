@@ -809,6 +809,9 @@ public sealed class MainViewModel : ObservableObject
         _graph = graph;
         _graph.NodeInvalidated += OnNodeInvalidated;
 
+        // A station's camera carried in belongs to the recipe it came with.
+        _carried = null;
+
         _scheduler = new GraphScheduler(_graph);
 
         _mainDocument = CreateDocument(_graph, owner: null);
@@ -1120,11 +1123,15 @@ public sealed class MainViewModel : ObservableObject
     /// not ask to save the one there: the caller already has.
     /// </summary>
     /// <returns>Whether it opened.</returns>
-    internal bool OpenRecipeFile(string path)
+    internal bool OpenRecipeFile(string path) => OpenRecipeFile(path, null);
+
+    /// <param name="prepare">Done to the recipe as loaded, before it is in the editor - so it is neither an edit to undo nor a change to save.</param>
+    private bool OpenRecipeFile(string path, Action<VisionGraph>? prepare)
     {
         try
         {
             var result = GraphSerializer.Load(path);
+            prepare?.Invoke(result.Graph);
             _currentFilePath = path;
             LoadGraph(result.Graph);
 
@@ -1179,12 +1186,108 @@ public sealed class MainViewModel : ObservableObject
     /// Opens a recipe named on the command line - Sirius Builder's Open in
     /// Studio - once the window is up.
     /// </summary>
-    internal void OpenAtStart(string path)
+    internal void OpenAtStart(string path, string? project = null, string? station = null)
     {
-        if (File.Exists(path))
-            OpenRecipeFile(Path.GetFullPath(path));
-        else
+        if (!File.Exists(path))
+        {
             Dialog.Warn($"There is no recipe at {path}.", "Open Recipe");
+            return;
+        }
+
+        if (project is null || station is null)
+        {
+            OpenRecipeFile(Path.GetFullPath(path));
+            return;
+        }
+
+        CarriedCamera? carried = null;
+        string? note = null;
+
+        if (!OpenRecipeFile(Path.GetFullPath(path), graph => carried = CarryStationCamera(graph, project, station, out note)))
+            return;
+
+        _carried = carried;
+
+        if (note is not null)
+            StatusText += " " + note;
+    }
+
+    // ---- a station's camera, carried from Builder (F29) --------------------------------
+
+    /// <summary>A station's camera, put into the recipe as opened - and what it changed.</summary>
+    internal sealed record CarriedCamera(string Station, string Camera, string NodeId, IReadOnlyList<Sirius.Core.Runtime.StationCamera.CameraChange> Changes);
+
+    private CarriedCamera? _carried;
+
+    /// <summary>The station's camera the recipe grabs from, opened from Builder; null otherwise.</summary>
+    internal CarriedCamera? Carried => _carried;
+
+    /// <summary>
+    /// Opened from Builder for a station (Open in Studio): the station's
+    /// camera and the line's settings for it into the recipe's Camera node,
+    /// so the engineer grabs with what the line uses - as Test Run and
+    /// Edge put it in. Null when the station has no camera of its own.
+    /// </summary>
+    /// <param name="note">What to tell the engineer: what it grabs from, or why the recipe's own is used.</param>
+    internal static CarriedCamera? CarryStationCamera(VisionGraph graph, string projectPath, string stationName, out string? note)
+    {
+        note = null;
+
+        Sirius.Core.Projects.Project project;
+
+        try
+        {
+            var loaded = Sirius.Core.Projects.Project.Load(projectPath);
+            project = loaded.Project;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
+        {
+            note = $"The project {Path.GetFileName(projectPath)} could not be read ({ex.Message}): the recipe's own camera is used.";
+            return null;
+        }
+
+        if (project.Find(stationName) is not { } station || project.CameraOf(station) is not { } camera)
+            return null;
+
+        var changes = Sirius.Core.Runtime.StationCamera.Carry(graph, camera, out var node, out var problem);
+
+        if (node is null)
+        {
+            note = $"{station.Name}'s camera '{camera.Name}' is not used here: {problem}";
+            return null;
+        }
+
+        var settings = string.Join(", ", changes.Where(change => change.Parameter != "Device").Select(change => $"{change.Parameter.ToLowerInvariant()} {change.Line}"));
+
+        note = $"{node.Name} grabs from {station.Name}'s camera '{camera.Name}' ({camera.Setup.Device})" +
+               (settings.Length == 0 ? "." : $", with the line's {settings}.") +
+               " Saved, the recipe keeps its own camera settings, but for any you change here; Builder's Take from Recipe brings those to the line.";
+
+        return new CarriedCamera(station.Name, camera.Name, node.Id, changes);
+    }
+
+    /// <summary>
+    /// The recipe as it is to be saved: the carried camera's settings put
+    /// back to the recipe's own - but for any changed here since, which are
+    /// the engineer's tuning and saved as such.
+    /// </summary>
+    private VisionGraph ToSave()
+    {
+        if (_carried is not { Changes.Count: > 0 } carried || _graph.Nodes.FirstOrDefault(node => node.Id == carried.NodeId) is not { } live)
+            return _graph;
+
+        var copy = GraphSerializer.Deserialize(GraphSerializer.Serialize(_graph)).Graph;
+
+        if (copy.Nodes.FirstOrDefault(node => node.Id == carried.NodeId) is not { } saved)
+            return _graph;
+
+        foreach (var change in carried.Changes)
+        {
+            if (Equals(Sirius.Core.Runtime.StationCamera.GetParameter(live, change.Parameter), change.Line))
+                Sirius.Core.Runtime.StationCamera.SetParameter(saved, change.Parameter, change.Recipe);
+        }
+
+        return copy;
     }
 
     /// <summary>
@@ -1219,7 +1322,7 @@ public sealed class MainViewModel : ObservableObject
     {
         try
         {
-            GraphSerializer.Save(_graph, path);
+            GraphSerializer.Save(ToSave(), path);
 
             // The panel arrangement is written with it, so reopening gets the
             // workspace back rather than every viewer in one tab stack.

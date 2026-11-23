@@ -58,6 +58,18 @@ public partial class CameraWindow : Window
             Model.Use(camera);
     }
 
+    private void OnTakeFromRecipe(object sender, RoutedEventArgs e) => Model.TakeFromRecipe();
+
+    /// <summary>Asks first: it writes the recipe file, which Studio may have open.</summary>
+    private void OnGiveToRecipe(object sender, RoutedEventArgs e)
+    {
+        if (Model.GiveQuestion() is not { } question)
+            return;
+
+        if (Dialog.Confirm(question, "Give to Recipe", this))
+            Model.GiveToRecipe();
+    }
+
     private void OnClose(object sender, RoutedEventArgs e) => Close();
 
     private void OnClosed(object? sender, EventArgs e) => Model.Dispose();

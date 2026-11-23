@@ -447,6 +447,137 @@ public sealed class CameraUnitTests : IDisposable
         });
     }
 
+    // ---- Studio and the line agreeing (F29) ------------------------------------------------
+
+    [Fact]
+    public void Studio_is_told_the_recipe_the_project_and_the_station_in_any_order()
+    {
+        Assert.Equal(
+            new Sirius.Studio.App.StartArguments(@"C:\r\top.sgraph", @"C:\p\line.sproj", "Top 1"),
+            Sirius.Studio.App.StartArguments.Parse(["--project", @"C:\p\line.sproj", @"C:\r\top.sgraph", "--station", "Top 1"]));
+
+        // A file dropped on the program: the recipe alone.
+        Assert.Equal(new Sirius.Studio.App.StartArguments("a.sgraph", null, null), Sirius.Studio.App.StartArguments.Parse(["a.sgraph"]));
+        Assert.Equal(new Sirius.Studio.App.StartArguments(null, null, null), Sirius.Studio.App.StartArguments.Parse([]));
+    }
+
+    /// <summary>
+    /// Open in Studio from a station with a camera of its own: Studio grabs
+    /// from that camera with the line's settings - not a change to save -
+    /// and saving keeps the recipe's own, but for one tuned there.
+    /// </summary>
+    [Fact]
+    public void Studio_opened_for_a_station_grabs_with_its_camera_and_saves_the_recipes_own()
+    {
+        var project = Project.Create(_root, "Line", CameraRecipe("Basler gone [0000]"), "Top");
+        var camera = project.AddCamera("Top camera", new CameraSetup(Simulated, Exposure: 7000, Gain: 3));
+        project.SetStationCamera(project.Stations[0], camera);
+        var recipe = project.RecipePath(project.Stations[0]);
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            var studio = new Sirius.Studio.App.ViewModels.MainViewModel();
+            studio.OpenAtStart(recipe, project.FilePath, "Top");
+
+            var node = studio.Editor.Nodes.Select(item => item.Node).OfType<CameraNode>().Single();
+            Assert.Equal((Simulated, 7000d, 3d), (node.Device, node.Exposure, node.Gain));
+            Assert.False(studio.IsModified);
+            Assert.Equal(("Top", "Top camera"), (studio.Carried!.Station, studio.Carried.Camera));
+            Assert.Contains("grabs from Top's camera 'Top camera'", studio.StatusText, StringComparison.Ordinal);
+
+            // Saved: the recipe's own camera and settings, not the line's.
+            Assert.True(studio.Write(recipe));
+            var saved = TheCamera(GraphSerializer.Load(recipe).Graph);
+            Assert.Equal(("Basler gone [0000]", 5000d, 0d), (saved.Device, saved.Exposure, saved.Gain));
+            Assert.Equal(Simulated, node.Device);
+
+            // The gain tuned here is the engineer's, and saved as the recipe's.
+            node.Gain = 6;
+            Assert.True(studio.Write(recipe));
+            saved = TheCamera(GraphSerializer.Load(recipe).Graph);
+            Assert.Equal(("Basler gone [0000]", 5000d, 6d), (saved.Device, saved.Exposure, saved.Gain));
+
+            // Opened on its own - or another recipe opened - the recipe's own camera.
+            studio.OpenAtStart(recipe);
+            Assert.Null(studio.Carried);
+            Assert.Equal("Basler gone [0000]", studio.Editor.Nodes.Select(item => item.Node).OfType<CameraNode>().Single().Device);
+        });
+    }
+
+    [Fact]
+    public void Open_in_Studio_tells_Studio_the_station_when_it_has_a_camera()
+    {
+        var project = Project.Create(_root, "Line", CameraRecipe(Simulated), "Top");
+        project.AddStation("Bottom", CameraRecipe(Simulated));
+        project.SetStationCamera(project.Stations[0], project.AddCamera("Top camera", new CameraSetup(Simulated)));
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            var model = Builder(project);
+            var launched = new List<IReadOnlyList<string>>();
+            model.Launch = (_, file) =>
+            {
+                launched.Add([file]);
+                return true;
+            };
+            model.LaunchWith = (_, arguments) =>
+            {
+                launched.Add(arguments);
+                return true;
+            };
+
+            if (!File.Exists(Path.Combine(AppContext.BaseDirectory, "SiriusStudioPlus.exe")))
+                return;
+
+            Assert.True(model.OpenInStudio(model.Stations[0]));
+            Assert.True(model.OpenInStudio(model.Stations[1]));
+
+            Assert.Equal([project.RecipePath(project.Stations[0]), "--project", project.FilePath, "--station", "Top"], launched[0]);
+            Assert.Equal([project.RecipePath(project.Stations[1])], launched[1]);
+        });
+    }
+
+    /// <summary>The camera window's two buttons: the recipe's settings into the camera, and the camera's own back.</summary>
+    [Fact]
+    public void The_camera_window_takes_from_the_recipe_and_gives_to_it()
+    {
+        var project = Project.Create(_root, "Line", CameraRecipe("Basler desk [1111]"), "Top");
+        var unit = project.AddCamera("Top camera", new CameraSetup(Simulated, Exposure: 9000));
+        project.SetStationCamera(project.Stations[0], unit);
+        var recipe = project.RecipePath(project.Stations[0]);
+
+        WpfTestHost.OnStaThread(() =>
+        {
+            WpfTestHost.EnsureApplicationResources();
+
+            using var model = new CameraViewModel(project, unit);
+
+            // Give: its own exposure only; the camera at the desk left alone.
+            Assert.Contains("exposure 9000 µs", model.GiveQuestion(), StringComparison.Ordinal);
+            Assert.Contains(Path.GetFileName(recipe), model.GiveQuestion(), StringComparison.Ordinal);
+            Assert.True(model.GiveToRecipe());
+
+            var given = TheCamera(GraphSerializer.Load(recipe).Graph);
+            Assert.Equal(("Basler desk [1111]", 9000d), (given.Device, given.Exposure));
+            Assert.StartsWith("Given to", model.Note, StringComparison.Ordinal);
+
+            // Tuned in Studio since; taken: every setting the camera's own now, its camera kept.
+            var tuned = GraphSerializer.Load(recipe).Graph;
+            TheCamera(tuned).Exposure = 6000;
+            TheCamera(tuned).Gain = 4;
+            GraphSerializer.Save(tuned, recipe);
+
+            Assert.True(model.TakeFromRecipe());
+            Assert.Equal(new CameraSetup(Simulated, 6000, 4, "Software", TheCamera(tuned).Timeout), unit.Setup);
+            Assert.StartsWith("Taken from Top's recipe", model.Note, StringComparison.Ordinal);
+
+            // All as the recipe: nothing to give, and said.
+            project.SetCameraSetup(unit, new CameraSetup(Simulated));
+            Assert.Null(model.GiveQuestion());
+            Assert.Contains("nothing of this camera's own", model.Problem, StringComparison.Ordinal);
+        });
+    }
+
     [Fact]
     public void The_camera_window_finds_uses_sets_grabs_and_saves()
     {

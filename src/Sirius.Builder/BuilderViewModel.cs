@@ -480,7 +480,10 @@ public sealed partial class BuilderViewModel : ObservableObject
     internal Func<string, string, MessageBoxResult> Ask { get; set; } = (message, title) => Dialog.Ask(message, title, Application.Current?.MainWindow);
 
     /// <summary>Starts a program; replaced in tests.</summary>
-    internal Func<string, string, bool> Launch { get; set; } = LaunchProcess;
+    internal Func<string, string, bool> Launch { get; set; } = (program, file) => LaunchProcess(program, [file]);
+
+    /// <summary>Starts a program with several arguments; replaced in tests.</summary>
+    internal Func<string, IReadOnlyList<string>, bool> LaunchWith { get; set; } = LaunchProcess;
 
     public IRelayCommand NewProjectCommand { get; }
 
@@ -939,13 +942,23 @@ public sealed partial class BuilderViewModel : ObservableObject
             return false;
         }
 
-        if (!Launch(studio, station.RecipePath))
+        // A station with a camera of its own: Studio told which, so the
+        // engineer grabs with the line's camera and settings (F29).
+        var camera = _project?.CameraOf(station.Station);
+
+        var started = camera is not null && _project is { } project
+            ? LaunchWith(studio, [station.RecipePath, "--project", project.FilePath, "--station", station.Name])
+            : Launch(studio, station.RecipePath);
+
+        if (!started)
         {
             Dialog.Error("Sirius Studio could not be started.", "Open in Studio");
             return false;
         }
 
-        StatusText = $"Opened {station.RecipeFile} in Studio. Save it there; Builder picks the changes up when you come back.";
+        StatusText = camera is null
+            ? $"Opened {station.RecipeFile} in Studio. Save it there; Builder picks the changes up when you come back."
+            : $"Opened {station.RecipeFile} in Studio, grabbing from the camera '{camera.Name}' as the line does. Save it there; Builder picks the changes up when you come back.";
         return true;
     }
 
@@ -1841,12 +1854,15 @@ public sealed partial class BuilderViewModel : ObservableObject
         }
     }
 
-    private static bool LaunchProcess(string program, string file)
+    private static bool LaunchProcess(string program, IReadOnlyList<string> arguments)
     {
         try
         {
             var start = new ProcessStartInfo(program) { UseShellExecute = false };
-            start.ArgumentList.Add(file);
+
+            foreach (var argument in arguments)
+                start.ArgumentList.Add(argument);
+
             return Process.Start(start) is not null;
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)

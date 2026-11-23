@@ -81,6 +81,7 @@ public sealed partial class CameraViewModel : ObservableObject, IDisposable
 
         Recipe = RecipeSetup(project, camera, out var recipeStation);
         RecipeStation = recipeStation;
+        _note = string.Empty;
 
         FindCommand = new AsyncRelayCommand(FindAsync, () => !IsSearching);
         UseCommand = new RelayCommand(() => Use(SelectedFound), () => SelectedFound is not null);
@@ -102,10 +103,157 @@ public sealed partial class CameraViewModel : ObservableObject, IDisposable
     public string Title => $"Camera - {Camera.Name}";
 
     /// <summary>The settings "as the recipe" means: the first station using it's recipe, or a new Camera node's.</summary>
-    public CameraSetup Recipe { get; }
+    public CameraSetup Recipe { get; private set; }
 
     /// <summary>The station whose recipe <see cref="Recipe"/> is from, or null.</summary>
-    public string? RecipeStation { get; }
+    public string? RecipeStation { get; private set; }
+
+    // ---- Studio and the line agreeing (F29) -------------------------------------------
+
+    private string _note;
+
+    /// <summary>What Take from Recipe or Give to Recipe did, said under the buttons' row as Problem is.</summary>
+    public string Note
+    {
+        get => _note;
+        private set => SetProperty(ref _note, value);
+    }
+
+    /// <summary>
+    /// The recipe's Camera node's settings into this camera, as its own:
+    /// what the engineer tuned in Studio, now the line's. The camera
+    /// chosen stays, unless none is; then the recipe's.
+    /// </summary>
+    /// <returns>Whether there was a recipe to take from.</returns>
+    internal bool TakeFromRecipe()
+    {
+        Recipe = RecipeSetup(_project, Camera, out var station);
+        RecipeStation = station;
+
+        if (station is null)
+        {
+            Refused(_project.StationsUsing(Camera).Count == 0
+                ? "No station takes its pictures from this camera, so there is no recipe to take from."
+                : "The recipe has no Camera node for this camera to take from.");
+            return false;
+        }
+
+        var setup = Camera.Setup with
+        {
+            Device = Camera.Setup.HasDevice ? Camera.Setup.Device : Recipe.Device,
+            Exposure = Recipe.Exposure,
+            Gain = Recipe.Gain,
+            Trigger = Recipe.Trigger,
+            Timeout = Recipe.Timeout,
+        };
+
+        if (!Update(setup) && Problem is not null)
+            return false;
+
+        Note = $"Taken from {station}'s recipe: exposure {Recipe.Exposure} µs, gain {Recipe.Gain} dB, trigger {TriggerLabel(Recipe.Trigger)}, timeout {Recipe.Timeout} ms - this camera's own now.";
+        return true;
+    }
+
+    /// <summary>The recipes this camera's stations run, each once.</summary>
+    private IReadOnlyList<(string Path, IReadOnlyList<string> Stations)> Recipes() =>
+        _project.StationsUsing(Camera)
+            .GroupBy(station => Path.GetFullPath(_project.RecipePath(station)), StringComparer.OrdinalIgnoreCase)
+            .Select(group => (group.Key, (IReadOnlyList<string>)group.Select(station => station.Name).ToArray()))
+            .ToArray();
+
+    /// <summary>What Give to Recipe will write, and where, to ask before; null - said - when there is nothing to give.</summary>
+    internal string? GiveQuestion()
+    {
+        var setup = Camera.Setup;
+        var given = new List<string>();
+
+        if (setup.Exposure is { } exposure)
+            given.Add($"exposure {exposure} µs");
+
+        if (setup.Gain is { } gain)
+            given.Add($"gain {gain} dB");
+
+        if (setup.Trigger is { } trigger)
+            given.Add($"trigger {TriggerLabel(trigger)}");
+
+        if (setup.Timeout is { } timeout)
+            given.Add($"timeout {timeout} ms");
+
+        var recipes = Recipes();
+
+        if (recipes.Count == 0)
+        {
+            Refused("No station takes its pictures from this camera, so there is no recipe to give to.");
+            return null;
+        }
+
+        if (given.Count == 0)
+        {
+            Refused("Every setting is \"As the recipe\": there is nothing of this camera's own to give.");
+            return null;
+        }
+
+        var files = string.Join(", ", recipes.Select(recipe => $"{Path.GetFileName(recipe.Path)} ({string.Join(", ", recipe.Stations)})"));
+
+        return $"Write {string.Join(", ", given)} into the Camera node of {files}?\n\n" +
+               "The camera itself is left as the recipe has it: at the desk it may be another. " +
+               "If the recipe is open in Studio with changes not saved, save or close it there first.";
+    }
+
+    /// <summary>
+    /// This camera's own settings into each recipe's Camera node, saved: so
+    /// Studio at the desk grabs as the line does.
+    /// </summary>
+    /// <returns>Whether every recipe took them.</returns>
+    internal bool GiveToRecipe()
+    {
+        var problems = new List<string>();
+        var written = new List<string>();
+
+        foreach (var (path, _) in Recipes())
+        {
+            var name = Path.GetFileName(path);
+
+            try
+            {
+                var loaded = GraphSerializer.Load(path);
+
+                // A recipe that lost something on loading would lose it for good on saving.
+                if (loaded.HasWarnings)
+                {
+                    problems.Add($"{name} loads with warnings - open it in Studio and save it first");
+                    continue;
+                }
+
+                if (StationCamera.GiveTo(loaded.Graph, Camera, out var problem) is not { } given)
+                {
+                    problems.Add($"{name}: {problem}");
+                    continue;
+                }
+
+                if (given.Count > 0)
+                {
+                    GraphSerializer.Save(loaded.Graph, path);
+                    written.Add(name);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
+            {
+                problems.Add($"{name}: {ex.Message}");
+            }
+        }
+
+        Recipe = RecipeSetup(_project, Camera, out var station);
+        RecipeStation = station;
+        OnPropertyChanged(string.Empty);
+
+        Note = written.Count == 0
+            ? "The recipe has these settings already."
+            : $"Given to {string.Join(", ", written)}.";
+
+        Problem = problems.Count == 0 ? null : string.Join("; ", problems) + ".";
+        return problems.Count == 0;
+    }
 
     /// <summary>"Used by Top, Bottom", or that no station uses it yet.</summary>
     public string UsedByText

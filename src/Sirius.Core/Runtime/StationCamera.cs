@@ -97,6 +97,85 @@ public static class StationCamera
         return null;
     }
 
+    /// <summary>The settings a Camera node has, by parameter name.</summary>
+    public static readonly IReadOnlyList<string> Settings = ["Device", "Exposure", "Gain", "Trigger", "Timeout"];
+
+    /// <summary>A Camera node's setting, as the recipe had it and as the station's camera put it.</summary>
+    public sealed record CameraChange(string Parameter, object? Recipe, object? Line);
+
+    /// <summary>
+    /// <see cref="Apply"/>, saying what it changed: for Studio, opened from
+    /// a station (Open in Studio), to grab with the line's camera and still
+    /// save the recipe's own values.
+    /// </summary>
+    /// <param name="node">The Camera node it went into, or null.</param>
+    /// <param name="problem">Why it could not be, or null.</param>
+    public static IReadOnlyList<CameraChange> Carry(VisionGraph recipe, CameraUnit camera, out VisionNode? node, out string? problem)
+    {
+        ArgumentNullException.ThrowIfNull(camera);
+
+        var found = NodeFor(recipe, camera, out problem);
+        node = found;
+
+        if (found is null)
+            return [];
+
+        var before = Settings.Select(name => GetParameter(found, name)).ToArray();
+
+        if (Apply(recipe, camera) is { } refused)
+        {
+            problem = refused;
+            node = null;
+            return [];
+        }
+
+        var carried = found;
+
+        return Settings
+            .Select((name, i) => new CameraChange(name, before[i], GetParameter(carried, name)))
+            .Where(change => !Equals(change.Recipe, change.Line))
+            .ToArray();
+    }
+
+    /// <summary>
+    /// The camera and settings in the Camera node <paramref name="camera"/>
+    /// goes into - Take from Recipe. Null when there is none to take from.
+    /// </summary>
+    public static CameraSetup? From(VisionGraph recipe, CameraUnit camera) =>
+        NodeFor(recipe, camera, out _) is { } node ? SetupOf(node) : null;
+
+    /// <summary>
+    /// The camera's settings it does not leave to the recipe, written into
+    /// the recipe's Camera node - Give to Recipe. The camera itself is left:
+    /// at the desk it may be another.
+    /// </summary>
+    /// <returns>The settings written, by parameter name; null with <paramref name="problem"/> when none could be.</returns>
+    public static IReadOnlyList<string>? GiveTo(VisionGraph recipe, CameraUnit camera, out string? problem)
+    {
+        ArgumentNullException.ThrowIfNull(camera);
+
+        if (NodeFor(recipe, camera, out problem) is not { } node)
+            return null;
+
+        var setup = camera.Setup;
+        var given = new List<string>();
+
+        void Give(string name, object? value)
+        {
+            if (value is not null && !Equals(GetParameter(node, name)?.ToString(), Converted(node, name, value)?.ToString()))
+            {
+                SetParameter(node, name, value);
+                given.Add(name);
+            }
+        }
+
+        Give("Exposure", setup.Exposure);
+        Give("Gain", setup.Gain);
+        Give("Trigger", setup.Trigger);
+        Give("Timeout", setup.Timeout);
+        return given;
+    }
+
     /// <summary>
     /// The camera and settings <paramref name="recipe"/>'s Camera node holds:
     /// what a project camera made from it starts with, or takes from it.
@@ -109,8 +188,11 @@ public static class StationCamera
         if (nodes.Count != 1)
             return null;
 
-        var node = nodes[0];
+        return SetupOf(nodes[0]);
+    }
 
+    private static CameraSetup SetupOf(VisionNode node)
+    {
         return new CameraSetup(
             Get(node, "Device") as string ?? string.Empty,
             Get(node, "Exposure") is { } exposure ? Convert.ToDouble(exposure, System.Globalization.CultureInfo.InvariantCulture) : null,
@@ -119,20 +201,37 @@ public static class StationCamera
             Get(node, "Timeout") is { } timeout ? Convert.ToInt32(timeout, System.Globalization.CultureInfo.InvariantCulture) : null);
     }
 
-    private static object? Get(VisionNode node, string name) =>
-        node.Descriptor.Parameters.FirstOrDefault(parameter => parameter.Name == name)?.GetValue(node);
+    private static object? Get(VisionNode node, string name) => GetParameter(node, name);
 
-    private static void Set(VisionNode node, string name, object value)
+    private static void Set(VisionNode node, string name, object value) => SetParameter(node, name, value);
+
+    /// <summary>A node's parameter by name; null when it has none of that name.</summary>
+    public static object? GetParameter(VisionNode node, string name)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        return node.Descriptor.Parameters.FirstOrDefault(parameter => parameter.Name == name)?.GetValue(node);
+    }
+
+    /// <summary>Sets a node's parameter by name, converted to its type; nothing when it has none of that name.</summary>
+    public static void SetParameter(VisionNode node, string name, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        if (value is null || node.Descriptor.Parameters.FirstOrDefault(parameter => parameter.Name == name) is not { } parameter)
+            return;
+
+        parameter.SetValue(node, Converted(node, name, value));
+    }
+
+    private static object? Converted(VisionNode node, string name, object value)
     {
         if (node.Descriptor.Parameters.FirstOrDefault(parameter => parameter.Name == name) is not { } parameter)
-            return;
+            return value;
 
         var type = Nullable.GetUnderlyingType(parameter.ValueType) ?? parameter.ValueType;
 
-        var converted = type.IsEnum
+        return type.IsEnum
             ? Enum.Parse(type, value.ToString()!, ignoreCase: true)
             : Convert.ChangeType(value, type, System.Globalization.CultureInfo.InvariantCulture);
-
-        parameter.SetValue(node, converted);
     }
 }

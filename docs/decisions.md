@@ -3667,3 +3667,28 @@ class folders, done this way instead.
   second is left. A move is always confirmed; a copy only when there is
   something to ask. Done on a worker, its progress on the toolbar; the
   list is read again after a move.
+
+## 90. Studio and the line agreeing on a camera (F29, second slice)
+
+Designed in `runtime-design.md` section 15.3; built 23 November 2026.
+
+- **Open in Studio carries the station's camera.** For a station with a
+  camera of its own, Builder starts Studio with `--project` and
+  `--station` after the recipe. Studio puts the camera and each setting
+  it does not leave to the recipe into the Camera node as the recipe is
+  loaded - as Test Run and Edge do - before it is in the editor, so it
+  is neither an undo step nor a change to save, and says so on the
+  status line. A station without one opens the recipe as before.
+- **Saving keeps the recipe's own.** What is written is a copy with the
+  carried settings put back to the recipe's values - except a setting
+  changed in Studio since, which is the engineer's tuning and saved as
+  the recipe's. Opening any other recipe forgets the station's camera.
+- **Take from Recipe** (camera window): the recipe's Camera node's
+  exposure, gain, trigger and timeout become the camera's own - what was
+  tuned in Studio, now the line's. The camera chosen stays; the recipe's
+  only when none is.
+- **Give to Recipe…** (camera window): the camera's own settings - not
+  those left As the recipe - written into the Camera node of each recipe
+  its stations run, after asking, naming the files. The camera itself is
+  not given: at the desk it may be another. A recipe that loads with
+  warnings is left, so saving it cannot lose what the warnings dropped.

@@ -174,10 +174,10 @@ public partial class MainWindow : Window
         // A recipe named on the command line - Sirius Builder's Open in
         // Studio, or a file dropped on the program - opens in place of the
         // starting one.
-        if (Environment.GetCommandLineArgs().Skip(1).FirstOrDefault(arg => !arg.StartsWith("--", StringComparison.Ordinal)) is { } recipe &&
+        if (StartArguments.Parse(Environment.GetCommandLineArgs().Skip(1)) is { Recipe: { } recipe } start &&
             DataContext is MainViewModel model)
         {
-            model.OpenAtStart(recipe);
+            model.OpenAtStart(recipe, start.Project, start.Station);
         }
     }
 
