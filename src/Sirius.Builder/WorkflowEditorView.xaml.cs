@@ -91,7 +91,7 @@ public partial class WorkflowEditorView : UserControl
     /// <summary>The node whose caption <paramref name="source"/> is in; null when it is not in one.</summary>
     internal static NodeViewModel? CaptionOf(DependencyObject source)
     {
-        for (var current = source; current is not null; current = Parent(current))
+        for (var current = source; current is not null; current = ParentOf(current))
         {
             if (current is FrameworkElement { Tag: "NodeTitle", DataContext: NodeViewModel node })
                 return node;
@@ -104,7 +104,7 @@ public partial class WorkflowEditorView : UserControl
     }
 
     /// <summary>Up through text runs as well as the visual tree.</summary>
-    private static DependencyObject? Parent(DependencyObject child) =>
+    private static DependencyObject? ParentOf(DependencyObject child) =>
         child is Visual ? VisualTreeHelper.GetParent(child) : LogicalTreeHelper.GetParent(child);
 
     private void OnNameEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
