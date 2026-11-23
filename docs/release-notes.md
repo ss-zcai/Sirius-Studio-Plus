@@ -5,6 +5,98 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.14 — 23 November 2026
+
+The line, made ready for a machine: **the part** a PLC hands over, counted
+and answered on time; **user levels** with PINs; **cameras set up in
+Builder**; a lost PLC as an alarm; and saved pictures kept in check -
+TIF, housekeeping, and Sirius IV to sort and export them. Studio, Edge and
+sirius-run **1.0.14**, Builder **1.0.4**, Sirius IV **1.0.3**. The custom
+node SDK stays **1.0.4**. Recipes and projects saved in 1.0.13 open
+unchanged; read the Sirius IV 1.0.2 entry below too if you skipped it.
+
+### What to try first
+
+> In Builder, Run ▸ Users: add an Engineer with a PIN; then Test Run, and
+> press a button set to need a Technician
+
+The login popup asks who you are - a list of those who may - and a PIN on
+a keypad sized for touch. Back to Operator after 5 minutes idle.
+
+> In a Test Run, with the simulated PLC's window beside it, flip the
+> trigger bit - and watch the workflow's tab in Builder behind it
+
+The node running is outlined in blue; each node's dot says how it went
+in the latest pass, why on hovering. A Counter chosen as the
+controller's parts counts PASS, FAIL, LATE and NOT INSPECTED, kept over a
+restart. Then press Unplug in the PLC window: a red alarm crosses the
+screen until it is plugged in again.
+
+> Builder ▸ Camera ▸ Add Camera; double-click it
+
+Find, Use, exposure and gain, Grab and Live, Save Image - the camera set
+up without opening the recipe. **Take from Recipe** and **Give to
+Recipe** keep the recipe's Camera node and the line agreeing, and **Open
+in Studio** on its station grabs from that camera with the line's
+settings.
+
+### New
+
+- **The part** (F25, decision 83): a controller's pass that inspects is
+  a part - numbered, its ID from the PLC's Part ID, PASS, FAIL, LATE or
+  NOT INSPECTED - with part counts kept over a restart. A station's
+  deadline answers the PLC on time. Each station's processing time,
+  average and worst. A **Handshake** node writes Ready, Busy and an error
+  code.
+- **User levels** (decision 84): Operator, Technician, Engineer; users
+  with PINs in the project; a Needs level on each button, setting and
+  screen; who changed a setting kept with it.
+- **Cameras in the project** (F29, decisions 80 and 90): set up in
+  Builder and named by stations; Studio opened from a station grabs with
+  its camera, saving the recipe's own settings. A camera held by another
+  program says so; one on a busy network rides out a lost frame.
+- **A controller on the line** (F23c, decision 91): a **Controller**
+  widget - connected or not, the last event, the last error; a lost PLC
+  as a red alarm across the screen; **PLC…** in Edge's status bar opens
+  the PLC window, for an Engineer.
+- **The workflow editor** (F23f): a node renamed by double-clicking its
+  caption; each node lit as a Test Run goes through it; Zoom In, Zoom
+  Out and Fit; a **?** in Properties opens each node's help, as Studio's
+  does.
+- **A rectangle in every viewer** (F31, F32, decision 81): L × W and its
+  angle; its crops saved upright, in the picture's own format and bits.
+- **Find Rectangle** (F30, decision 82): a board's outline or a chip's
+  body, by calipers across the four sides.
+- **Saved pictures** (F20): **TIF** by default, lossless at 10, 12 and
+  16 bits; **housekeeping** - a most size and free space left beside the
+  days kept, passed pictures going first, and a sample (1% keeps 1 in
+  100) moved to a Kept folder for records; **Run Folder** and sirius-run
+  write a `.sann` beside each picture.
+- **Sirius IV 1.0.3**: an **Annotations** panel with layers on and off
+  and CSV export (Ctrl+E); pictures exported with their annotations drawn
+  (Ctrl+Shift+E); **To Folder** - copy or move the pictures chosen, each
+  with its `.sann`; ROIs from All cutting each picture's own rectangles;
+  12-bit pictures without a `.sann` shown as 12 bits.
+
+### Changes
+
+- Gather's outputs are **Gathered** over **Part**, as Inspect takes
+  Trigger over Part, so the wires between them run straight. Saved
+  workflows keep their wires.
+- Builder's PLC window is shared with Edge; nothing about it changed in
+  Builder.
+- The empty `Sirius.NodeEditor` project is gone (N5).
+
+### Known issues
+
+- Every PLC is still the simulated one: the S7 and Modbus drivers (F23d)
+  wait on the HslCommunication download and a bench PLC.
+- Basler and Hikrobot are tested on emulated and virtual cameras only.
+- A Test Run lights the workflow as saved: a node added since, unsaved,
+  stays dark.
+
+---
+
 ## Sirius IV 1.0.2 — 21 November 2026 (a package of its own)
 
 Sirius IV alone, for testing the image viewer:

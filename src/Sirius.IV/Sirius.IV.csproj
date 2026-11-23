@@ -20,7 +20,7 @@
 
     <!-- Versioned on its own, as Builder is. -->
     <Product>Sirius IV</Product>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
 
     <!-- Studio is an executable too; all are published self-contained, together. -->
     <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>

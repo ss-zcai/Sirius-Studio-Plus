@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands. **1.0.13** is the latest package (18 November
+Where the product stands. **1.0.14** is the latest package (23 November
 2026). What could come next, in a proposed
 order, is in **`backlog.md`** - this page is what is done, and the one
 thing that blocks shipping.
@@ -25,19 +25,20 @@ same time: backlog items L1-L6, all set out in `licences.md`.
 
 ---
 
-## New in 1.0.13
+## New in 1.0.14
 
-- **Several screens**: pages and popups beside the start screen, opened
-  by buttons - Open Screen, and Close or Back. A popup opens over the
-  dimmed page, which goes on running. In Builder each is listed in the
-  Project panel and designed in a tab of its own. Decision 79.
-- **The package's README** is `overview.md`: what each program is for.
-- **Icons**: Lens Calibration, Offset Shapes, and BMP and TIF files in
-  Sirius IV (N3 closed).
-- **A station renamed** is followed by its workflows, as by its screens.
+Studio, Edge and sirius-run 1.0.14, Builder 1.0.4, Sirius IV 1.0.3 (23
+November 2026).
 
-## Since 1.0.13, not yet packed
-
+- **A controller on the line** (F23c, decision 91): a Controller widget;
+  a lost PLC as a red alarm across the running screen; the PLC window in
+  Edge, for an Engineer.
+- **Studio and the line agreeing on a camera** (F29, decision 90): Open
+  in Studio grabbing from the station's camera with the line's settings;
+  Take from Recipe and Give to Recipe.
+- **The workflow editor** (F23f): rename on the canvas, each node lit as
+  a Test Run goes through it, zoom to fit, a node's help from Properties.
+- **Gather** gives Gathered over Part.
 - **Cameras in the project** (F29, decision 80): a camera set up in
   Builder - found, chosen, its exposure, gain and trigger, a live view,
   sample pictures saved - and named by stations, so it is changed
@@ -105,10 +106,16 @@ same time: backlog items L1-L6, all set out in `licences.md`.
   Builder's Live goes on past one. A camera just let go of by another
   program is tried again for three seconds before it is said to be in use.
 
-1.0.12 (16 November) brought a file saved over running its node again
-(decision 78), saved pictures and Sirius IV, and controllers.
+1.0.13 (18 November) brought several screens - pages and popups
+(decision 79). 1.0.12 (16 November) brought a file saved over running its
+node again (decision 78), saved pictures and Sirius IV, and controllers.
+
+## Since 1.0.14, not yet packed
+
+Nothing yet.
 
 ---
+
 
 ## Done
 
