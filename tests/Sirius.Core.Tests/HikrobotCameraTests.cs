@@ -185,7 +185,15 @@ public class HikrobotCameraTests
             first.Start();
             second.Start();
 
+            // Opening waits its turn behind any other search for cameras
+            // (CameraDrivers' SDK gate), slow on a busy machine; the 30 s
+            // for 20 frames starts once both cameras are grabbing (N8).
             var clock = Stopwatch.StartNew();
+
+            while ((first.Counts.Total < 1 || second.Counts.Total < 1) && clock.Elapsed < TimeSpan.FromMinutes(3))
+                Thread.Sleep(20);
+
+            clock.Restart();
 
             while ((first.Counts.Total < 20 || second.Counts.Total < 20) && clock.Elapsed < TimeSpan.FromSeconds(30))
                 Thread.Sleep(20);

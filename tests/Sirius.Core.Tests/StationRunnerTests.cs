@@ -361,7 +361,13 @@ public sealed class StationRunnerTests : IDisposable
         left.Start();
         right.Start();
 
-        Wait(() => left.Counts.Total >= 10 && right.Counts.Total >= 10, TimeSpan.FromSeconds(20));
+        // Opening waits its turn behind any search for real cameras another
+        // test is making (CameraDrivers' SDK gate) - once 87 s on a busy
+        // machine. So the clock for the grabbing itself starts once both
+        // are grabbing (N8).
+        Wait(() => left.Counts.Total >= 1 && right.Counts.Total >= 1, TimeSpan.FromMinutes(3));
+        var from = (Left: left.Counts.Total, Right: right.Counts.Total);
+        Wait(() => left.Counts.Total >= from.Left + 10 && right.Counts.Total >= from.Right + 10, TimeSpan.FromSeconds(20));
 
         Task.WhenAll(left.StopAsync(), right.StopAsync()).GetAwaiter().GetResult();
 

@@ -105,7 +105,15 @@ is in `licences.md`**; this is the list.
   rectangle, `SettingEditor.Rect`), and it costs nothing; taking it out
   would touch saving, references and two dozen tests for no gain. A node
   of ours may use it again; `UprightRegionNode` keeps it tested.
-- **N8. Tests that fail now and then** (S each), passing when run again:
+- ~~**N8. Tests that fail now and then**~~ - done 23 November 2026, as
+  far as can be. The two camera tests timed opening as well as grabbing,
+  and a camera opens only in its turn behind any other test's search for
+  real cameras (`CameraDrivers`' SDK gate, once 87 s): their clocks now
+  start once both stations are grabbing, with three minutes to get there.
+  The styler test did not fail again in twelve runs of its class and ten
+  days of full runs; it now says what the nodes and the undo stack held,
+  if it does. As found:
+  Tests that fail now and then, passing when run again:
   `HikrobotCameraTests.Two_stations_run_two_hikrobot_cameras_at_once`
   times out on a busy machine; `EditHistoryTests.The_styler_colours_the_whole_selection_in_one_step`
   failed once in a full run, 13 November;

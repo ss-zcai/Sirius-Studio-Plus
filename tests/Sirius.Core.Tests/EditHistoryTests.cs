@@ -395,11 +395,18 @@ public class EditHistoryTests
 
             model.SetAccentCommand.Execute(NodeAccent.Red);
 
-            Assert.All(model.Editor.Nodes, node => Assert.Equal(NodeAccent.Red, node.Accent));
+            // Failed once in a full run (13 November) and never since, in
+            // many runs (N8): if it does again, say what the nodes and the
+            // undo stack held, so the cause can be found.
+            string State() =>
+                string.Join(", ", model.Editor.Nodes.Select(node => $"{node.Title}: {node.Accent}, selected {node.IsSelected}")) +
+                $"; {model.UndoText}; status '{model.StatusText}'";
+
+            Assert.True(model.Editor.Nodes.All(node => node.Accent == NodeAccent.Red), "coloured: " + State());
 
             model.UndoCommand.Execute(null);
 
-            Assert.All(model.Editor.Nodes, node => Assert.Equal(NodeAccent.Default, node.Accent));
+            Assert.True(model.Editor.Nodes.All(node => node.Accent == NodeAccent.Default), "undone: " + State());
         });
     }
 
