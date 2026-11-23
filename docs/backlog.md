@@ -43,6 +43,8 @@ solid on a real machine, before several pictures or speed:
    them (F23c, F29).
 7. **F26**, then **F27** and **F28**, when a line asks for them - sized
    by the answers to `runtime-design.md` sections 14.6 and 15.6.
+8. **F33**, result codes beyond PASS/FAIL (REVIEW re-inspected once,
+   then FAIL) - designed 23 November, when a line needs it.
 
 Each item has an ID to refer to it by, a rough size, and where it came
 from when that matters. The order is a proposal: change it, strike things
@@ -288,6 +290,35 @@ part, how the PLC tracks parts - size F26-F28.
   in step with a mismatch raised as an alarm; on top of F27's pipelining.
   Until then, the PLC Monitor's Poll Interval (20 ms by default) is the
   knob for timing.
+- **F33. Result codes beyond PASS/FAIL** (M) - agreed 23 November 2026;
+  how the earlier software worked. Most lines stay PASS/FAIL; some need
+  more, such as PASS, FAIL, REVIEW and OTHER. Recipes already grade
+  (`Grade`, the Grade and Worst Grade nodes), and the worst grade is
+  already saved in the `.sann` and shown in IV, the CSV and the verdict
+  widget. The line side is still yes/no: Inspect, `PartVerdict`, counts,
+  file names, saving policy, housekeeping and IV's filter. To build:
+  - **A result list per station** in Builder: name, passes or not,
+    colour, and **PLC code**, e.g. PASS ✓ 1, FAIL ✗ 2, REVIEW 3, OTHER ✗
+    4. The recipe's grades are matched to it by name. No list is PASS/FAIL
+    as today, so existing projects are unchanged; `Passed` stays the
+    "accepted?" answer everywhere.
+  - **Inspect** gains a **Code** output, and its Verdict gives the
+    result's name, so one PLC Write sends 1/2/3/4. Maybe a trigger per
+    result too, grown from the list as Gather grows its inputs.
+  - **REVIEW is neither pass nor fail at first.** The machine takes the
+    part back to the station and inspects it again. A pass the second time
+    is a pass; REVIEW again is a **FAIL**, or it would loop. The
+    controller workflow does this by the part's ID, so the result sent
+    the second time is the final one. The part is **counted once**, at its
+    final result, with re-inspections counted on their own.
+  - **Counts per result** in Edge, with yield from the final results.
+  - **Pictures** named by the result (`_REVIEW`); Image Saving picks
+    which results to keep. Housekeeping deletes passing results first,
+    then the others. IV filters by result.
+  - **Deciding REVIEW in a recipe**: a measurement in a borderline band
+    is already the Grade node's job. Classifications, such as small
+    defect blobs found, need a small node that gives a grade from rules
+    or a class name, e.g. any blob under N px² → REVIEW, larger → FAIL.
 
 ### Cameras
 
