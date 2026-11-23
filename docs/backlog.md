@@ -325,9 +325,9 @@ part, how the PLC tracks parts - size F26-F28.
     yield wrong. A **timeout** (F25's Late: no answer before the
     deadline) is not that: it is a result of the list, **FAIL** or
     **REVIEW** as the line chooses, sent to the PLC with that result's
-    code. A rejected part today (decision 83), so FAIL by default. Not
-    inspected (a station busy or faulted) the same, until a line asks
-    otherwise.
+    code. A rejected part today (decision 83), so FAIL by default. **Not
+    inspected** (a station busy or faulted) the same: FAIL or REVIEW,
+    each chosen on its own.
   - **Counts per result** in Edge, and the yield.
   - **Pictures** named by the result (`_REVIEW`); Image Saving picks
     which results to keep. Housekeeping deletes passing results first,
