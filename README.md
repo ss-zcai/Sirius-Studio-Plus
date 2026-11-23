@@ -40,7 +40,6 @@ the drivers build empty and the programs list no such cameras.
 | `src/Sirius.Edge` | **Edge** (`SiriusEdge.exe`): runs a project. |
 | `src/Sirius.IV` | **Sirius IV** (`SiriusIV.exe`): saved pictures. Versioned on its own. |
 | `src/Sirius.Runner` | **sirius-run** (`sirius-run.exe`): recipes over folders, from a script. |
-| `src/Sirius.NodeEditor` | Empty; to be deleted (backlog N5). |
 | `tests/Sirius.Core.Tests` | The tests - all of them, the programs' windows included, built but not shown. |
 | `tests/TestPlcDriver` | The smallest PLC driver library, loaded by the tests from a folder. |
 | `samples/SampleNodes`, `PythonNodes`, `CppNodes` | Custom node samples, shipped in the package and the SDK. |

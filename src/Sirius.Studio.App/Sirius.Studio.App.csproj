@@ -15,6 +15,8 @@
   <ItemGroup>
     <PackageReference Include="Dirkster.AvalonDock" />
     <PackageReference Include="Dirkster.AvalonDock.Themes.VS2013" />
+    <!-- The node editor; it came in through the empty Sirius.NodeEditor until that went (N5). -->
+    <PackageReference Include="Nodify" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,7 +41,6 @@
     <!-- Loaded by name at start-up rather than called, so a PC without pylon or MVS still runs. -->
     <ProjectReference Include="..\Sirius.Cameras.Basler\Sirius.Cameras.Basler.csproj" />
     <ProjectReference Include="..\Sirius.Cameras.Hikrobot\Sirius.Cameras.Hikrobot.csproj" />
-    <ProjectReference Include="..\Sirius.NodeEditor\Sirius.NodeEditor.csproj" />
   </ItemGroup>
 
   <ItemGroup>

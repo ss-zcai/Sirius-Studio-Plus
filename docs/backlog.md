@@ -99,11 +99,12 @@ is in `licences.md`**; this is the list.
 - ~~**N4. A `.gitattributes`**~~ - done, 18 November 2026: text stored
   with LF, checked out with each machine's endings; nothing stored had to
   change.
-- **N5. Tidy-ups** (S each):
-  - delete `src/Sirius.NodeEditor`, an empty project (one `Class1.cs`);
-  - decide about the upright `Rectangle` region editor: no built-in
-    node uses it since Crop went (decision 61). Delete it, or keep it for
-    custom nodes and say so in the SDK.
+- ~~**N5. Tidy-ups**~~ - done 23 November 2026: `src/Sirius.NodeEditor`,
+  an empty project, deleted. The upright `Rectangle` region editor is
+  kept: custom nodes cannot reach it (the SDK offers the turned
+  rectangle, `SettingEditor.Rect`), and it costs nothing; taking it out
+  would touch saving, references and two dozen tests for no gain. A node
+  of ours may use it again; `UprightRegionNode` keeps it tested.
 - **N8. Tests that fail now and then** (S each), passing when run again:
   `HikrobotCameraTests.Two_stations_run_two_hikrobot_cameras_at_once`
   times out on a busy machine; `EditHistoryTests.The_styler_colours_the_whole_selection_in_one_step`
