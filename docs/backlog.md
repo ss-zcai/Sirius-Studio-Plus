@@ -322,9 +322,12 @@ part, how the PLC tracks parts - size F26-F28.
   - **Yield from what counts**: passes out of passes plus fails. **No
     product** - a pick-up problem on the machine, or vision not seeing a
     part - is a result that is **Not counted**, so it does not make the
-    yield wrong. The same choice for the misses F25 counts today as
-    rejects (**Late**, **Not inspected**), which every part's yield
-    includes now (decision 83).
+    yield wrong. A **timeout** (F25's Late: no answer before the
+    deadline) is not that: it is a result of the list, **FAIL** or
+    **REVIEW** as the line chooses, sent to the PLC with that result's
+    code. A rejected part today (decision 83), so FAIL by default. Not
+    inspected (a station busy or faulted) the same, until a line asks
+    otherwise.
   - **Counts per result** in Edge, and the yield.
   - **Pictures** named by the result (`_REVIEW`); Image Saving picks
     which results to keep. Housekeeping deletes passing results first,
