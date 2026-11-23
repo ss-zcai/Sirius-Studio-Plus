@@ -324,6 +324,81 @@ public sealed class CounterWidgetViewModel(Widget widget) : WidgetViewModel(widg
     }
 }
 
+/// <summary>How a controller's PLC is, for the Controller widget's colour.</summary>
+public enum ControllerLook
+{
+    Stopped,
+    Connected,
+    NotConnected,
+}
+
+/// <summary>A controller's PLC on the screen: connected or not, what last started a pass, what last went wrong (F23c).</summary>
+public sealed class ControllerWidgetViewModel(Widget widget) : WidgetViewModel(widget)
+{
+    private ControllerLook _look;
+    private string _state = "Not running";
+    private string _detail = string.Empty;
+    private string? _error;
+
+    /// <summary>The controller it shows.</summary>
+    public string? Controller => string.IsNullOrWhiteSpace(Widget.Controller) ? null : Widget.Controller;
+
+    public string Name => Controller ?? "No controller";
+
+    public ControllerLook Look
+    {
+        get => _look;
+        private set => SetProperty(ref _look, value);
+    }
+
+    /// <summary>"Connected", "Not connected", "Not running".</summary>
+    public string State
+    {
+        get => _state;
+        private set => SetProperty(ref _state, value);
+    }
+
+    /// <summary>What last started a pass, and how many passes: "Trigger: rising edge on M0.0 · 12 passes".</summary>
+    public string Detail
+    {
+        get => _detail;
+        private set => SetProperty(ref _detail, value);
+    }
+
+    /// <summary>What last went wrong, or null.</summary>
+    public string? Error
+    {
+        get => _error;
+        private set
+        {
+            if (SetProperty(ref _error, value))
+                OnPropertyChanged(nameof(HasError));
+        }
+    }
+
+    public bool HasError => _error is not null;
+
+    /// <summary>The controller as it is now; null when it is not running here.</summary>
+    internal void Show(Sirius.Plc.Workflows.WorkflowRunner? runner)
+    {
+        if (runner is null || runner.State != Sirius.Plc.Workflows.ControllerState.Running)
+        {
+            Look = ControllerLook.Stopped;
+            State = "Not running";
+            Detail = string.Empty;
+            Error = null;
+            return;
+        }
+
+        Look = runner.IsConnected ? ControllerLook.Connected : ControllerLook.NotConnected;
+        State = runner.IsConnected ? "Connected" : "Not connected";
+
+        var passes = runner.Passes == 1 ? "1 pass" : $"{runner.Passes.ToString(CultureInfo.CurrentCulture)} passes";
+        Detail = runner.LastEvent is { } last ? $"{last} · {passes}" : passes;
+        Error = runner.LastError;
+    }
+}
+
 /// <summary>One published result.</summary>
 public sealed class ValueWidgetViewModel(Widget widget) : WidgetViewModel(widget)
 {

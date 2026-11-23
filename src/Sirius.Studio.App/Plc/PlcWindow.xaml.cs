@@ -4,7 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Sirius.Studio.App;
 
-namespace Sirius.Builder;
+namespace Sirius.Studio.App.Plc;
 
 /// <summary>A controller's PLC: try the connection, read and write, and drive a simulated PLC by hand.</summary>
 public partial class PlcWindow : Window

@@ -166,6 +166,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         new(WidgetKind.Button, "Button", "Trigger, Run / Stop or Reset Counts - for one station or all.", "ph_pointer"),
         new(WidgetKind.Text, "Text", "Fixed text: a title, a label, an instruction.", "ph_text"),
         new(WidgetKind.Logo, "Logo", "A picture from the project folder: the customer's or yours.", "ph_trademark"),
+        new(WidgetKind.Controller, "Controller", "A controller's PLC: connected or not, what last started a pass, what last went wrong.", "ph_controller"),
     ];
 
     // ---- the property grid ------------------------------------------------
@@ -256,6 +257,10 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
     public const string ControllerPrefix = "controller:";
 
     /// <summary>A counter's: each station's pictures, then each controller's parts (F25).</summary>
+    /// <summary>The project's controllers, for a Controller widget.</summary>
+    public IReadOnlyList<StationOption> ControllerOptions =>
+        Recipes.ControllerNames.Select(name => new StationOption(name, ControllerPrefix + name)).ToArray();
+
     public IReadOnlyList<StationOption> CounterOptions =>
     [
         .. StationOptions,
@@ -741,6 +746,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
         OnPropertyChanged(nameof(StationOptions));
         OnPropertyChanged(nameof(ButtonStationOptions));
         OnPropertyChanged(nameof(CounterOptions));
+        OnPropertyChanged(nameof(ControllerOptions));
         OnPropertyChanged(nameof(ScreenOptions));
 
         foreach (var widget in Widgets)

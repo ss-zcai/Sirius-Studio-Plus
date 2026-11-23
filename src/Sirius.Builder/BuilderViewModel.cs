@@ -15,6 +15,7 @@ using Sirius.Plc;
 using Sirius.Plc.Workflows;
 using Sirius.Studio.App;
 using Sirius.Studio.App.Hosting;
+using Sirius.Studio.App.Plc;
 using Sirius.Studio.App.Screens;
 
 namespace Sirius.Builder;

@@ -12,6 +12,7 @@ using Sirius.Plc.Nodes;
 using Sirius.Plc.Workflows;
 using Sirius.Studio.App.Screens;
 using Sirius.Vision.Nodes;
+using Sirius.Studio.App.Plc;
 using Xunit;
 
 namespace Sirius.Core.Tests;

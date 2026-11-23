@@ -315,6 +315,7 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
         WidgetKind.Counter => new CounterWidgetViewModel(widget),
         WidgetKind.Button => new ButtonWidgetViewModel(widget, _runtime, this, page.Kind),
         WidgetKind.Logo => new LogoWidgetViewModel(widget, projectFolder),
+        WidgetKind.Controller => new ControllerWidgetViewModel(widget),
         _ => new TextWidgetViewModel(widget),
     };
 
@@ -516,15 +517,25 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
     {
         _controllers = controllers ?? throw new ArgumentNullException(nameof(controllers));
 
-        var missing = _all
+        var counted = _all
             .Select(entry => entry.Widget)
             .OfType<CounterWidgetViewModel>()
             .Select(counter => counter.Controller)
             .OfType<string>()
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Where(name => Controller(name) is null)
-            .Select(name => $"Counter: there is no controller '{name}' running.")
-            .ToArray();
+            .Select(name => $"Counter: there is no controller '{name}' running.");
+
+        var shown = _all
+            .Select(entry => entry.Widget)
+            .OfType<ControllerWidgetViewModel>()
+            .Select(widget => widget.Controller)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(name => Controller(name) is null)
+            .Select(name => $"Controller widget: there is no controller '{name}' running.");
+
+        var missing = counted.Concat(shown).ToArray();
 
         if (missing.Length > 0)
         {
@@ -536,7 +547,7 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
         ShowControllers();
     }
 
-    /// <summary>Brings each counter of a controller's parts up to date - every half second while running.</summary>
+    /// <summary>Brings each counter of a controller's parts, and each Controller widget, up to date - every half second while running.</summary>
     public void ShowControllers()
     {
         foreach (var counter in _all.Select(entry => entry.Widget).OfType<CounterWidgetViewModel>())
@@ -544,6 +555,9 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
             if (counter.Controller is { } name && Controller(name) is { } runner)
                 counter.PartsChanged(runner.PartCounts, runner.LastPart);
         }
+
+        foreach (var widget in _all.Select(entry => entry.Widget).OfType<ControllerWidgetViewModel>())
+            widget.Show(widget.Controller is { } name ? Controller(name) : null);
     }
 
     /// <summary>Starts every controller's part counts again - Reset Counts for every station.</summary>

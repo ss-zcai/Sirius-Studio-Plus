@@ -292,6 +292,14 @@ public static class ScreenLayout
             if (widget.Kind == WidgetKind.Counter && !string.IsNullOrWhiteSpace(widget.Controller))
                 continue;
 
+            if (widget.Kind == WidgetKind.Controller)
+            {
+                if (string.IsNullOrWhiteSpace(widget.Controller))
+                    problems.Add($"{label}: no controller is named.");
+
+                continue;
+            }
+
             if (widget.Station is null)
             {
                 if (NeedsStation(widget.Kind))
@@ -355,6 +363,7 @@ public static class ScreenLayout
             WidgetKind.Counter => (300.0, 60.0, 14.0),
             WidgetKind.Button => (140.0, 36.0, 16.0),
             WidgetKind.Logo => (160.0, 60.0, 16.0),
+            WidgetKind.Controller => (320.0, 64.0, 15.0),
             WidgetKind.Text => (240.0, 36.0, 18.0),
             _ => (300.0, 30.0, 15.0),
         };

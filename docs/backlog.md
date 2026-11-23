@@ -154,15 +154,12 @@ from you before they start.
     a tab on Studio's canvas; the PLC window - Test Connection, read and
     write any type, the simulator's memory by hand; one toolbar, tools
     panel and Properties for the tab in front.
-  - **F23c. Controllers on the line** (M) - **mostly done**: the runtime
-    window runs the controllers, so Builder's Test Run and Edge both do,
-    their state along the bottom. Left:
-    - a **Controller widget** for screens: connected or not, the last
-      event, the last error;
-    - a lost PLC as an **alarm** an operator cannot miss, not only a line
-      of text;
-    - in Edge, no way to look at the PLC: a PLC window for maintenance,
-      behind a user level.
+  - ~~**F23c. Controllers on the line**~~ - done 23 November 2026
+    (decision 91): the runtime window runs the controllers, so Builder's
+    Test Run and Edge both do, their state along the bottom; a
+    **Controller widget** for screens; a lost PLC as a red **alarm**
+    across the top; the **PLC window in Edge**, behind an engineer's
+    login.
   - **F23d. The first real drivers** (M each) - **next**: **Siemens S7**,
     then **Modbus TCP**, on HslCommunication (L5), as `plc-drivers.md` §4
     designs them. Needs from you: permission to download the

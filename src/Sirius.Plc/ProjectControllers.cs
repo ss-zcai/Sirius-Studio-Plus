@@ -84,6 +84,41 @@ public sealed class ProjectControllers : IAsyncDisposable
 
     public Task StopAllAsync() => Task.WhenAll(_runners.Select(runner => runner.StopAsync()));
 
+    /// <summary>How long a running controller's PLC may be away - connecting at the start, a blip - before it is an alarm.</summary>
+    public static readonly TimeSpan AlarmAfter = TimeSpan.FromSeconds(3);
+
+    private readonly Dictionary<WorkflowRunner, DateTime> _notConnectedSince = [];
+
+    /// <summary>
+    /// A running controller's PLC lost for longer than <see cref="AlarmAfter"/>,
+    /// in words for the screen's alarm - "PLC 1 is not connected: ... It
+    /// starts no inspections until it is back." Null while all are well.
+    /// </summary>
+    /// <remarks>Asked every half second by the runtime window; it remembers since when each has been away.</remarks>
+    public string? Alarm(DateTime now)
+    {
+        var lost = new List<string>();
+
+        foreach (var runner in _runners)
+        {
+            if (runner.State != ControllerState.Running || runner.IsConnected)
+            {
+                _notConnectedSince.Remove(runner);
+                continue;
+            }
+
+            if (!_notConnectedSince.TryGetValue(runner, out var since))
+                _notConnectedSince[runner] = since = now;
+
+            if (now - since >= AlarmAfter)
+                lost.Add(runner.LastError is { } error ? $"{runner.Name} is not connected: {error.TrimEnd('.')}." : $"{runner.Name} is not connected.");
+        }
+
+        return lost.Count == 0
+            ? null
+            : string.Join(" ", lost) + (lost.Count == 1 ? " It starts no inspections until it is back." : " They start no inspections until they are back.");
+    }
+
     /// <summary>"Line 1 PLC: connected, 3 passes" for each - a line for the screen.</summary>
     public string StatusText => string.Join("   ·   ", _runners.Select(runner =>
         $"{runner.Name}: {(runner.State != ControllerState.Running ? "stopped" : runner.IsConnected ? "connected" : "not connected")}, " +

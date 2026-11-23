@@ -3692,3 +3692,28 @@ Designed in `runtime-design.md` section 15.3; built 23 November 2026.
   its stations run, after asking, naming the files. The camera itself is
   not given: at the desk it may be another. A recipe that loads with
   warnings is left, so saving it cannot lose what the warnings dropped.
+
+## 91. A controller on the line: its widget, its alarm, its window (F23c)
+
+Built 23 November 2026, finishing F23c.
+
+- **A Controller widget** (Builder's Widgets ▸ Controller), naming one of
+  the project's controllers: its name, Connected / Not connected / Not
+  running with a lamp - green, red, grey - what last started a pass and
+  how many passes, and what last went wrong. Not connected, the widget
+  turns red. A widget naming a controller that is not running is said
+  along the bottom, as a counter's is.
+- **A lost PLC is an alarm**: a red banner across the top of the running
+  screen - "Line 1 PLC is not connected: ... It starts no inspections
+  until it is back." - over the page, under the login popup, until the
+  PLC is back. Only once it has been away three seconds
+  (`ProjectControllers.AlarmAfter`), so connecting at the start, or a
+  blip, raises none. Not dismissed by hand: the line is not being
+  inspected while it shows.
+- **The PLC window in Edge**: **PLC…** in the status bar, with
+  controllers in the project, asks for an **Engineer** - it writes to
+  the PLC - and opens each running controller's window: the connection
+  tried, any address read or written, the workflow's log. Its connection
+  cannot be changed while the line runs it. The window and its model
+  moved from Builder into the shared library (`Sirius.Studio.App.Plc`)
+  for this; Builder's Test Run opens the same.

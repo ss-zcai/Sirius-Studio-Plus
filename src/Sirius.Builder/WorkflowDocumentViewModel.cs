@@ -485,19 +485,7 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
     };
 
     /// <summary>A PLC type with the IEC 61131-3 name a PLC programmer knows.</summary>
-    public static string PlcTypeLabel(PlcType type) => type switch
-    {
-        PlcType.Bool => "Bool (bit)",
-        PlcType.Byte => "Byte",
-        PlcType.Int16 => "Int16 (INT)",
-        PlcType.UInt16 => "UInt16 (WORD)",
-        PlcType.Int32 => "Int32 (DINT)",
-        PlcType.UInt32 => "UInt32 (DWORD)",
-        PlcType.Real => "Real (32-bit)",
-        PlcType.LReal => "LReal (64-bit)",
-        PlcType.String => "String",
-        _ => type.ToString(),
-    };
+    public static string PlcTypeLabel(PlcType type) => Sirius.Studio.App.Plc.PlcViewModel.PlcTypeLabel(type);
 
     // ---- lit as a Test Run goes through it ---------------------------------------------
 

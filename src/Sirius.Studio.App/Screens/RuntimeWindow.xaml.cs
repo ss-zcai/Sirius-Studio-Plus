@@ -40,6 +40,7 @@ public partial class RuntimeWindow : Window
     private readonly System.Windows.Threading.DispatcherTimer _controllerClock;
     private readonly System.Windows.Threading.DispatcherTimer _idleClock;
     private readonly ScreenViewModel _screen;
+    private readonly Project _project;
     private bool _closing;
     private bool _closed;
 
@@ -49,6 +50,7 @@ public partial class RuntimeWindow : Window
         DarkTitleBar.Apply(this);
 
         _runtime = new ProjectRuntime(project);
+        _project = project;
 
         // The stations are driven from this window's thread; a workflow asks
         // from its own, and the bus brings each request here.
@@ -78,6 +80,7 @@ public partial class RuntimeWindow : Window
         _controllerClock = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _controllerClock.Tick += (_, _) => ShowControllers();
         Loaded += (_, _) => StartControllers();
+        PlcButton.Visibility = _controllers.Runners.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
 
         DataContext = _screen;
         Title = $"{project.Name} - Sirius Edge";
@@ -141,6 +144,11 @@ public partial class RuntimeWindow : Window
         ControllerStatus.Text = _controllers.Runners.Count == 0 ? string.Empty : _controllers.StatusText;
         ControllerStatus.ToolTip = ControllerStatus.Text;
 
+        // A PLC lost: across the top, until it is back.
+        var alarm = _controllers.Alarm(DateTime.UtcNow);
+        ControllerAlarmText.Text = alarm ?? string.Empty;
+        ControllerAlarm.Visibility = alarm is null ? Visibility.Collapsed : Visibility.Visible;
+
         // Counters of a controller's parts.
         _screen.ShowControllers();
     }
@@ -154,6 +162,52 @@ public partial class RuntimeWindow : Window
     internal static RuntimeWindow Unshown(Project project) => new(project, fullScreen: false);
 
     private void OnExitClick(object sender, RoutedEventArgs e) => Close();
+
+    /// <summary>The level needed to open the PLC window on the line: it writes to the PLC.</summary>
+    public const UserLevel PlcWindowNeeds = UserLevel.Engineer;
+
+    private readonly Dictionary<string, Window> _plcWindows = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The PLC window, for maintenance on the machine (F23c) - each running
+    /// controller's, behind an engineer's login. Its connection cannot be
+    /// changed while the line runs it.
+    /// </summary>
+    private async void OnPlcClick(object sender, RoutedEventArgs e) => await OpenPlcWindowsAsync().ConfigureAwait(true);
+
+    internal async Task<int> OpenPlcWindowsAsync()
+    {
+        if (!await _screen.EnsureAsync(PlcWindowNeeds, "the PLC window").ConfigureAwait(true))
+            return 0;
+
+        var opened = 0;
+
+        foreach (var runner in _controllers.Runners)
+        {
+            if (_plcWindows.TryGetValue(runner.Name, out var open) && open.IsLoaded)
+            {
+                open.Activate();
+                continue;
+            }
+
+            if (_project.FindController(runner.Name) is not { } controller)
+                continue;
+
+            var window = OpenPlcWindow(this, new Sirius.Studio.App.Plc.PlcViewModel(_project, controller, runner));
+
+            if (window is not null)
+            {
+                _plcWindows[runner.Name] = window;
+                opened++;
+            }
+        }
+
+        return opened;
+    }
+
+    /// <summary>Opens a PLC window; replaced in tests.</summary>
+    internal Func<Window, Sirius.Studio.App.Plc.PlcViewModel, Window?> OpenPlcWindow { get; set; } =
+        (owner, model) => Sirius.Studio.App.Plc.PlcWindow.Open(owner, model);
 
     /// <summary>
     /// Full screen - Edge on the line - leaving needs an engineer (F2):

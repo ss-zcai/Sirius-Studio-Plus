@@ -8,12 +8,15 @@ using Sirius.Core.Projects;
 using Sirius.Plc;
 using Sirius.Plc.Workflows;
 
-namespace Sirius.Builder;
+namespace Sirius.Studio.App.Plc;
 
 /// <summary>One address of the simulated PLC's memory, as the PLC window lists it.</summary>
 public sealed record MemoryRow(string Address, string Value, string Type, bool IsBit);
 
 /// <summary>One of the driver's own settings - an S7's CPU, rack, slot - as the PLC window edits it.</summary>
+/// <summary>A PLC driver, as the connection's list shows it.</summary>
+public sealed record DriverChoice(string Label, string Value);
+
 public sealed class DriverOptionRow : ObservableObject
 {
     private readonly Action _changed;
@@ -111,7 +114,7 @@ public sealed partial class PlcViewModel : ObservableObject, IAsyncDisposable
         _dispatcher = Dispatcher.CurrentDispatcher;
         _type = Types[0];
 
-        Drivers = PlcDrivers.All.Select(driver => new PropertyOption(driver.Name, driver.Key)).ToArray();
+        Drivers = PlcDrivers.All.Select(driver => new DriverChoice(driver.Name, driver.Key)).ToArray();
         _driverKey = controller.Driver;
         _plcAddress = controller.Address;
 
@@ -148,11 +151,26 @@ public sealed partial class PlcViewModel : ObservableObject, IAsyncDisposable
     public string Title => $"{Controller.Name} - PLC";
 
     public static IReadOnlyList<PlcTypeChoice> Types { get; } =
-        Enum.GetValues<PlcType>().Select(type => new PlcTypeChoice(type, WorkflowDocumentViewModel.PlcTypeLabel(type))).ToArray();
+        Enum.GetValues<PlcType>().Select(type => new PlcTypeChoice(type, PlcTypeLabel(type))).ToArray();
+
+    /// <summary>A type as a PLC programmer knows it: "Int16 (INT)".</summary>
+    public static string PlcTypeLabel(PlcType type) => type switch
+    {
+        PlcType.Bool => "Bool (bit)",
+        PlcType.Byte => "Byte",
+        PlcType.Int16 => "Int16 (INT)",
+        PlcType.UInt16 => "UInt16 (WORD)",
+        PlcType.Int32 => "Int32 (DINT)",
+        PlcType.UInt32 => "UInt32 (DWORD)",
+        PlcType.Real => "Real (32-bit)",
+        PlcType.LReal => "LReal (64-bit)",
+        PlcType.String => "String",
+        _ => type.ToString(),
+    };
 
     // ---- the connection ----------------------------------------------------------------
 
-    public IReadOnlyList<PropertyOption> Drivers { get; }
+    public IReadOnlyList<DriverChoice> Drivers { get; }
 
     private string _driverKey;
     private string _plcAddress;

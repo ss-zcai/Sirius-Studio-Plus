@@ -66,6 +66,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         WidgetKind.Setting => Widget.Style == SettingStyle.Stepper ? "Setting" : $"Setting · {StyleLabel(Widget.Style)}",
         WidgetKind.Logo => "Logo",
         WidgetKind.Value => "Value",
+        WidgetKind.Controller => "Controller · connected · last event",
         _ => "Text",
     };
 
@@ -77,6 +78,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
         WidgetKind.Button => $"{ButtonCaption}  ·  {(Widget.Station ?? "all stations")}",
         WidgetKind.Logo => Widget.File ?? "no picture chosen",
         WidgetKind.Counter when !string.IsNullOrWhiteSpace(Widget.Controller) => $"{Widget.Controller}: parts",
+        WidgetKind.Controller => Widget.Controller ?? "no controller chosen",
         WidgetKind.Setting when Widget.Style == SettingStyle.Range => $"{Widget.Station ?? "?"} › {Widget.Name ?? "?"} – {Widget.HighName ?? "?"}",
         _ when ScreenLayout.NeedsName(Kind) => $"{Widget.Station ?? "?"} › {Widget.Name ?? "?"}",
         _ => Widget.Station ?? "?",
@@ -151,7 +153,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
 
     // ---- which properties it has ----------------------------------------
 
-    public bool HasStation => ScreenLayout.NeedsStation(Kind) || Kind == WidgetKind.Button;
+    public bool HasStation => ScreenLayout.NeedsStation(Kind) || Kind is WidgetKind.Button or WidgetKind.Controller;
 
     public bool HasName => ScreenLayout.NeedsName(Kind);
 
@@ -212,6 +214,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
     {
         WidgetKind.Button => _owner.ButtonStationOptions,
         WidgetKind.Counter => _owner.CounterOptions,
+        WidgetKind.Controller => _owner.ControllerOptions,
         _ => _owner.StationOptions,
     };
 
@@ -230,7 +233,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
             : Widget.Station ?? string.Empty;
         set
         {
-            var controller = Kind == WidgetKind.Counter && value?.StartsWith(ScreenDesignerViewModel.ControllerPrefix, StringComparison.Ordinal) == true
+            var controller = Kind is WidgetKind.Counter or WidgetKind.Controller && value?.StartsWith(ScreenDesignerViewModel.ControllerPrefix, StringComparison.Ordinal) == true
                 ? value[ScreenDesignerViewModel.ControllerPrefix.Length..]
                 : null;
 
@@ -746,13 +749,14 @@ public sealed class DesignWidgetViewModel : ObservableObject
         if (HasStation)
         {
             yield return new PropertyRow(
-                "Shows", "Station", PropertyEditor.Choice,
+                "Shows", Kind == WidgetKind.Controller ? "Controller" : "Station", PropertyEditor.Choice,
                 () => StationValue,
                 value => StationValue = value as string ?? string.Empty,
                 Kind switch
                 {
                     WidgetKind.Button => "The station the button acts on, or every station.",
                     WidgetKind.Counter => "The station whose pictures it counts, or a controller whose parts it counts: rejects, late and not inspected.",
+                    WidgetKind.Controller => "The controller whose PLC it shows: connected or not, what last started a pass, what last went wrong.",
                     _ => "The station it shows.",
                 },
                 options: () => StationOptions.Select(option => new PropertyOption(option.Label, option.Value)).ToArray(),

@@ -30,6 +30,9 @@ public enum WidgetKind
 
     /// <summary>A picture file from the project: a logo.</summary>
     Logo,
+
+    /// <summary>A controller's PLC: connected or not, what last started a pass, what last went wrong (F23c).</summary>
+    Controller,
 }
 
 /// <summary>What a button does.</summary>
@@ -127,7 +130,8 @@ public sealed class Widget
 
     /// <summary>
     /// For a counter: the controller whose parts it counts (F25), in place
-    /// of a station's pictures. Null for a station's.
+    /// of a station's pictures. Null for a station's. For a Controller
+    /// widget: the controller it shows.
     /// </summary>
     [JsonPropertyName("controller")]
     public string? Controller { get; set; }

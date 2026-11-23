@@ -128,6 +128,51 @@
             </Border>
         </DataTemplate>
 
+        <!-- A controller's PLC (F23c): green connected, red not, grey not running. -->
+        <DataTemplate DataType="{x:Type screens:ControllerWidgetViewModel}">
+            <Border x:Name="Frame"
+                    CornerRadius="4"
+                    Background="{StaticResource Surface.Panel}"
+                    BorderBrush="{StaticResource Surface.Border}"
+                    BorderThickness="1"
+                    Padding="8,4"
+                    ToolTip="{Binding Error}">
+                <DockPanel VerticalAlignment="Center">
+                    <Ellipse x:Name="Lamp"
+                             DockPanel.Dock="Left"
+                             Width="14"
+                             Height="14"
+                             Margin="0,0,8,0"
+                             VerticalAlignment="Center"
+                             Fill="#6B7280" />
+                    <TextBlock DockPanel.Dock="Bottom"
+                               Text="{Binding Error}"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="#F8C4C4"
+                               Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock DockPanel.Dock="Bottom"
+                               Text="{Binding Detail}"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource Text.Secondary}" />
+                    <TextBlock TextTrimming="CharacterEllipsis" Foreground="{StaticResource Text.Primary}" FontSize="{Binding FontSize}"><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run x:Name="StateRun" Text="{Binding State, Mode=OneWay}" Foreground="{StaticResource Text.Secondary}" /></TextBlock>
+                </DockPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Look}" Value="Connected">
+                    <Setter TargetName="Lamp" Property="Fill" Value="#5FBF7F" />
+                    <Setter TargetName="StateRun" Property="Foreground" Value="#B7E8A0" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Look}" Value="NotConnected">
+                    <Setter TargetName="Lamp" Property="Fill" Value="#DB5C5C" />
+                    <Setter TargetName="StateRun" Property="Foreground" Value="#F8C4C4" />
+                    <Setter TargetName="Frame" Property="BorderBrush" Value="#DB5C5C" />
+                    <Setter TargetName="Frame" Property="Background" Value="#3A1E1E" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
         <!-- A result -->
         <DataTemplate DataType="{x:Type screens:ValueWidgetViewModel}">
             <Border CornerRadius="3"
@@ -523,6 +568,36 @@
             the PIN on a keypad - or the keyboard - as dots; what asked for
             it, and why not. Sized for a finger on a touch screen.
         -->
+        <!--
+            A lost PLC (F23c): across the top until it is back, so an
+            operator cannot miss that the line is not being inspected.
+        -->
+        <Border x:Name="ControllerAlarm"
+                Grid.Row="0"
+                VerticalAlignment="Top"
+                Margin="12,8"
+                Padding="16,10"
+                CornerRadius="6"
+                Background="#B91C1C"
+                BorderBrush="#FCA5A5"
+                BorderThickness="2"
+                Visibility="Collapsed">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left"
+                           Text="⚠"
+                           FontSize="26"
+                           Margin="0,0,12,0"
+                           VerticalAlignment="Center"
+                           Foreground="White" />
+                <TextBlock x:Name="ControllerAlarmText"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"
+                           Foreground="White" />
+            </DockPanel>
+        </Border>
+
         <Grid x:Name="LoginLayer"
               Grid.RowSpan="2"
               Panel.ZIndex="10"
@@ -660,6 +735,14 @@
                             MinWidth="80"
                             Command="{Binding LogInOutCommand}" />
                 </StackPanel>
+                <!-- The PLC window, for maintenance: an engineer's (F23c). -->
+                <Button x:Name="PlcButton"
+                        DockPanel.Dock="Right"
+                        Content="PLC…"
+                        MinWidth="70"
+                        Margin="12,0,0,0"
+                        ToolTip="The PLC window: the connection tried, any address read or written, the workflow's log - for an engineer"
+                        Click="OnPlcClick" />
                 <!-- The PLCs: connected or not, passes run, what last went wrong. -->
                 <TextBlock x:Name="ControllerStatus"
                            DockPanel.Dock="Right"
