@@ -19,7 +19,7 @@ namespace Sirius.Core.Tests;
 /// </remarks>
 public class IconDictionaryTests
 {
-    private const string DictionaryPath = "src/Sirius.Studio.App/Themes/Icons.xaml";
+    private const string DictionaryPath = "src/Apps/Sirius.Studio.App/Themes/Icons.xaml";
 
     /// <summary>
     /// Loads the dictionary from source, as the application would.
@@ -114,7 +114,7 @@ public class IconDictionaryTests
     [Fact]
     public void Every_panel_view_model_has_a_data_template()
     {
-        var theme = File.ReadAllText(Path.Combine(Repository.Root, "src/Sirius.Studio.App/Themes/Dark.xaml"));
+        var theme = File.ReadAllText(Path.Combine(Repository.Root, "src/Apps/Sirius.Studio.App/Themes/Dark.xaml"));
 
         var panelTypes = typeof(Sirius.Studio.App.ViewModels.NodePanelViewModel).Assembly
             .GetTypes()

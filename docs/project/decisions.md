@@ -2702,7 +2702,7 @@ the project and screen work a program of its own. Names chosen then.
   Runtime are gone. Opening a recipe that has settings changed on its line
   says so on the status line, naming them, so a value is not tuned here
   that the line overrides. It opens a recipe named on its command line.
-- **Sirius Builder** (`SiriusBuilder.exe`, src/Sirius.Builder) is the SI's:
+- **Sirius Builder** (`SiriusBuilder.exe`, src/Apps/Sirius.Builder) is the SI's:
   the project's stations on the left, its screen in the designer beside
   them. Stations are added empty or from a recipe file (copied in),
   renamed - the screen's widgets follow, as one undoable change - moved
@@ -2710,7 +2710,7 @@ the project and screen work a program of its own. Names chosen then.
   station's recipe. Test Run (F5) shows the project running on its saved
   screen, as Edge will. Line Settings is here. It reopens the last
   project. A new project starts with no station.
-- **Sirius Edge** (`SiriusEdge.exe`, src/Sirius.Edge) is the runtime,
+- **Sirius Edge** (`SiriusEdge.exe`, src/Apps/Sirius.Edge) is the runtime,
   renamed: a project full screen on the machine, `--windowed` at a desk,
   editing nothing.
 - **Only Studio writes recipes.** Builder binds a widget only to a name
@@ -2868,7 +2868,7 @@ name with a json extension; you might use our own."
   OpenCV is in Vision (`Runtime/ImageRecorder`), put in
   `InspectionRecorders.Factory` when the node library registers, since
   Core does not reference OpenCV.
-- **Sirius IV** (`src/Sirius.IV`, `SiriusIV.exe`, versioned on its own
+- **Sirius IV** (`src/Apps/Sirius.IV`, `SiriusIV.exe`, versioned on its own
   from 1.0.0, Builder's way) is a program of its own on Studio's
   assembly, as Builder and Edge are, so a picture and its shapes look as
   they did in Studio, and its viewer is Studio's - zoom, pixel values,
@@ -2962,7 +2962,7 @@ and did not scale.
 
 ## 75. The workflow engine (F23a)
 
-Built 13 November 2026: `src/Sirius.Plc`, with no window. Builder's editor
+Built 13 November 2026: `src/Core/Sirius.Plc`, with no window. Builder's editor
 and Edge's running come next (F23b-c).
 
 - **On the recipe's graph, run differently.** A workflow is a

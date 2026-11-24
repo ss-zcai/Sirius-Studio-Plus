@@ -29,14 +29,14 @@
       repository the same thing is a package reference with
       ExcludeAssets="runtime".
     -->
-    <ProjectReference Include="..\..\src\Sirius.Plugins\Sirius.Plugins.csproj" Private="false" />
+    <ProjectReference Include="..\..\src\Core\Sirius.Plugins\Sirius.Plugins.csproj" Private="false" />
 
     <!--
       The package carries Sirius.Core inside it. A project reference does
       not, so here it is named separately - outside this repository the one
       package reference above is all a library needs.
     -->
-    <ProjectReference Include="..\..\src\Sirius.Core\Sirius.Core.csproj" Private="false" />
+    <ProjectReference Include="..\..\src\Core\Sirius.Core\Sirius.Core.csproj" Private="false" />
   </ItemGroup>
 
 </Project>

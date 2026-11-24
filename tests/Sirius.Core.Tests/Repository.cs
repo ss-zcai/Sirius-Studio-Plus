@@ -29,7 +29,15 @@ internal static class Repository
     public static string Root { get; } = Locate();
 
     /// <summary>The application project's source folder.</summary>
-    public static string AppSource { get; } = Path.Combine(Root, "src", "Sirius.Studio.App");
+    public static string AppSource { get; } = Project("Sirius.Studio.App");
+
+    /// <summary>
+    /// A project's folder by its name, wherever under src/ it is - Core,
+    /// Drivers, Apps - so a project moved does not move every test with it.
+    /// </summary>
+    public static string Project(string name) =>
+        Directory.GetDirectories(Path.Combine(Root, "src"), name, SearchOption.AllDirectories).FirstOrDefault()
+        ?? throw new DirectoryNotFoundException($"No project folder '{name}' under {Path.Combine(Root, "src")}.");
 
     /// <summary>A path below the repository root.</summary>
     public static string Path2(params string[] parts) =>
@@ -42,7 +50,7 @@ internal static class Repository
 
         for (var depth = 0; depth < 10 && directory is not null; depth++)
         {
-            if (Directory.Exists(Path.Combine(directory, "src", "Sirius.Studio.App")))
+            if (Directory.Exists(Path.Combine(directory, "src")) && Directory.Exists(Path.Combine(directory, "tests")))
                 return directory;
 
             directory = Path.GetDirectoryName(directory);

@@ -13,7 +13,7 @@
     <RootNamespace>Sirius.Runner</RootNamespace>
     <AssemblyName>sirius-run</AssemblyName>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <ApplicationIcon>..\..\res\Sirius Studio Plus.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\..\res\Sirius Studio Plus.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,10 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sirius.Core\Sirius.Core.csproj" />
-    <ProjectReference Include="..\Sirius.Vision\Sirius.Vision.csproj" />
-    <ProjectReference Include="..\Sirius.Cameras.Basler\Sirius.Cameras.Basler.csproj" />
-    <ProjectReference Include="..\Sirius.Cameras.Hikrobot\Sirius.Cameras.Hikrobot.csproj" />
+    <ProjectReference Include="..\..\Core\Sirius.Core\Sirius.Core.csproj" />
+    <ProjectReference Include="..\..\Core\Sirius.Vision\Sirius.Vision.csproj" />
+    <ProjectReference Include="..\..\Drivers\Sirius.Cameras.Basler\Sirius.Cameras.Basler.csproj" />
+    <ProjectReference Include="..\..\Drivers\Sirius.Cameras.Hikrobot\Sirius.Cameras.Hikrobot.csproj" />
   </ItemGroup>
 
 </Project>

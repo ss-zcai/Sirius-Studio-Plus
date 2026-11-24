@@ -18,7 +18,7 @@
     <AssemblyName>SiriusBuilder</AssemblyName>
     <UseWPF>true</UseWPF>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <ApplicationIcon>..\..\res\Sirius Builder.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\..\res\Sirius Builder.ico</ApplicationIcon>
 
     <!-- Versioned on its own, not with Studio's Directory.Build.props one. -->
     <Product>Sirius Builder</Product>

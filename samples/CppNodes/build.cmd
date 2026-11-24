@@ -13,7 +13,7 @@ rem The headers: named on the command line, or the cpp folder of the SDK
 rem this sample came in, or the application's source tree.
 set "SIRIUS_INCLUDE=%~1"
 if "%SIRIUS_INCLUDE%"=="" if exist "%~dp0..\cpp\sirius_node.hpp" set "SIRIUS_INCLUDE=%~dp0..\cpp"
-if "%SIRIUS_INCLUDE%"=="" if exist "%~dp0..\..\src\Sirius.Vision\Cpp\sirius_node.hpp" set "SIRIUS_INCLUDE=%~dp0..\..\src\Sirius.Vision\Cpp"
+if "%SIRIUS_INCLUDE%"=="" if exist "%~dp0..\..\src\Core\Sirius.Vision\Cpp\sirius_node.hpp" set "SIRIUS_INCLUDE=%~dp0..\..\src\Core\Sirius.Vision\Cpp"
 
 if not exist "%SIRIUS_INCLUDE%\sirius_node.hpp" (
     echo sirius_node.hpp was not found. Name its folder: build.cmd "C:\Program Files\Sirius Studio Plus\cpp"

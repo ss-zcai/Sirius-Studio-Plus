@@ -36,11 +36,11 @@ Set-Location $root
 # ---- version ---------------------------------------------------------------
 
 # The driver interface's own version: what a driver built from the kit is checked against.
-[xml] $plc = Get-Content 'src/Sirius.Plc/Sirius.Plc.csproj'
+[xml] $plc = Get-Content 'src/Core/Sirius.Plc/Sirius.Plc.csproj'
 $version = ($plc.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
 if (-not $version) { throw 'No <Version> in Sirius.Plc.csproj.' }
 
-[xml] $builder = Get-Content 'src/Sirius.Builder/Sirius.Builder.csproj'
+[xml] $builder = Get-Content 'src/Apps/Sirius.Builder/Sirius.Builder.csproj'
 $builderVersion = ($builder.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
 
 Write-Host "Packing the PLC kit $version (Sirius Builder $builderVersion)" -ForegroundColor Cyan
@@ -68,7 +68,7 @@ try {
     # ---- Sirius Builder ------------------------------------------------------------
 
     Write-Host 'Publishing Sirius Builder...'
-    dotnet publish src/Sirius.Builder/Sirius.Builder.csproj `
+    dotnet publish src/Apps/Sirius.Builder/Sirius.Builder.csproj `
         --configuration Release `
         --runtime win-x64 `
         --self-contained true `
@@ -87,7 +87,7 @@ try {
         Copy-Item (Join-Path $builderOut $file) $lib
     }
 
-    $comments = 'src/Sirius.Plc/bin/Release/net8.0/Sirius.Plc.xml'
+    $comments = 'src/Core/Sirius.Plc/bin/Release/net8.0/Sirius.Plc.xml'
     if (-not (Test-Path $comments)) { throw "No $comments - is GenerateDocumentationFile on in Sirius.Plc.csproj?" }
     Copy-Item $comments $lib
 

@@ -1,15 +1,15 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Core", "src\Sirius.Core\Sirius.Core.csproj", "{2FC1B161-9018-42E0-ACA8-D5FD03E5FE54}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Core", "src\Core\Sirius.Core\Sirius.Core.csproj", "{2FC1B161-9018-42E0-ACA8-D5FD03E5FE54}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Vision", "src\Sirius.Vision\Sirius.Vision.csproj", "{469A201E-7D8E-478D-BB76-2477D61ADE12}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Vision", "src\Core\Sirius.Vision\Sirius.Vision.csproj", "{469A201E-7D8E-478D-BB76-2477D61ADE12}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Studio.App", "src\Sirius.Studio.App\Sirius.Studio.App.csproj", "{ED0BE09A-EDF9-4453-B9B7-6DAF78AB61B3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Studio.App", "src\Apps\Sirius.Studio.App\Sirius.Studio.App.csproj", "{ED0BE09A-EDF9-4453-B9B7-6DAF78AB61B3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Core.Tests", "tests\Sirius.Core.Tests\Sirius.Core.Tests.csproj", "{34F66B4C-24DB-4826-B05E-08F67E4BF5F7}"
 EndProject
@@ -17,7 +17,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NodeDocGen", "tools\NodeDocGen\NodeDocGen.csproj", "{CB411359-093A-4561-9172-A3E218529331}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Plugins", "src\Sirius.Plugins\Sirius.Plugins.csproj", "{FD84CCC4-BC80-40F1-AAEA-F4BECF6EC9DC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Plugins", "src\Core\Sirius.Plugins\Sirius.Plugins.csproj", "{FD84CCC4-BC80-40F1-AAEA-F4BECF6EC9DC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D20AA90-6969-D8BD-9DCD-8634F4692FDA}"
 EndProject
@@ -25,19 +25,19 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleNodes", "samples\Samp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleNodes.Tests", "samples\SampleNodes.Tests\SampleNodes.Tests.csproj", "{D0A2CEDB-CBCE-4C87-8996-ED9614F98197}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Runner", "src\Sirius.Runner\Sirius.Runner.csproj", "{D6D376E5-BF60-4F52-8FD5-E1D74C94E312}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Runner", "src\Apps\Sirius.Runner\Sirius.Runner.csproj", "{D6D376E5-BF60-4F52-8FD5-E1D74C94E312}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Cameras.Basler", "src\Sirius.Cameras.Basler\Sirius.Cameras.Basler.csproj", "{B0205BBC-7F3E-432D-B18A-99164CD18176}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Cameras.Basler", "src\Drivers\Sirius.Cameras.Basler\Sirius.Cameras.Basler.csproj", "{B0205BBC-7F3E-432D-B18A-99164CD18176}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Cameras.Hikrobot", "src\Sirius.Cameras.Hikrobot\Sirius.Cameras.Hikrobot.csproj", "{442595CC-40E1-462F-88EA-120F50356723}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Cameras.Hikrobot", "src\Drivers\Sirius.Cameras.Hikrobot\Sirius.Cameras.Hikrobot.csproj", "{442595CC-40E1-462F-88EA-120F50356723}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Edge", "src\Sirius.Edge\Sirius.Edge.csproj", "{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Edge", "src\Apps\Sirius.Edge\Sirius.Edge.csproj", "{81143C00-F7B6-4CAD-BC27-440D0DA0E2AB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Builder", "src\Sirius.Builder\Sirius.Builder.csproj", "{2ECEE07B-0132-4B3F-BB66-95ACE5CC1C73}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Builder", "src\Apps\Sirius.Builder\Sirius.Builder.csproj", "{2ECEE07B-0132-4B3F-BB66-95ACE5CC1C73}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.IV", "src\Sirius.IV\Sirius.IV.csproj", "{2487B2AD-7C0E-45B5-A6B1-D0B0D261D340}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.IV", "src\Apps\Sirius.IV\Sirius.IV.csproj", "{2487B2AD-7C0E-45B5-A6B1-D0B0D261D340}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Plc", "src\Sirius.Plc\Sirius.Plc.csproj", "{72523915-4DFC-4558-9597-E9C34510FAC2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sirius.Plc", "src\Core\Sirius.Plc\Sirius.Plc.csproj", "{72523915-4DFC-4558-9597-E9C34510FAC2}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject

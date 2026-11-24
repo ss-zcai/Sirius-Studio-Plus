@@ -2,7 +2,7 @@
     Generated from SVG artwork in res/ - do not edit by hand.
 
     Regenerate with:
-      python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
+      python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
 
     Each icon is a DrawingImage keyed Icon.<file stem>, keeping the
     artwork's own colours - a white glyph over a dark keyline, or the

@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Sirius.Plc\Sirius.Plc.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Core\Sirius.Plc\Sirius.Plc.csproj" Private="false" ExcludeAssets="runtime" />
   </ItemGroup>
 
 </Project>

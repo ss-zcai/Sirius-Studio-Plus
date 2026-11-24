@@ -8,7 +8,7 @@
     installed. Sirius IV is built on Studio's viewer and theme, so OpenCV
     comes with it; the camera drivers and PLC library come too, unused.
 
-    The version is Sirius IV's own (src/Sirius.IV/Sirius.IV.csproj), so
+    The version is Sirius IV's own (src/Apps/Sirius.IV/Sirius.IV.csproj), so
     the package name and its About box cannot disagree. The full package,
     tools/pack.ps1, carries the same SiriusIV.exe beside the other programs.
 
@@ -31,10 +31,10 @@ Set-Location $root
 
 # ---- version ---------------------------------------------------------------
 
-[xml] $project = Get-Content 'src/Sirius.IV/Sirius.IV.csproj'
+[xml] $project = Get-Content 'src/Apps/Sirius.IV/Sirius.IV.csproj'
 $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
 
-if (-not $version) { throw 'No <Version> in src/Sirius.IV/Sirius.IV.csproj.' }
+if (-not $version) { throw 'No <Version> in src/Apps/Sirius.IV/Sirius.IV.csproj.' }
 
 Write-Host "Packing Sirius IV $version" -ForegroundColor Cyan
 
@@ -52,7 +52,7 @@ $staging = Join-Path ([System.IO.Path]::GetTempPath()) "sirius-iv-pack-$version"
 if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
 
 Write-Host 'Publishing Sirius IV...'
-dotnet publish src/Sirius.IV/Sirius.IV.csproj `
+dotnet publish src/Apps/Sirius.IV/Sirius.IV.csproj `
     --configuration Release `
     --runtime win-x64 `
     --self-contained true `

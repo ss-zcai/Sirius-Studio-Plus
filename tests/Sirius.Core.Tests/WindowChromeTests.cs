@@ -90,11 +90,11 @@ public class WindowChromeTests
     [InlineData("Sirius.Edge", "Sirius Edge")]
     public void Each_program_has_its_own_icon_from_its_svg_master(string folder, string name)
     {
-        var project = File.ReadAllText(Path.Combine(Source, "..", folder, folder + ".csproj"));
+        var project = File.ReadAllText(Path.Combine(Repository.Project(folder), folder + ".csproj"));
         var logo = File.ReadAllText(Path.Combine(Source, "Themes", "Logo.xaml"));
-        var res = Path.Combine(Source, "..", "..", "res");
+        var res = Path.Combine(Repository.Root, "res");
 
-        Assert.Contains($@"<ApplicationIcon>..\..\res\{name}.ico</ApplicationIcon>", project, StringComparison.Ordinal);
+        Assert.Contains($@"<ApplicationIcon>..\..\..\res\{name}.ico</ApplicationIcon>", project, StringComparison.Ordinal);
         Assert.Contains($@"""res/{name}.svg""", logo, StringComparison.Ordinal);
         Assert.True(File.Exists(Path.Combine(res, name + ".svg")));
         Assert.True(File.Exists(Path.Combine(res, name + ".ico")));

@@ -3,7 +3,7 @@
 Usage, from the repository root:
 
     python tools/install_extension.py
-    python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml \
+    python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Icons.xaml \
         "res/ui icons"
 
 Source is ``res/phosphor-icons/Extension/``, which holds icons drawn in

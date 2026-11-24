@@ -64,7 +64,7 @@ $staging = Join-Path ([System.IO.Path]::GetTempPath()) "sirius-pack-$version"
 if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
 
 Write-Host 'Publishing...'
-dotnet publish src/Sirius.Studio.App/Sirius.Studio.App.csproj `
+dotnet publish src/Apps/Sirius.Studio.App/Sirius.Studio.App.csproj `
     --configuration Release `
     --runtime win-x64 `
     --self-contained true `
@@ -79,7 +79,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 # Into the same folder as the application, whose runtime and libraries it
 # shares: one copy of OpenCV, not two.
 Write-Host 'Publishing the command-line runner...'
-dotnet publish src/Sirius.Runner/Sirius.Runner.csproj `
+dotnet publish src/Apps/Sirius.Runner/Sirius.Runner.csproj `
     --configuration Release `
     --runtime win-x64 `
     --self-contained true `
@@ -95,7 +95,7 @@ if ($LASTEXITCODE -ne 0) { throw 'The command-line runner did not publish.' }
 # recipes; Edge runs them on the machine, full screen (decision 71). Into the
 # same folder, sharing Studio's libraries: both are built on its screens.
 Write-Host 'Publishing Sirius Builder...'
-dotnet publish src/Sirius.Builder/Sirius.Builder.csproj `
+dotnet publish src/Apps/Sirius.Builder/Sirius.Builder.csproj `
     --configuration Release `
     --runtime win-x64 `
     --self-contained true `
@@ -106,7 +106,7 @@ dotnet publish src/Sirius.Builder/Sirius.Builder.csproj `
 if ($LASTEXITCODE -ne 0) { throw 'Sirius Builder did not publish.' }
 
 Write-Host 'Publishing Sirius Edge...'
-dotnet publish src/Sirius.Edge/Sirius.Edge.csproj `
+dotnet publish src/Apps/Sirius.Edge/Sirius.Edge.csproj `
     --configuration Release `
     --runtime win-x64 `
     --self-contained true `
@@ -119,7 +119,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Sirius Edge did not publish.' }
 # Sirius IV, the image viewer: the pictures a station saved, and their
 # annotations. Into the same folder, on Studio's viewer and theme.
 Write-Host 'Publishing Sirius IV...'
-dotnet publish src/Sirius.IV/Sirius.IV.csproj `
+dotnet publish src/Apps/Sirius.IV/Sirius.IV.csproj `
     --configuration Release `
     --runtime win-x64 `
     --self-contained true `

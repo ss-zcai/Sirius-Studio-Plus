@@ -513,7 +513,7 @@ public sealed class ScreenDesignerTests : IDisposable
                 Assert.NotEqual($"version {builderVersion}", studio.VersionText.Text);
                 studio.Close();
 
-                var menu = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Sirius.Builder", "BuilderWindow.xaml"));
+                var menu = File.ReadAllText(Path.Combine(Repository.Project("Sirius.Builder"), "BuilderWindow.xaml"));
                 Assert.Contains("_About Sirius Builder…", menu, StringComparison.Ordinal);
             }
             finally

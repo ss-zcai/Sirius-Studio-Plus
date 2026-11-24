@@ -2,7 +2,7 @@
     Generated from SVG artwork in res/ - do not edit by hand.
 
     Regenerate with:
-      python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Logo.xaml "res/Sirius Studio Plus.svg" "res/Sirius Builder.svg" "res/Sirius Edge.svg" "res/Sirius Image Viewer.svg"
+      python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Logo.xaml "res/Sirius Studio Plus.svg" "res/Sirius Builder.svg" "res/Sirius Edge.svg" "res/Sirius Image Viewer.svg"
 
     Each icon is a DrawingImage keyed Icon.<file stem>, keeping the
     artwork's own colours - a white glyph over a dark keyline, or the

@@ -46,7 +46,7 @@ Set-Location $root
 # ---- version ---------------------------------------------------------------
 
 # The contract's own version, not the application's.
-[xml] $project = Get-Content 'src/Sirius.Plugins/Sirius.Plugins.csproj'
+[xml] $project = Get-Content 'src/Core/Sirius.Plugins/Sirius.Plugins.csproj'
 $version = ($project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
 
 if (-not $version) { throw 'No <Version> in Sirius.Plugins.csproj.' }
@@ -77,7 +77,7 @@ try {
     # ---- the package ---------------------------------------------------------
 
     Write-Host 'Packing Sirius.Plugins...'
-    dotnet pack src/Sirius.Plugins/Sirius.Plugins.csproj -c Release --nologo --verbosity quiet -o $packages
+    dotnet pack src/Core/Sirius.Plugins/Sirius.Plugins.csproj -c Release --nologo --verbosity quiet -o $packages
     if ($LASTEXITCODE -ne 0) { throw 'dotnet pack failed.' }
 
     # ---- the sample, as a team outside this repository would write it --------
@@ -209,7 +209,7 @@ with Codex and other tools so every agent follows the same rules.
     $pythonSample = Join-Path $staging 'PythonNodes'
     New-Item -ItemType Directory -Force $python, $pythonSample | Out-Null
 
-    Copy-Item 'src/Sirius.Vision/Python/sirius_nodes.py' $python
+    Copy-Item 'src/Core/Sirius.Vision/Python/sirius_nodes.py' $python
     Copy-Item 'samples/PythonNodes/*.py' $pythonSample
     Copy-Item 'samples/PythonNodes/sirius.json.example' $pythonSample
     Copy-Item 'docs/guides/python-nodes.md' $staging
@@ -221,7 +221,7 @@ with Codex and other tools so every agent follows the same rules.
     $cppSample = Join-Path $staging 'CppNodes'
     New-Item -ItemType Directory -Force $cpp, $cppSample | Out-Null
 
-    Copy-Item 'src/Sirius.Vision/Cpp/sirius_node.h', 'src/Sirius.Vision/Cpp/sirius_node.hpp' $cpp
+    Copy-Item 'src/Core/Sirius.Vision/Cpp/sirius_node.h', 'src/Core/Sirius.Vision/Cpp/sirius_node.hpp' $cpp
     Copy-Item 'samples/CppNodes/sample_nodes.cpp', 'samples/CppNodes/build.cmd', 'samples/CppNodes/CMakeLists.txt' $cppSample
     Copy-Item 'docs/guides/cpp-nodes.md' $staging
 

@@ -12,10 +12,10 @@ code.
 
 ```bash
 git clone https://github.com/ss-zcai/Sirius-Studio-Plus.git
-dotnet run --project src/Sirius.Studio.App     # Studio
-dotnet run --project src/Sirius.Builder        # Builder
-dotnet run --project src/Sirius.Edge           # Edge
-dotnet run --project src/Sirius.IV             # Sirius IV
+dotnet run --project src/Apps/Sirius.Studio.App     # Studio
+dotnet run --project src/Apps/Sirius.Builder        # Builder
+dotnet run --project src/Apps/Sirius.Edge           # Edge
+dotnet run --project src/Apps/Sirius.IV             # Sirius IV
 ```
 
 Needs the .NET 8 SDK. Windows x64 only - the OpenCV natives are
@@ -30,16 +30,16 @@ the drivers build empty and the programs list no such cameras.
 
 | Project | What it holds |
 | --- | --- |
-| `src/Sirius.Core` | The graph model and scheduler, serialisation, projects and stations, screens, saved-picture annotations. No OpenCV, no WPF. |
-| `src/Sirius.Vision` | The node library on Emgu.CV, the camera layer, and the hosts for custom nodes in C#, Python and C++. No WPF. |
-| `src/Sirius.Plugins` | The custom node interface - the SDK's package (versioned on its own). |
-| `src/Sirius.Plc` | Controllers: the PLC driver interface and loader, the simulated PLC, the workflow runner and its nodes (versioned on its own: the driver interface). |
-| `src/Sirius.Cameras.Basler`, `src/Sirius.Cameras.Hikrobot` | Camera drivers on pylon and MVS. |
-| `src/Sirius.Studio.App` | **Studio** (`SiriusStudioPlus.exe`), and what the other programs share: the theme, icons, image viewer, screens and the runtime window. |
-| `src/Sirius.Builder` | **Builder** (`SiriusBuilder.exe`): projects, the screen designer, controllers and workflows. Versioned on its own. |
-| `src/Sirius.Edge` | **Edge** (`SiriusEdge.exe`): runs a project. |
-| `src/Sirius.IV` | **Sirius IV** (`SiriusIV.exe`): saved pictures. Versioned on its own. |
-| `src/Sirius.Runner` | **sirius-run** (`sirius-run.exe`): recipes over folders, from a script. |
+| `src/Core/Sirius.Core` | The graph model and scheduler, serialisation, projects and stations, screens, saved-picture annotations. No OpenCV, no WPF. |
+| `src/Core/Sirius.Vision` | The node library on Emgu.CV, the camera layer, and the hosts for custom nodes in C#, Python and C++. No WPF. |
+| `src/Core/Sirius.Plugins` | The custom node interface - the SDK's package (versioned on its own). |
+| `src/Core/Sirius.Plc` | Controllers: the PLC driver interface and loader, the simulated PLC, the workflow runner and its nodes (versioned on its own: the driver interface). |
+| `src/Drivers/Sirius.Cameras.Basler`, `src/Drivers/Sirius.Cameras.Hikrobot` | Camera drivers on pylon and MVS. |
+| `src/Apps/Sirius.Studio.App` | **Studio** (`SiriusStudioPlus.exe`), and what the other programs share: the theme, icons, image viewer, screens and the runtime window. |
+| `src/Apps/Sirius.Builder` | **Builder** (`SiriusBuilder.exe`): projects, the screen designer, controllers and workflows. Versioned on its own. |
+| `src/Apps/Sirius.Edge` | **Edge** (`SiriusEdge.exe`): runs a project. |
+| `src/Apps/Sirius.IV` | **Sirius IV** (`SiriusIV.exe`): saved pictures. Versioned on its own. |
+| `src/Apps/Sirius.Runner` | **sirius-run** (`sirius-run.exe`): recipes over folders, from a script. |
 | `tests/Sirius.Core.Tests` | The tests - all of them, the programs' windows included, built but not shown. |
 | `tests/TestPlcDriver` | The smallest PLC driver library, loaded by the tests from a folder. |
 | `samples/SampleNodes`, `PythonNodes`, `CppNodes` | Custom node samples, shipped in the package and the SDK. |
@@ -55,7 +55,7 @@ rewrite of node bodies rather than an architectural one.
 ```bash
 dotnet test                                              # the whole suite, about two minutes
 dotnet run --project tools/NodeDocGen -- docs/reference/node-reference.md
-python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
+python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
 ```
 
 **A running program locks its build folder.** Builder, Edge and Sirius IV
@@ -78,7 +78,7 @@ dictionary the programs load.
 
 ```bash
 python tools/install_extension.py
-python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
+python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
 ```
 
 Drop the SVG in `res/phosphor-icons/Extension/`, add a line to `INSTALL` in

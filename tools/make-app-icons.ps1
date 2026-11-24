@@ -9,7 +9,7 @@
 # frames, which Windows reads since Vista. Run it after changing an SVG and
 # regenerating Logo.xaml:
 #
-#   python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Logo.xaml "res/Sirius Studio Plus.svg" \
+#   python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Logo.xaml "res/Sirius Studio Plus.svg" \
 #       "res/Sirius Builder.svg" "res/Sirius Edge.svg" "res/Sirius Image Viewer.svg"
 #
 # The SVGs need their text converted to outlines: svg2xaml.py draws shapes
@@ -21,7 +21,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationCore, PresentationFramework, WindowsBase
 
 $root = Split-Path -Parent $PSScriptRoot
-$logos = Join-Path $root 'src/Sirius.Studio.App/Themes/Logo.xaml'
+$logos = Join-Path $root 'src/Apps/Sirius.Studio.App/Themes/Logo.xaml'
 $sizes = 16, 20, 24, 32, 40, 48, 64, 96, 128, 256
 
 $icons = [ordered]@{

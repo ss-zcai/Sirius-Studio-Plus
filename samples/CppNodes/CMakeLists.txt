@@ -14,7 +14,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Where sirius_node.hpp is: the cpp folder of the SDK this sample came in,
 # the application's own cpp folder, or wherever the two headers were copied.
 if(NOT SIRIUS_INCLUDE)
-    foreach(candidate "${CMAKE_CURRENT_SOURCE_DIR}/../cpp" "${CMAKE_CURRENT_SOURCE_DIR}/../../src/Sirius.Vision/Cpp")
+    foreach(candidate "${CMAKE_CURRENT_SOURCE_DIR}/../cpp" "${CMAKE_CURRENT_SOURCE_DIR}/../../src/Core/Sirius.Vision/Cpp")
         if(EXISTS "${candidate}/sirius_node.hpp")
             set(SIRIUS_INCLUDE "${candidate}")
             break()

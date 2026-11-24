@@ -16,7 +16,7 @@
     <AssemblyName>SiriusIV</AssemblyName>
     <UseWPF>true</UseWPF>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <ApplicationIcon>..\..\res\Sirius Image Viewer.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\..\res\Sirius Image Viewer.ico</ApplicationIcon>
 
     <!-- Versioned on its own, as Builder is. -->
     <Product>Sirius IV</Product>

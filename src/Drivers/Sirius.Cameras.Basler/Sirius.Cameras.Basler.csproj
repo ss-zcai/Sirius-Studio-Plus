@@ -31,7 +31,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sirius.Vision\Sirius.Vision.csproj" />
+    <ProjectReference Include="..\..\Core\Sirius.Vision\Sirius.Vision.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(HasPylon)' == 'true'">

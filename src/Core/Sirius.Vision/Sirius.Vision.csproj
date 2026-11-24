@@ -30,7 +30,7 @@
     Apache 2.0, same as the engine.
   -->
   <ItemGroup>
-    <Content Include="../../res/tessdata/eng.traineddata"
+    <Content Include="../../../res/tessdata/eng.traineddata"
              Link="tessdata/eng.traineddata"
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
