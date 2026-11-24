@@ -613,64 +613,94 @@ need the part as a thing of its own.
 
 ### 14.2 Several shots per part
 
-A typical sequence: the PLC triggers shot 1, vision inspects and answers
-(an interim result, or only "picture taken, you may move"), the PLC
-moves the part or the camera and triggers shot 2, and vision combines
-the two and returns the part's result.
+**Redesigned 24 November 2026** from four real cases and the earlier
+system's files (Jianfan, CLT). The first design here - judge each picture
+on its own, combine the verdicts in the workflow - turned out to be the
+exception: the lines collect a part's pictures and judge them together.
 
-**Most of it is expressible today**, as one workflow pass that waits
-partway:
+#### The cases
+
+| | Pictures per part | Judged | Result |
+|---|---|---|---|
+| **1. OCR on a box** - lot number, expiry | 1 per camera | that picture | PASS / FAIL |
+| **2. Pad printing on a mould** | 4-7, one camera, a light setup each | **once, on all of them blended**: colour and pattern on the combined picture | PASS / FAIL / REVIEW (shading in a grey area) |
+| **3. A medical device**, 6-8 stations on a conveyor | one or a few per station, at different places and times | each station its own defects; **the product's result combines every station's** | PASS / reject |
+| **4. A lens** - cameras behind a beam splitter, focal planes apart | up to 8: 2 cameras x up to 4 light setups (or 1 x 3) | **each picture as it is taken, combined at the end** | PASS / FAIL / REVIEW / NoLens / ... |
+
+A 4-6 picture part takes 5-6 s on these lines, light changes, settling
+delays and communication included; work on a picture while the next
+light is set is what makes that time.
+
+#### Agreed (24 November)
+
+- **The PLC drives the sequence**: it switches the lights, triggers each
+  shot, and says which shot it is. No light control of ours yet - later,
+  with digital I/O in Builder.
+- **Software triggers.** Case 4's two cameras are triggered at about the
+  same time, sometimes a little apart. The hardware trigger is later
+  (14.4).
+- **The item ID** (the earlier system's `ItemID`) comes with every
+  trigger and names the product.
+- **Shots are not counted by us**: the PLC gives the shot number. A
+  set missing a picture - a network fault, 3 of 4 arrived - ends by its
+  timeout and is failed.
+- **Something wrong mid-set**: the line moves on; whether the part is
+  FAIL or REVIEW - a second chance - is the machine's design, so it is a
+  setting (F33).
+- **Several PCs**, each with a few cameras and stations; each PC
+  answers for its own stations.
+
+#### The model
+
+**A set of shots at one station (cases 1, 2, 4).** A trigger carries the
+item ID and the shot number, and whether it is the last - or the
+station's shot count says so. The station runs **its recipe on each shot
+as it comes**, as today, and keeps what each shot produced under the item
+ID until the set is complete:
 
 ```
-PLC Monitor M0.0 rising --> Inspect (shot 1) --> Write M0.1 <- interim
-                                             --> Wait For M0.4 = true (timeout 30 s)
-                                                    --> Inspect (shot 2)
-                                                          --> Combine --> Write M0.5 <- part result
-                                                                      --> Pulse M0.6  (done)
-                         Timed Out / Failed --> Write M0.7 <- sequence error
+PLC: trigger, item 260511155932987, shot 2 of 4
+  --> Inspect (station Lens, item, shot)
+        recipe runs on this shot's picture(s) ------------------------+
+          per-shot nodes: find defects, measure ...                  |
+          Collect (by shot) <-- holds shot 1, 2 ... of this item      |
+             not complete: answer "received" (the earlier 202)        |
+             complete:     what follows Collect runs - Blend all,     |
+                           combine the defects - one part verdict     |
+  <-- shot answer: received / the part's result and code -------------+
 ```
 
-- **Wait For** already waits up to ten minutes, enough for a robot.
-- **One pass at a time** is the right rule here: a pass is one part's
-  whole sequence, and the next part's first trigger waits its turn.
-- **Gather** reads the part number once; it goes with both pictures.
+- **Collect** is a recipe node: what a shot gives it is kept per shot
+  number; when the set is complete it gives them all - pictures for a
+  Blend (case 2), lists of defects and values to combine (case 4).
+  Everything after it runs once per part, everything before it once per
+  shot. One recipe file, tested in Studio by running a folder of one
+  part's pictures through it in shot order.
+- **Before the set is complete** a shot answers "received"; nodes after
+  Collect do not run, and that is not an error. The part's verdict - and
+  its result code (F33) - come with the last shot.
+- **Two cameras on one trigger** (case 4): the station has a camera per
+  Camera node (by name, as F29 maps them), and a shot grabs from each;
+  a pair a little apart in time is still one shot.
+- **The set's timeout**: a set not complete within it - the next item's
+  first shot arriving, or the time running out - is ended as **a part
+  not inspected**: FAIL, or REVIEW where the line chooses (F33). Shots of
+  an item already ended are refused.
+- **Saved pictures**: each shot's picture with its own `.sann` - its own
+  shapes - and the item ID, shot number and the part's result; Sirius IV
+  puts an item's pictures side by side (F20e).
 
-**Proposed, to build:**
+**A product across stations (case 3).** Each station judges its pictures
+as above; the **controller keeps a record per item ID**: each station's
+result added as it comes, the product's result decided once every
+expected station has answered - or at a deadline, a station that never
+answered counting as not inspected. Combined by the F33 rules: any FAIL
+rejects; a REVIEW where nothing failed is REVIEW. A product across PCs
+is the PLC's to combine: each PC answers for its own stations.
 
-- **Combine** (workflow node): the shots' verdicts into the part's -
-  all passed, or the worst grade - and their values carried through.
-- **Calculate** (workflow node): simple arithmetic across shots - a
-  length from an edge in shot 1 and one in shot 2, both calibrated to
-  the same coordinates - so recipes stay without memory between
-  triggers.
-- **Part Value** (recipe node): reads a value the workflow gave the
-  inspection - a shot number, a product code - so one recipe can judge
-  each shot differently, switching on it. The same node serves recipe
-  change by product code (section 9).
-- **A two-shot starter workflow**, with the sequence rules wired, so they
-  are seen rather than discovered:
-
-  | What happens | Proposed default |
-  |---|---|
-  | Shot 2's trigger never comes | the part is a sequence error, after the Wait For's timeout |
-  | Shot 1's trigger comes again while waiting for shot 2 | the part is abandoned as a sequence error; the new trigger starts the next |
-  | Shot 1 fails | shot 2 is still taken - the PLC's sequence stays the same - and the part fails |
-  | A station cannot inspect | the part is not inspected, which the PLC treats as a reject |
-
-- **Screen widgets**: the part's verdict and counts (from the controller),
-  and an image viewer for a station's picture of a given shot.
-
-**Later, only if a real job needs it:**
-
-- **A recipe judging several pictures together** - stitching, or one
-  measurement across two fields of view. The station collects the shots
-  of a part into the frame set of section 5 and runs once on the last.
-  That gives the station memory across triggers, with resets, timeouts
-  and parts mixed up to handle; most multi-shot jobs are each view judged
-  on its own, or arithmetic across them, which the above covers.
-- **Two stations sharing one camera**, one per position with recipes of
-  their own. Each station holds its camera open today, so they would have
-  to take turns. Part Value covers the same need with one station.
+**Later, only if a job needs it:** two stations sharing one camera;
+lights switched by us; per-shot verdicts sent to the PLC before the set
+is complete (today a shot before the last answers only "received").
 
 ### 14.3 Throughput: taking the next picture before the last is judged
 

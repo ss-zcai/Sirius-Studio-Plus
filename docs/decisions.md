@@ -3741,3 +3741,26 @@ in them maps onto a `.sann`.
   150 defects. A defect's sizes from `ExtInfo` are its measurements.
 - Read in the core (`LegacyAnnotations`), so anything else that reads
   annotations can take them later.
+
+## 93. Several shots per part: collected, then judged together (F26)
+
+Discussed 24 November 2026 from four real cases - an OCR check, pad
+printing blended from 4-7 lightings, a medical device over 6-8 stations,
+a lens over 2 cameras and up to 4 lightings - and the earlier system's
+files, whose first shot answers only "Image received" and whose last
+judges the set. `runtime-design.md` 14.2 is rewritten.
+
+- **Collected, then judged**, not each picture judged and the verdicts
+  combined: the recipe runs on each shot as it comes; a **Collect** node
+  keeps them per item; what follows it runs once the set is complete.
+  Work per shot overlaps the next light change, which is how a 4-6
+  picture part fits in 5-6 seconds.
+- **The PLC drives**: it switches the lights, triggers each shot
+  (software triggers), and gives the item ID and the shot number with
+  each. We count nothing; a set short of a picture ends by its timeout.
+- **Failing mid-set** is FAIL or REVIEW as the machine is designed -
+  a setting, with F33's result codes.
+- **Across stations** (case 3) the controller keeps a record per item
+  ID; across PCs the PLC combines, each PC answering for its stations.
+- Not now: lights switched by us (digital I/O, later); the hardware
+  trigger (F28).

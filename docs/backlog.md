@@ -18,16 +18,17 @@ where the product stands; this says what could come next. Updated
 
 **Proposed order from here:**
 
-1. **F26, several shots per part** - every set of the earlier system's
-   examples (Jianfan, CLT) is two pictures per part, so this is what
-   lines run today. Then **F20e**, matching saved pictures on the part.
-2. **F33, result codes beyond PASS/FAIL** - the earlier files carry
-   defect codes (803, 809, 805, 2002) as the line's answer.
-3. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
+1. **F26a, a set of shots at one station** - cases 2 and 4 of the four
+   real ones (`runtime-design.md` 14.2), redesigned 24 November.
+2. **F33, result codes beyond PASS/FAIL** - REVIEW and NoLens, which
+   cases 2 and 4 answer, and a set that times out as FAIL or REVIEW.
+3. **F26b** (two cameras on one trigger), **F26c** (a product across
+   stations), and **F20e** (an item's pictures side by side).
+4. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
    the HslCommunication download and a bench PLC from you.
-4. **F29's commissioning slice** - a GigE camera's IP, Replace…, a
+5. **F29's commissioning slice** - a GigE camera's IP, Replace…, a
    Simulated or Folder camera - when a machine is being set up.
-5. **F27** and **F28** - speed and the hardware trigger - when a line
+6. **F27** and **F28** - speed and the hardware trigger - when a line
    asks for them.
 
 Each item has an ID to refer to it by, a rough size, and where it came
@@ -261,16 +262,24 @@ part, how the PLC tracks parts - size F26-F28.
   (section 5). The handshake (Ready, Busy) and error codes to the PLC.
   A single-picture part is a part of one shot, so F26 adds shots, not a
   redesign.
-- **F26. Several shots per part** (M-L) - after F25. A workflow already
-  waits between triggers (Wait For) and runs one part's sequence as one
-  pass. To build: **Combine** (the shots' verdicts into the part's) and
-  **Calculate** (arithmetic across shots) for workflows; **Part Value**
-  for recipes, so one recipe judges each shot differently - and recipe
-  change by product code with it; a two-shot starter workflow with its
-  sequence rules wired (a trigger missing, repeated, a shot failed);
-  widgets for the part's verdict and a shot's picture. Later, only if a
-  job needs it: a recipe judging several pictures together (stitching),
-  and two stations sharing a camera.
+- **F26. Several shots per part** (L) - redesigned 24 November 2026
+  from four real cases (`runtime-design.md` 14.2): the PLC triggers each
+  shot with the item ID and the shot number; the station runs its recipe
+  on each shot as it comes and a **Collect** node holds them until the
+  set is complete, then what follows it judges the part once. In slices:
+  - **F26a. A set of shots at one station** (M-L) - cases 2 and 4 with
+    one camera: Inspect taking the item ID and shot number; the
+    station's sets per item, answered "received" until complete; Collect
+    and what runs after it; the set's timeout; each picture saved with
+    its item and shot; Studio running a folder of a part's pictures in
+    shot order.
+  - **F26b. Two cameras on one trigger** (M) - case 4's beam splitter:
+    a station with a camera per Camera node, a shot grabbing from each.
+  - **F26c. A product across stations** (M) - case 3: the controller's
+    record per item ID, each station's result added, the product's
+    decided when every expected station has answered or at a deadline.
+  - With **F33** - REVIEW, NoLens and the like - as these cases need it,
+    and **F20e**, an item's pictures side by side in Sirius IV.
 - **F27. Taking the next picture before the last is judged** (L) - after
   F26, when a line needs it. First **pipelining**: acquisition out of the
   recipe into the station's own grab loop and a bounded frame queue, with
