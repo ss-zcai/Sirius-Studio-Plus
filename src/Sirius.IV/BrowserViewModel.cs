@@ -1606,7 +1606,8 @@ public sealed class ImageFileItem : ObservableObject
         var stem = System.IO.Path.GetFileNameWithoutExtension(path);
         Verdict = new[] { "FAIL", "ERROR", "PASS", "NONE" }
             .FirstOrDefault(word => stem.EndsWith("_" + word, StringComparison.OrdinalIgnoreCase) ||
-                                    stem.Contains("_" + word + "_", StringComparison.OrdinalIgnoreCase));
+                                    stem.Contains("_" + word + "_", StringComparison.OrdinalIgnoreCase))
+            ?? Sirius.Core.Annotations.LegacyAnnotations.VerdictWordFor(path);
     }
 
     public string Path { get; }

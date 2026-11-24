@@ -23,14 +23,21 @@ namespace Sirius.Core.Annotations;
 /// paths with their backslashes left unescaped, so it is read leniently.
 /// </para>
 /// <list type="bullet">
-/// <item><c>Circle</c> (Centre, Radius) and <c>RotatedRectangle</c> (Centre,
-/// Width, Height, Rotation - clockwise, as ours and OpenCV's) become shapes;
-/// <c>Name</c> is the shape's label and its layer.</item>
-/// <item><c>Colour</c> is [b, g, r], as OpenCV's - to be confirmed.</item>
+/// <item><c>Circle</c> (Centre, Radius), <c>RotatedRectangle</c> and
+/// <c>Ellipse</c> (Centre, Width, Height, Rotation - clockwise, as ours and
+/// OpenCV's) become shapes, each in a layer: its <c>LayerName</c>, or else
+/// its <c>Name</c>. Not labelled on the picture - a lens can carry 150
+/// defects. A defect's <c>ExtInfo.Descriptions</c> numbers - its length,
+/// width and confidence, and the limits it was judged by - are its
+/// measurements.</item>
+/// <item><c>Colour</c> is [b, g, r], as OpenCV's.</item>
 /// <item><c>meta</c> - batch, pallet, position, QR code, the multi-image
 /// group - is the picture's part; <c>output</c> its results.</item>
-/// <item>Which result codes pass is not known yet: the verdict is left
-/// unjudged, its code and message shown as the grade.</item>
+/// <item>The verdict (examples of 24 November): <c>result</c> 200 with
+/// <c>defectCode</c> 1 passes, 200 with any other code fails - the code
+/// and message its grade, "803 Foreign Material"; 202, "Image received",
+/// is a set's first picture, not judged; any other result is an
+/// error.</item>
 /// </list>
 /// </remarks>
 public static class LegacyAnnotations
@@ -111,8 +118,16 @@ public static class LegacyAnnotations
                 .Where(pair => pair.Value is not null)
                 .ToArray();
 
+        if (json["extra"] is JsonObject extra)
+        {
+            foreach (var (name, value) in extra)
+                Result(name, value);
+        }
+
         var code = Text(output["defectCode"]);
         var message = Text(output["message"]);
+        var (passed, errors) = VerdictOf(Number(output["result"]), code);
+        var grade = string.Join(" ", new[] { code, message }.Where(word => !string.IsNullOrWhiteSpace(word)));
 
         return new AnnotationFile
         {
@@ -122,15 +137,62 @@ public static class LegacyAnnotations
             Recipe = Text(json["algo"]) is { } algo ? $"{algo} {Text(json["algoVersion"])}".Trim() : null,
             Serial = long.TryParse(request, NumberStyles.None, CultureInfo.InvariantCulture, out var serial) ? serial : 0,
             Time = TimeOf(request),
-            Passed = null,
-            Grade = string.Join(" ", new[] { code, message }.Where(word => !string.IsNullOrWhiteSpace(word))) is { Length: > 0 } grade ? grade : null,
+            Passed = passed,
+            NodeErrors = errors,
+            Grade = passed == true || grade.Length == 0 ? null : grade,
             Results = results,
             Part = part,
             Layers = Layers(Inner(output["annotations"]) as JsonArray),
         };
     }
 
-    /// <summary>The shapes, a layer for each name in the order first drawn.</summary>
+    /// <summary>The code that passes: 200 and defect code 1 - "1_Pass" in the earlier names.</summary>
+    public const string PassCode = "1";
+
+    /// <summary>
+    /// How it went: 200 with defect code 1 passed, with any other failed;
+    /// 202 - a set's first picture, received - not judged; anything else
+    /// an error.
+    /// </summary>
+    public static (bool? Passed, int Errors) VerdictOf(double? result, string? code) => result switch
+    {
+        200 => (string.Equals(code?.Trim(), PassCode, StringComparison.Ordinal), 0),
+        202 => (null, 0),
+        null => (null, 0),
+        _ => (null, 1),
+    };
+
+    /// <summary>
+    /// PASS, FAIL, ERROR or NONE from a picture's earlier annotation file,
+    /// for Sirius IV's list; null when it has none or it cannot be read.
+    /// </summary>
+    public static string? VerdictWordFor(string imagePath)
+    {
+        var path = PathFor(imagePath);
+
+        if (!File.Exists(path))
+            return null;
+
+        try
+        {
+            if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject { } json || json["output"] is not JsonObject output)
+                return null;
+
+            return VerdictOf(Number(output["result"]), Text(output["defectCode"])) switch
+            {
+                (_, > 0) => "ERROR",
+                (true, _) => "PASS",
+                (false, _) => "FAIL",
+                _ => "NONE",
+            };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The shapes, a layer for each layer name in the order first drawn.</summary>
     private static IReadOnlyList<AnnotationLayer> Layers(JsonArray? annotations)
     {
         if (annotations is null)
@@ -143,7 +205,9 @@ public static class LegacyAnnotations
             if (ShapeOf(item) is not { } shape)
                 continue;
 
-            var name = shape.Label ?? "Annotations";
+            var name = Text(item["LayerName"]) is { Length: > 0 } layerName ? layerName
+                : Text(item["Name"]) is { Length: > 0 } named ? named
+                : "Annotations";
             var layer = layers.FirstOrDefault(entry => entry.Name == name);
 
             if (layer.Shapes is null)
@@ -170,12 +234,42 @@ public static class LegacyAnnotations
                 => new OrientedRectShape(at, width, height, Number(item["Rotation"]) ?? 0),
             "Rectangle" when centre is { } at && Number(item["Width"]) is { } width && Number(item["Height"]) is { } height
                 => new OrientedRectShape(at, width, height, 0),
+            "Ellipse" when centre is { } at && Number(item["Width"]) is { } width && Number(item["Height"]) is { } height
+                => new EllipseShape(at, width, height, Number(item["Rotation"]) ?? 0),
             _ => null,
         };
 
         return shape is null
             ? null
-            : shape with { Label = Text(item["Name"]), Colour = ColourOf(item["Colour"]) };
+            : shape with { Colour = ColourOf(item["Colour"]), Metrics = MetricsOf(item["ExtInfo"]) };
+    }
+
+    /// <summary>The earlier system's names for a defect's numbers, in English.</summary>
+    private static readonly IReadOnlyDictionary<string, string> MetricNames = new Dictionary<string, string>
+    {
+        ["瑕疵长度"] = "Length",
+        ["瑕疵宽度"] = "Width",
+        ["瑕疵置信度"] = "Confidence",
+        ["当前调参应用检出长度"] = "Length Limit",
+        ["当前调参应用检出宽度"] = "Width Limit",
+        ["当前调参应用检出置信度"] = "Confidence Limit",
+    };
+
+    /// <summary>A defect's numbers - its <c>ExtInfo.Descriptions</c> - as its measurements; text left out.</summary>
+    private static IReadOnlyDictionary<string, double> MetricsOf(JsonNode? extInfo)
+    {
+        var metrics = new Dictionary<string, double>(StringComparer.Ordinal);
+
+        if (extInfo is JsonObject { } info && info["Descriptions"] is JsonObject descriptions)
+        {
+            foreach (var (name, value) in descriptions)
+            {
+                if (Number(value) is { } number && double.IsFinite(number))
+                    metrics[MetricNames.GetValueOrDefault(name, name)] = number;
+            }
+        }
+
+        return metrics;
     }
 
     /// <summary>[b, g, r], as OpenCV's, to an opaque ARGB colour.</summary>

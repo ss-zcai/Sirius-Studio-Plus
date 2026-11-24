@@ -296,33 +296,44 @@ The earlier vision system wrote a picture's annotations beside it as
 JSON named after the **whole** picture name: `picture.tiff.json`. Sirius
 IV reads them - **never writes or changes them** - wherever a picture has
 no `.sann` (decision 92). The viewers, the Annotations panel, layers, the
-CSV and drawn exports and ROIs from All take them as a `.sann`.
+CSV and drawn exports and ROIs from All take them as a `.sann`. Read
+against the Jianfan, CLT and TY examples (24 November 2026).
 
 | Earlier file | Read as |
 |---|---|
 | `output.annotations` (JSON in a string): `Circle` - Centre, Radius | a circle |
-| `RotatedRectangle` - Centre, Width, Height, Rotation | a turned rectangle; Rotation clockwise, as ours and OpenCV's |
-| `Name` | the shape's label, and its **layer** - "inspect area", "mark", "dm", "text", "defect" - switched on and off in the panel |
-| `Colour` [b, g, r] | the shape's colour - **BGR**, as OpenCV's, until confirmed |
-| `LineWidth` | not kept: drawn at the viewer's width |
-| `meta` (JSON in a string) | the part: batch, pallet, position, QR code, station, `MultiSeq`, `GroupId`, `Requests` |
-| `output` - result, defectCode, message, processingTime; `algo`, `algoVersion`, `args` | the results |
+| `RotatedRectangle`, `Ellipse` - Centre, Width, Height, Rotation | a turned rectangle, an ellipse; Rotation clockwise, as ours and OpenCV's |
+| `LayerName`, or else `Name` | the shape's **layer** - "Optical Zone", "Foreign Material", "mark" - switched on and off in the panel. Not written on the picture: a lens can carry 150 defects |
+| `ExtInfo.Descriptions`, its numbers | the shape's measurements, in English: Length, Width, Confidence, and the Length, Width and Confidence Limits it was judged by |
+| `Colour` [b, g, r] | the shape's colour, **BGR** as OpenCV's |
+| `LineWidth`, `Tag`, `ExtInfo.ParameterPath` | not kept |
+| `meta` (JSON in a string) | the part: batch, pallet, position, QR code, station, camera, `GroupId`/`GroupID`, `Requests`; values that are JSON again (`DefectSettings`, `PalletPosition`) as text |
+| `output` - result, defectCode, message, processingTime; `algo`, `algoVersion`, `args`; `extra` | the results |
 | `output.info` (JSON in a string, its Windows paths unescaped) | more results, read leniently: `processing_time`, `features`… |
-| `requestId` | the serial, and the time: `260511155932312022` is 11 May 2026 15:59:32.312 |
+| `requestId` | the serial and time, when it is a number: `260511155932312022` is 11 May 2026 15:59:32.312 |
 | `meta.PixelFormat` `Mono8`, `Mono12` | the bits |
 
-**The verdict is not judged yet**: which result and defect codes pass is
-still to be learned from more examples. Until then the code and message
-are its grade - "2002 Scratch", "202 Image received" - and its verdict
-NONE.
+**The verdict:**
+
+| `result` | `defectCode` | Verdict |
+|---|---|---|
+| 200 | 1 ("Pass") | **PASS** |
+| 200 | any other: 803 Foreign Material, 809 FlowMark, 805 Breaching, 2002 Scratch | **FAIL**, the code and message its grade |
+| 202 | - ("Image received": a set's first picture) | NONE, not judged |
+| anything else | | ERROR |
+
+Sirius IV's list takes it from the earlier file when the name says none,
+so its PASS and FAIL filters and colours work on these folders.
 
 Measurements drawn and saved go into a `.sann` beside it, which starts
 from what the earlier file says; the earlier file stays as it was, and
 from then the `.sann` is read. **To Folder** copies or moves the earlier
 file with its picture.
 
-A multi-image part's shots share `GroupId`: matching by the pattern
-`^\d+-(\d{17})` puts them side by side.
+**Matching a part's shots**: they share a group ID at the start of the
+name - **Same start of name** on 27 characters for the CLT names
+(`101261112_10103199601010101`), 19 for the Jianfan ones
+(`2-26051115593231202`).
 
 In code: `Sirius.Core.Annotations.LegacyAnnotations`, and
 `AnnotationFile.ReadFor`, which tries the `.sann` first.

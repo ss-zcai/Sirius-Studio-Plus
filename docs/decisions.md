@@ -3730,8 +3730,14 @@ in them maps onto a `.sann`.
   command. Measurements saved start a `.sann` from what it says.
 - **Colours as BGR**, OpenCV's order, until confirmed against the
   earlier viewer: the defect red, the inspected area blue.
-- **Not judged**: the verdict waits for more examples to say which codes
-  pass; the code and message show as the grade meanwhile. This is the
-  result codes of F33 seen from the other side.
+- **The verdict**, from the CLT and TY examples the same day: `result`
+  200 with `defectCode` 1 passes; 200 with any other code fails, its code
+  and message the grade; 202 "Image received" - a set's first picture -
+  is not judged; any other result is an error. The list's verdict comes
+  from the file when the name says none. This is the result codes of F33
+  seen from the other side.
+- **Layers, not labels**: a shape's `LayerName`, or else its `Name`, is
+  its layer; nothing is written on the picture, where a lens can carry
+  150 defects. A defect's sizes from `ExtInfo` are its measurements.
 - Read in the core (`LegacyAnnotations`), so anything else that reads
   annotations can take them later.
