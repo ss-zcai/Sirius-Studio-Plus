@@ -94,16 +94,24 @@ public sealed class WorkflowStep
     /// which shot of the part this is. The first asks the controller for
     /// the part's number.
     /// </summary>
-    public PartValues PartFor(PartValues? given)
+    public PartValues PartFor(PartValues? given, object? shot = null, object? last = null)
     {
         _runner.BeginPart(_pass, given);
 
-        var values = (given ?? PartValues.Empty).ToList();
+        var values = (given ?? PartValues.Empty)
+            .Where(pair => !string.Equals(pair.Key, PartValues.ShotName, StringComparison.OrdinalIgnoreCase) &&
+                           !string.Equals(pair.Key, PartValues.LastName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
         if (PartRecord.IdIn(given) is null)
             values.Add(new(PartRecord.PartIdName, _pass.PartId));
 
-        values.Add(new(PartRecord.ShotName, _pass.Shots.Count + 1));
+        // Which picture of the part: as the PLC says (F26), or the shots of this part in turn.
+        values.Add(new(PartValues.ShotName, shot is not null ? PartValues.Plain(shot) : _pass.Shots.Count + 1));
+
+        if (last is not null)
+            values.Add(new(PartValues.LastName, PartValues.Plain(last)));
+
         return new PartValues(values);
     }
 

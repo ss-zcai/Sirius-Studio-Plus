@@ -112,6 +112,12 @@ node again (decision 78), saved pictures and Sirius IV, and controllers.
 
 ## Since 1.0.14
 
+- **Several shots per part** (F26a, decisions 93 and 95): a station of
+  N pictures a part - Shots per Part, or the PLC's Last - its recipe run
+  on each, Collect nodes keeping them until the last judges the part
+  once; earlier shots answered "received", their pictures held until
+  the part is judged; Studio's Run Folder over sets.
+
 - **The earlier image viewer's annotation files** (decision 92), in
   Sirius IV **1.0.4**, packed alone for internal test on 24 November:
   a picture's `name.tiff.json` read - never written - where it has no

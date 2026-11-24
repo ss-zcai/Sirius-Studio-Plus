@@ -21,6 +21,7 @@ public sealed class Station : ObservableObject
     private string _name;
     private ImageSaving _saving = ImageSaving.Off;
     private string? _camera;
+    private int _shotsPerPart = 1;
 
     public Station(string name, string recipe)
     {
@@ -62,6 +63,19 @@ public sealed class Station : ObservableObject
 
     /// <summary>Its recipe, relative to the project folder, with forward slashes.</summary>
     public string Recipe { get; }
+
+    /// <summary>
+    /// How many pictures make a part (F26): the set's last is that shot,
+    /// unless the PLC says Last itself. 1 - a picture a part - unless set.
+    /// </summary>
+    public int ShotsPerPart
+    {
+        get => _shotsPerPart;
+        internal set => SetProperty(ref _shotsPerPart, Math.Clamp(value, 1, MostShots));
+    }
+
+    /// <summary>The most pictures a part may take: 2 cameras under 4 lights is 8; room beyond.</summary>
+    public const int MostShots = 16;
 
     /// <summary>
     /// The project camera it takes its pictures from, by name; null for the
@@ -291,6 +305,9 @@ public sealed class Project
                     station.SetLimit(setting.Trim(), new SettingLimit(limit.Lowest, limit.Highest));
             }
 
+            if (record.Shots is { } shots)
+                station.ShotsPerPart = shots;
+
             if (!string.IsNullOrWhiteSpace(record.Camera))
             {
                 if (project.FindCamera(record.Camera) is { } camera)
@@ -405,6 +422,7 @@ public sealed class Project
                     Name = station.Name,
                     Recipe = station.Recipe,
                     Camera = station.Camera,
+                    Shots = station.ShotsPerPart > 1 ? station.ShotsPerPart : null,
                     Limits = station.Limits.Count == 0
                         ? null
                         : station.Limits.ToDictionary(
@@ -842,6 +860,24 @@ public sealed class Project
     /// node. Written at once.
     /// </summary>
     /// <returns>Whether anything changed.</returns>
+    /// <summary>How many pictures make a part at a station (F26), 1 to <see cref="Station.MostShots"/>.</summary>
+    /// <returns>Whether it changed.</returns>
+    public bool SetShotsPerPart(Station station, int shots)
+    {
+        ArgumentNullException.ThrowIfNull(station);
+
+        if (shots < 1 || shots > Station.MostShots)
+            throw new ArgumentOutOfRangeException(nameof(shots), shots, $"A part takes 1 to {Station.MostShots} pictures.");
+
+        if (station.ShotsPerPart == shots)
+            return false;
+
+        station.ShotsPerPart = shots;
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     public bool SetStationCamera(Station station, CameraUnit? camera)
     {
         ArgumentNullException.ThrowIfNull(station);
@@ -1162,6 +1198,10 @@ public sealed class Project
         /// <summary>The project camera it takes its pictures from; absent for the recipe's own.</summary>
         [JsonPropertyName("camera")]
         public string? Camera { get; set; }
+
+        /// <summary>Pictures a part takes (F26); absent for one.</summary>
+        [JsonPropertyName("shots")]
+        public int? Shots { get; set; }
 
         /// <summary>Published setting name to its limits on the line.</summary>
         [JsonPropertyName("limits")]

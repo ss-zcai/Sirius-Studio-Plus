@@ -33,18 +33,25 @@ public sealed record InspectionResult(
             snapshot.Station,
             snapshot.Serial,
             snapshot.Time,
-            ImageSaving.VerdictWord(snapshot.Verdict, snapshot.NodeErrors),
+            snapshot.Received ? ReceivedWord : ImageSaving.VerdictWord(snapshot.Verdict, snapshot.NodeErrors),
             snapshot.Verdict.Passed,
             snapshot.NodeErrors,
             new PartValues(results),
             snapshot.Part)
         {
             SourceFailed = snapshot.SourceFailed,
+            Received = snapshot.Received,
         };
     }
 
+    /// <summary>The verdict word of a shot before its set's last: taken, not judged (F26).</summary>
+    public const string ReceivedWord = "RECEIVED";
+
     /// <summary>Whether the node taking the picture failed - the camera's fault, not the recipe's.</summary>
     public bool SourceFailed { get; init; }
+
+    /// <summary>A shot before its set's last: the station has it, the part is not judged yet (F26).</summary>
+    public bool Received { get; init; }
 
     /// <summary>
     /// A published result by name, or else a value of the part's - its Part
@@ -88,7 +95,10 @@ public sealed class InspectNode : WorkflowNode
     {
         Trigger = AddTrigger();
         PartIn = AddInput<PartValues>("Part", isRequired: false);
+        ShotIn = AddInput<object>("Shot", isRequired: false);
+        LastIn = AddInput<object>("Last", isRequired: false);
         Done = AddFired("Done");
+        Received = AddFired("Received");
         Pass = AddFired("Pass");
         Fail = AddFired("Fail");
         Failed = AddFired("Failed");
@@ -101,8 +111,26 @@ public sealed class InspectNode : WorkflowNode
 
     public InputPort PartIn { get; }
 
+    /// <summary>
+    /// Which picture of the part this is, from 1 (F26): what the PLC says.
+    /// Unwired, the inspections of a pass are numbered in turn.
+    /// </summary>
+    public InputPort ShotIn { get; }
+
+    /// <summary>
+    /// Whether this is the part's last picture, when the PLC says. Unwired,
+    /// the last is the station's Shots per Part.
+    /// </summary>
+    public InputPort LastIn { get; }
+
     /// <summary>The station has inspected, whatever it found.</summary>
     public OutputPort Done { get; }
+
+    /// <summary>
+    /// The station has the picture, and the part is not judged yet: a shot
+    /// before its set's last (F26). Pass and Fail come with the last.
+    /// </summary>
+    public OutputPort Received { get; }
 
     public OutputPort Pass { get; }
 
@@ -111,7 +139,7 @@ public sealed class InspectNode : WorkflowNode
     /// <summary>The station could not inspect: busy, faulted, or too slow.</summary>
     public OutputPort Failed { get; }
 
-    /// <summary>PASS, FAIL, ERROR or NONE.</summary>
+    /// <summary>PASS, FAIL, ERROR or NONE - or RECEIVED, a shot before its set's last.</summary>
     public OutputPort VerdictOut { get; }
 
     public OutputPort PassedOut { get; }
@@ -153,6 +181,10 @@ public sealed class InspectNode : WorkflowNode
             yield return "No station is chosen.";
         else if (!check.HasStation(Station))
             yield return $"There is no station called '{Station}'.";
+
+        // A part's shots come in passes of their own, joined by its ID.
+        if ((ShotIn.Connection is not null || LastIn.Connection is not null) && PartIn.Connection is null)
+            yield return "Shots of a part are joined by its Part ID: wire Part, with a Part ID gathered from the PLC.";
     }
 
     protected internal override async Task RunAsync(WorkflowStep step)
@@ -161,7 +193,7 @@ public sealed class InspectNode : WorkflowNode
             throw new WorkflowException("This controller runs without the project's stations.");
 
         var given = step.Get(PartIn) as PartValues;
-        var part = step.PartFor(given);
+        var part = step.PartFor(given, step.IsWired(ShotIn) ? step.Get(ShotIn) : null, step.IsWired(LastIn) ? step.Get(LastIn) : null);
 
         // Waited for only until the deadline: a node still running in the
         // recipe is cancelled when it finishes, but the PLC is answered now.
@@ -183,7 +215,9 @@ public sealed class InspectNode : WorkflowNode
         step.Set(ResultOut, result);
         step.Fire(Done);
 
-        if (result.Passed == true)
+        if (result.Received)
+            step.Fire(Received);
+        else if (result.Passed == true)
             step.Fire(Pass);
         else if (result.Passed == false)
             step.Fire(Fail);

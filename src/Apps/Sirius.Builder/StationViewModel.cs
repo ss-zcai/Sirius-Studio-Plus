@@ -28,6 +28,12 @@ public sealed class StationViewModel : ObservableObject
                 OnPropertyChanged(nameof(HasCamera));
             }
 
+            if (e.PropertyName == nameof(Station.ShotsPerPart))
+            {
+                OnPropertyChanged(nameof(ShotsText));
+                OnPropertyChanged(nameof(HasShots));
+            }
+
             if (e.PropertyName == nameof(Station.Saving))
             {
                 OnPropertyChanged(nameof(SavesImages));
@@ -55,6 +61,12 @@ public sealed class StationViewModel : ObservableObject
 
     /// <summary>"camera: Top camera".</summary>
     public string CameraText => $"camera: {Station.Camera}";
+
+    /// <summary>Its part takes several pictures (F26).</summary>
+    public bool HasShots => Station.ShotsPerPart > 1;
+
+    /// <summary>"4 shots a part".</summary>
+    public string ShotsText => $"{Station.ShotsPerPart} shots a part";
 
     /// <summary>Whether it keeps any pictures when it runs.</summary>
     public bool SavesImages => Station.Saving.IsOn;

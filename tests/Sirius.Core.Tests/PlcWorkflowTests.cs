@@ -187,6 +187,9 @@ public sealed class PlcWorkflowTests : IDisposable
         /// <summary>A node of the recipe fails.</summary>
         public bool RecipeFails { get; set; }
 
+        /// <summary>Which shots are only received - before their set's last (F26) - by the part asked about.</summary>
+        public Func<PartValues?, bool>? Receives { get; set; }
+
         public StationState? StateOf(string station) => State;
 
         /// <summary>Whether the last inspection asked for was cancelled while it ran.</summary>
@@ -222,6 +225,7 @@ public sealed class PlcWorkflowTests : IDisposable
                 Part = part,
                 NodeErrors = CameraFails || RecipeFails ? 1 : 0,
                 SourceFailed = CameraFails,
+                Received = Receives?.Invoke(part) ?? false,
             };
             Inspected?.Invoke(this, snapshot);
             return snapshot;
@@ -287,6 +291,129 @@ public sealed class PlcWorkflowTests : IDisposable
         plc.Set("DB34.24", (short)3);
         plc.Set("DB34.26", (short)1);
         return plc;
+    }
+
+    // ---- several shots per part (F26a) ----------------------------------------------------
+
+    /// <summary>
+    /// The PLC's sequence for a part of several pictures: its trigger, the
+    /// part's ID and the shot number read, Gather, and Inspect told which
+    /// shot - each picture its own pass.
+    /// </summary>
+    private sealed class ShotWorkflow
+    {
+        public ShotWorkflow()
+        {
+            Monitor = new PlcMonitorNode { Name = "Trigger", Address = "M0.0", PollInterval = 5 };
+            Item = new PlcReadNode { Name = "Item", Address = "DB1.0", Type = PlcType.Int16 };
+            Shot = new PlcReadNode { Name = "Shot", Address = "DB1.2", Type = PlcType.Int16 };
+            Gather = new GatherNode { Name1 = "Part ID" };
+            Inspect = new InspectNode { Station = "Top" };
+
+            foreach (var node in new VisionNode[] { Monitor, Item, Shot, Gather, Inspect })
+                Graph.Add(node);
+
+            Wire(Monitor.Triggered, Item.Trigger);
+            Wire(Monitor.Triggered, Shot.Trigger);
+            Wire(Item.ValueOut, Gather.Values[0]);
+            Wire(Gather.Gathered, Inspect.Trigger);
+            Wire(Gather.PartOut, Inspect.PartIn);
+            Wire(Shot.ValueOut, Inspect.ShotIn);
+        }
+
+        public VisionGraph Graph { get; } = new();
+
+        public PlcMonitorNode Monitor { get; }
+
+        public PlcReadNode Item { get; }
+
+        public PlcReadNode Shot { get; }
+
+        public GatherNode Gather { get; }
+
+        public InspectNode Inspect { get; }
+
+        private void Wire(OutputPort from, InputPort to) => Assert.True(Graph.TryConnect(from, to).Success, $"{from.Name} -> {to.Name}");
+    }
+
+    private static int ShotOf(PartValues? part) => Convert.ToInt32(part?[PartValues.ShotName], System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// A part of three pictures, each its own pass: the first two received,
+    /// the part kept open between them by its ID, judged and counted once
+    /// with the third.
+    /// </summary>
+    [Fact]
+    public async Task A_part_of_several_shots_is_judged_once_with_its_last()
+    {
+        var plc = new SimulatedPlc();
+        var stations = new FakeStations { Receives = part => ShotOf(part) < 3 };
+        var flow = new ShotWorkflow();
+        await using var runner = new WorkflowRunner(flow.Graph, plc, stations, "Line 1 PLC");
+
+        var parts = new List<PartRecord>();
+        runner.PartFinished += (_, part) => parts.Add(part);
+
+        Assert.Empty(runner.Check());
+        await StartAsync(runner, plc);
+        plc.Set("DB1.0", (short)7);
+
+        async Task Shoot(int shot)
+        {
+            plc.Set("DB1.2", (short)shot);
+            await PassAfter(runner, () => plc.Set("M0.0", true));
+            plc.Set("M0.0", false);
+            var reads = plc.Reads;
+            await Until(() => plc.Reads > reads + 1);
+        }
+
+        await Shoot(1);
+        await Shoot(2);
+
+        // Received, not judged: no part yet, its set open by its ID.
+        Assert.Empty(parts);
+        Assert.Equal(["7"], runner.OpenParts);
+        Assert.Equal(0, runner.PartCounts.Total);
+
+        await Shoot(3);
+
+        var part = Assert.Single(parts);
+        Assert.Equal(("7", PartVerdict.Passed, 1L), (part.Id, part.Verdict, part.Number));
+        Assert.Equal([InspectionResult.ReceivedWord, InspectionResult.ReceivedWord, "PASS"], part.Shots.Select(shot => shot.Verdict));
+        Assert.Equal([1, 2, 3], stations.Asked.Select(asked => ShotOf(asked.Part)));
+        Assert.Empty(runner.OpenParts);
+        Assert.Equal((1L, 1L), (runner.PartCounts.Total, runner.PartCounts.Passed));
+    }
+
+    /// <summary>Another part's first shot at the station gives up an unfinished set: a part not inspected.</summary>
+    [Fact]
+    public async Task A_set_left_unfinished_is_a_part_not_inspected()
+    {
+        var plc = new SimulatedPlc();
+        var stations = new FakeStations { Receives = _ => true };
+        var flow = new ShotWorkflow();
+        await using var runner = new WorkflowRunner(flow.Graph, plc, stations, "Line 1 PLC");
+
+        var parts = new List<PartRecord>();
+        runner.PartFinished += (_, part) => parts.Add(part);
+
+        await StartAsync(runner, plc);
+        plc.Set("DB1.2", (short)1);
+
+        plc.Set("DB1.0", (short)8);
+        await PassAfter(runner, () => plc.Set("M0.0", true));
+        plc.Set("M0.0", false);
+        var reads = plc.Reads;
+        await Until(() => plc.Reads > reads + 1);
+
+        plc.Set("DB1.0", (short)9);
+        await PassAfter(runner, () => plc.Set("M0.0", true));
+
+        var given = Assert.Single(parts);
+        Assert.Equal(("8", PartVerdict.NotInspected), (given.Id, given.Verdict));
+        Assert.Equal("its set was not completed: 1 shot taken", given.Problem);
+        Assert.Equal(["9"], runner.OpenParts);
+        Assert.Equal((1L, 1L), (runner.PartCounts.Total, runner.PartCounts.NotInspected));
     }
 
     /// <summary>

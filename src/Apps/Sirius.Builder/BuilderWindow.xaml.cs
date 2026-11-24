@@ -403,6 +403,46 @@ public partial class BuilderWindow : Window
             menu.Items.Add(item);
     }
 
+    /// <summary>A station's Shots per Part, from its right-click menu or the Station menu (the station chosen).</summary>
+    private void OnStationShotsMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem menu || !ReferenceEquals(e.OriginalSource, menu))
+            return;
+
+        var station = menu.DataContext as StationViewModel ?? _model.SelectedStation;
+        menu.Items.Clear();
+
+        if (station is null)
+        {
+            menu.Items.Add(new MenuItem { Header = "Choose a station first", IsEnabled = false });
+            return;
+        }
+
+        foreach (var item in StationShotItems(station))
+            menu.Items.Add(item);
+    }
+
+    /// <summary>Most a part takes on the lines known: 2 cameras under 4 lights.</summary>
+    internal const int ShotsOffered = 8;
+
+    /// <summary>The station's Shots per Part submenu, made - for the window, and for tests.</summary>
+    internal IReadOnlyList<MenuItem> StationShotItems(StationViewModel station) =>
+        Enumerable.Range(1, ShotsOffered).Select(shots =>
+        {
+            var item = new MenuItem
+            {
+                Header = shots == 1 ? "_1 - a picture a part" : $"_{shots}",
+                IsCheckable = true,
+                IsChecked = station.Station.ShotsPerPart == shots,
+                ToolTip = shots == 1
+                    ? "One picture judges the part"
+                    : $"The PLC triggers {shots} pictures of each part, with its ID and the shot; the recipe's Collect nodes judge the part with the last",
+            };
+
+            item.Click += (_, _) => _model.SetShotsPerPart(station, shots);
+            return item;
+        }).ToArray();
+
     /// <summary>The station's Camera submenu, made - for the window, and for tests.</summary>
     internal IReadOnlyList<object> StationCameraItems(StationViewModel station)
     {

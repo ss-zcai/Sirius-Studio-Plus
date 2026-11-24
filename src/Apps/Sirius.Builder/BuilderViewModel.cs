@@ -1242,6 +1242,23 @@ public sealed partial class BuilderViewModel : ObservableObject
     }
 
     /// <summary>Has a station take its pictures from <paramref name="camera"/>, or - null - from its recipe's own.</summary>
+    /// <summary>How many pictures make a part at the station (F26).</summary>
+    internal void SetShotsPerPart(StationViewModel station, int shots)
+    {
+        if (_project is not { } project)
+            return;
+
+        Guard(() =>
+        {
+            if (project.SetShotsPerPart(station.Station, shots))
+            {
+                StatusText = shots == 1
+                    ? $"{station.Name} takes a picture a part."
+                    : $"{station.Name} takes {shots} pictures a part: the recipe runs on each, and its Collect nodes judge the part with the last. The PLC triggers each picture, with the part's ID and the shot.";
+            }
+        }, "Shots per Part");
+    }
+
     internal void SetStationCamera(StationViewModel station, CameraUnit? camera)
     {
         if (_project is not { } project)

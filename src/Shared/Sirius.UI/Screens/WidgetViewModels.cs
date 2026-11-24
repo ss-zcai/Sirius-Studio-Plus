@@ -213,6 +213,14 @@ public sealed class VerdictWidgetViewModel(Widget widget) : WidgetViewModel(widg
     {
         var verdict = snapshot.Verdict;
 
+        // A shot before its part's last (F26): which, while the rest are taken.
+        if (snapshot.Received && snapshot.Shot is { } shot)
+        {
+            (Text, Look) = ($"SHOT {shot.Number}", VerdictLook.None);
+            Detail = station.LastError ?? "Waiting for the part's last picture";
+            return;
+        }
+
         (Text, Look) = verdict.Passed switch
         {
             true => ("PASS", VerdictLook.Pass),

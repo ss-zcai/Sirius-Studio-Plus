@@ -12,7 +12,8 @@ namespace Sirius.Core.Graph;
 /// <param name="Name">Its file name.</param>
 /// <param name="Verdict">What the recipe decided.</param>
 /// <param name="NodeErrors">How many nodes failed on it.</param>
-public sealed record FolderRunItem(int Index, int Of, string? Name, Verdict Verdict, int NodeErrors);
+/// <param name="Received">A shot before its part's last (F26): kept, the part not judged yet.</param>
+public sealed record FolderRunItem(int Index, int Of, string? Name, Verdict Verdict, int NodeErrors, bool Received = false);
 
 /// <summary>A folder run, added up.</summary>
 public sealed class FolderRunSummary
@@ -36,6 +37,12 @@ public sealed class FolderRunSummary
     /// <summary>Images on which at least one node failed.</summary>
     public int WithErrors { get; private set; }
 
+    /// <summary>Images that were a shot before their part's last (F26): judged with it, not on their own.</summary>
+    public int Received { get; private set; }
+
+    /// <summary>The parts judged: one an image, or one a set of shots.</summary>
+    public int Parts => Passed + Failed + Unjudged;
+
     public TimeSpan Duration { get; internal set; }
 
     /// <summary>Stopped before the last image.</summary>
@@ -47,6 +54,15 @@ public sealed class FolderRunSummary
     internal void Add(FolderRunItem item)
     {
         _items.Add(item);
+
+        if (item.NodeErrors > 0 && item.Received)
+            WithErrors++;
+
+        if (item.Received)
+        {
+            Received++;
+            return;
+        }
 
         switch (item.Verdict.Passed)
         {
@@ -80,6 +96,10 @@ public sealed class FolderRunSummary
         text.Append(Cancelled
             ? string.Format(CultureInfo.CurrentCulture, "Stopped after {0} of {1} images", _items.Count, Total)
             : string.Format(CultureInfo.CurrentCulture, "{0} images", _items.Count));
+
+        // Shots of parts: the parts are what was judged.
+        if (Received > 0)
+            text.Append(string.Format(CultureInfo.CurrentCulture, ", {0} parts", Parts));
 
         text.Append(string.Format(CultureInfo.CurrentCulture, " in {0:0.0} s", Duration.TotalSeconds));
 
@@ -159,6 +179,9 @@ public static class FolderRun
         var summary = new FolderRunSummary { Total = sequence.Count };
         var clock = Stopwatch.StartNew();
 
+        // A recipe of several shots a part takes the folder's first picture as shot 1.
+        scheduler.RestartShots();
+
         for (var index = 1; index <= sequence.Count; index++)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -188,8 +211,9 @@ public static class FolderRun
                 index,
                 sequence.Count,
                 sequence.CurrentName,
-                Verdicts.Of(graph, scheduler.GetOutput),
-                result.Failed);
+                result.IsWaiting ? new Verdict(null, null, 0, 0) : Verdicts.Of(graph, scheduler.GetOutput),
+                result.Failed,
+                result.IsWaiting);
 
             summary.Add(item);
 

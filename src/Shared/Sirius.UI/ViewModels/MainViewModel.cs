@@ -1552,7 +1552,8 @@ public sealed class MainViewModel : ObservableObject
                 if (display.Report(clock.Elapsed.TotalSeconds) is { } rates)
                 {
                     StatusText = $"Running continuously: {rates}" +
-                                 (Verdict() is { } verdict ? $"  -  {verdict}" : string.Empty);
+                                 (result.IsWaiting ? "  -  waiting for the part's last shot"
+                                     : Verdict() is { } verdict ? $"  -  {verdict}" : string.Empty);
                 }
 
                 // A breath for the window between frames, so it stays usable
@@ -1743,6 +1744,10 @@ public sealed class MainViewModel : ObservableObject
 
         if (result.Failed > 0)
             summary = $"{summary} - {result.Failed} node(s) failed";
+
+        // A shot before its part's last (F26): no verdict yet, and saying so.
+        if (result.IsWaiting)
+            return $"{(_scheduler?.CurrentShot is { } shot ? $"Shot {shot.Number} of {shot.Item}" : "A shot")} kept: the part is judged with its last  -  {summary}";
 
         return Verdict() is { } verdict ? $"{verdict}  -  {summary}" : summary;
     }

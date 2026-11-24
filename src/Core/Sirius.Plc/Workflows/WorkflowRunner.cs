@@ -506,19 +506,127 @@ public sealed class WorkflowRunner : IAsyncDisposable
         if (pass.PartNumber is not null)
             return;
 
-        lock (_partGate)
-            pass.PartNumber = _nextPart++;
+        var id = PartRecord.IdIn(given);
 
-        pass.PartId = PartRecord.IdIn(given) ?? pass.PartNumber.Value.ToString(CultureInfo.InvariantCulture);
+        lock (_partGate)
+        {
+            // A part whose earlier shots came in passes before this one (F26).
+            if (id is not null && _openParts.Remove(id, out var open))
+            {
+                pass.PartNumber = open.Number;
+                pass.PartId = id;
+                pass.Shots.InsertRange(0, open.Shots);
+                return;
+            }
+
+            pass.PartNumber = _nextPart++;
+        }
+
+        pass.PartId = id ?? pass.PartNumber.Value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>A part with shots taken and its set's last still to come (F26).</summary>
+    private sealed record OpenPart(long Number, string Id, IReadOnlyList<Nodes.InspectionResult> Shots, DateTime Opened, string Station);
+
+    private readonly Dictionary<string, OpenPart> _openParts = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// How long a part's set may take between its shots before it is given
+    /// up on - not inspected - when the next shot comes, or any pass
+    /// finishes. The PLC's sequence times out sooner; this is the backstop.
+    /// </summary>
+    public TimeSpan SetTimeout { get; set; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>Parts whose sets are under way, by ID - for a test.</summary>
+    internal IReadOnlyList<string> OpenParts
+    {
+        get
+        {
+            lock (_partGate)
+                return _openParts.Keys.ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Sets given up on: at <paramref name="station"/>, any other part's -
+    /// one set at a time there - and anywhere, any past the timeout.
+    /// </summary>
+    private List<PartRecord> GiveUpOpenParts(string? station, string? keep)
+    {
+        var given = new List<OpenPart>();
+        var now = DateTime.Now;
+
+        lock (_partGate)
+        {
+            foreach (var open in _openParts.Values.ToArray())
+            {
+                if (string.Equals(open.Id, keep, StringComparison.Ordinal))
+                    continue;
+
+                if ((station is not null && string.Equals(open.Station, station, StringComparison.OrdinalIgnoreCase)) || now - open.Opened > SetTimeout)
+                {
+                    _openParts.Remove(open.Id);
+                    given.Add(open);
+                }
+            }
+        }
+
+        return given.Select(open =>
+        {
+            var taken = open.Shots.Count;
+            var part = new PartRecord(
+                open.Number,
+                open.Id,
+                open.Shots,
+                PartVerdict.NotInspected,
+                open.Opened,
+                now - open.Opened,
+                $"its set was not completed: {taken} shot{(taken == 1 ? string.Empty : "s")} taken");
+
+            Count(part);
+            return part;
+        }).ToList();
+    }
+
+    private void Count(PartRecord part)
+    {
+        lock (_partGate)
+        {
+            _partCounts = _partCounts.Add(part.Verdict);
+            _lastPart = part;
+        }
+
+        SaveCounts();
+
+        Write(
+            part.Verdict == PartVerdict.Passed ? WorkflowLogLevel.Info : WorkflowLogLevel.Warning,
+            null,
+            $"Part {part.Id}: {part.VerdictWord}{(part.Problem is null ? string.Empty : $" - {part.Problem}")}.");
     }
 
     /// <summary>The part a pass judged, counted and kept; null when it inspected nothing.</summary>
     private PartRecord? FinishPart(WorkflowPass pass, TimeSpan duration)
     {
         if (pass.PartNumber is null && pass.Missed is null)
+        {
+            Announce(GiveUpOpenParts(null, null));
             return null;
+        }
 
         BeginPart(pass, null);
+
+        // Its set's last still to come: kept open for the next pass, not a part yet (F26).
+        if (pass.Missed is null && pass.Shots.Count > 0 && pass.Shots[^1].Received)
+        {
+            Announce(GiveUpOpenParts(pass.Shots[^1].Station, pass.PartId));
+
+            lock (_partGate)
+                _openParts[pass.PartId!] = new OpenPart(pass.PartNumber!.Value, pass.PartId!, pass.Shots.ToArray(), DateTime.Now, pass.Shots[^1].Station);
+
+            return null;
+        }
+
+        Announce(GiveUpOpenParts(null, pass.PartId));
 
         var verdict = PartRecord.Judge(pass.Shots, pass.Missed);
         var part = new PartRecord(
@@ -530,20 +638,15 @@ public sealed class WorkflowRunner : IAsyncDisposable
             duration,
             pass.MissedWhy);
 
-        lock (_partGate)
-        {
-            _partCounts = _partCounts.Add(verdict);
-            _lastPart = part;
-        }
-
-        SaveCounts();
-
-        Write(
-            verdict == PartVerdict.Passed ? WorkflowLogLevel.Info : WorkflowLogLevel.Warning,
-            null,
-            $"Part {part.Id}: {part.VerdictWord}{(part.Problem is null ? string.Empty : $" - {part.Problem}")}.");
-
+        Count(part);
         return part;
+    }
+
+    /// <summary>Parts given up on, told to whoever listens, as a part judged is.</summary>
+    private void Announce(IEnumerable<PartRecord> parts)
+    {
+        foreach (var part in parts)
+            PartFinished?.Invoke(this, part);
     }
 
     private void SaveCounts()

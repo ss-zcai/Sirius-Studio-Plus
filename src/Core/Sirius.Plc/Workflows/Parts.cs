@@ -87,9 +87,19 @@ public sealed record PartRecord(
             "PartID",
             StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>The verdict of a pass that inspected: missed, or else from its shots.</summary>
-    internal static PartVerdict Judge(IReadOnlyList<InspectionResult> shots, PartVerdict? missed) =>
-        missed ?? (shots.Count > 0 && shots.All(shot => shot.Passed == true) ? PartVerdict.Passed : PartVerdict.Failed);
+    /// <summary>
+    /// The verdict of a part that was inspected: missed, or else from its
+    /// judged shots - a shot only received (F26) is judged with its set's
+    /// last.
+    /// </summary>
+    internal static PartVerdict Judge(IReadOnlyList<InspectionResult> shots, PartVerdict? missed)
+    {
+        if (missed is { } verdict)
+            return verdict;
+
+        var judged = shots.Where(shot => !shot.Received).ToArray();
+        return judged.Length > 0 && judged.All(shot => shot.Passed == true) ? PartVerdict.Passed : PartVerdict.Failed;
+    }
 }
 
 /// <summary>

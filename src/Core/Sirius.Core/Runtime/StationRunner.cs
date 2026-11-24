@@ -97,6 +97,15 @@ public sealed record InspectionSnapshot(
     /// failed: a camera's fault rather than the recipe's.
     /// </summary>
     public bool SourceFailed { get; init; }
+
+    /// <summary>Which picture of its part this was (F26); null for a picture a part.</summary>
+    public ShotInfo? Shot { get; init; }
+
+    /// <summary>
+    /// A shot before its set's last: kept by the recipe, the part not
+    /// judged yet - no verdict, not counted.
+    /// </summary>
+    public bool Received { get; init; }
 }
 
 /// <summary>
@@ -235,6 +244,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
                 station.Limits)
             {
                 RecipeName = Path.GetFileName(path),
+                ShotsPerPart = station.ShotsPerPart,
             };
 
             // Its counts carry on from the last run (F4).
@@ -268,6 +278,12 @@ public sealed class StationRunner : ObservableObject, IDisposable
     /// keep none. Disposed with the station.
     /// </summary>
     public IInspectionRecorder? Recorder { get; set; }
+
+    /// <summary>How many pictures make a part here (F26): the station's setting.</summary>
+    public int ShotsPerPart { get; set; } = 1;
+
+    /// <summary>The item whose set the recorder is holding shots of, or null.</summary>
+    private string? _heldItem;
 
     /// <summary>What is stopping pictures being saved, or making it skip some; null while all is well.</summary>
     public string? SavingProblem
@@ -642,6 +658,10 @@ public sealed class StationRunner : ObservableObject, IDisposable
         lock (_gate)
             _inPass = true;
 
+        // Which picture of its part this is: what the PLC said, and the station's Shots per Part.
+        var shot = PartValues.ShotFor(part, ShotsPerPart);
+        scheduler.Shot = shot;
+
         try
         {
             result = await scheduler.InspectAsync(cancellationToken).ConfigureAwait(true);
@@ -669,7 +689,9 @@ public sealed class StationRunner : ObservableObject, IDisposable
             return null;
         }
 
-        var verdict = Verdicts.Of(Recipe, scheduler.GetOutput);
+        // A shot before the set's last is received, not judged.
+        var received = result.IsWaiting;
+        var verdict = received ? new Verdict(null, null, 0, 0) : Verdicts.Of(Recipe, scheduler.GetOutput);
 
         var snapshot = new InspectionSnapshot(
             Name,
@@ -683,9 +705,14 @@ public sealed class StationRunner : ObservableObject, IDisposable
             Part = part is { Count: > 0 } ? part : null,
             SourceFailed = result.Failed > 0 && GraphTree.AllNodes(Recipe, enabledOnly: true)
                 .Any(node => node.Status == NodeStatus.Error && node.Descriptor.Category == NodeCategory.Source),
+            Shot = scheduler.CurrentShot,
+            Received = received,
         };
 
-        Counts = Counts.Add(verdict, result.Failed > 0);
+        // A part is counted once, at its last shot.
+        if (!received)
+            Counts = Counts.Add(verdict, result.Failed > 0);
+
         Timing = Timing.Add(snapshot.Duration);
         LastError = result.Failed > 0 ? FailureText() : null;
         SaveCounts(soon: true);
@@ -713,6 +740,31 @@ public sealed class StationRunner : ObservableObject, IDisposable
 
         try
         {
+            var item = snapshot.Shot?.Item;
+
+            // A set given up on - another item begun before its last - kept
+            // as a part that could not be judged.
+            if (_heldItem is not null && !string.Equals(_heldItem, item, StringComparison.Ordinal))
+            {
+                recorder.Release(new Verdict(null, null, 0, 0), nodeErrors: 1);
+                _heldItem = null;
+            }
+
+            if (snapshot.Received)
+            {
+                recorder.Hold(new InspectionRecord(snapshot, RecipeName, Acquired(scheduler), Viewers(scheduler)));
+                _heldItem = item;
+                SavingProblem = recorder.Problem;
+                return;
+            }
+
+            // The set's last: its earlier shots kept as the part went.
+            if (_heldItem is not null)
+            {
+                recorder.Release(snapshot.Verdict, snapshot.NodeErrors);
+                _heldItem = null;
+            }
+
             if (recorder.Wants(snapshot.Verdict, snapshot.NodeErrors))
                 recorder.Record(new InspectionRecord(snapshot, RecipeName, Acquired(scheduler), Viewers(scheduler)));
 

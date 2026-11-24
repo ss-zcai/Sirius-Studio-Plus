@@ -613,6 +613,10 @@ need the part as a thing of its own.
 
 ### 14.2 Several shots per part
 
+**Built at one station, 24 November 2026** (F26a, decision 95); two
+cameras on one trigger (F26b) and a product across stations (F26c) to
+come.
+
 **Redesigned 24 November 2026** from four real cases and the earlier
 system's files (Jianfan, CLT). The first design here - judge each picture
 on its own, combine the verdicts in the workflow - turned out to be the

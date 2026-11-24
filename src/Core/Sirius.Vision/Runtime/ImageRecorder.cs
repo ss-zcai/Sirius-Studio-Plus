@@ -179,6 +179,87 @@ public sealed class ImageRecorder : IInspectionRecorder
 
     public bool Wants(Verdict verdict, int nodeErrors) => Saving.Wants(verdict, nodeErrors);
 
+    /// <summary>The most shots held for one part: a set larger than this keeps its last ones.</summary>
+    internal const int MostHeld = 32;
+
+    private readonly List<Job> _held = [];
+
+    /// <summary>Shots held, waiting for their part's verdict.</summary>
+    internal int Held
+    {
+        get
+        {
+            lock (_held)
+                return _held.Count;
+        }
+    }
+
+    public void Hold(InspectionRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        if (_disposed || Saving.Policy == ImageSavePolicy.None || Picture(record) is not { } image)
+            return;
+
+        var job = new Job(
+            image.Mat.Clone(),
+            image.Bits,
+            record.Snapshot.Time,
+            record.Snapshot.Serial,
+            ImageSaving.VerdictWord(record.Snapshot.Verdict, record.Snapshot.NodeErrors),
+            Saving.Annotations ? Describe(record, image) : null);
+
+        lock (_held)
+        {
+            _held.Add(job);
+
+            if (_held.Count > MostHeld)
+            {
+                _held[0].Pixels.Dispose();
+                _held.RemoveAt(0);
+            }
+        }
+    }
+
+    public void Release(Verdict verdict, int nodeErrors)
+    {
+        Job[] held;
+
+        lock (_held)
+        {
+            held = [.. _held];
+            _held.Clear();
+        }
+
+        if (held.Length == 0)
+            return;
+
+        if (_disposed || !Wants(verdict, nodeErrors))
+        {
+            foreach (var job in held)
+                job.Pixels.Dispose();
+
+            return;
+        }
+
+        var word = ImageSaving.VerdictWord(verdict, nodeErrors);
+
+        foreach (var job in held)
+        {
+            var judged = job with
+            {
+                Verdict = word,
+                Annotations = job.Annotations?.WithVerdict(verdict.Passed, verdict.Grade?.Name, nodeErrors),
+            };
+
+            if (!_queue.Writer.TryWrite(judged))
+            {
+                judged.Pixels.Dispose();
+                Interlocked.Increment(ref _skipped);
+            }
+        }
+    }
+
     public void Record(InspectionRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
@@ -452,6 +533,14 @@ public sealed class ImageRecorder : IInspectionRecorder
     /// <summary>Writes what is queued - up to half a minute's worth - and stops.</summary>
     public void Dispose()
     {
+        lock (_held)
+        {
+            foreach (var job in _held)
+                job.Pixels.Dispose();
+
+            _held.Clear();
+        }
+
         if (_disposed)
             return;
 

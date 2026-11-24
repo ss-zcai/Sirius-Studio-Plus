@@ -142,6 +142,10 @@
                 <MenuItem Header="_Image Saving…"
                           Command="{Binding ImageSavingCommand}"
                           CommandParameter="{Binding SelectedStation}" />
+                <!-- Filled as it opens, for the station chosen: 1 to 8 pictures a part (F26). -->
+                <MenuItem Header="Shots per _Part" SubmenuOpened="OnStationShotsMenuOpened">
+                    <MenuItem Header="…" />
+                </MenuItem>
                 <MenuItem Header="_Browse Saved Images"
                           Command="{Binding BrowseImagesCommand}"
                           CommandParameter="{Binding SelectedStation}" />
@@ -453,6 +457,10 @@
                                                                        FontSize="10"
                                                                        Foreground="{StaticResource Text.Secondary}"
                                                                        Visibility="{Binding HasCamera, Converter={StaticResource BoolToVisibility}}" />
+                                                            <TextBlock Text="{Binding ShotsText}"
+                                                                       FontSize="10"
+                                                                       Foreground="{StaticResource Text.Secondary}"
+                                                                       Visibility="{Binding HasShots, Converter={StaticResource BoolToVisibility}}" />
                                                             <TextBlock Text="recipe missing"
                                                                        FontSize="10"
                                                                        FontStyle="Italic"
@@ -476,6 +484,10 @@
                                                                           CommandParameter="{Binding}" />
                                                                 <!-- Filled as it opens: the recipe's own, and each of the project's cameras. -->
                                                                 <MenuItem Header="_Camera" SubmenuOpened="OnStationCameraMenuOpened">
+                                                                    <MenuItem Header="…" />
+                                                                </MenuItem>
+                                                                <!-- Filled as it opens: 1 to 8 pictures a part (F26). -->
+                                                                <MenuItem Header="Shots per _Part" SubmenuOpened="OnStationShotsMenuOpened">
                                                                     <MenuItem Header="…" />
                                                                 </MenuItem>
                                                                 <MenuItem Header="_Line Settings…"

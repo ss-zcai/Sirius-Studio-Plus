@@ -1,8 +1,10 @@
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
+using System.IO;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
+using Sirius.Core.Runtime;
 using Sirius.Vision;
 using Sirius.Vision.Nodes;
 using Xunit;
@@ -144,6 +146,227 @@ public sealed class ShotSetTests
         var single = new Recipe();
         Assert.False(single.Inspect().IsWaiting);
         Assert.Equal(1d, single.Sum);
+    }
+
+    // ---- a station of several shots per part -----------------------------------------------
+
+    private static StationRunner Station(VisionGraph recipe, int shotsPerPart)
+    {
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+
+        try
+        {
+            return new StationRunner("Lens", recipe) { ShotsPerPart = shotsPerPart };
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+    }
+
+    private static PartValues Part(string item, int shot, bool? last = null) =>
+        new([
+            new("Part ID", item),
+            new(PartValues.ShotName, shot),
+            .. last is { } said ? new[] { new KeyValuePair<string, object?>(PartValues.LastName, said) } : [],
+        ]);
+
+    /// <summary>
+    /// Shots per Part 3: shots 1 and 2 received - no verdict, not counted -
+    /// shot 3 judges the part, counted once. The PLC's Last ends a set
+    /// sooner.
+    /// </summary>
+    [Fact]
+    public void A_station_answers_received_until_the_last_and_counts_the_part_once()
+    {
+        var recipe = new Recipe();
+        using var station = Station(recipe.Graph, shotsPerPart: 3);
+
+        InspectionSnapshot Shoot(PartValues part) => station.TriggerAsync(part).GetAwaiter().GetResult()!;
+
+        var first = Shoot(Part("A", 1));
+        var second = Shoot(Part("A", 2));
+
+        Assert.True(first.Received);
+        Assert.True(second.Received);
+        Assert.Null(second.Verdict.Passed);
+        Assert.Equal(new ShotInfo("A", 2, IsLast: false), second.Shot);
+        Assert.Equal(0, station.Counts.Total);
+
+        var last = Shoot(Part("A", 3));
+
+        Assert.False(last.Received);
+        Assert.Equal(false, last.Verdict.Passed);
+        Assert.Equal((1L, 1L), (station.Counts.Total, station.Counts.Failed));
+
+        // The PLC says Last at shot 2: judged there.
+        var early = Shoot(Part("B", 1));
+        var said = Shoot(Part("B", 2, last: true));
+
+        Assert.True(early.Received);
+        Assert.False(said.Received);
+        Assert.Equal(true, said.Verdict.Passed);
+        Assert.Equal((2L, 1L), (station.Counts.Total, station.Counts.Passed));
+    }
+
+    /// <summary>
+    /// Saving failures only: a set's early pictures are held until the part
+    /// is judged, then written - every one - when it failed, carrying the
+    /// part's verdict; let go when it passed; written as not judged when
+    /// the set was given up on.
+    /// </summary>
+    [Fact]
+    public void A_sets_early_pictures_are_kept_as_its_part_went()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "sirius-shots-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            using var mat = new Mat(10, 10, DepthType.Cv8U, 1);
+            using var image = ImageData.Adopt(mat.Clone());
+
+            InspectionRecord Shot(int serial, bool? passed, bool received) => new(
+                new InspectionSnapshot("Top", serial, DateTime.Now, new Verdict(passed, null, passed is null ? 0 : 1, passed == false ? 1 : 0), TimeSpan.Zero, 0, new Dictionary<string, object?>())
+                {
+                    Received = received,
+                },
+                null,
+                image,
+                []);
+
+            string[] Saved() => Directory.Exists(folder)
+                ? Directory.GetFiles(folder, "*.tif", SearchOption.AllDirectories).Select(path => Path.GetFileNameWithoutExtension(path)!).Order(StringComparer.Ordinal).ToArray()
+                : [];
+
+            using (var recorder = new Sirius.Vision.Runtime.ImageRecorder(new Sirius.Core.Projects.ImageSaving(Sirius.Core.Projects.ImageSavePolicy.Failed), folder, "Top", freeSpace: _ => long.MaxValue))
+            {
+                // A part that passed: its two held shots let go.
+                recorder.Hold(Shot(1, null, received: true));
+                recorder.Hold(Shot(2, null, received: true));
+                Assert.Equal(2, recorder.Held);
+                recorder.Release(new Verdict(true, null, 1, 0), 0);
+                Assert.Equal(0, recorder.Held);
+
+                // A part that failed: its held shots written as failed, and its last.
+                recorder.Hold(Shot(3, null, received: true));
+                recorder.Hold(Shot(4, null, received: true));
+                recorder.Release(new Verdict(false, null, 1, 1), 0);
+                recorder.Record(Shot(5, false, received: false));
+
+                // A set given up on: kept as not judged.
+                recorder.Hold(Shot(6, null, received: true));
+                recorder.Release(new Verdict(null, null, 0, 0), nodeErrors: 1);
+            }
+
+            var saved = Saved();
+            Assert.Equal(4, saved.Length);
+            Assert.All(saved.Take(3), name => Assert.EndsWith("_FAIL", name, StringComparison.Ordinal));
+            Assert.EndsWith("_000006_ERROR", saved[3], StringComparison.Ordinal);
+
+            var annotation = Sirius.Core.Annotations.AnnotationFile.TryLoad(
+                Directory.GetFiles(folder, "*_000003_FAIL.sann", SearchOption.AllDirectories).Single(), out _)!;
+            Assert.Equal(false, annotation.Passed);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+            catch (IOException)
+            {
+                // A leftover temp folder is not worth failing a run over.
+            }
+        }
+    }
+
+    /// <summary>The station's Shots per Part is kept in the project, and a station opened from it takes it.</summary>
+    [Fact]
+    public void Shots_per_part_is_kept_with_the_station()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sirius-shots-project-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            var project = Sirius.Core.Projects.Project.Create(root, "Line", new Recipe().Graph, "Lens");
+            var station = project.Stations[0];
+
+            Assert.Equal(1, station.ShotsPerPart);
+            Assert.True(project.SetShotsPerPart(station, 4));
+            Assert.False(project.SetShotsPerPart(station, 4));
+            Assert.Throws<ArgumentOutOfRangeException>(() => project.SetShotsPerPart(station, 0));
+            Assert.Throws<ArgumentOutOfRangeException>(() => project.SetShotsPerPart(station, Sirius.Core.Projects.Station.MostShots + 1));
+
+            var again = Sirius.Core.Projects.Project.Load(project.FilePath).Project;
+            Assert.Equal(4, again.Stations[0].ShotsPerPart);
+
+            // One a part is not written at all: a project from before is unchanged.
+            project.SetShotsPerPart(station, 1);
+            Assert.DoesNotContain("\"shots\"", File.ReadAllText(project.FilePath), StringComparison.Ordinal);
+            project.SetShotsPerPart(station, 4);
+
+            using var runner = StationRunner.Open(again, again.Stations[0]);
+            Assert.Equal(4, runner.ShotsPerPart);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(root, recursive: true);
+            }
+            catch (IOException)
+            {
+                // A leftover temp folder is not worth failing a run over.
+            }
+        }
+    }
+
+    /// <summary>
+    /// A folder of sets, run in Studio: its pictures shots 1 and 2 of each
+    /// part in turn, the parts counted, not the pictures.
+    /// </summary>
+    [Fact]
+    public void A_folder_run_of_sets_counts_its_parts()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "sirius-shots-folder-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+
+        try
+        {
+            foreach (var name in new[] { "a1", "a2", "b1", "b2", "c1", "c2" })
+            {
+                using var mat = new Mat(8, 8, DepthType.Cv8U, 1);
+                mat.SetTo(new MCvScalar(50));
+                CvInvoke.Imwrite(Path.Combine(folder, name + ".png"), mat);
+            }
+
+            var recipe = new Recipe(deskShots: 2);
+            var sequence = new ImageSequenceNode { SourcePath = folder };
+            recipe.Graph.Add(sequence);
+
+            var summary = FolderRun.RunAsync(recipe.Graph, recipe.Scheduler, sequence, null, CancellationToken.None).GetAwaiter().GetResult();
+
+            Assert.Equal(6, summary.Items.Count);
+            Assert.Equal((3, 3), (summary.Received, summary.Parts));
+            Assert.Equal([true, false, true, false, true, false], summary.Items.Select(item => item.Received));
+
+            // Shot 1 + shot 2 = 3, at most 5: each part passes.
+            Assert.Equal(3, summary.Passed);
+            Assert.StartsWith("6 images, 3 parts in", summary.Describe(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+            catch (IOException)
+            {
+                // A leftover temp folder is not worth failing a run over.
+            }
+        }
     }
 
     [Fact]

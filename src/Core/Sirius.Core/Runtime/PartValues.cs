@@ -47,6 +47,72 @@ public sealed class PartValues : IReadOnlyList<KeyValuePair<string, object?>>
 
     public static PartValues Empty { get; } = new([]);
 
+    /// <summary>The name of which picture of the part an inspection is, from 1.</summary>
+    public const string ShotName = "Shot";
+
+    /// <summary>The name of whether the picture is its set's last, when the PLC says (F26).</summary>
+    public const string LastName = "Last";
+
+    /// <summary>Whether a name is the part's ID: "Part ID", "PartID", "part_id", any case.</summary>
+    public static bool IsItemName(string name) =>
+        string.Equals(
+            new string(name.Where(c => c is not (' ' or '_' or '-')).ToArray()),
+            "PartID",
+            StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The part's ID among the values, as text, or null.</summary>
+    public static string? ItemIn(PartValues? part)
+    {
+        if (part is null)
+            return null;
+
+        foreach (var (name, value) in part)
+        {
+            if (IsItemName(name) && value is not null && Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) is { Length: > 0 } text)
+                return text;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Which picture of its part an inspection is (F26): its item, the
+    /// shot number given, and the last when the values say Last, or else
+    /// when the shot is the station's Shots per Part. Null for a station
+    /// taking one picture a part, with nothing said otherwise.
+    /// </summary>
+    public static Sirius.Core.Graph.ShotInfo? ShotFor(PartValues? part, int shotsPerPart)
+    {
+        var last = part?[LastName] is { } said ? AsBool(said) : null;
+
+        if (shotsPerPart <= 1 && last is null)
+            return null;
+
+        var shot = part?[ShotName] is { } number && AsInt(number) is { } n && n > 0 ? n : 1;
+
+        return new Sirius.Core.Graph.ShotInfo(ItemIn(part) ?? string.Empty, shot, last ?? shot >= shotsPerPart);
+    }
+
+    private static int? AsInt(object value)
+    {
+        try
+        {
+            return Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidCastException or OverflowException)
+        {
+            return null;
+        }
+    }
+
+    private static bool? AsBool(object value) => value switch
+    {
+        bool flag => flag,
+        string text when bool.TryParse(text, out var parsed) => parsed,
+        IConvertible number => AsInt(number) is { } n ? n != 0 : null,
+        _ => null,
+    };
+
     public int Count => _values.Count;
 
     public KeyValuePair<string, object?> this[int index] => _values[index];

@@ -95,6 +95,29 @@ public sealed class AnnotationFile
     /// </summary>
     public IReadOnlyList<MeasurementRecord> Measurements { get; init; } = [];
 
+    /// <summary>
+    /// The same, judged otherwise: a shot taken before its set's last,
+    /// written once the part has been judged (F26).
+    /// </summary>
+    public AnnotationFile WithVerdict(bool? passed, string? grade, int nodeErrors) => new()
+    {
+        Image = Image,
+        Width = Width,
+        Height = Height,
+        Bits = Bits,
+        Station = Station,
+        Recipe = Recipe,
+        Serial = Serial,
+        Time = Time,
+        Passed = passed,
+        Grade = grade,
+        NodeErrors = nodeErrors,
+        Results = Results,
+        Part = Part,
+        Layers = Layers,
+        Measurements = Measurements,
+    };
+
     /// <summary>"PASS", "FAIL", "ERROR" or "NONE", as the picture's name says.</summary>
     public string VerdictWord => NodeErrors > 0 && Passed != false ? "ERROR"
         : Passed switch

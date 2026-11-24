@@ -3789,3 +3789,43 @@ program, as the cloud platform has a Sirius Studio of its own.
 - **NodeGraphKit removed**: the other team only tried it.
 - **Not changed**: the programs' file names and settings folders; the
   main package's name changes at the next release.
+
+## 95. Several shots per part at one station, built (F26a)
+
+Built 24 November 2026 to decision 93's design. How a station knows a
+set is complete, the user's choice: **both** - the station's **Shots per
+Part**, and Inspect's **Last** wired from the PLC overriding it, for a
+line whose sets vary by product.
+
+- **The engine.** A run knows its shot (`ShotInfo`: item, number, last).
+  A node can **wait** for the rest of its set: it gives nothing, and what
+  follows it waits too, not failing for an input still to come; the run
+  is then a shot *received*, not a part judged (`GraphRunResult.IsWaiting`).
+- **The nodes.** **Shot** (which picture this is; at the desk its Shots
+  per Part numbers inspections into sets, in order). **Collect Images**
+  (average, brightest, darkest of each pixel - case 2's colour over
+  several lights), **Collect Verdicts** (the part passes when every shot
+  did; the part's check, so a check per shot wired in is not counted on
+  its own), **Collect Numbers** (sum, mean, least, most). A new item
+  throws an unfinished set away; a missing shot is said, the rest
+  judged.
+- **The station.** Shots per Part in Builder (Station ▸ Shots per Part,
+  or right-click; 1 to 8 offered, 16 the most kept). Each shot is told
+  its item - the Part ID - and number. Before the last: no verdict, not
+  counted, the screen's verdict "SHOT 2". **Pictures held**: a set's
+  early pictures are copied and held until the part is judged, then
+  written with the part's verdict - so "failed only" keeps a failed
+  part's every picture - or let go; a set given up on is written as not
+  judged (ERROR).
+- **The workflow.** Inspect has **Shot** and **Last** inputs and fires
+  **Received** for a shot before the last. Each shot is a pass of its
+  own; the part is kept open across them by its ID and judged once,
+  with its last. Another part beginning at the same station, or a
+  minute without its next shot, gives the set up: a part **not
+  inspected**. Shots of a part need its Part ID (a check says so).
+- **Studio.** Run Folder runs a folder of sets as parts - "6 images,
+  3 parts" - and the status line says when a set is waiting.
+
+Not yet: two cameras on one trigger (F26b); a product across stations
+(F26c); a Collect inside a sub-graph sees no shot (a picture a part);
+REVIEW and the result codes (F33).

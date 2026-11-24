@@ -43,6 +43,20 @@ public interface IInspectionRecorder : IDisposable
     /// <summary>Takes a copy of what is to be kept, and returns.</summary>
     void Record(InspectionRecord record);
 
+    /// <summary>
+    /// A shot before its set's last (F26): copied and held, not written,
+    /// until <see cref="Release"/> says how the part went - so keeping only
+    /// failures keeps a failed part's every picture.
+    /// </summary>
+    void Hold(InspectionRecord record)
+    {
+    }
+
+    /// <summary>The held shots written as the part went, when that is kept; else let go.</summary>
+    void Release(Verdict verdict, int nodeErrors)
+    {
+    }
+
     /// <summary>Pictures written so far.</summary>
     long Saved { get; }
 

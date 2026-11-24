@@ -18,8 +18,8 @@ where the product stands; this says what could come next. Updated
 
 **Proposed order from here:**
 
-1. **F26a, a set of shots at one station** - cases 2 and 4 of the four
-   real ones (`runtime-design.md` 14.2), redesigned 24 November.
+1. ~~**F26a, a set of shots at one station**~~ - done 24 November
+   (decision 95).
 2. **F33, result codes beyond PASS/FAIL** - REVIEW and NoLens, which
    cases 2 and 4 answer, and a set that times out as FAIL or REVIEW.
 3. **F26b** (two cameras on one trigger), **F26c** (a product across
@@ -267,12 +267,13 @@ part, how the PLC tracks parts - size F26-F28.
   shot with the item ID and the shot number; the station runs its recipe
   on each shot as it comes and a **Collect** node holds them until the
   set is complete, then what follows it judges the part once. In slices:
-  - **F26a. A set of shots at one station** (M-L) - cases 2 and 4 with
-    one camera: Inspect taking the item ID and shot number; the
-    station's sets per item, answered "received" until complete; Collect
-    and what runs after it; the set's timeout; each picture saved with
-    its item and shot; Studio running a folder of a part's pictures in
-    shot order.
+  - ~~**F26a. A set of shots at one station**~~ - done 24 November 2026
+    (decision 95): Shots per Part on the station, Inspect's Shot and
+    Last; Shot, Collect Images, Collect Verdicts and Collect Numbers; a
+    shot answered "received" until the set's last; a part kept open
+    across passes by its ID, given up on - not inspected - when another
+    part begins at the station or after a minute; a set's early pictures
+    held until the part is judged; Studio's Run Folder over sets.
   - **F26b. Two cameras on one trigger** (M) - case 4's beam splitter:
     a station with a camera per Camera node, a shot grabbing from each.
   - **F26c. A product across stations** (M) - case 3: the controller's
