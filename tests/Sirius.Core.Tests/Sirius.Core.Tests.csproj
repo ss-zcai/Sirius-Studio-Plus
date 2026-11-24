@@ -62,7 +62,12 @@
   </ItemGroup>
 
   <Target Name="CopyTestPlcDriver" AfterTargets="Build">
-    <MSBuild Projects="..\TestPlcDriver\TestPlcDriver.csproj" Targets="GetTargetPath">
+    <!--
+      Built here, not only asked where it would be: the solution builds it
+      for x64, into bin\x64\, so a fresh clone had nothing at the path asked
+      for - only a folder that had once built it alone did.
+    -->
+    <MSBuild Projects="..\TestPlcDriver\TestPlcDriver.csproj" Targets="Build">
       <Output TaskParameter="TargetOutputs" ItemName="TestPlcDriverAssembly" />
     </MSBuild>
     <Copy SourceFiles="@(TestPlcDriverAssembly)" DestinationFolder="$(OutDir)plc-drivers-test\TestPlcDriver" SkipUnchangedFiles="true" />
