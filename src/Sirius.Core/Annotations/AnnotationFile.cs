@@ -110,6 +110,29 @@ public sealed class AnnotationFile
     /// <summary>The annotation file that goes with a picture: the same name, ending <c>.sann</c>.</summary>
     public static string PathFor(string imagePath) => Path.ChangeExtension(imagePath, Extension);
 
+    /// <summary>
+    /// A picture's annotations: its <c>.sann</c>, or else the earlier image
+    /// viewer's <c>name.tiff.json</c> beside it (<see cref="LegacyAnnotations"/>),
+    /// read only. Null when it has neither, or with <paramref name="problem"/>
+    /// when the one there cannot be read.
+    /// </summary>
+    public static AnnotationFile? ReadFor(string imagePath, out string? problem)
+    {
+        problem = null;
+
+        var own = PathFor(imagePath);
+
+        if (File.Exists(own))
+            return TryLoad(own, out problem);
+
+        var legacy = LegacyAnnotations.PathFor(imagePath);
+        return File.Exists(legacy) ? LegacyAnnotations.TryLoad(legacy, out problem) : null;
+    }
+
+    /// <summary>Whether a picture has annotations of either kind beside it.</summary>
+    public static bool ExistsFor(string imagePath) =>
+        File.Exists(PathFor(imagePath)) || File.Exists(LegacyAnnotations.PathFor(imagePath));
+
     // ---- writing ------------------------------------------------------------
 
     /// <summary>

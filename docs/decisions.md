@@ -3717,3 +3717,21 @@ Built 23 November 2026, finishing F23c.
   cannot be changed while the line runs it. The window and its model
   moved from Builder into the shared library (`Sirius.Studio.App.Plc`)
   for this; Builder's Test Run opens the same.
+
+## 92. The earlier image viewer's annotation files, read only
+
+Asked on 24 November 2026: the earlier viewer took a picture and a JSON
+file of the same name for its annotations; can those be supported? The
+Jianfan multi-image examples were looked at, and every shape and field
+in them maps onto a `.sann`.
+
+- **Read only** (the user's choice): Sirius IV reads `picture.tiff.json`
+  where a picture has no `.sann`, and never writes it. No convert
+  command. Measurements saved start a `.sann` from what it says.
+- **Colours as BGR**, OpenCV's order, until confirmed against the
+  earlier viewer: the defect red, the inspected area blue.
+- **Not judged**: the verdict waits for more examples to say which codes
+  pass; the code and message show as the grade meanwhile. This is the
+  result codes of F33 seen from the other side.
+- Read in the core (`LegacyAnnotations`), so anything else that reads
+  annotations can take them later.

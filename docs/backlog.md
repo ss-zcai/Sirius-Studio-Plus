@@ -121,6 +121,10 @@ is in `licences.md`**; this is the list.
   18 November, passing three times alone - the same day camera discovery
   took 87 s in `CameraSdkGateTests`. Worth finding out why before they
   hide a real failure.
+  Seen since (open): `CameraUnitTests.The_camera_window_keeps_the_camera_over_a_frame_lost_on_the_network`
+  once in a full run, 23 November; the Hikrobot two-station test once on
+  24 November with a new cause - `MV_E_HANDLE` triggering the virtual
+  colour camera after 16 frames - not a timeout. Both pass alone.
 - ~~**N9. A station renamed leaves its workflows behind**~~ - done, 18
   November 2026, in 1.0.13: Inspect and Station Result follow, open
   workflows as a change to save, the rest in their files.

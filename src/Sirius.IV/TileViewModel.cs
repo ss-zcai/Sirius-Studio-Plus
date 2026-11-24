@@ -181,8 +181,7 @@ public sealed class TileViewModel : ObservableObject
     /// <summary>The file, read again for profiling; null when it no longer reads.</summary>
     private static LineProfileSource? ProfileOf(ImageFileItem file)
     {
-        var said = System.IO.File.Exists(file.AnnotationPath)
-            && AnnotationFile.TryLoad(file.AnnotationPath, out _) is { Bits: > 0 and var bits }
+        var said = file.ReadAnnotations(out _) is { Bits: > 0 and var bits }
             ? bits
             : (int?)null;
 
@@ -478,8 +477,7 @@ public sealed class TileViewModel : ObservableObject
         AnnotationFile? annotations = null;
         string? problem = null;
 
-        if (System.IO.File.Exists(file.AnnotationPath))
-            annotations = AnnotationFile.TryLoad(file.AnnotationPath, out problem);
+        annotations = file.ReadAnnotations(out problem);
 
         using var mat = CvInvoke.Imread(file.Path, ImreadModes.Unchanged);
 

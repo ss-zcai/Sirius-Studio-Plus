@@ -289,3 +289,40 @@ and the run goes on. `sirius-run --no-annotations` writes none.
 In code: `FolderRun.RunAsync`'s `keep`, given each inspection as a
 station's recorder is (`InspectionCapture`), and
 `Sirius.Vision.Runtime.FolderAnnotations`, which writes them.
+
+## 5. The earlier image viewer's files, read
+
+The earlier vision system wrote a picture's annotations beside it as
+JSON named after the **whole** picture name: `picture.tiff.json`. Sirius
+IV reads them - **never writes or changes them** - wherever a picture has
+no `.sann` (decision 92). The viewers, the Annotations panel, layers, the
+CSV and drawn exports and ROIs from All take them as a `.sann`.
+
+| Earlier file | Read as |
+|---|---|
+| `output.annotations` (JSON in a string): `Circle` - Centre, Radius | a circle |
+| `RotatedRectangle` - Centre, Width, Height, Rotation | a turned rectangle; Rotation clockwise, as ours and OpenCV's |
+| `Name` | the shape's label, and its **layer** - "inspect area", "mark", "dm", "text", "defect" - switched on and off in the panel |
+| `Colour` [b, g, r] | the shape's colour - **BGR**, as OpenCV's, until confirmed |
+| `LineWidth` | not kept: drawn at the viewer's width |
+| `meta` (JSON in a string) | the part: batch, pallet, position, QR code, station, `MultiSeq`, `GroupId`, `Requests` |
+| `output` - result, defectCode, message, processingTime; `algo`, `algoVersion`, `args` | the results |
+| `output.info` (JSON in a string, its Windows paths unescaped) | more results, read leniently: `processing_time`, `features`… |
+| `requestId` | the serial, and the time: `260511155932312022` is 11 May 2026 15:59:32.312 |
+| `meta.PixelFormat` `Mono8`, `Mono12` | the bits |
+
+**The verdict is not judged yet**: which result and defect codes pass is
+still to be learned from more examples. Until then the code and message
+are its grade - "2002 Scratch", "202 Image received" - and its verdict
+NONE.
+
+Measurements drawn and saved go into a `.sann` beside it, which starts
+from what the earlier file says; the earlier file stays as it was, and
+from then the `.sann` is read. **To Folder** copies or moves the earlier
+file with its picture.
+
+A multi-image part's shots share `GroupId`: matching by the pattern
+`^\d+-(\d{17})` puts them side by side.
+
+In code: `Sirius.Core.Annotations.LegacyAnnotations`, and
+`AnnotationFile.ReadFor`, which tries the `.sann` first.

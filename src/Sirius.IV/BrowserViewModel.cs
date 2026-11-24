@@ -857,6 +857,12 @@ public sealed class BrowserViewModel : ObservableObject
 
             annotations = existing;
         }
+        else if (File.Exists(unsaved.File.LegacyAnnotationPath) &&
+                 LegacyAnnotations.TryLoad(unsaved.File.LegacyAnnotationPath, out _) is { } earlier)
+        {
+            // The earlier viewer's file is read only: the .sann starts from what it says.
+            annotations = earlier;
+        }
         else
         {
             annotations = new AnnotationFile { Image = unsaved.File.Name, Width = unsaved.Width, Height = unsaved.Height };
@@ -1039,9 +1045,7 @@ public sealed class BrowserViewModel : ObservableObject
 
         foreach (var picture in pictures)
         {
-            var annotations = System.IO.File.Exists(picture.AnnotationPath)
-                ? AnnotationFile.TryLoad(picture.AnnotationPath, out _)
-                : null;
+            var annotations = picture.ReadAnnotations(out _);
 
             if (annotations is null)
                 without++;
@@ -1110,6 +1114,10 @@ public sealed class BrowserViewModel : ObservableObject
 
             if (System.IO.File.Exists(picture.AnnotationPath))
                 files.Add((picture.AnnotationPath, System.IO.Path.Combine(into, System.IO.Path.GetFileName(picture.AnnotationPath))));
+
+            // The earlier viewer's file goes with it too, unchanged.
+            if (System.IO.File.Exists(picture.LegacyAnnotationPath))
+                files.Add((picture.LegacyAnnotationPath, System.IO.Path.Combine(into, System.IO.Path.GetFileName(picture.LegacyAnnotationPath))));
 
             return new Transfer(picture, files);
         }).ToArray();
@@ -1376,9 +1384,7 @@ public sealed class BrowserViewModel : ObservableObject
             return await Task.Run(() => pictures.Select((picture, i) =>
             {
                 var measurements = unsaved[i]
-                    ?? (System.IO.File.Exists(picture.AnnotationPath)
-                        ? AnnotationFile.TryLoad(picture.AnnotationPath, out _)?.Measurements
-                        : null)
+                    ?? picture.ReadAnnotations(out _)?.Measurements
                     ?? [];
 
                 return new RoiBatch.Cut(picture, RoiBatch.From(measurements));
@@ -1630,6 +1636,13 @@ public sealed class ImageFileItem : ObservableObject
 
     /// <summary>The annotation file beside it, by name.</summary>
     public string AnnotationPath => Sirius.Core.Annotations.AnnotationFile.PathFor(Path);
+
+    /// <summary>The earlier image viewer's annotation file beside it - its whole name and .json - read only.</summary>
+    public string LegacyAnnotationPath => Sirius.Core.Annotations.LegacyAnnotations.PathFor(Path);
+
+    /// <summary>Its annotations: its .sann, or else the earlier viewer's file; null when it has neither.</summary>
+    public Sirius.Core.Annotations.AnnotationFile? ReadAnnotations(out string? problem) =>
+        Sirius.Core.Annotations.AnnotationFile.ReadFor(Path, out problem);
 
     // ---- the file ----------------------------------------------------------------------
 
