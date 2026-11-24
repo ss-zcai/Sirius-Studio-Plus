@@ -69,10 +69,10 @@
     the repository.
   -->
   <ItemGroup>
-    <Content Include="..\..\docs\node-reference.md"
+    <Content Include="..\..\docs\reference\node-reference.md"
              Link="docs\node-reference.md"
              CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\..\docs\release-notes.md"
+    <Content Include="..\..\docs\project\release-notes.md"
              Link="docs\release-notes.md"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\THIRD-PARTY-NOTICES.txt"

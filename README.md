@@ -44,7 +44,7 @@ the drivers build empty and the programs list no such cameras.
 | `tests/TestPlcDriver` | The smallest PLC driver library, loaded by the tests from a folder. |
 | `samples/SampleNodes`, `PythonNodes`, `CppNodes` | Custom node samples, shipped in the package and the SDK. |
 | `samples/PlcDrivers` | The PLC kit's sample driver and its conformance tests - built only in the kit (`pack-plc-kit.ps1`). |
-| `tools/NodeDocGen` | Generates `docs/node-reference.md` from the node library. |
+| `tools/NodeDocGen` | Generates `docs/reference/node-reference.md` from the node library. |
 
 `Sirius.Core` has no dependency on OpenCV or WPF, which is what makes the
 engine testable without either - and would make a change of CV backend a
@@ -54,7 +54,7 @@ rewrite of node bodies rather than an architectural one.
 
 ```bash
 dotnet test                                              # the whole suite, about two minutes
-dotnet run --project tools/NodeDocGen -- docs/node-reference.md
+dotnet run --project tools/NodeDocGen -- docs/reference/node-reference.md
 python tools/svg2xaml.py src/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
 ```
 
@@ -139,34 +139,42 @@ and opencv-python.
 **Versions.** Studio, Edge and sirius-run take `<Version>` in
 `Directory.Build.props`; Builder, Sirius IV, the plugin interface and the
 PLC driver interface each have their own in their project file. A release
-bumps them, adds its entry to `docs/release-notes.md`, is tagged `vX.Y.Z`,
+bumps them, adds its entry to `docs/project/release-notes.md`, is tagged `vX.Y.Z`,
 and is packed from the tagged commit.
 
 ## Documentation
 
+In `docs/`: `overview.md`, every package's README, and four folders -
+`design/` (how things work and why: the runtime, workflows, the
+annotation file), `guides/` (for people extending the suite: custom
+nodes, PLC drivers, the SDK and kit READMEs), `reference/` (generated or
+looked up: the node reference, the icons) and `project/` (backlog,
+roadmap, decisions, release notes, licences). The packages carry their
+documents flat, as before.
+
 For people using the programs:
 
 - [`docs/overview.md`](docs/overview.md) - what each program does, and how they fit together.
-- [`docs/release-notes.md`](docs/release-notes.md) - what changed in each build, and what to try first.
-- [`docs/node-reference.md`](docs/node-reference.md) - every node, port and parameter. Generated; do not edit.
-- [`docs/annotation-format.md`](docs/annotation-format.md) - saved pictures, the `.sann` file, Sirius IV.
-- [`docs/plc-workflows.md`](docs/plc-workflows.md) - controllers and their workflows.
+- [`docs/project/release-notes.md`](docs/project/release-notes.md) - what changed in each build, and what to try first.
+- [`docs/reference/node-reference.md`](docs/reference/node-reference.md) - every node, port and parameter. Generated; do not edit.
+- [`docs/design/annotation-format.md`](docs/design/annotation-format.md) - saved pictures, the `.sann` file, Sirius IV.
+- [`docs/design/plc-workflows.md`](docs/design/plc-workflows.md) - controllers and their workflows.
 
 For people extending them:
 
-- [`docs/sdk-readme.md`](docs/sdk-readme.md), [`docs/custom-nodes.md`](docs/custom-nodes.md), [`docs/python-nodes.md`](docs/python-nodes.md), [`docs/cpp-nodes.md`](docs/cpp-nodes.md) - custom nodes.
-- [`docs/plc-drivers.md`](docs/plc-drivers.md) - PLC drivers; [`docs/plc-kit-readme.md`](docs/plc-kit-readme.md) is the PLC kit's README.
+- [`docs/guides/sdk-readme.md`](docs/guides/sdk-readme.md), [`docs/guides/custom-nodes.md`](docs/guides/custom-nodes.md), [`docs/guides/python-nodes.md`](docs/guides/python-nodes.md), [`docs/guides/cpp-nodes.md`](docs/guides/cpp-nodes.md) - custom nodes.
+- [`docs/guides/plc-drivers.md`](docs/guides/plc-drivers.md) - PLC drivers; [`docs/guides/plc-kit-readme.md`](docs/guides/plc-kit-readme.md) is the PLC kit's README.
 
 For working on the product:
 
-- [`docs/decisions.md`](docs/decisions.md) - why it is the way it is, including what went wrong getting there.
-- [`docs/roadmap.md`](docs/roadmap.md) - where it stands: what is done, known limits.
-- [`docs/backlog.md`](docs/backlog.md) - what is left to do, in a proposed order.
-- [`docs/runtime-design.md`](docs/runtime-design.md) - the runtime, screens and PLC: the design.
-- [`docs/licences.md`](docs/licences.md) - every licence question, and what must be settled before a customer build.
+- [`docs/project/decisions.md`](docs/project/decisions.md) - why it is the way it is, including what went wrong getting there.
+- [`docs/project/roadmap.md`](docs/project/roadmap.md) - where it stands: what is done, known limits.
+- [`docs/project/backlog.md`](docs/project/backlog.md) - what is left to do, in a proposed order.
+- [`docs/design/runtime-design.md`](docs/design/runtime-design.md) - the runtime, screens and PLC: the design.
+- [`docs/project/licences.md`](docs/project/licences.md) - every licence question, and what must be settled before a customer build.
 
 ## Licensing
 
 Internal test builds only. Emgu CV is dual-licensed GPLv3 or commercial,
-and other conditions are open: [`docs/licences.md`](docs/licences.md) has
+and other conditions are open: [`docs/project/licences.md`](docs/project/licences.md) has
 them all, and what must be settled before a build goes to a customer.

@@ -1087,14 +1087,16 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnNodeReferenceClick(object sender, RoutedEventArgs e)
     {
-        // Walk up from the binaries to the repository root, where docs/ lives.
+        // Beside the program, as packed; or walking up to the repository root, where it is docs/reference/.
         var directory = AppContext.BaseDirectory;
         string? found = null;
 
         for (var depth = 0; depth < 8 && directory is not null; depth++)
         {
-            var candidate = Path.Combine(directory, "docs", "node-reference.md");
-            if (File.Exists(candidate))
+            var candidate = new[] { Path.Combine(directory, "docs", "node-reference.md"), Path.Combine(directory, "docs", "reference", "node-reference.md") }
+                .FirstOrDefault(File.Exists);
+
+            if (candidate is not null)
             {
                 found = candidate;
                 break;
@@ -1107,7 +1109,7 @@ public partial class MainWindow : Window
         {
             Dialog.Inform(
                 "The node reference was not found. Generate it with:" + Environment.NewLine + Environment.NewLine +
-                "dotnet run --project tools/NodeDocGen -- docs/node-reference.md",
+                "dotnet run --project tools/NodeDocGen -- docs/reference/node-reference.md",
                 "Node Reference",
                 this);
             return;

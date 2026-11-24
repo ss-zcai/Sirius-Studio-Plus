@@ -18,7 +18,7 @@ ways this script has to deal with before the house restyle can be applied:
   * an export may carry a leftover ``<image>`` reference layer, a base64
     sketch the artwork was traced over, which the XAML converter rejects.
 
-The restyle itself matches ``docs/icon-inventory.md``: repaint to ``#fff``
+The restyle itself matches ``docs/reference/icon-inventory.md``: repaint to ``#fff``
 and redraw every shape behind it with a stroke 32 units wider at 50% opacity,
 which puts the dark keyline edge 16 units - 1/16 of the canvas - outside the
 white silhouette.

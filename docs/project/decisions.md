@@ -3083,7 +3083,7 @@ sent through the simulator control the vision project.
 
 Asked for on 13 November 2026: the documents for the PLC team to write
 drivers - Siemens S7 first - and use workflows. Written as
-`docs/plc-drivers.md` and `docs/plc-workflows.md`; and, so that they
+`docs/guides/plc-drivers.md` and `docs/design/plc-workflows.md`; and, so that they
 describe what is there rather than what is meant, the pieces they rely on
 built first.
 

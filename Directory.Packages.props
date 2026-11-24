@@ -19,7 +19,7 @@
       OpenCV binding. Pinned to the latest 4.x line: the 5.0.0 package is very
       new and the 4.x API surface matches the code being ported from
       Sirius.Studio (which used 4.3).
-      NOTE: Emgu CV is dual-licensed GPLv3 / commercial - see docs/decisions.md.
+      NOTE: Emgu CV is dual-licensed GPLv3 / commercial - see docs/project/decisions.md.
     -->
     <PackageVersion Include="Emgu.CV" Version="4.13.0.5924" />
     <PackageVersion Include="Emgu.CV.runtime.windows" Version="4.13.0.5924" />

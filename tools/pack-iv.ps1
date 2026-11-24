@@ -68,7 +68,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Sirius IV did not publish.' }
 # and what changed: the overview as the README, as in the full package.
 New-Item -ItemType Directory -Force (Join-Path $staging 'docs') | Out-Null
 Copy-Item 'docs/overview.md' (Join-Path $staging 'README.md')
-Copy-Item 'docs/overview.md', 'docs/annotation-format.md', 'docs/release-notes.md' (Join-Path $staging 'docs')
+Copy-Item 'docs/overview.md', 'docs/design/annotation-format.md', 'docs/project/release-notes.md' (Join-Path $staging 'docs')
 
 # ---- check -----------------------------------------------------------------
 

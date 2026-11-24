@@ -4,7 +4,7 @@ For the team writing PLC drivers and workflows: Sirius Builder to work in,
 the driver SDK to build against, a sample driver, and the guides.
 
 **For use inside the company.** This build includes libraries whose
-licences are not yet settled for customers (`docs/licences.md` in the
+licences are not yet settled for customers (`docs/project/licences.md` in the
 main repository); do not give it to anyone outside.
 
 ```
@@ -39,7 +39,7 @@ docs\
    **Set in Simulator**. The log shows the pass; M0.1 and M0.2 change in
    the memory list. Click M0.0 there to flip it off, then on again.
 
-`docs\plc-workflows.md` has the rest.
+`docs\design\plc-workflows.md` has the rest.
 
 ## The sample driver
 
@@ -63,7 +63,7 @@ dotnet test sdk\SampleDriver.sln
    The key and each setting's name are saved in projects: settle them
    before anyone uses the driver.
 2. Add the HslCommunication package to the driver project.
-3. Follow `docs\plc-drivers.md` §4: the base class over HSL's clients,
+3. Follow `docs\guides\plc-drivers.md` §4: the base class over HSL's clients,
    the S7 address translation, the CPU, rack and slot settings.
 4. **The HslCommunication activation code** comes from the machine -
    the `SIRIUS_HSL_CODE` environment variable in the guide - never from

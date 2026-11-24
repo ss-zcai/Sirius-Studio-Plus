@@ -45,7 +45,7 @@ public sealed record PlcCheckResult(string Check, bool Passed, string Detail)
 /// Assert.All(results, result => Assert.True(result.Passed, result.ToString()));
 /// </code>
 /// What cannot be checked by a program - a cable pulled out, a PLC switched
-/// off - is in the guide's checklist (<c>docs/plc-drivers.md</c>).
+/// off - is in the guide's checklist (<c>docs/guides/plc-drivers.md</c>).
 /// </remarks>
 public static class PlcDriverCheck
 {

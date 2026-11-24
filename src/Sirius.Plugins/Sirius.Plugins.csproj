@@ -7,7 +7,7 @@
     shapes, points, calibrations - and on nothing else. In particular not on
     Sirius.Vision, which is where Emgu.CV comes in: a plugin never links
     OpenCV, so its author inherits none of Emgu's licence terms. See
-    docs/custom-nodes.md section 2.
+    docs/guides/custom-nodes.md section 2.
   -->
 
   <PropertyGroup>
@@ -38,7 +38,7 @@
     <!-- The package other teams reference. tools/pack-sdk.ps1 builds it. -->
     <PackageId>Sirius.Plugins</PackageId>
     <Authors>$(Company)</Authors>
-    <Description>Interface for writing custom nodes for Sirius Studio Plus. See docs/custom-nodes.md in the SDK.</Description>
+    <Description>Interface for writing custom nodes for Sirius Studio Plus. See custom-nodes.md in the SDK.</Description>
     <PackageTags>sirius;machine-vision;plugin</PackageTags>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeCoreInPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>

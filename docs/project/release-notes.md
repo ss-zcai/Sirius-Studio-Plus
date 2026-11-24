@@ -327,7 +327,7 @@ controller for its workflow.
 **For node authors (C#).** The setting's setter is called only when the
 *path* changes. A node that loads its model in the setter, or keeps it by
 path, goes on with the old one even when run again. Load it in `Run`, and
-again when the file's time or length changes - `docs\custom-nodes.md`
+again when the file's time or length changes - `docs\guides\custom-nodes.md`
 §3.4 has the code to copy. And write a model whole: to a temporary file,
 then moved over the old one, so a run never reads half of it.
 
@@ -339,7 +339,7 @@ then moved over the old one, so a run never reads half of it.
   - below 1 GB free.
 - **Beside each, a `.sann`**: the station, time, verdict, the published
   results, the shapes each viewer drew, and - from a PLC - the part's
-  values. `docs\annotation-format.md`.
+  values. `docs\design\annotation-format.md`.
 - **Sirius IV**: the folder's pictures listed by day, with type, time,
   size and dimensions; search; sort by name, date, size, dimensions or
   type; PASS / FAIL / ERROR; one, two, three, 2 × 2 or 3 × 3 viewers, each
@@ -364,7 +364,7 @@ then moved over the old one, so a run never reads half of it.
 - **Test Run and Edge run the controllers**, reconnecting by themselves;
   Test Run opens each simulated PLC beside the screen.
 - **Only the simulated PLC so far.** Siemens S7 and Modbus drivers come
-  next; the PLC team has a kit to write them (`docs\plc-drivers.md`).
+  next; the PLC team has a kit to write them (`docs\guides\plc-drivers.md`).
 
 ### Changed: Builder
 
@@ -427,7 +427,7 @@ both. **Label position: Top** puts a long name above its control.
 
 Two nodes written in C++: **Dark Spots (C++)** under Blob and
 **Sharpness (C++)** under Analysis. Its source is beside it;
-`docs\cpp-nodes.md` says how to write one, and the SDK has the headers.
+`docs\guides\cpp-nodes.md` says how to write one, and the SDK has the headers.
 
 > Polar to Linear → **Rotate and Mirror**
 
@@ -790,7 +790,7 @@ edge afterwards.
 
 A node library written in Python. Needs Python 3 with `numpy` and
 `opencv-python` installed. **Dark Spots** appears under Blob and
-**Sharpness** under Analysis; `docs\python-nodes.md` says how to write one.
+**Sharpness** under Analysis; `docs\guides\python-nodes.md` says how to write one.
 
 > **Camera** (Device: a Hikrobot camera) → … , then **F6**
 

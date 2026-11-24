@@ -6,7 +6,7 @@
 
     Build it and drop the output folder into a plugins folder - or add the
     DLL under Tools > Custom Nodes - and its three nodes appear in the
-    toolbox. See docs/custom-nodes.md.
+    toolbox. See docs/guides/custom-nodes.md.
   -->
 
   <PropertyGroup>

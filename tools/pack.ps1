@@ -55,7 +55,7 @@ if (-not $SkipTests) {
 # Regenerated rather than trusted: it ships inside the package, and a stale
 # copy is worse than none because nothing about it looks stale.
 Write-Host 'Generating the node reference...'
-dotnet run --project tools/NodeDocGen --verbosity quiet -- docs/node-reference.md
+dotnet run --project tools/NodeDocGen --verbosity quiet -- docs/reference/node-reference.md
 if ($LASTEXITCODE -ne 0) { throw 'Could not generate the node reference.' }
 
 # ---- publish ---------------------------------------------------------------
@@ -156,7 +156,7 @@ $pythonSample = Join-Path $staging 'samples/PythonNodes'
 New-Item -ItemType Directory -Force $pythonSample | Out-Null
 Copy-Item 'samples/PythonNodes/*.py' $pythonSample
 Copy-Item 'samples/PythonNodes/sirius.json.example' $pythonSample
-Copy-Item 'docs/python-nodes.md' (Join-Path $staging 'docs')
+Copy-Item 'docs/guides/python-nodes.md' (Join-Path $staging 'docs')
 
 # ---- sample C++ node library -------------------------------------------------
 
@@ -167,7 +167,7 @@ Write-Host 'Building the sample C++ node library...'
 $cppSample = Join-Path $staging 'samples/CppNodes'
 New-Item -ItemType Directory -Force $cppSample | Out-Null
 Copy-Item 'samples/CppNodes/sample_nodes.cpp', 'samples/CppNodes/build.cmd', 'samples/CppNodes/CMakeLists.txt' $cppSample
-Copy-Item 'docs/cpp-nodes.md' (Join-Path $staging 'docs')
+Copy-Item 'docs/guides/cpp-nodes.md' (Join-Path $staging 'docs')
 
 & cmd /c "`"$(Join-Path $cppSample 'build.cmd')`" `"$(Join-Path $staging 'cpp')`""
 if ($LASTEXITCODE -ne 0) {
@@ -184,7 +184,7 @@ Get-ChildItem $cppSample -File |
 # The overview is the package's README: what each program is for. Beside it
 # the guides it points to that no program copies in by itself.
 Copy-Item 'docs/overview.md' (Join-Path $staging 'README.md')
-Copy-Item 'docs/overview.md', 'docs/annotation-format.md', 'docs/plc-workflows.md' (Join-Path $staging 'docs')
+Copy-Item 'docs/overview.md', 'docs/design/annotation-format.md', 'docs/design/plc-workflows.md' (Join-Path $staging 'docs')
 
 # ---- check -----------------------------------------------------------------
 

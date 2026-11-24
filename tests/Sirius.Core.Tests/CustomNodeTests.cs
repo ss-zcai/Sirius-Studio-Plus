@@ -212,7 +212,7 @@ public class CustomNodeTests
     // ---- the guide's examples ---------------------------------------------------
 
     /// <summary>
-    /// The test in docs/custom-nodes.md section 7, against the node in
+    /// The test in docs/guides/custom-nodes.md section 7, against the node in
     /// section 3. The guide is what a team learns the interface from, so an
     /// example in it that no longer compiles or no longer passes is a bug.
     /// </summary>
@@ -867,7 +867,7 @@ public class CustomNodeTests
 
     // ---- custom nodes for the tests --------------------------------------------
 
-    /// <summary>The node in docs/custom-nodes.md section 3, verbatim. Keep the two in step.</summary>
+    /// <summary>The node in docs/guides/custom-nodes.md section 3, verbatim. Keep the two in step.</summary>
     [CustomNode("Lift",
         TypeKey     = "acme.lift",
         Group       = NodeGroup.Basic,

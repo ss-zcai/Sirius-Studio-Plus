@@ -171,12 +171,12 @@ obj/
 "@
     Set-Content -Path (Join-Path $staging '.gitignore') -Value $gitignore -Encoding UTF8
 
-    Copy-Item 'docs/sdk-readme.md' (Join-Path $staging 'README.md')
-    Copy-Item 'docs/custom-nodes-api.md' $staging
+    Copy-Item 'docs/guides/sdk-readme.md' (Join-Path $staging 'README.md')
+    Copy-Item 'docs/guides/custom-nodes-api.md' $staging
 
     # For coding agents. Codex and most others read AGENTS.md; Claude Code
     # reads CLAUDE.md, which imports it, so both follow the same rules.
-    Copy-Item 'docs/sdk-agent-guide.md' (Join-Path $staging 'AGENTS.md')
+    Copy-Item 'docs/guides/sdk-agent-guide.md' (Join-Path $staging 'AGENTS.md')
 
     $claude = @"
 # CLAUDE.md
@@ -199,7 +199,7 @@ with Codex and other tools so every agent follows the same rules.
 "@
     Set-Content -Path (Join-Path $staging 'nuget.config') -Value $nugetConfig -Encoding UTF8
 
-    Copy-Item 'docs/custom-nodes.md' $staging
+    Copy-Item 'docs/guides/custom-nodes.md' $staging
 
     # ---- the Python SDK and its sample ---------------------------------------
 
@@ -212,7 +212,7 @@ with Codex and other tools so every agent follows the same rules.
     Copy-Item 'src/Sirius.Vision/Python/sirius_nodes.py' $python
     Copy-Item 'samples/PythonNodes/*.py' $pythonSample
     Copy-Item 'samples/PythonNodes/sirius.json.example' $pythonSample
-    Copy-Item 'docs/python-nodes.md' $staging
+    Copy-Item 'docs/guides/python-nodes.md' $staging
 
     # ---- the C++ SDK and its sample ------------------------------------------
 
@@ -223,7 +223,7 @@ with Codex and other tools so every agent follows the same rules.
 
     Copy-Item 'src/Sirius.Vision/Cpp/sirius_node.h', 'src/Sirius.Vision/Cpp/sirius_node.hpp' $cpp
     Copy-Item 'samples/CppNodes/sample_nodes.cpp', 'samples/CppNodes/build.cmd', 'samples/CppNodes/CMakeLists.txt' $cppSample
-    Copy-Item 'docs/cpp-nodes.md' $staging
+    Copy-Item 'docs/guides/cpp-nodes.md' $staging
 
     # ---- prove it builds from the package alone -----------------------------
 

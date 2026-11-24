@@ -9,7 +9,7 @@ using Xunit;
 namespace Sirius.Core.Tests;
 
 /// <summary>
-/// The PLC driver SDK (docs/plc-drivers.md): a driver library found and
+/// The PLC driver SDK (docs/guides/plc-drivers.md): a driver library found and
 /// loaded, its settings in Builder, and the conformance check every driver
 /// is run through.
 /// </summary>

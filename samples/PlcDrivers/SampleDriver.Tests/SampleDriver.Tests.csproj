@@ -2,7 +2,7 @@
 
   <!--
     The driver's tests: the conformance check every driver passes
-    (docs/plc-drivers.md section 6), and tests of its own. Here Sirius.Plc
+    (docs/guides/plc-drivers.md section 6), and tests of its own. Here Sirius.Plc
     is copied (Private=true): a test runs the driver without the program.
   -->
   <PropertyGroup>
