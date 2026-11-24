@@ -292,8 +292,6 @@ backlog N2.
   `python-nodes.md` and `cpp-nodes.md`.
 - **Batch and headless running**: Run Folder in the application, and
   `sirius-run.exe` for scripts.
-- **NodeGraphKit/**: the editor and dark theme on their own, for other
-  teams - a standalone copy with its own solution, not shared code.
 - Diagnostics are opt-in through `SIRIUS_PANEL_LOG=1`, writing to
   `%AppData%\SiriusStudioPlus\panels.log`.
 

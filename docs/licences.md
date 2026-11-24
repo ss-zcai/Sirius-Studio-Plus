@@ -1,7 +1,7 @@
 # Licences
 
 Every licence question for the Sirius suite (Studio, Builder, Edge,
-Sirius IV, the SDKs and NodeGraphKit) in one place: what we use, on what
+Sirius IV and the SDKs) in one place: what we use, on what
 terms, what is settled and what is not. Updated 13 November 2026.
 
 `THIRD-PARTY-NOTICES.txt` is what ships to customers. This page is for
@@ -204,10 +204,6 @@ between the customer and the maker, but the customer should be told.
     commercial licence. *We do not use YOLO* (13 November 2026). If we
     ever ship a node library of our own that does, it comes back to
     section 1.
-- **NodeGraphKit**, given to the PLC team: the editor and theme, with
-  their own `THIRD-PARTY-NOTICES.txt` (Nodify MIT, AvalonDock Ms-PL,
-  Phosphor MIT). Inside the company, so no issue; the notices travel with
-  it.
 - **The PLC start kit** (F23e), when it exists: our code, plus whatever
   driver library it carries: HslCommunication (Enterprise, held), as
   the contract allows, with the activation code kept out of it (L5).

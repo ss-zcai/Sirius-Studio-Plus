@@ -45,7 +45,6 @@ the drivers build empty and the programs list no such cameras.
 | `samples/SampleNodes`, `PythonNodes`, `CppNodes` | Custom node samples, shipped in the package and the SDK. |
 | `samples/PlcDrivers` | The PLC kit's sample driver and its conformance tests - built only in the kit (`pack-plc-kit.ps1`). |
 | `tools/NodeDocGen` | Generates `docs/node-reference.md` from the node library. |
-| `NodeGraphKit/` | The node editor and dark theme alone, with no vision code, for other teams. Standalone: own solution, own README, `NodeGraphKit/pack.ps1`. |
 
 `Sirius.Core` has no dependency on OpenCV or WPF, which is what makes the
 engine testable without either - and would make a change of CV backend a
@@ -125,7 +124,6 @@ Two rules the engine depends on:
 | `tools/pack.ps1` | `dist/SiriusStudioPlus-<version>-win-x64.zip` | testers: all five programs, the samples, the guides |
 | `tools/pack-sdk.ps1` | `dist/Sirius.Plugins-SDK-<version>.zip` | teams writing custom nodes |
 | `tools/pack-plc-kit.ps1` | `dist/Sirius-PLC-Kit-<interface>-Builder-<builder>-win-x64.zip` | the PLC team: Builder, the driver SDK, a sample driver |
-| `NodeGraphKit/pack.ps1` | the NodeGraphKit zip | the team using the editor alone |
 
 Every package is self-contained - unzip and run, nothing installed - and
 each script checks its output before zipping: the tests pass, the files

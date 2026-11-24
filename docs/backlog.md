@@ -489,9 +489,9 @@ window's - so a tool added once is in all of them.
 - **R2. A true offset curve for ellipses** in Offset Shapes, rather than
   an ellipse with both axes changed - matters only for offsets a good
   part of the minor axis.
-- **R3. Keep NodeGraphKit in step** with the application's theme, if the
-  other team wants that. It is a copy and does not follow changes by
-  itself.
+- ~~**R3. Keep NodeGraphKit in step**~~ - NodeGraphKit removed 24
+  November 2026: the other team only tried it. It is in the history
+  (last at a69933f).
 - **R4. Matrix arithmetic**, if anything ever needs to add or multiply
   matrices.
 
