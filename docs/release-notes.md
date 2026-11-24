@@ -5,6 +5,50 @@ what is worth pointing a tester at.
 
 ---
 
+## Sirius IV 1.0.4 — 24 November 2026 (a package of its own)
+
+Sirius IV alone, for testing the earlier image viewer's annotation files:
+`SiriusIV-1.0.4-win-x64.zip`. Unzip anywhere and run `SiriusIV.exe`;
+nothing needs installing. The rest of the suite is as in 1.0.14.
+
+### What to try first
+
+> Open a folder of pictures from the earlier system - each `name.tiff`
+> with its `name.tiff.json` beside it
+
+Their annotations are drawn as the earlier viewer drew them: circles,
+turned rectangles and ellipses, in their own colours. Each layer
+("Optical Zone", "Foreign Material", "mark"…) is switched on and off in
+the **Annotations** panel (View ▸ Annotations), where a defect's length,
+width and confidence, and the limits it was judged by, are columns. The
+list shows each picture **PASS** or **FAIL**, so its filters work.
+
+### How they are read
+
+- **Read only**: the `.json` files are never written or changed.
+  Measurements drawn and saved go into a `.sann` beside the picture,
+  which starts from what the `.json` says.
+- **The verdict**: result 200 with defect code 1 is PASS; 200 with any
+  other code is FAIL, its code and message shown ("803 Foreign
+  Material"); 202 "Image received" - a set's first picture - is not
+  judged.
+- **Colours** are read as BGR, as OpenCV's.
+- The batch, pallet, position, camera and the rest of `meta` are the
+  picture's part values; result, codes, processing time and algorithm
+  its results.
+- **To Folder** copies or moves the `.json` with its picture; CSV
+  export, export with annotations drawn and ROIs from All work on them.
+
+### Known issues
+
+- Names are not written on the picture - a lens can carry 150 defects;
+  they are the layers in the panel.
+- Line widths are not kept: shapes are drawn at the viewer's width.
+- A result other than 200 or 202 is shown as ERROR; no example of one
+  has been seen yet.
+
+---
+
 ## 1.0.14 — 23 November 2026
 
 The line, made ready for a machine: **the part** a PLC hands over, counted

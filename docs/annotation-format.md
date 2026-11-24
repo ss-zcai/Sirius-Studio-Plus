@@ -307,7 +307,7 @@ against the Jianfan, CLT and TY examples (24 November 2026).
 | `ExtInfo.Descriptions`, its numbers | the shape's measurements, in English: Length, Width, Confidence, and the Length, Width and Confidence Limits it was judged by |
 | `Colour` [b, g, r] | the shape's colour, **BGR** as OpenCV's |
 | `LineWidth`, `Tag`, `ExtInfo.ParameterPath` | not kept |
-| `meta` (JSON in a string) | the part: batch, pallet, position, QR code, station, camera, `GroupId`/`GroupID`, `Requests`; values that are JSON again (`DefectSettings`, `PalletPosition`) as text |
+| `meta` (JSON in a string) | the part: batch, pallet, position, QR code, station, camera, `Requests`; values that are JSON again (`DefectSettings`, `PalletPosition`) as text |
 | `output` - result, defectCode, message, processingTime; `algo`, `algoVersion`, `args`; `extra` | the results |
 | `output.info` (JSON in a string, its Windows paths unescaped) | more results, read leniently: `processing_time`, `features`… |
 | `requestId` | the serial and time, when it is a number: `260511155932312022` is 11 May 2026 15:59:32.312 |
@@ -329,11 +329,6 @@ Measurements drawn and saved go into a `.sann` beside it, which starts
 from what the earlier file says; the earlier file stays as it was, and
 from then the `.sann` is read. **To Folder** copies or moves the earlier
 file with its picture.
-
-**Matching a part's shots**: they share a group ID at the start of the
-name - **Same start of name** on 27 characters for the CLT names
-(`101261112_10103199601010101`), 19 for the Jianfan ones
-(`2-26051115593231202`).
 
 In code: `Sirius.Core.Annotations.LegacyAnnotations`, and
 `AnnotationFile.ReadFor`, which tries the `.sann` first.

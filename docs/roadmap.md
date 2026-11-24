@@ -110,9 +110,13 @@ November 2026).
 (decision 79). 1.0.12 (16 November) brought a file saved over running its
 node again (decision 78), saved pictures and Sirius IV, and controllers.
 
-## Since 1.0.14, not yet packed
+## Since 1.0.14
 
-Nothing yet.
+- **The earlier image viewer's annotation files** (decision 92), in
+  Sirius IV **1.0.4**, packed alone for internal test on 24 November:
+  a picture's `name.tiff.json` read - never written - where it has no
+  `.sann`: circles, turned rectangles and ellipses in their layers, a
+  defect's sizes, PASS or FAIL from its result and defect code.
 
 ---
 
