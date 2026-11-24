@@ -11,11 +11,11 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**73 nodes** across 14 categories.
+**77 nodes** across 14 categories.
 
-- **Source** — Blank Image, Camera, Image File, Image Sequence, Matrix, Number, Text
+- **Source** — Blank Image, Camera, Image File, Image Sequence, Matrix, Number, Shot, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Invert, Region of Interest, Resize, RGB Channel, Rotate and Mirror, Threshold
-- **Combine** — Blend, Logic, Mask
+- **Combine** — Blend, Collect Images, Collect Numbers, Collect Verdicts, Logic, Mask
 - **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
 - **Morphology** — Advanced Morphology, Dilate, Erode
 - **Blob** — Filter Shapes, Find Blobs, Offset Shapes, Select Shape, Shape Style, Transform Shapes
@@ -158,6 +158,26 @@ A number that can drive parameters on other nodes.
 | Value | `Number` | Slider | set by Minimum / Maximum |
 | Min | `Number` | TextBox | - |
 | Max | `Number` | TextBox | - |
+
+### Shot
+
+`source.shot`
+
+Which picture of the part this inspection is: its number in the part's set, the part's item, and whether it is the last. A recipe judging a part from several pictures - under different lights, from two cameras - switches on it; Collect nodes keep each picture's results until the last. On the line the PLC says which shot; at the desk, Shots per Part.
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Shot | `Integer` | circle | - |
+| Item | `Text` | circle | - |
+| Last | `Yes/No` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Shots per Part | `Integer` | Slider | 1 to 16 |
 
 ### Text
 
@@ -505,6 +525,81 @@ Mixes two images with a blend mode and an opacity.
 | --- | --- | --- | --- |
 | Mode | `BlendMode` | ComboBox | - |
 | Opacity | `Number` | Slider | 0 to 1 |
+
+### Collect Images
+
+`combine.collect-images`
+
+Keeps each shot's image until the part's last, then gives their average, and the brightest and darkest of each pixel: one picture of the part from several lights. What follows runs once for the part. The images must be the same size and kind.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Image | `Image` | square | yes |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Average | `Image` | square | - |
+| Brightest | `Image` | square | - |
+| Darkest | `Image` | square | - |
+| Count | `Integer` | circle | - |
+
+### Collect Numbers
+
+`combine.collect-numbers`
+
+Keeps a number from each shot until the part's last - a defect count, an area, a width - then gives their total, mean, least and most, for a check on the whole part.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Value | `Number` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Sum | `Number` | circle | - |
+| Mean | `Number` | circle | - |
+| Minimum | `Number` | circle | - |
+| Maximum | `Number` | circle | - |
+| Count | `Integer` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Value | `Number` | TextBox | - |
+
+### Collect Verdicts
+
+`combine.collect-verdicts`
+
+Keeps each shot's pass or fail until the part's last, then passes when every shot passed - the part's verdict. Gives how many shots failed, and which.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Shot Passed | `Yes/No` | circle | optional |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Passed | `Yes/No` | circle | - |
+| Failed Count | `Integer` | circle | - |
+| Failed Shots | `Text` | circle | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Shot Passed | `Yes/No` | CheckBox | - |
 
 ### Logic
 

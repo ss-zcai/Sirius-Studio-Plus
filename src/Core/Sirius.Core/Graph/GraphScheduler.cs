@@ -5,7 +5,7 @@ namespace Sirius.Core.Graph;
 /// <summary>Outcome of one evaluation pass.</summary>
 public sealed class GraphRunResult
 {
-    public GraphRunResult(int evaluated, int skipped, int failed, TimeSpan duration, bool cancelled, string? error)
+    public GraphRunResult(int evaluated, int skipped, int failed, TimeSpan duration, bool cancelled, string? error, int waiting = 0, string? waitingFor = null)
     {
         Evaluated = evaluated;
         Skipped = skipped;
@@ -13,7 +13,22 @@ public sealed class GraphRunResult
         Duration = duration;
         Cancelled = cancelled;
         Error = error;
+        Waiting = waiting;
+        WaitingFor = waitingFor;
     }
+
+    /// <summary>
+    /// Nodes waiting for the rest of a part's set (F26): a Collect given a
+    /// shot before the last, and what follows it. The inspection is a
+    /// picture received, not a part judged.
+    /// </summary>
+    public int Waiting { get; }
+
+    /// <summary>What the first node waiting said: "Shot 2 kept; waiting for the last".</summary>
+    public string? WaitingFor { get; }
+
+    /// <summary>A shot before its set's last: received, not judged.</summary>
+    public bool IsWaiting => Waiting > 0;
 
     /// <summary>Nodes that actually ran.</summary>
     public int Evaluated { get; }
@@ -123,6 +138,65 @@ public sealed class GraphScheduler : IDisposable
     /// answers nothing: what is cached inside it may be from before its
     /// inputs last changed.
     /// </remarks>
+    /// <summary>
+    /// The shot the next inspection is of, as its station says - item,
+    /// number, whether it is the last - or null for a picture that is a set
+    /// of its own. Read when <see cref="InspectAsync"/> starts.
+    /// </summary>
+    public ShotInfo? Shot { get; set; }
+
+    /// <summary>
+    /// The shot the last inspection was of: the next edit runs as that shot
+    /// again, so a Collect shows the set it has.
+    /// </summary>
+    public ShotInfo? CurrentShot => _shot;
+
+    private ShotInfo? _shot;
+    private string? _waitReason;
+    private int _deskShot;
+    private int _deskPart;
+
+    /// <summary>
+    /// At the desk - no station saying - a recipe with a Shot node set to N
+    /// shots per part runs its inspections as shot 1 to N of part after
+    /// part: Run Folder over a folder of sets, in order.
+    /// </summary>
+    private ShotInfo? NextShot()
+    {
+        if (Shot is { } given)
+        {
+            _deskShot = 0;
+            return given;
+        }
+
+        var perPart = _graph.Nodes.OfType<IShotSource>()
+            .Where(source => source is VisionNode { Enabled: true })
+            .Select(source => source.ShotsPerPart)
+            .DefaultIfEmpty(1)
+            .Max();
+
+        if (perPart <= 1)
+            return null;
+
+        if (_deskShot <= 0 || _deskShot >= perPart)
+        {
+            _deskShot = 1;
+            _deskPart++;
+        }
+        else
+        {
+            _deskShot++;
+        }
+
+        return new ShotInfo(
+            string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Part {_deskPart}"),
+            _deskShot,
+            _deskShot == perPart);
+    }
+
+    /// <summary>Starts the desk's shots again from shot 1 of a new part: a folder run begun, Reset.</summary>
+    public void RestartShots() => _deskShot = 0;
+
     public object? GetOutput(OutputPort port)
     {
         if (_cache.TryGetValue(port, out var value))
@@ -240,7 +314,10 @@ public sealed class GraphScheduler : IDisposable
         MarkChangedFiles();
 
         if (inspection)
+        {
+            _shot = NextShot();
             MarkInspectionNodes();
+        }
 
         return Task.Run(() => Run(plan, cancellationToken, inspection), cancellationToken)
             .ContinueWith(
@@ -353,6 +430,8 @@ public sealed class GraphScheduler : IDisposable
         var skipped = 0;
         var failed = 0;
         var cancelled = false;
+        var waiting = new HashSet<VisionNode>();
+        string? waitingFor = null;
 
         foreach (var node in ordered)
         {
@@ -368,7 +447,13 @@ public sealed class GraphScheduler : IDisposable
                 continue;
             }
 
-            var status = EvaluateNode(node, cancellationToken, inspection);
+            var status = EvaluateNode(node, cancellationToken, inspection, waiting);
+
+            if (status == EvaluationOutcome.Waiting)
+            {
+                waiting.Add(node);
+                waitingFor ??= _waitReason;
+            }
 
             if (status == EvaluationOutcome.Cancelled)
             {
@@ -389,7 +474,7 @@ public sealed class GraphScheduler : IDisposable
         }
 
         stopwatch.Stop();
-        return new GraphRunResult(evaluated, skipped, failed, stopwatch.Elapsed, cancelled, null);
+        return new GraphRunResult(evaluated, skipped, failed, stopwatch.Elapsed, cancelled, null, waiting.Count, waitingFor);
     }
 
     private enum EvaluationOutcome
@@ -397,12 +482,16 @@ public sealed class GraphScheduler : IDisposable
         Succeeded,
         Failed,
         Cancelled,
+
+        /// <summary>Waiting for the rest of a part's set: nothing given, nothing wrong.</summary>
+        Waiting,
     }
 
-    private EvaluationOutcome EvaluateNode(VisionNode node, CancellationToken cancellationToken, bool inspection)
+    private EvaluationOutcome EvaluateNode(VisionNode node, CancellationToken cancellationToken, bool inspection, HashSet<VisionNode> waiting)
     {
         var inputs = new Dictionary<InputPort, object?>(node.Inputs.Count);
         InputPort? missingRequired = null;
+        VisionNode? waitingOn = null;
 
         foreach (var input in node.Inputs)
         {
@@ -412,7 +501,20 @@ public sealed class GraphScheduler : IDisposable
             if (value is null && input.IsRequired)
                 missingRequired ??= input;
 
+            if (source is not null && waiting.Contains(source.Node))
+                waitingOn ??= source.Node;
+
             inputs[input] = value;
+        }
+
+        // After a Collect still waiting for its set: this waits too, rather
+        // than failing for an input that is coming.
+        if (waitingOn is not null)
+        {
+            EvictOutputs(node);
+            _waitReason = $"Waiting for the set: '{waitingOn.Name}' has not got its last shot.";
+            SetStatus(node, NodeStatus.Idle, _waitReason);
+            return EvaluationOutcome.Waiting;
         }
 
         if (missingRequired is not null)
@@ -432,7 +534,7 @@ public sealed class GraphScheduler : IDisposable
             return EvaluationOutcome.Succeeded;
         }
 
-        var context = new EvalContext(node, inputs, cancellationToken, inspection);
+        var context = new EvalContext(node, inputs, cancellationToken, inspection, _shot);
         var stopwatch = Stopwatch.StartNew();
 
         try
@@ -458,6 +560,17 @@ public sealed class GraphScheduler : IDisposable
             // The whole chain: the reason is often a level or two down.
             SetStatus(node, NodeStatus.Error, ExceptionText.Describe(ex));
             return EvaluationOutcome.Failed;
+        }
+
+        // A Collect given a shot before the set's last: kept, nothing given yet.
+        if (context.WaitingFor is { } reason)
+        {
+            DisposeUncommitted(context);
+            EvictOutputs(node);
+            SetEvaluationTime(node, stopwatch.Elapsed);
+            _waitReason = reason;
+            SetStatus(node, NodeStatus.Idle, reason);
+            return EvaluationOutcome.Waiting;
         }
 
         Commit(node, context);

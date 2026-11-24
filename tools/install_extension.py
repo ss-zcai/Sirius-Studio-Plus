@@ -54,6 +54,11 @@ PHOSPHOR = {
     "copy": "ph_copy",
     # Sirius IV's To Folder: copy or move the pictures chosen into another folder.
     "folders": "ph_folders",
+    # Several shots per part (F26): the Shot node, and the Collect nodes that keep a part's set.
+    "film-strip": "ph_shot",
+    "stack": "ph_collect_images",
+    "checks": "ph_collect_verdicts",
+    "sigma": "ph_collect_numbers",
     "clipboard-text": "ph_paste",
     "palette": "ph_style",
     "selection-all": "ph_select_all",

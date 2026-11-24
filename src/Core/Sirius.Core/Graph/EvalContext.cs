@@ -20,13 +20,31 @@ public sealed class EvalContext
         VisionNode node,
         Dictionary<InputPort, object?> inputs,
         CancellationToken cancellationToken,
-        bool isInspection = false)
+        bool isInspection = false,
+        ShotInfo? shot = null)
     {
         Node = node;
         _inputs = inputs;
         CancellationToken = cancellationToken;
         IsInspection = isInspection;
+        Shot = shot;
     }
+
+    /// <summary>
+    /// The picture of a part's set this run is of (F26); null for a picture
+    /// that is a set of its own.
+    /// </summary>
+    public ShotInfo? Shot { get; }
+
+    /// <summary>Why the node is waiting for the rest of its set, when it is.</summary>
+    internal string? WaitingFor { get; private set; }
+
+    /// <summary>
+    /// The node has what this shot gave and gives nothing yet: the set is
+    /// not complete. Not a failure - what follows it waits too, and runs
+    /// once the set's last picture is in.
+    /// </summary>
+    public void Wait(string reason) => WaitingFor = string.IsNullOrWhiteSpace(reason) ? "Waiting for the rest of the set." : reason;
 
     public VisionNode Node { get; }
 
