@@ -2,50 +2,33 @@
 
 What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
-17 November 2026.
+24 November 2026.
 
-**Since the last update** (14-17 November):
+**Since the last update** (18-24 November):
 
-- **1.0.12 packed** (16 November) with SDK 1.0.4: a file saved over under
-  the same name runs its node again - the test team's template-matching
-  model (decision 78) - with saved pictures, Sirius IV and controllers.
-- **1.0.13 packed** (18 November): **several screens** - pages and popups,
-  opened by buttons, each designed in a tab of its own in Builder (F24,
-  decision 79) - with the overview as the package's README, and N3's
-  icons, and workflows following a station renamed (N9). Builder 1.0.3,
-  Sirius IV 1.0.1; the PLC kit packed again with that Builder. Also a
-  `.gitattributes` (N4).
-- **Written:** `overview.md`, what each program is for, now the README of
-  every package; the developer README brought up to date.
-- **Designed, not built:** parts of several pictures, and speed (F25-F28,
-  `runtime-design.md` section 14); cameras as a unit of the project (F29,
-  section 15).
+- **1.0.14 packed** (23 November): the part and its counts (F25, F4),
+  user levels, cameras in the project (F29, two slices), a controller on
+  the line - widget, alarm, PLC window in Edge (F23c) - the workflow
+  editor's loose ends (F23f), Find Rectangle and ROIs (F30-F32), saved
+  pictures kept in check (F20a/b/c/f, TIF). Builder 1.0.4, Sirius IV
+  1.0.3; the PLC kit packed again.
+- **Sirius IV 1.0.4** packed alone (24 November): the earlier image
+  viewer's `name.tiff.json` annotation files read (decision 92).
+- **Tidy-ups**: N5 and N8 closed; F33 (result codes) designed.
 
-**Proposed order from here** - the single picture through the PLC, made
-solid on a real machine, before several pictures or speed:
+**Proposed order from here:**
 
-1. ~~**N9**, **N4**, then **N10** - pack 1.0.13~~ - done 18 November.
-2. ~~**F29, its first slice**~~ - done 18 November (decision 80):
-   cameras set up in Builder, without Studio; ~~its second~~ - Open in
-   Studio carrying the station's camera, Take from and Give to recipe -
-   23 November (decision 90).
-3. ~~**F31** and **F32**~~ - done 19 November (decision 81): a
-   rectangle measured in every image viewer, its crops saved as ROIs.
-   Then ~~**F30**, Find Rectangle~~ - done 19 November (decision 82).
-4. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
+1. **F26, several shots per part** - every set of the earlier system's
+   examples (Jianfan, CLT) is two pictures per part, so this is what
+   lines run today. Then **F20e**, matching saved pictures on the part.
+2. **F33, result codes beyond PASS/FAIL** - the earlier files carry
+   defect codes (803, 809, 805, 2002) as the line's answer.
+3. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
    the HslCommunication download and a bench PLC from you.
-5. ~~**F25**~~ - done 20 November (decision 83): the part record and
-   part counts, deadlines, the handshake; with ~~**F4**~~, counts that
-   survive a restart.
-6. ~~**User levels** (F2)~~ - done 21 November (decision 84): users with
-   PINs in the project, a level per widget and screen, the login popup,
-   log-out when idle. Left: the PLC and camera windows in Edge behind
-   them (F23c, F29).
-7. **F26**, then **F27** and **F28**, when a line asks for them - sized
-   by the answers to `runtime-design.md` sections 14.6 and 15.6.
-8. **F33**, result codes beyond PASS/FAIL - a list per station, each
-   with its PLC code and whether it counts in the yield - designed 23
-   November, when a line needs it.
+4. **F29's commissioning slice** - a GigE camera's IP, Replace…, a
+   Simulated or Folder camera - when a machine is being set up.
+5. **F27** and **F28** - speed and the hardware trigger - when a line
+   asks for them.
 
 Each item has an ID to refer to it by, a rough size, and where it came
 from when that matters. The order is a proposal: change it, strike things
