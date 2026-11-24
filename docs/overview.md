@@ -1,12 +1,13 @@
-# Sirius Studio Plus
+# Sirius Vision Desktop
 
 Machine vision on one PC: build an inspection from ready-made tools, put
 it on a line with its camera, its PLC and an operator's screen, and look
 back at what it saw. Five programs share the work, each with one job.
 
-It is the light, local member of **Sirius Vision**, Sigma Squares' vision
-suite (§6): a station decides at the machine, quickly and on its own,
-without a server - for the jobs the full suite is too heavy for.
+It is the desktop suite of **Sirius Vision**, Sigma Squares' vision
+software, beside the cloud platform, Sirius Vision Cloud (§6): a station
+decides at the machine, quickly and on its own, without a server - for
+the jobs the cloud platform is too heavy for.
 
 > **Internal test builds.** Not for customers yet: some libraries' licences
 > are still being settled (`licences.md` in the repository).
@@ -17,16 +18,16 @@ without a server - for the jobs the full suite is too heavy for.
 
 | Program | What it is for | Who uses it |
 |---|---|---|
-| **Sirius Studio** `SiriusStudioPlus.exe` | building and tuning an inspection - a **recipe** | the vision engineer |
+| **Sirius Studio Plus** `SiriusStudioPlus.exe` | building and tuning an inspection - a **recipe** | the vision engineer |
 | **Sirius Builder** `SiriusBuilder.exe` | putting recipes on a line - a **project**: stations, PLCs, the operator's screen | the integrator |
 | **Sirius Edge** `SiriusEdge.exe` | running a project on the machine | the operator |
-| **Sirius IV** `SiriusIV.exe` | looking back at the pictures a station saved | quality, the engineer |
+| **Sirius Image Viewer** `SiriusIV.exe` | looking back at the pictures a station saved | quality, the engineer |
 | **sirius-run** `sirius-run.exe` | a recipe over a folder of pictures, from a script | the engineer, automation |
 
 All five are in the same folder, and nothing needs installing: unzip and
 run.
 
-### Sirius Studio - the recipe
+### Sirius Studio Plus - the recipe
 
 A recipe is a **graph of tools**: a camera or picture goes in, tools find,
 measure, read and judge, and a verdict comes out. Drag tools from the
@@ -93,7 +94,7 @@ SiriusEdge.exe "D:\Lines\Line 3\Line 3.sproj"            full screen
 SiriusEdge.exe "D:\Lines\Line 3\Line 3.sproj" --windowed  at a desk
 ```
 
-### Sirius IV - the pictures
+### Sirius Image Viewer (IV) - the pictures
 
 Opens a station's saved pictures - Builder ▸ station ▸ **Browse Saved
 Images**, or `SiriusIV.exe <folder>` - by day, each with PASS or FAIL
@@ -204,7 +205,7 @@ Modbus TCP come next.
 
 ---
 
-## 6. In the Sirius Vision family
+## 6. Sirius Vision: Desktop and Cloud
 
 | Product | What it does |
 |---|---|
@@ -212,11 +213,12 @@ Modbus TCP come next.
 | **Sirius Client** | the runtime at the camera: triggers and sends images to MS |
 | **Sirius Interface** | the PLC link for Client, built per customer |
 | **Sirius Library** | the vision algorithm library |
-| **Sirius Studio** | the predecessor of this product's Studio |
+| **Sirius Studio** | the cloud platform's studio - the predecessor of Studio Plus |
 | **Sirius Image Cloud (IC)** | stores, searches and organises images with their information |
 | **Sirius Data Insight (DI)** | industrial data dashboards |
 
-**Sirius Studio Plus** is the all-in-one, local version: the inspection
+Those make up **Sirius Vision Cloud**. **Sirius Vision Desktop** - Studio
+Plus, Builder, Edge and Image Viewer - is the all-in-one, local suite: the inspection
 runs at the machine, answers the PLC there, and needs no server - quicker
 to set up for a small job, and still working when the network is not. Its
 controllers replace a per-customer Interface with drivers written once.

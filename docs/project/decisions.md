@@ -3764,3 +3764,28 @@ judges the set. `runtime-design.md` 14.2 is rewritten.
   ID; across PCs the PLC combines, each PC answering for its stations.
 - Not now: lights switched by us (digital I/O, later); the hardware
   trigger (F28).
+
+## 94. Sirius Vision Desktop: the repository reorganised
+
+24 November 2026. The repository had outgrown its first program's name:
+it holds Studio Plus, Builder, Edge and Image Viewer, sirius-run, the SDK
+and the PLC kit. The user chose **Sirius Vision Desktop** for the suite -
+beside Sirius Vision Cloud, the existing platform (MS, Client, Library,
+Studio, Image Cloud, Data Insight) - keeping **Studio Plus** for the
+program, as the cloud platform has a Sirius Studio of its own.
+
+- **The repository** becomes `sirius-vision-desktop`, the solution
+  `SiriusVisionDesktop.sln`. It will move to the company's GitHub later,
+  and the user's team will work in it.
+- **docs/** in four folders - design, guides, reference, project - with
+  `overview.md`, every package's README, at the top.
+- **src/** grouped: `Core` (the engine), `Drivers` (cameras), `Shared`
+  (`Sirius.UI`), `Apps` (the programs).
+- **`Sirius.UI` split out of Studio's project**: the theme, controls,
+  image viewer, dialogs, screens, runtime and PLC windows and the host,
+  which Builder, Edge and Image Viewer had reached by referencing
+  Studio's executable. One library, not the two first proposed: with
+  NodeGraphKit gone, no team needs a vision-free UI layer.
+- **NodeGraphKit removed**: the other team only tried it.
+- **Not changed**: the programs' file names and settings folders; the
+  main package's name changes at the next release.

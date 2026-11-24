@@ -1,8 +1,9 @@
-# Sirius Studio Plus
+# Sirius Vision Desktop
 
-Machine vision on one PC: recipes built as node graphs in **Studio**, put
-on a line - stations, PLCs, the operator's screen - in **Builder**, run on
-the machine by **Edge**, and the pictures kept looked at in **Sirius IV**.
+The desktop vision suite of Sirius Vision: recipes built as node graphs
+in **Studio Plus**, put on a line - stations, PLCs, the operator's
+screen - in **Builder**, run on the machine by **Edge**, and the pictures
+kept looked at in **Image Viewer** (Sirius IV).
 
 **What the programs are and how they fit together: [`docs/overview.md`](docs/overview.md).**
 It ships as the README of every package. This file is for working on the
@@ -11,7 +12,7 @@ code.
 ## Running it
 
 ```bash
-git clone https://github.com/ss-zcai/Sirius-Studio-Plus.git
+git clone https://github.com/ss-zcai/sirius-vision-desktop.git
 dotnet run --project src/Apps/Sirius.Studio     # Studio Plus
 dotnet run --project src/Apps/Sirius.Builder    # Builder
 dotnet run --project src/Apps/Sirius.Edge       # Edge
