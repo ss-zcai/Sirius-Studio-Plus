@@ -6,7 +6,7 @@ using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
 using Sirius.Plc;
 using Sirius.Plc.Workflows;
-using Sirius.Studio.App.Screens;
+using Sirius.UI.Screens;
 using Xunit;
 
 namespace Sirius.Core.Tests;
@@ -153,7 +153,7 @@ public sealed class PartCounterTests : IDisposable
             WpfTestHost.EnsureApplicationResources();
 
             var window = RuntimeWindow.Create(project, fullScreen: false);
-            var opened = new List<Sirius.Studio.App.Plc.PlcViewModel>();
+            var opened = new List<Sirius.UI.Plc.PlcViewModel>();
             window.OpenPlcWindow = (_, model) =>
             {
                 opened.Add(model);

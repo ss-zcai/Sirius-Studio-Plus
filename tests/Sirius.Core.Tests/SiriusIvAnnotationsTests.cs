@@ -6,7 +6,7 @@ using Emgu.CV.Structure;
 using Sirius.Core.Annotations;
 using Sirius.Core.Shapes;
 using Sirius.IV;
-using Sirius.Studio.App.Controls;
+using Sirius.UI.Controls;
 using Xunit;
 using MeasurementRecordAlias = Sirius.Core.Graph.MeasurementRecord;
 

@@ -6,7 +6,7 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Sirius.IV;
-using Sirius.Studio.App.Controls;
+using Sirius.UI.Controls;
 using Xunit;
 
 namespace Sirius.Core.Tests;

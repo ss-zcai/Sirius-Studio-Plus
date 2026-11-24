@@ -2,10 +2,12 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using Sirius.Studio.App;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI;
+using Sirius.UI.ViewModels;
 using Sirius.Vision.Nodes;
 using Xunit;
+
+using Sirius.Studio;
 
 namespace Sirius.Core.Tests;
 

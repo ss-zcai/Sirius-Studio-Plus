@@ -1,0 +1,73 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using Sirius.Core.Nodes;
+
+namespace Sirius.UI.ViewModels;
+
+/// <summary>A single entry in the node palette.</summary>
+public sealed class PaletteItemViewModel
+{
+    public PaletteItemViewModel(NodeDescriptor descriptor)
+    {
+        Descriptor = descriptor;
+    }
+
+    public NodeDescriptor Descriptor { get; }
+
+    public string DisplayName => Descriptor.DisplayName;
+
+    public string? Description => Descriptor.Description;
+
+    /// <summary>The description, and for a custom node which library it came from.</summary>
+    public string? ToolTipText => ToolTipFor(Descriptor);
+
+    public string? IconKey => Descriptor.Icon;
+
+    /// <summary>
+    /// "Finds dark spots." over "From dark_spots.py (Python 3.14.5)" - a node
+    /// a library added says so, wherever its author filed it, so nobody hunts
+    /// through the application for a fault in somebody's library.
+    /// </summary>
+    internal static string? ToolTipFor(NodeDescriptor descriptor)
+    {
+        if (string.IsNullOrWhiteSpace(descriptor.Origin))
+            return descriptor.Description;
+
+        var origin = $"From {descriptor.Origin}";
+        return string.IsNullOrWhiteSpace(descriptor.Description)
+            ? origin
+            : $"{descriptor.Description}{Environment.NewLine}{origin}";
+    }
+}
+
+/// <summary>Palette entries grouped by category.</summary>
+public sealed class PaletteGroupViewModel : ObservableObject
+{
+    private bool _isExpanded;
+
+    public PaletteGroupViewModel(NodeCategory category, IEnumerable<PaletteItemViewModel> items)
+    {
+        Category = category;
+        Items = new ObservableCollection<PaletteItemViewModel>(items);
+    }
+
+    /// <summary>
+    /// Whether this category is open in the toolbox. Groups expand and
+    /// collapse independently, so any number can be open at once.
+    /// </summary>
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set => SetProperty(ref _isExpanded, value);
+    }
+
+    public NodeCategory Category { get; }
+
+    /// <summary>"Text and Code Reading" rather than "TextAndCodeReading".</summary>
+    public string DisplayName => NameOf(Category);
+
+    /// <summary>A category's name as the toolbox shows it.</summary>
+    internal static string NameOf(NodeCategory category) => TypeNames.Words(category.ToString());
+
+    public ObservableCollection<PaletteItemViewModel> Items { get; }
+}

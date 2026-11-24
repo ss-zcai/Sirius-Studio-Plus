@@ -1,6 +1,6 @@
 using System.IO;
 using System.Windows;
-using Sirius.Studio.App;
+using Sirius.UI;
 
 namespace Sirius.Builder;
 

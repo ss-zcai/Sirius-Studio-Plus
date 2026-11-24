@@ -7,8 +7,8 @@ using System.Windows.Media;
 using AvalonDock.Layout;
 using AvalonDock.Layout.Serialization;
 using Sirius.Core.Nodes;
-using Sirius.Studio.App;
-using Sirius.Studio.App.Hosting;
+using Sirius.UI;
+using Sirius.UI.Hosting;
 
 namespace Sirius.Builder;
 

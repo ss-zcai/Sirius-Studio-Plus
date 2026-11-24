@@ -22,7 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Core\Sirius.Core\Sirius.Core.csproj" />
     <ProjectReference Include="..\..\src\Core\Sirius.Vision\Sirius.Vision.csproj" />
-    <ProjectReference Include="..\..\src\Apps\Sirius.Studio.App\Sirius.Studio.App.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Sirius.UI\Sirius.UI.csproj" />
+    <ProjectReference Include="..\..\src\Apps\Sirius.Studio\Sirius.Studio.csproj" />
     <ProjectReference Include="..\..\src\Apps\Sirius.Builder\Sirius.Builder.csproj" />
     <ProjectReference Include="..\..\src\Apps\Sirius.IV\Sirius.IV.csproj" />
     <ProjectReference Include="..\..\src\Apps\Sirius.Runner\Sirius.Runner.csproj" />

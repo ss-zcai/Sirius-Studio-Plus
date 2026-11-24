@@ -774,7 +774,7 @@ public sealed class BrowserViewModel : ObservableObject
 
     /// <summary>Asks a Yes / No / Cancel question; replaced in tests.</summary>
     internal Func<string, string, MessageBoxResult> Ask { get; set; } =
-        (message, title) => Sirius.Studio.App.Dialog.Ask(message, title, Application.Current?.MainWindow);
+        (message, title) => Sirius.UI.Dialog.Ask(message, title, Application.Current?.MainWindow);
 
     /// <summary>The measurements a picture has now, saved or not; null for what its file says.</summary>
     internal IReadOnlyList<MeasurementRecord>? UnsavedFor(ImageFileItem file) =>
@@ -930,7 +930,7 @@ public sealed class BrowserViewModel : ObservableObject
 
     // ---- how 16-bit pictures are shown ------------------------------------------------
 
-    private int _displayBits = Sirius.Studio.App.Imaging.MatImageConverter.Auto;
+    private int _displayBits = Sirius.UI.Imaging.MatImageConverter.Auto;
 
     /// <summary>
     /// How 16-bit pictures are shown: Auto - the bits a station's annotation
@@ -1301,7 +1301,7 @@ public sealed class BrowserViewModel : ObservableObject
                     await Task.Run(() =>
                     {
                         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
-                        Sirius.Studio.App.Imaging.ImageFileWriter.Save(drawn, path);
+                        Sirius.UI.Imaging.ImageFileWriter.Save(drawn, path);
                     });
 
                     written++;

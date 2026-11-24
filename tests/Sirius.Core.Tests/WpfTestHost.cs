@@ -202,7 +202,7 @@ public sealed class WpfTestHost : IDisposable
             resources.MergedDictionaries.Add(new ResourceDictionary
             {
                 Source = new Uri(
-                    $"pack://application:,,,/SiriusStudioPlus;component/Themes/{name}",
+                    $"pack://application:,,,/Sirius.UI;component/Themes/{name}",
                     UriKind.Absolute),
             });
         }

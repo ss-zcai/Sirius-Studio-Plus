@@ -9,7 +9,7 @@ using Emgu.CV;
 using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Serialization;
-using Sirius.Studio.App.Imaging;
+using Sirius.UI.Imaging;
 using Sirius.Vision;
 using Sirius.Vision.Cameras;
 

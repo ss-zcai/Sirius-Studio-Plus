@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using Sirius.Core.Nodes;
-using Sirius.Studio.App;
+using Sirius.UI;
 using Sirius.Vision;
 using Sirius.Vision.Nodes;
 using Xunit;

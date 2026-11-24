@@ -22,7 +22,7 @@ public partial class ExportWindow : Window
                         "under the folder you choose next. The pictures themselves are left as they are.";
         }
 
-        Sirius.Studio.App.DarkTitleBar.Apply(this);
+        Sirius.UI.DarkTitleBar.Apply(this);
 
         ChosenOption.Content = chosen == 1 ? "The picture chosen in the list" : $"The {chosen:N0} pictures chosen in the list";
         ListedOption.Content = listed == 1 ? "The picture listed" : $"All {listed:N0} pictures listed, as filtered and searched";

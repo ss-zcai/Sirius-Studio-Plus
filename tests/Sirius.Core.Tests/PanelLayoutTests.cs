@@ -1,6 +1,6 @@
 using System.Windows.Controls;
 using AvalonDock.Layout;
-using Sirius.Studio.App.Layout;
+using Sirius.UI.Layout;
 using Xunit;
 
 namespace Sirius.Core.Tests;

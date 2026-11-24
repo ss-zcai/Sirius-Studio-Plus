@@ -4,11 +4,13 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using Sirius.Core.Graph;
-using Sirius.Studio.App.Controls;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.Controls;
+using Sirius.UI.ViewModels;
 using Sirius.Vision;
 using Sirius.Vision.Nodes;
 using Xunit;
+
+using Sirius.Studio;
 
 namespace Sirius.Core.Tests;
 
@@ -178,7 +180,7 @@ public class ViewerSizeTests
     [Fact]
     public void Both_templates_bind_the_size()
     {
-        var theme = File.ReadAllText(Path.Combine(Repository.AppSource, "Themes", "Dark.xaml"));
+        var theme = File.ReadAllText(Path.Combine(Repository.UiSource, "Themes", "Dark.xaml"));
 
         Assert.Equal(
             2,

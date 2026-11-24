@@ -4,8 +4,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Sirius.Core.Nodes;
-using Sirius.Studio.App.Layout;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.Layout;
+using Sirius.UI.ViewModels;
 
 namespace Sirius.Builder;
 

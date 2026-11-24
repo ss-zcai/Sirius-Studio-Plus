@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Windows;
-using Sirius.Studio.App;
+using Sirius.UI;
 
 namespace Sirius.Core.Tests;
 

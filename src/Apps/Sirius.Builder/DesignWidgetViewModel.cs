@@ -5,7 +5,7 @@ using Microsoft.Win32;
 using Sirius.Core.Runtime;
 using Sirius.Core.Projects;
 using Sirius.Core.Screens;
-using Sirius.Studio.App;
+using Sirius.UI;
 
 namespace Sirius.Builder;
 
@@ -176,10 +176,10 @@ public sealed class DesignWidgetViewModel : ObservableObject
     /// <summary>"Default", "Black", or the "#RRGGBB" kept - as the Background box shows it.</summary>
     public string BackgroundText
     {
-        get => Sirius.Studio.App.Screens.ScreenColours.Describe(Widget.Background);
+        get => Sirius.UI.Screens.ScreenColours.Describe(Widget.Background);
         set
         {
-            var colour = Sirius.Studio.App.Screens.ScreenColours.Normalise(value, out var valid);
+            var colour = Sirius.UI.Screens.ScreenColours.Normalise(value, out var valid);
 
             if (!valid)
             {
@@ -193,11 +193,11 @@ public sealed class DesignWidgetViewModel : ObservableObject
     }
 
     /// <summary>The widget's colour on the designer's canvas, as the running screen will show it.</summary>
-    public System.Windows.Media.Brush PreviewBackground => Sirius.Studio.App.Screens.ScreenColours.Brush(Widget.Background);
+    public System.Windows.Media.Brush PreviewBackground => Sirius.UI.Screens.ScreenColours.Brush(Widget.Background);
 
     /// <summary>The canvas caption's colour: dark over a light background, light over a dark one.</summary>
     public System.Windows.Media.Brush PreviewForeground =>
-        Sirius.Studio.App.Screens.ScreenColours.Parse(Widget.Background) is { } colour &&
+        Sirius.UI.Screens.ScreenColours.Parse(Widget.Background) is { } colour &&
         (0.299 * colour.R) + (0.587 * colour.G) + (0.114 * colour.B) > 150
             ? System.Windows.Media.Brushes.Black
             : System.Windows.Media.Brushes.Gainsboro;
@@ -445,7 +445,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
 
     /// <summary>A label above a control or a value: two lines of the font, the gap between them, the control's frame, the widget's edge - on the grid.</summary>
     internal static double TwoLineHeight(double fontSize) =>
-        Math.Ceiling(((fontSize * 3) + 11 + Sirius.Studio.App.Screens.SettingWidgetViewModel.LabelGap) / ScreenLayout.Grid) * ScreenLayout.Grid;
+        Math.Ceiling(((fontSize * 3) + 11 + Sirius.UI.Screens.SettingWidgetViewModel.LabelGap) / ScreenLayout.Grid) * ScreenLayout.Grid;
 
     /// <summary>The lowest it may be set to on the line; blank for as low as the node allows.</summary>
     public string LowestText
@@ -862,7 +862,7 @@ public sealed class DesignWidgetViewModel : ObservableObject
                 () => BackgroundText,
                 value => BackgroundText = value as string ?? string.Empty,
                 "The colour behind the image, where it does not fill the viewer. Pick one, or type a name or #RRGGBB.",
-                options: () => Sirius.Studio.App.Screens.ScreenColours.Presets.Select(preset => preset.Name).ToArray());
+                options: () => Sirius.UI.Screens.ScreenColours.Presets.Select(preset => preset.Name).ToArray());
         }
 
         if (HasFile)

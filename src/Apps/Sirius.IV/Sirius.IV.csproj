@@ -33,7 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sirius.Studio.App\Sirius.Studio.App.csproj" />
+    <ProjectReference Include="..\..\Shared\Sirius.UI\Sirius.UI.csproj" />
   </ItemGroup>
 
 </Project>

@@ -17,7 +17,7 @@ public partial class RoisFromAllWindow : Window
         string folder)
     {
         InitializeComponent();
-        Sirius.Studio.App.DarkTitleBar.Apply(this);
+        Sirius.UI.DarkTitleBar.Apply(this);
 
         var (ownText, sameText, sameForAll) = Describe(own, source, listed);
 

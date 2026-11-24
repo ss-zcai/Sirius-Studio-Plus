@@ -3,7 +3,7 @@ using System.Drawing;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Serialization;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.ViewModels;
 using Sirius.Vision.Nodes;
 using Xunit;
 

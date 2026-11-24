@@ -74,7 +74,7 @@ Copy-Item 'docs/overview.md', 'docs/design/annotation-format.md', 'docs/project/
 
 $required = @(
     'SiriusIV.exe'
-    'SiriusStudioPlus.dll'
+    'Sirius.UI.dll'
     'THIRD-PARTY-NOTICES.txt'
     'LICENSE-phosphor.txt'
     'LICENSE-apache-2.0.txt'

@@ -1,6 +1,8 @@
 using System.IO;
 using Xunit;
 
+using Sirius.Studio;
+
 namespace Sirius.Core.Tests;
 
 /// <summary>
@@ -25,8 +27,12 @@ public class WindowChromeTests
         {
             var data = new TheoryData<string>();
 
-            foreach (var file in Directory.GetFiles(Source, "*Window.xaml.cs"))
-                data.Add(Path.GetFileName(file));
+            // Studio's own window, and every shared one.
+            foreach (var folder in new[] { Repository.AppSource, Repository.UiSource })
+            {
+                foreach (var file in Directory.GetFiles(folder, "*Window.xaml.cs"))
+                    data.Add(Path.GetRelativePath(Repository.Root, file));
+            }
 
             return data;
         }
@@ -36,7 +42,7 @@ public class WindowChromeTests
     [MemberData(nameof(Windows))]
     public void Every_window_asks_for_the_dark_title_bar(string file)
     {
-        var text = File.ReadAllText(Path.Combine(Source, file));
+        var text = File.ReadAllText(Path.Combine(Repository.Root, file));
 
         Assert.True(
             text.Contains("DarkTitleBar.Apply", StringComparison.Ordinal),
@@ -49,7 +55,7 @@ public class WindowChromeTests
     /// </summary>
     [Fact]
     public void There_are_windows_to_check() =>
-        Assert.NotEmpty(Directory.GetFiles(Source, "*Window.xaml.cs"));
+        Assert.NotEmpty(Directory.GetFiles(Repository.UiSource, "*Window.xaml.cs"));
 
     /// <summary>
     /// About shows the product's own icon, at a usable size.
@@ -74,7 +80,7 @@ public class WindowChromeTests
 
             Assert.IsType<System.Windows.Media.DrawingImage>(System.Windows.Application.Current!.FindResource("Icon.SiriusStudioPlus"));
 
-            var xaml = File.ReadAllText(Path.Combine(Source, "AboutWindow.xaml"));
+            var xaml = File.ReadAllText(Path.Combine(Repository.UiSource, "AboutWindow.xaml"));
 
             Assert.Contains("Icon.SiriusStudioPlus", xaml, StringComparison.Ordinal);
             Assert.DoesNotContain("Icon.ph_run", xaml, StringComparison.Ordinal);
@@ -85,13 +91,13 @@ public class WindowChromeTests
     /// not drawn a second time by hand.
     /// </summary>
     [Theory]
-    [InlineData("Sirius.Studio.App", "Sirius Studio Plus")]
+    [InlineData("Sirius.Studio", "Sirius Studio Plus")]
     [InlineData("Sirius.Builder", "Sirius Builder")]
     [InlineData("Sirius.Edge", "Sirius Edge")]
     public void Each_program_has_its_own_icon_from_its_svg_master(string folder, string name)
     {
         var project = File.ReadAllText(Path.Combine(Repository.Project(folder), folder + ".csproj"));
-        var logo = File.ReadAllText(Path.Combine(Source, "Themes", "Logo.xaml"));
+        var logo = File.ReadAllText(Path.Combine(Repository.UiSource, "Themes", "Logo.xaml"));
         var res = Path.Combine(Repository.Root, "res");
 
         Assert.Contains($@"<ApplicationIcon>..\..\..\res\{name}.ico</ApplicationIcon>", project, StringComparison.Ordinal);

@@ -4,7 +4,7 @@ using Sirius.Core.Projects;
 using Sirius.Core.Screens;
 using Sirius.Core.Serialization;
 using Sirius.Builder;
-using Sirius.Studio.App.Screens;
+using Sirius.UI.Screens;
 using Sirius.Vision.Nodes;
 using Xunit;
 
@@ -507,7 +507,7 @@ public sealed class ScreenDesignerTests : IDisposable
                 Assert.Same(System.Windows.Application.Current!.FindResource("Icon.SiriusBuilder"), about.LogoImage.Source);
 
                 // Studio's own is unchanged.
-                var studio = new Sirius.Studio.App.AboutWindow();
+                var studio = new Sirius.UI.AboutWindow();
                 Assert.Equal("About Sirius Studio Plus", studio.Title);
                 Assert.Equal("Sirius Studio Plus", studio.ProductText.Text);
                 Assert.NotEqual($"version {builderVersion}", studio.VersionText.Text);

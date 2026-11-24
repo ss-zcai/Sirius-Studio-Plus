@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sirius Studio Plus: recipes - the node editor, its tools and viewers.
+    Only the program itself is here, its window and start-up; what it
+    shares with Builder, Edge and Image Viewer is Sirius.UI's.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Sirius.Studio</RootNamespace>
+    <AssemblyName>SiriusStudioPlus</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <!-- Only English resources ship; the satellite packs add ~10 MB. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Made from res/Sirius Studio Plus.svg by tools/make-app-icons.ps1, as Builder's and Edge's are. -->
+    <ApplicationIcon>..\..\..\res\Sirius Studio Plus.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dirkster.AvalonDock" />
+    <PackageReference Include="Dirkster.AvalonDock.Themes.VS2013" />
+    <PackageReference Include="Nodify" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sirius.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\Sirius.UI\Sirius.UI.csproj" />
+  </ItemGroup>
+
+</Project>

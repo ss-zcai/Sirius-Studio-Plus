@@ -140,8 +140,8 @@ public sealed class SiriusIvToFolderTests : IDisposable
     public void A_matched_set_moves_whole_with_its_unsaved_measurements()
     {
         var said = new List<string>();
-        var previous = Sirius.Studio.App.Dialog.Present;
-        Sirius.Studio.App.Dialog.Present = (_, message, _, _, _) =>
+        var previous = Sirius.UI.Dialog.Present;
+        Sirius.UI.Dialog.Present = (_, message, _, _, _) =>
         {
             said.Add(message);
             return MessageBoxResult.OK;
@@ -193,7 +193,7 @@ public sealed class SiriusIvToFolderTests : IDisposable
         }
         finally
         {
-            Sirius.Studio.App.Dialog.Present = previous;
+            Sirius.UI.Dialog.Present = previous;
         }
     }
 

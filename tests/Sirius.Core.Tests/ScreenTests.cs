@@ -6,7 +6,7 @@ using Sirius.Core.Graph;
 using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
-using Sirius.Studio.App.Screens;
+using Sirius.UI.Screens;
 using Sirius.Vision.Nodes;
 using Xunit;
 
@@ -658,7 +658,7 @@ public sealed class ScreenTests : IDisposable
                 window.Show();
                 WpfTestHost.Settle(window.Dispatcher);
 
-                var sliders = Descendants(window).OfType<Sirius.Studio.App.Controls.RangeSlider>().Where(slider => slider.IsVisible).ToArray();
+                var sliders = Descendants(window).OfType<Sirius.UI.Controls.RangeSlider>().Where(slider => slider.IsVisible).ToArray();
 
                 Assert.Equal(2, sliders.Length);
                 Assert.True(sliders[0].IsSingle);
@@ -670,7 +670,7 @@ public sealed class ScreenTests : IDisposable
 
                 // Let go: the setting takes the handle's value.
                 sliders[0].High = 60;
-                sliders[0].RaiseEvent(new System.Windows.RoutedEventArgs(Sirius.Studio.App.Controls.RangeSlider.ValueCommittedEvent, sliders[0]));
+                sliders[0].RaiseEvent(new System.Windows.RoutedEventArgs(Sirius.UI.Controls.RangeSlider.ValueCommittedEvent, sliders[0]));
                 WpfTestHost.Settle(window.Dispatcher);
 
                 var model = (ScreenViewModel)window.DataContext;
@@ -752,7 +752,7 @@ public sealed class ScreenTests : IDisposable
             var app = System.Windows.Application.Current!;
             var before = app.Resources.MergedDictionaries.Count;
 
-            Sirius.Studio.App.Hosting.SiriusHost.LoadTheme(app);
+            Sirius.UI.Hosting.SiriusHost.LoadTheme(app);
 
             try
             {
@@ -829,7 +829,7 @@ public sealed class ScreenTests : IDisposable
                 window.Show();
                 WpfTestHost.Settle(window.Dispatcher);
 
-                var viewers = Descendants(window).OfType<Sirius.Studio.App.Controls.ImageViewer>().ToArray();
+                var viewers = Descendants(window).OfType<Sirius.UI.Controls.ImageViewer>().ToArray();
                 Assert.Equal(2, viewers.Length);
 
                 Assert.Equal(System.Windows.Media.Colors.Black, ((System.Windows.Media.SolidColorBrush)viewers[0].Background).Color);
@@ -850,7 +850,7 @@ public sealed class ScreenTests : IDisposable
         {
             WpfTestHost.EnsureApplicationResources();
 
-            var viewer = new Sirius.Studio.App.Controls.ImageViewer();
+            var viewer = new Sirius.UI.Controls.ImageViewer();
 
             Assert.Equal(System.Windows.Media.Color.FromRgb(0x17, 0x18, 0x1A), ((System.Windows.Media.SolidColorBrush)viewer.Background).Color);
         });

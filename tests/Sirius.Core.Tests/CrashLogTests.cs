@@ -1,5 +1,5 @@
 using System.IO;
-using Sirius.Studio.App.Diagnostics;
+using Sirius.UI.Diagnostics;
 using Xunit;
 
 namespace Sirius.Core.Tests;

@@ -10,9 +10,9 @@ using Sirius.Core.Runtime;
 using Sirius.Plc;
 using Sirius.Plc.Nodes;
 using Sirius.Plc.Workflows;
-using Sirius.Studio.App.Screens;
+using Sirius.UI.Screens;
 using Sirius.Vision.Nodes;
-using Sirius.Studio.App.Plc;
+using Sirius.UI.Plc;
 using Xunit;
 
 namespace Sirius.Core.Tests;
@@ -392,12 +392,12 @@ public sealed class BuilderControllerTests : IDisposable
 
                 Assert.Same(node.Node, model.PropertyHelpNode);
 
-                var about = new Sirius.Studio.App.ViewModels.NodeHelpViewModel(node.Node);
+                var about = new Sirius.UI.ViewModels.NodeHelpViewModel(node.Node);
                 Assert.Equal(item.DisplayName, about.Title);
                 Assert.False(string.IsNullOrWhiteSpace(item.Description), $"{item.DisplayName} has no description");
                 Assert.True(about.HasInputs || about.HasOutputs || about.HasParameters, item.DisplayName);
 
-                var window = new Sirius.Studio.App.NodeHelpWindow(node.Node);
+                var window = new Sirius.UI.NodeHelpWindow(node.Node);
                 window.Show();
                 WpfTestHost.Settle(window.Dispatcher);
                 window.Close();
@@ -434,7 +434,7 @@ public sealed class BuilderControllerTests : IDisposable
             document.Watch(runner);
             Assert.True(document.IsWatching);
 
-            WorkflowNodeActivity Step(int pass, Sirius.Studio.App.ViewModels.NodeViewModel node, WorkflowNodeState state, string? why = null) =>
+            WorkflowNodeActivity Step(int pass, Sirius.UI.ViewModels.NodeViewModel node, WorkflowNodeState state, string? why = null) =>
                 new(pass, node.Node.Id, node.Title, state, TimeSpan.FromMilliseconds(12), why);
 
             document.Light(Step(1, read, WorkflowNodeState.Done));

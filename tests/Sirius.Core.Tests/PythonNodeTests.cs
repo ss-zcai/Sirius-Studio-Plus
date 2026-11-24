@@ -206,15 +206,15 @@ public class PythonNodeTests
         if (Load(out _) is not { } nodes)
             return;
 
-        var tip = Sirius.Studio.App.ViewModels.PaletteItemViewModel.ToolTipFor(nodes[0]);
+        var tip = Sirius.UI.ViewModels.PaletteItemViewModel.ToolTipFor(nodes[0]);
 
         Assert.StartsWith("Inverts." + Environment.NewLine + "From pytest_nodes.py (Python ", tip);
-        Assert.Equal("From " + nodes[1].Origin, Sirius.Studio.App.ViewModels.PaletteItemViewModel.ToolTipFor(nodes[1]));
-        Assert.True(Sirius.Studio.App.ViewModels.MainViewModel.MatchesToolboxSearch(nodes[0], "pytest_nodes"));
-        Assert.True(Sirius.Studio.App.ViewModels.MainViewModel.MatchesToolboxSearch(nodes[0], "python"));
+        Assert.Equal("From " + nodes[1].Origin, Sirius.UI.ViewModels.PaletteItemViewModel.ToolTipFor(nodes[1]));
+        Assert.True(Sirius.UI.ViewModels.MainViewModel.MatchesToolboxSearch(nodes[0], "pytest_nodes"));
+        Assert.True(Sirius.UI.ViewModels.MainViewModel.MatchesToolboxSearch(nodes[0], "python"));
 
         var builtIn = NodeCatalog.FindByTypeKey("basic.threshold")!;
-        Assert.Equal(builtIn.Description, Sirius.Studio.App.ViewModels.PaletteItemViewModel.ToolTipFor(builtIn));
+        Assert.Equal(builtIn.Description, Sirius.UI.ViewModels.PaletteItemViewModel.ToolTipFor(builtIn));
     }
 
     [Fact]

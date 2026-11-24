@@ -3,7 +3,7 @@ using Sirius.Builder;
 using Sirius.Core.Graph;
 using Sirius.Core.Projects;
 using Sirius.Plc;
-using Sirius.Studio.App.Plc;
+using Sirius.UI.Plc;
 using Xunit;
 
 namespace Sirius.Core.Tests;

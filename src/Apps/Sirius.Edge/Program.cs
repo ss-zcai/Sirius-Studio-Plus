@@ -1,9 +1,9 @@
 using System.IO;
 using Microsoft.Win32;
 using Sirius.Core.Projects;
-using Sirius.Studio.App;
-using Sirius.Studio.App.Hosting;
-using Sirius.Studio.App.Screens;
+using Sirius.UI;
+using Sirius.UI.Hosting;
+using Sirius.UI.Screens;
 
 namespace Sirius.Edge;
 

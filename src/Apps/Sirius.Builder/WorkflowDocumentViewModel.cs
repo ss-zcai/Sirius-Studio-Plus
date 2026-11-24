@@ -13,7 +13,7 @@ using Sirius.Core.Serialization;
 using Sirius.Plc;
 using Sirius.Plc.Nodes;
 using Sirius.Plc.Workflows;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.ViewModels;
 
 namespace Sirius.Builder;
 
@@ -357,7 +357,7 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            Sirius.Studio.App.Dialog.Error($"{System.IO.Path.GetFileName(Path)} could not be saved: {ex.Message}", "Save Workflow");
+            Sirius.UI.Dialog.Error($"{System.IO.Path.GetFileName(Path)} could not be saved: {ex.Message}", "Save Workflow");
             return false;
         }
     }
@@ -485,7 +485,7 @@ public sealed class WorkflowDocumentViewModel : ObservableObject, IDisposable
     };
 
     /// <summary>A PLC type with the IEC 61131-3 name a PLC programmer knows.</summary>
-    public static string PlcTypeLabel(PlcType type) => Sirius.Studio.App.Plc.PlcViewModel.PlcTypeLabel(type);
+    public static string PlcTypeLabel(PlcType type) => Sirius.UI.Plc.PlcViewModel.PlcTypeLabel(type);
 
     // ---- lit as a Test Run goes through it ---------------------------------------------
 

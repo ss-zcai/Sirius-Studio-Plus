@@ -600,7 +600,7 @@ public sealed partial class ScreenDesignerViewModel : ObservableObject
 
     /// <summary>Asks the operator a yes-or-no question; replaced in tests.</summary>
     internal Func<string, bool> Confirm { get; set; } =
-        question => Sirius.Studio.App.Dialog.Confirm(question, "Reset to Standard", System.Windows.Application.Current?.MainWindow);
+        question => Sirius.UI.Dialog.Confirm(question, "Reset to Standard", System.Windows.Application.Current?.MainWindow);
 
     /// <summary>
     /// Screen - Reset to Standard: asks first, since it replaces every

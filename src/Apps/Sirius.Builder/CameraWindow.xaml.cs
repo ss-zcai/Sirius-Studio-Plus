@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Sirius.Studio.App;
+using Sirius.UI;
 using Sirius.Vision.Cameras;
 
 namespace Sirius.Builder;

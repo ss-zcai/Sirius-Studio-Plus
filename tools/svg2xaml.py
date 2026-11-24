@@ -9,8 +9,8 @@ would have discarded the design.
 Usage:
     python tools/svg2xaml.py <output.xaml> <svg-dir-or-file> [...]
 
-    python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
-    python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Logo.xaml "res/Sirius Stu.svg"
+    python tools/svg2xaml.py src/Shared/Sirius.UI/Themes/Icons.xaml "res/ui icons"
+    python tools/svg2xaml.py src/Shared/Sirius.UI/Themes/Logo.xaml "res/Sirius Stu.svg"
 
 Supports the subset the artwork actually uses: path, rect, circle, ellipse,
 line, polygon, polyline, nested <g>, CSS classes declared in <style>, inline

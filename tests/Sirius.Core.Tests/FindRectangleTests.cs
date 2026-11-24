@@ -294,11 +294,11 @@ public class FindRectangleTests
     public void The_region_editor_is_given_the_band_and_follows_it()
     {
         var finder = new FindRectangleNode { SearchWidth = 25 };
-        var region = new Sirius.Studio.App.ViewModels.ParameterViewModel(
+        var region = new Sirius.UI.ViewModels.ParameterViewModel(
             finder, finder.Descriptor.Parameters.Single(p => p.Name == nameof(FindRectangleNode.Region)));
 
-        using var panel = new Sirius.Studio.App.ViewModels.PreviewPanelViewModel(
-            finder, finder.ImageIn, null, new Sirius.Studio.App.ViewModels.ShapeSelectionService())
+        using var panel = new Sirius.UI.ViewModels.PreviewPanelViewModel(
+            finder, finder.ImageIn, null, new Sirius.UI.ViewModels.ShapeSelectionService())
         {
             RegionParameter = region,
         };
@@ -345,11 +345,11 @@ public class FindRectangleTests
     public void A_region_with_no_band_has_none()
     {
         var finder = new FindLineNode();
-        var region = new Sirius.Studio.App.ViewModels.ParameterViewModel(
+        var region = new Sirius.UI.ViewModels.ParameterViewModel(
             finder, finder.Descriptor.Parameters.Single(p => p.Name == nameof(FindLineNode.Region)));
 
-        using var panel = new Sirius.Studio.App.ViewModels.PreviewPanelViewModel(
-            finder, finder.ImageIn, null, new Sirius.Studio.App.ViewModels.ShapeSelectionService())
+        using var panel = new Sirius.UI.ViewModels.PreviewPanelViewModel(
+            finder, finder.ImageIn, null, new Sirius.UI.ViewModels.ShapeSelectionService())
         {
             RegionParameter = region,
         };

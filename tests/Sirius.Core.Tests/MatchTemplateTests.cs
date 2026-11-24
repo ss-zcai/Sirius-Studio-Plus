@@ -363,7 +363,7 @@ public class MatchTemplateTests
     [Fact]
     public void Teach_is_a_button_and_the_template_is_not_a_field()
     {
-        var view = new Sirius.Studio.App.ViewModels.NodeViewModel(new MatchTemplateNode());
+        var view = new Sirius.UI.ViewModels.NodeViewModel(new MatchTemplateNode());
 
         Assert.DoesNotContain(view.Parameters, parameter => parameter.DisplayName == "Taught Template");
         Assert.Contains(view.Parameters, parameter => parameter.DisplayName == "Teach Region" && parameter.HasInlineAction);

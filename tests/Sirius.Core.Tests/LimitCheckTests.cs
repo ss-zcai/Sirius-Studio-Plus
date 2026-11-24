@@ -1,6 +1,6 @@
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.ViewModels;
 using Sirius.Core.Shapes;
 using Sirius.Vision.Nodes;
 using Xunit;

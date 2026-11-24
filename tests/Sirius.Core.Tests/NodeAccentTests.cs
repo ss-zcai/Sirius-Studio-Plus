@@ -2,9 +2,11 @@ using System.IO;
 using System.Windows.Media;
 using Sirius.Core.Graph;
 using Sirius.Core.Serialization;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.ViewModels;
 using Sirius.Vision.Nodes;
 using Xunit;
+
+using Sirius.Studio;
 
 namespace Sirius.Core.Tests;
 
@@ -240,7 +242,7 @@ public class NodeAccentTests
     [Fact]
     public void The_swatch_comes_from_a_template_not_a_shared_element()
     {
-        var theme = File.ReadAllText(Path.Combine(AppSource, "Themes", "Dark.xaml"));
+        var theme = File.ReadAllText(Path.Combine(Repository.UiSource, "Themes", "Dark.xaml"));
         var window = File.ReadAllText(Path.Combine(AppSource, "MainWindow.xaml"));
 
         Assert.Contains("x:Key=\"AccentItemTemplate\"", theme, StringComparison.Ordinal);

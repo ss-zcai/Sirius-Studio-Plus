@@ -2,8 +2,10 @@ using System.Windows;
 using System.Windows.Controls;
 using AvalonDock;
 using AvalonDock.Layout;
-using Sirius.Studio.App.Layout;
+using Sirius.UI.Layout;
 using Xunit;
+
+using Sirius.Studio;
 
 namespace Sirius.Core.Tests;
 

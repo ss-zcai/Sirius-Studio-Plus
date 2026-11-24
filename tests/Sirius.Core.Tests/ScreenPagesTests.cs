@@ -8,7 +8,7 @@ using Sirius.Core.Graph;
 using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
-using Sirius.Studio.App.Screens;
+using Sirius.UI.Screens;
 using Sirius.Vision.Nodes;
 using Xunit;
 

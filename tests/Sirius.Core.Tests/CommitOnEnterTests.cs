@@ -1,7 +1,7 @@
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
-using Sirius.Studio.App.Controls;
+using Sirius.UI.Controls;
 using Xunit;
 
 namespace Sirius.Core.Tests;

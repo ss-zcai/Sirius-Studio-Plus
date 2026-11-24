@@ -253,7 +253,7 @@ public class PublishingTests
     public void An_output_tag_follows_the_node()
     {
         var (graph, _, tool, _) = Recipe();
-        var view = new Sirius.Studio.App.ViewModels.NodeViewModel(tool);
+        var view = new Sirius.UI.ViewModels.NodeViewModel(tool);
         var output = view.Outputs.Single(connector => connector.Port.Name == "Out");
         var raised = new List<string>();
 
@@ -274,7 +274,7 @@ public class PublishingTests
     public void A_setting_tag_follows_the_node()
     {
         var (graph, _, tool, _) = Recipe();
-        var view = new Sirius.Studio.App.ViewModels.NodeViewModel(tool);
+        var view = new Sirius.UI.ViewModels.NodeViewModel(tool);
         var level = view.Parameters.Single(parameter => parameter.Name == nameof(ThresholdNode.Threshold));
 
         Publishing.Publish(graph, tool, PublishedKind.Setting, nameof(ThresholdNode.Threshold), "Level");
@@ -287,7 +287,7 @@ public class PublishingTests
     public void A_view_tag_follows_the_node()
     {
         var (graph, _, _, viewer) = Recipe();
-        var view = new Sirius.Studio.App.ViewModels.NodeViewModel(viewer);
+        var view = new Sirius.UI.ViewModels.NodeViewModel(viewer);
 
         Publishing.Publish(graph, viewer, PublishedKind.View, string.Empty, "Main View");
 
@@ -301,9 +301,9 @@ public class PublishingTests
     {
         var (_, _, tool, viewer) = Recipe();
 
-        Assert.Equal("Out", Sirius.Studio.App.PublishNameWindow.DefaultName(tool, PublishedKind.Result, "Out"));
-        Assert.Equal("Threshold", Sirius.Studio.App.PublishNameWindow.DefaultName(tool, PublishedKind.Setting, nameof(ThresholdNode.Threshold)));
-        Assert.Equal(viewer.Name, Sirius.Studio.App.PublishNameWindow.DefaultName(viewer, PublishedKind.View, string.Empty));
+        Assert.Equal("Out", Sirius.UI.PublishNameWindow.DefaultName(tool, PublishedKind.Result, "Out"));
+        Assert.Equal("Threshold", Sirius.UI.PublishNameWindow.DefaultName(tool, PublishedKind.Setting, nameof(ThresholdNode.Threshold)));
+        Assert.Equal(viewer.Name, Sirius.UI.PublishNameWindow.DefaultName(viewer, PublishedKind.View, string.Empty));
     }
 
     // ---- undo, and nothing recomputed ------------------------------------

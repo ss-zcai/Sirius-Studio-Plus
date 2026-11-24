@@ -19,7 +19,7 @@ namespace Sirius.Core.Tests;
 /// </remarks>
 public class IconDictionaryTests
 {
-    private const string DictionaryPath = "src/Apps/Sirius.Studio.App/Themes/Icons.xaml";
+    private const string DictionaryPath = "src/Shared/Sirius.UI/Themes/Icons.xaml";
 
     /// <summary>
     /// Loads the dictionary from source, as the application would.
@@ -114,11 +114,11 @@ public class IconDictionaryTests
     [Fact]
     public void Every_panel_view_model_has_a_data_template()
     {
-        var theme = File.ReadAllText(Path.Combine(Repository.Root, "src/Apps/Sirius.Studio.App/Themes/Dark.xaml"));
+        var theme = File.ReadAllText(Path.Combine(Repository.Root, "src/Shared/Sirius.UI/Themes/Dark.xaml"));
 
-        var panelTypes = typeof(Sirius.Studio.App.ViewModels.NodePanelViewModel).Assembly
+        var panelTypes = typeof(Sirius.UI.ViewModels.NodePanelViewModel).Assembly
             .GetTypes()
-            .Where(t => !t.IsAbstract && typeof(Sirius.Studio.App.ViewModels.NodePanelViewModel).IsAssignableFrom(t))
+            .Where(t => !t.IsAbstract && typeof(Sirius.UI.ViewModels.NodePanelViewModel).IsAssignableFrom(t))
             .ToArray();
 
         Assert.NotEmpty(panelTypes);
@@ -126,7 +126,7 @@ public class IconDictionaryTests
         bool HasTemplate(Type type)
         {
             for (var current = type;
-                 current is not null && typeof(Sirius.Studio.App.ViewModels.PanelViewModel).IsAssignableFrom(current);
+                 current is not null && typeof(Sirius.UI.ViewModels.PanelViewModel).IsAssignableFrom(current);
                  current = current.BaseType)
             {
                 if (theme.Contains($"{{x:Type vm:{current.Name}}}", StringComparison.Ordinal))

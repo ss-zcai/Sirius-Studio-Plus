@@ -13,10 +13,10 @@ using Sirius.Core.Screens;
 using Sirius.Core.Serialization;
 using Sirius.Plc;
 using Sirius.Plc.Workflows;
-using Sirius.Studio.App;
-using Sirius.Studio.App.Hosting;
-using Sirius.Studio.App.Plc;
-using Sirius.Studio.App.Screens;
+using Sirius.UI;
+using Sirius.UI.Hosting;
+using Sirius.UI.Plc;
+using Sirius.UI.Screens;
 
 namespace Sirius.Builder;
 

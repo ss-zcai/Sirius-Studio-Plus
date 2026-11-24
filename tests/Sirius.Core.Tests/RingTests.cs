@@ -3,10 +3,12 @@ using System.Windows;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Serialization;
-using Sirius.Studio.App.Controls;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.Controls;
+using Sirius.UI.ViewModels;
 using Sirius.Vision.Nodes;
 using Xunit;
+
+using Sirius.Studio;
 
 namespace Sirius.Core.Tests;
 
@@ -390,7 +392,7 @@ public class RingTests
     public void The_band_is_wired_from_panel_to_viewer()
     {
         var window = File.ReadAllText(Path.Combine(Repository.AppSource, "MainWindow.xaml"));
-        var theme = File.ReadAllText(Path.Combine(Repository.AppSource, "Themes", "Dark.xaml"));
+        var theme = File.ReadAllText(Path.Combine(Repository.UiSource, "Themes", "Dark.xaml"));
 
         Assert.Contains("{Binding RingText", window, StringComparison.Ordinal);
         Assert.Contains("IsRing, Converter", window, StringComparison.Ordinal);

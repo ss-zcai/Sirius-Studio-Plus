@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using Sirius.Core.Nodes;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.ViewModels;
 using Sirius.Vision.Nodes;
 using Xunit;
 

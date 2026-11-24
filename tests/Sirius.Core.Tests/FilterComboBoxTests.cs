@@ -1,8 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using Emgu.CV.CvEnum;
-using Sirius.Studio.App.Controls;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.Controls;
+using Sirius.UI.ViewModels;
 using Sirius.Vision.Nodes;
 using Xunit;
 

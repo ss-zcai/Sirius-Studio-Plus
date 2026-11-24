@@ -2,8 +2,10 @@ using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Sirius.Core.Nodes;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.ViewModels;
 using Xunit;
+
+using Sirius.Studio;
 
 namespace Sirius.Core.Tests;
 

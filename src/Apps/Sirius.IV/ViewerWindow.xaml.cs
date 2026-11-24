@@ -7,9 +7,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using AvalonDock.Layout;
 using Microsoft.Win32;
-using Sirius.Studio.App;
-using Sirius.Studio.App.Layout;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI;
+using Sirius.UI.Layout;
+using Sirius.UI.ViewModels;
 
 namespace Sirius.IV;
 
@@ -146,7 +146,7 @@ public partial class ViewerWindow : Window
     // ---- the Annotations panel (F20b) ---------------------------------------------------
 
     /// <summary>Each viewer on screen, by the model it shows - to zoom one to a shape.</summary>
-    private readonly Dictionary<TileViewModel, Sirius.Studio.App.Controls.ImageViewer> _viewers = [];
+    private readonly Dictionary<TileViewModel, Sirius.UI.Controls.ImageViewer> _viewers = [];
 
     /// <summary>A viewer clicked: the panel shows its picture.</summary>
     private void OnViewerPressed(object sender, MouseButtonEventArgs e)
@@ -219,7 +219,7 @@ public partial class ViewerWindow : Window
             return;
 
         // A viewer of its own, never shown, draws each as Save Image with Overlays does.
-        var drawer = new Sirius.Studio.App.Controls.ImageViewer();
+        var drawer = new Sirius.UI.Controls.ImageViewer();
         drawer.Measure(new Size(800, 600));
         drawer.Arrange(new Rect(0, 0, 800, 600));
 
@@ -459,7 +459,7 @@ public partial class ViewerWindow : Window
 
     private void OnViewerLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not Sirius.Studio.App.Controls.ImageViewer viewer)
+        if (sender is not Sirius.UI.Controls.ImageViewer viewer)
             return;
 
         Sync.Add(viewer);
@@ -470,7 +470,7 @@ public partial class ViewerWindow : Window
 
     private void OnViewerUnloaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not Sirius.Studio.App.Controls.ImageViewer viewer)
+        if (sender is not Sirius.UI.Controls.ImageViewer viewer)
             return;
 
         Sync.Remove(viewer);

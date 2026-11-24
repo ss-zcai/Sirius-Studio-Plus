@@ -35,7 +35,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sirius.Studio.App\Sirius.Studio.App.csproj" />
+    <ProjectReference Include="..\..\Shared\Sirius.UI\Sirius.UI.csproj" />
 
     <!-- Beside it in a build, as in the package: Browse Saved Images starts it. -->
     <ProjectReference Include="..\Sirius.IV\Sirius.IV.csproj" />

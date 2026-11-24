@@ -1,5 +1,5 @@
 using System.Windows;
-using Sirius.Studio.App;
+using Sirius.UI;
 using Xunit;
 
 namespace Sirius.Core.Tests;
@@ -23,7 +23,7 @@ public class MenuAlignmentTests
     {
         WpfTestHost.OnStaThread(() =>
         {
-            App.DropMenusFromTheLeft();
+            Sirius.UI.Hosting.SiriusHost.DropMenusFromTheLeft();
 
             Assert.False(SystemParameters.MenuDropAlignment);
         });

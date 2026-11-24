@@ -5,7 +5,7 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Sirius.Core.Graph;
-using Sirius.Studio.App.Imaging;
+using Sirius.UI.Imaging;
 using Sirius.Vision;
 using Sirius.Vision.Nodes;
 using Xunit;

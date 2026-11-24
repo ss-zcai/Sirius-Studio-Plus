@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Sirius.Builder"
              xmlns:nodify="https://miroiu.github.io/nodify"
-             xmlns:vm="clr-namespace:Sirius.Studio.App.ViewModels;assembly=SiriusStudioPlus"
+             xmlns:vm="clr-namespace:Sirius.UI.ViewModels;assembly=Sirius.UI"
                       d:DesignHeight="600"
              d:DesignWidth="1000"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"

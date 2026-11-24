@@ -1,0 +1,151 @@
+using System.Reflection;
+using System.IO;
+using System.Windows;
+using System.Windows.Threading;
+using Sirius.UI.ViewModels;
+using Sirius.Vision;
+using Sirius.Vision.Cameras;
+
+namespace Sirius.UI.Hosting;
+
+/// <summary>
+/// What every Sirius program starts with: the theme, the node library, the
+/// custom nodes and camera drivers - loaded exactly as Studio loads them, so
+/// a recipe judges the same in Studio, Sirius Builder and Sirius Edge
+/// (decision 71).
+/// </summary>
+/// <remarks>
+/// Here, in Studio's assembly, because the theme, the image viewer and the
+/// screens are: Builder and Edge are programs of their own that use them.
+/// </remarks>
+public static class SiriusHost
+{
+    /// <summary>
+    /// The application, themed, menus dropping from the left, and faults
+    /// reported rather than ending it. Call once, on the STA thread.
+    /// </summary>
+    /// <param name="title">The program's name, for messages.</param>
+    public static Application CreateApplication(string title)
+    {
+        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        LoadTheme(app);
+        DropMenusFromTheLeft();
+
+        app.DispatcherUnhandledException += (_, e) => Report(e, title);
+
+        // A file to read afterwards, whatever ends it.
+        Diagnostics.CrashLog.Watch(title);
+        return app;
+    }
+
+    /// <summary>
+    /// Makes menus open below their heading's left edge, whatever the
+    /// Windows handedness setting.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Windows' Tablet PC "right-handed" setting - on by default on many
+    /// touch-capable machines - tells WPF to drop every menu leftwards, so
+    /// it does not open under the hand holding the pen. On a desktop app
+    /// driven by a mouse it just makes the File menu hang off to the left
+    /// of "File", which reads as a layout fault. Context menus and
+    /// drop-downs follow the same setting.
+    /// </para>
+    /// <para>
+    /// WPF reads the setting into a cached field and offers no way to
+    /// override it, so the cache is set directly. If a later WPF renames
+    /// the field, nothing happens and menus fall back to the system's
+    /// choice.
+    /// </para>
+    /// </remarks>
+    public static void DropMenusFromTheLeft()
+    {
+        if (!SystemParameters.MenuDropAlignment)
+            return;
+
+        typeof(SystemParameters)
+            .GetField("_menuDropAlignment", BindingFlags.NonPublic | BindingFlags.Static)
+            ?.SetValue(null, false);
+    }
+
+    /// <summary>Why the vision libraries cannot run on this PC, or null.</summary>
+    public static string? NativeProblem() => NativeLibraries.Problem();
+
+    /// <summary>The node library, the user's custom nodes and the installed camera drivers.</summary>
+    public static void LoadLibraries()
+    {
+        VisionNodeLibrary.Register();
+
+        // Controllers' workflows: their nodes, and the simulated PLC. Never
+        // in a recipe's palette (NodeCategories.IsWorkflow).
+        Sirius.Plc.PlcNodeLibrary.Register();
+
+        // PLC drivers: plc-drivers\ beside the program, for every user, and in
+        // the user's own settings folder.
+        Sirius.Plc.PlcDriverLoader.LoadFolders(
+            Path.Combine(AppContext.BaseDirectory, Sirius.Plc.PlcDriverLoader.FolderName),
+            Path.Combine(SettingsFolder, Sirius.Plc.PlcDriverLoader.FolderName));
+
+        CustomNodesForCurrentUser().LoadAll();
+        CameraDrivers.LoadInstalled();
+    }
+
+    /// <summary>Lets go of the cameras.</summary>
+    public static void ShutDown() => CameraDrivers.ShutDown();
+
+    /// <summary>
+    /// The theme Studio's App.xaml merges, from Studio's assembly - so every
+    /// program's controls look as they do in Studio.
+    /// </summary>
+    public static void LoadTheme(Application app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        foreach (var source in new[]
+                 {
+                     "pack://application:,,,/Nodify;component/Themes/Styles/Controls.xaml",
+                     "pack://application:,,,/Sirius.UI;component/Themes/Icons.xaml",
+                     "pack://application:,,,/Sirius.UI;component/Themes/Logo.xaml",
+                     "pack://application:,,,/Sirius.UI;component/Themes/Dark.xaml",
+                 })
+        {
+            app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri(source, UriKind.Absolute) });
+        }
+    }
+
+    /// <summary>Where Studio keeps the user's settings, which the other programs read too.</summary>
+    public static string SettingsFolder =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SiriusStudioPlus");
+
+    private static CustomNodesViewModel CustomNodesForCurrentUser() =>
+        new(
+            Path.Combine(SettingsFolder, "custom-nodes.json"),
+            Path.Combine(AppContext.BaseDirectory, "plugins"),
+            Path.Combine(SettingsFolder, "plugins"));
+
+    private static bool _reporting;
+
+    /// <summary>Reports a fault and keeps running: a station going on inspecting matters more than one window.</summary>
+    private static void Report(DispatcherUnhandledExceptionEventArgs e, string title)
+    {
+        e.Handled = true;
+
+        // Before the guard: a fault met again while its dialog is up is counted too.
+        Diagnostics.CrashLog.Write(title, e.Exception);
+
+        if (_reporting)
+            return;
+
+        _reporting = true;
+        Console.Error.WriteLine(e.Exception.ToString());
+
+        try
+        {
+            Dialog.Error(e.Exception.Message, title);
+        }
+        finally
+        {
+            _reporting = false;
+        }
+    }
+}

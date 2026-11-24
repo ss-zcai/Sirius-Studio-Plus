@@ -87,7 +87,7 @@ public partial class PropertyGridView : UserControl
     private void OnHelpClick(object sender, RoutedEventArgs e)
     {
         if (HelpNode is { } node)
-            new Sirius.Studio.App.NodeHelpWindow(node) { Owner = Window.GetWindow(this) }.Show();
+            new Sirius.UI.NodeHelpWindow(node) { Owner = Window.GetWindow(this) }.Show();
     }
 
     private static void OnCategoriesChanged(DependencyObject owner, DependencyPropertyChangedEventArgs e) =>

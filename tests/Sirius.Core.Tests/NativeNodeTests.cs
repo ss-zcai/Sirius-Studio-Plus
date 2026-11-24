@@ -883,7 +883,7 @@ public class NativeNodeTests
 
         // Where it came from, for the toolbox's tooltip and its search.
         Assert.Equal("SampleCppNodes.dll", reopened.Descriptor.Origin);
-        Assert.True(Sirius.Studio.App.ViewModels.MainViewModel.MatchesToolboxSearch(reopened.Descriptor, "samplecpp"));
+        Assert.True(Sirius.UI.ViewModels.MainViewModel.MatchesToolboxSearch(reopened.Descriptor, "samplecpp"));
     }
 
     // ---- helpers ------------------------------------------------------------------

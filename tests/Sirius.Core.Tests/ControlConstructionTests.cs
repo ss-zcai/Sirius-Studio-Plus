@@ -1,7 +1,7 @@
 
 using System.Windows;
 
-using Sirius.Studio.App.Controls;
+using Sirius.UI.Controls;
 using Xunit;
 
 namespace Sirius.Core.Tests;
@@ -65,7 +65,7 @@ public class ControlConstructionTests
 
             Assert.True(viewer.ShowShapesButton.IsChecked, "picking a tool hid graph results");
             Assert.True(viewer.ShowMeasurementsButton.IsChecked, "picking a tool hid measurements");
-            Assert.Empty(viewer.ProfileLines ?? new System.Collections.ObjectModel.ObservableCollection<Sirius.Studio.App.ViewModels.ProfileLinePanelViewModel>());
+            Assert.Empty(viewer.ProfileLines ?? new System.Collections.ObjectModel.ObservableCollection<Sirius.UI.ViewModels.ProfileLinePanelViewModel>());
         });
     }
 

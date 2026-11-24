@@ -1,6 +1,6 @@
 using System.IO;
-using Sirius.Studio.App;
-using Sirius.Studio.App.Hosting;
+using Sirius.UI;
+using Sirius.UI.Hosting;
 
 namespace Sirius.IV;
 
@@ -35,7 +35,7 @@ public static class Program
         };
 
         // Where it was, maximised or not, as Studio does.
-        Sirius.Studio.App.Layout.WindowPlacement.Remember(window, Path.Combine(SiriusHost.SettingsFolder, "iv-window.json"));
+        Sirius.UI.Layout.WindowPlacement.Remember(window, Path.Combine(SiriusHost.SettingsFolder, "iv-window.json"));
 
         window.Closed += (_, _) => app.Shutdown();
         app.Run(window);

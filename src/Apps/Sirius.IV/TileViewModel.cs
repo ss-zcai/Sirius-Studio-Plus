@@ -9,8 +9,8 @@ using Emgu.CV.CvEnum;
 using Sirius.Core.Annotations;
 using Sirius.Core.Graph;
 using Sirius.Core.Shapes;
-using Sirius.Studio.App.Imaging;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.Imaging;
+using Sirius.UI.ViewModels;
 using Sirius.Vision;
 
 namespace Sirius.IV;
@@ -42,7 +42,7 @@ public sealed class TileViewModel : ObservableObject
     private LineProfileSource? _profileSource;
     private int _selectedShape = -1;
     private bool _isSixteenBit;
-    private int _displayBits = Sirius.Studio.App.Imaging.MatImageConverter.Auto;
+    private int _displayBits = Sirius.UI.Imaging.MatImageConverter.Auto;
 
     /// <param name="owner">The window it is in, which keeps every picture's measurements; null for a viewer on its own.</param>
     public TileViewModel(BrowserViewModel? owner = null)
@@ -472,7 +472,7 @@ public sealed class TileViewModel : ObservableObject
     /// <paramref name="displayBits"/> says, and its annotation file;
     /// prepared for line profiles too, when <paramref name="profile"/>.
     /// </summary>
-    internal static Loaded Load(ImageFileItem file, bool profile = false, int displayBits = Sirius.Studio.App.Imaging.MatImageConverter.Auto)
+    internal static Loaded Load(ImageFileItem file, bool profile = false, int displayBits = Sirius.UI.Imaging.MatImageConverter.Auto)
     {
         AnnotationFile? annotations = null;
         string? problem = null;

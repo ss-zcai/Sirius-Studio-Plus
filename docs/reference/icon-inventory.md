@@ -27,7 +27,7 @@ full regeneration is:
 
 ```
 python tools/install_extension.py
-python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
+python tools/svg2xaml.py src/Shared/Sirius.UI/Themes/Icons.xaml "res/ui icons"
 ```
 
 An icon that exists only in `Icons.xaml` is deleted by the second command;

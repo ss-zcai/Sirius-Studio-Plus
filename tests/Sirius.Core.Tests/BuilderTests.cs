@@ -5,7 +5,7 @@ using Sirius.Core.Graph;
 using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Core.Screens;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI.ViewModels;
 using Sirius.Vision.Nodes;
 using Xunit;
 
@@ -241,8 +241,8 @@ public sealed class BuilderTests : IDisposable
     private static string Capture(Action action)
     {
         var said = string.Empty;
-        var previous = Sirius.Studio.App.Dialog.Present;
-        Sirius.Studio.App.Dialog.Present = (_, message, _, _, _) =>
+        var previous = Sirius.UI.Dialog.Present;
+        Sirius.UI.Dialog.Present = (_, message, _, _, _) =>
         {
             said = message;
             return MessageBoxResult.OK;
@@ -254,7 +254,7 @@ public sealed class BuilderTests : IDisposable
         }
         finally
         {
-            Sirius.Studio.App.Dialog.Present = previous;
+            Sirius.UI.Dialog.Present = previous;
         }
 
         return said;

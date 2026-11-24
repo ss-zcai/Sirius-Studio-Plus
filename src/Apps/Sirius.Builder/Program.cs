@@ -1,6 +1,6 @@
 using System.IO;
-using Sirius.Studio.App;
-using Sirius.Studio.App.Hosting;
+using Sirius.UI;
+using Sirius.UI.Hosting;
 
 namespace Sirius.Builder;
 
@@ -32,7 +32,7 @@ public static class Program
         var window = new BuilderWindow(model);
 
         // Where it was, maximised or not, as Studio does.
-        Sirius.Studio.App.Layout.WindowPlacement.Remember(window, Path.Combine(SiriusHost.SettingsFolder, "builder-window.json"));
+        Sirius.UI.Layout.WindowPlacement.Remember(window, Path.Combine(SiriusHost.SettingsFolder, "builder-window.json"));
 
         window.Closed += (_, _) => app.Shutdown();
 

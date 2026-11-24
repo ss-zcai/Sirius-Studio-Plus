@@ -3,8 +3,8 @@ using System.Windows;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Sirius.Core.Graph;
-using Sirius.Studio.App.Controls;
-using Sirius.Studio.App.Imaging;
+using Sirius.UI.Controls;
+using Sirius.UI.Imaging;
 
 namespace Sirius.IV;
 

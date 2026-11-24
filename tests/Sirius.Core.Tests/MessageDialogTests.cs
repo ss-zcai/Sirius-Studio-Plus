@@ -2,7 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Sirius.Studio.App;
+using Sirius.UI;
 using Xunit;
 
 namespace Sirius.Core.Tests;
@@ -166,7 +166,7 @@ public class MessageDialogTests
     [Fact]
     public void The_button_template_honours_access_keys()
     {
-        var theme = File.ReadAllText(Path.Combine(Repository.AppSource, "Themes", "Dark.xaml"));
+        var theme = File.ReadAllText(Path.Combine(Repository.UiSource, "Themes", "Dark.xaml"));
         var style = theme.IndexOf("<Style TargetType=\"Button\">", StringComparison.Ordinal);
 
         Assert.True(style >= 0, "the Button style has gone");
@@ -254,7 +254,7 @@ public class MessageDialogTests
     {
         var offenders = new List<string>();
 
-        foreach (var file in Directory.GetFiles(Repository.AppSource, "*.cs", SearchOption.AllDirectories))
+        foreach (var file in new[] { Repository.AppSource, Repository.UiSource }.SelectMany(folder => Directory.GetFiles(folder, "*.cs", SearchOption.AllDirectories)))
         {
             if (Path.GetFileName(file) is "App.xaml.cs" or "Dialog.cs" or "MessageWindow.xaml.cs")
                 continue;
@@ -285,7 +285,7 @@ public class MessageDialogTests
     [Fact]
     public void The_unsaved_changes_prompt_is_still_asked()
     {
-        var text = File.ReadAllText(Path.Combine(Repository.AppSource, "ViewModels", "MainViewModel.cs"));
+        var text = File.ReadAllText(Path.Combine(Repository.UiSource, "ViewModels", "MainViewModel.cs"));
 
         Assert.Contains("Dialog.Ask", text, StringComparison.Ordinal);
         Assert.Contains("ConfirmDiscard", text, StringComparison.Ordinal);

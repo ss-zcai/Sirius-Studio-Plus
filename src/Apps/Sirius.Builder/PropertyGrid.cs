@@ -115,7 +115,7 @@ public sealed class PropertyRow : ObservableObject
     /// <summary>A colour row's colour, for its swatch.</summary>
     public System.Windows.Media.Brush? Swatch =>
         Editor == PropertyEditor.Colour
-            ? Sirius.Studio.App.Screens.ScreenColours.Brush(Sirius.Studio.App.Screens.ScreenColours.Normalise(Value as string, out _))
+            ? Sirius.UI.Screens.ScreenColours.Brush(Sirius.UI.Screens.ScreenColours.Normalise(Value as string, out _))
             : null;
 
     public bool IsVisible => _visible?.Invoke() ?? true;

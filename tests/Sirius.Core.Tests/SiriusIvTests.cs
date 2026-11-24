@@ -697,18 +697,18 @@ public sealed class SiriusIvTests : IDisposable
     /// binds it - since what went wrong was between the two: a measurement
     /// drawn on one picture stayed on screen when the list moved on.
     /// </summary>
-    private static Sirius.Studio.App.Controls.ImageViewer Viewer(TileViewModel tile)
+    private static Sirius.UI.Controls.ImageViewer Viewer(TileViewModel tile)
     {
         WpfTestHost.EnsureApplicationResources();
-        var viewer = new Sirius.Studio.App.Controls.ImageViewer { DataContext = tile };
+        var viewer = new Sirius.UI.Controls.ImageViewer { DataContext = tile };
 
         System.Windows.Data.BindingOperations.SetBinding(
-            viewer, Sirius.Studio.App.Controls.ImageViewer.ImageSourceProperty, new System.Windows.Data.Binding(nameof(TileViewModel.Picture)));
+            viewer, Sirius.UI.Controls.ImageViewer.ImageSourceProperty, new System.Windows.Data.Binding(nameof(TileViewModel.Picture)));
         System.Windows.Data.BindingOperations.SetBinding(
-            viewer, Sirius.Studio.App.Controls.ImageViewer.ShapesProperty, new System.Windows.Data.Binding(nameof(TileViewModel.Shapes)));
+            viewer, Sirius.UI.Controls.ImageViewer.ShapesProperty, new System.Windows.Data.Binding(nameof(TileViewModel.Shapes)));
         System.Windows.Data.BindingOperations.SetBinding(
             viewer,
-            Sirius.Studio.App.Controls.ImageViewer.MeasurementsProperty,
+            Sirius.UI.Controls.ImageViewer.MeasurementsProperty,
             new System.Windows.Data.Binding(nameof(TileViewModel.Measurements)) { Mode = System.Windows.Data.BindingMode.TwoWay });
 
         viewer.Measure(new System.Windows.Size(900, 700));
@@ -718,9 +718,9 @@ public sealed class SiriusIvTests : IDisposable
     }
 
     /// <summary>A measurement as the viewer writes back one drawn by hand.</summary>
-    private static void Draw(Sirius.Studio.App.Controls.ImageViewer viewer, double x) =>
+    private static void Draw(Sirius.UI.Controls.ImageViewer viewer, double x) =>
         viewer.SetCurrentValue(
-            Sirius.Studio.App.Controls.ImageViewer.MeasurementsProperty,
+            Sirius.UI.Controls.ImageViewer.MeasurementsProperty,
             (IReadOnlyList<MeasurementRecord>)[.. viewer.Measurements ?? [], new MeasurementRecord("PointToPoint", [new Point2(x, 2), new Point2(x + 10, 20)], "#F59E0B", null)]);
 
     [Fact]

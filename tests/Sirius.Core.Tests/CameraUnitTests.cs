@@ -453,12 +453,12 @@ public sealed class CameraUnitTests : IDisposable
     public void Studio_is_told_the_recipe_the_project_and_the_station_in_any_order()
     {
         Assert.Equal(
-            new Sirius.Studio.App.StartArguments(@"C:\r\top.sgraph", @"C:\p\line.sproj", "Top 1"),
-            Sirius.Studio.App.StartArguments.Parse(["--project", @"C:\p\line.sproj", @"C:\r\top.sgraph", "--station", "Top 1"]));
+            new Sirius.Studio.StartArguments(@"C:\r\top.sgraph", @"C:\p\line.sproj", "Top 1"),
+            Sirius.Studio.StartArguments.Parse(["--project", @"C:\p\line.sproj", @"C:\r\top.sgraph", "--station", "Top 1"]));
 
         // A file dropped on the program: the recipe alone.
-        Assert.Equal(new Sirius.Studio.App.StartArguments("a.sgraph", null, null), Sirius.Studio.App.StartArguments.Parse(["a.sgraph"]));
-        Assert.Equal(new Sirius.Studio.App.StartArguments(null, null, null), Sirius.Studio.App.StartArguments.Parse([]));
+        Assert.Equal(new Sirius.Studio.StartArguments("a.sgraph", null, null), Sirius.Studio.StartArguments.Parse(["a.sgraph"]));
+        Assert.Equal(new Sirius.Studio.StartArguments(null, null, null), Sirius.Studio.StartArguments.Parse([]));
     }
 
     /// <summary>
@@ -476,7 +476,7 @@ public sealed class CameraUnitTests : IDisposable
 
         WpfTestHost.OnStaThread(() =>
         {
-            var studio = new Sirius.Studio.App.ViewModels.MainViewModel();
+            var studio = new Sirius.UI.ViewModels.MainViewModel();
             studio.OpenAtStart(recipe, project.FilePath, "Top");
 
             var node = studio.Editor.Nodes.Select(item => item.Node).OfType<CameraNode>().Single();

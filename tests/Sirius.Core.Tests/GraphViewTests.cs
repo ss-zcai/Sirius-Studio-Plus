@@ -1,5 +1,5 @@
 using System.Windows;
-using Sirius.Studio.App.Layout;
+using Sirius.UI.Layout;
 using Xunit;
 
 namespace Sirius.Core.Tests;

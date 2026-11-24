@@ -12,10 +12,10 @@ code.
 
 ```bash
 git clone https://github.com/ss-zcai/Sirius-Studio-Plus.git
-dotnet run --project src/Apps/Sirius.Studio.App     # Studio
-dotnet run --project src/Apps/Sirius.Builder        # Builder
-dotnet run --project src/Apps/Sirius.Edge           # Edge
-dotnet run --project src/Apps/Sirius.IV             # Sirius IV
+dotnet run --project src/Apps/Sirius.Studio     # Studio Plus
+dotnet run --project src/Apps/Sirius.Builder    # Builder
+dotnet run --project src/Apps/Sirius.Edge       # Edge
+dotnet run --project src/Apps/Sirius.IV         # Image Viewer
 ```
 
 Needs the .NET 8 SDK. Windows x64 only - the OpenCV natives are
@@ -35,7 +35,8 @@ the drivers build empty and the programs list no such cameras.
 | `src/Core/Sirius.Plugins` | The custom node interface - the SDK's package (versioned on its own). |
 | `src/Core/Sirius.Plc` | Controllers: the PLC driver interface and loader, the simulated PLC, the workflow runner and its nodes (versioned on its own: the driver interface). |
 | `src/Drivers/Sirius.Cameras.Basler`, `src/Drivers/Sirius.Cameras.Hikrobot` | Camera drivers on pylon and MVS. |
-| `src/Apps/Sirius.Studio.App` | **Studio** (`SiriusStudioPlus.exe`), and what the other programs share: the theme, icons, image viewer, screens and the runtime window. |
+| `src/Shared/Sirius.UI` | What the programs share: the theme, icons, dark controls, image viewer, dialogs, the node editor's view-models, screens, the runtime and PLC windows, and the host that starts a program. |
+| `src/Apps/Sirius.Studio` | **Studio Plus** (`SiriusStudioPlus.exe`): its window and start-up; the rest is `Sirius.UI`'s. |
 | `src/Apps/Sirius.Builder` | **Builder** (`SiriusBuilder.exe`): projects, the screen designer, controllers and workflows. Versioned on its own. |
 | `src/Apps/Sirius.Edge` | **Edge** (`SiriusEdge.exe`): runs a project. |
 | `src/Apps/Sirius.IV` | **Sirius IV** (`SiriusIV.exe`): saved pictures. Versioned on its own. |
@@ -55,7 +56,7 @@ rewrite of node bodies rather than an architectural one.
 ```bash
 dotnet test                                              # the whole suite, about two minutes
 dotnet run --project tools/NodeDocGen -- docs/reference/node-reference.md
-python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
+python tools/svg2xaml.py src/Shared/Sirius.UI/Themes/Icons.xaml "res/ui icons"
 ```
 
 **A running program locks its build folder.** Builder, Edge and Sirius IV
@@ -78,7 +79,7 @@ dictionary the programs load.
 
 ```bash
 python tools/install_extension.py
-python tools/svg2xaml.py src/Apps/Sirius.Studio.App/Themes/Icons.xaml "res/ui icons"
+python tools/svg2xaml.py src/Shared/Sirius.UI/Themes/Icons.xaml "res/ui icons"
 ```
 
 Drop the SVG in `res/phosphor-icons/Extension/`, add a line to `INSTALL` in

@@ -4,10 +4,12 @@ using AvalonDock;
 using AvalonDock.Layout;
 using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
-using Sirius.Studio.App;
-using Sirius.Studio.App.ViewModels;
+using Sirius.UI;
+using Sirius.UI.ViewModels;
 using Sirius.Vision;
 using Xunit;
+
+using Sirius.Studio;
 
 namespace Sirius.Core.Tests;
 

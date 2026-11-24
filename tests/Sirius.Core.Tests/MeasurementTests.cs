@@ -1,6 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
-using Sirius.Studio.App.Controls;
+using Sirius.UI.Controls;
 using Xunit;
 
 namespace Sirius.Core.Tests;

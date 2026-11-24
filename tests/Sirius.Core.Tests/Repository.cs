@@ -28,8 +28,11 @@ internal static class Repository
     /// <summary>The repository root.</summary>
     public static string Root { get; } = Locate();
 
-    /// <summary>The application project's source folder.</summary>
-    public static string AppSource { get; } = Project("Sirius.Studio.App");
+    /// <summary>Studio Plus's own source folder: its window and start-up.</summary>
+    public static string AppSource { get; } = Project("Sirius.Studio");
+
+    /// <summary>The shared UI's source folder: the theme, controls, view-models, screens.</summary>
+    public static string UiSource { get; } = Project("Sirius.UI");
 
     /// <summary>
     /// A project's folder by its name, wherever under src/ it is - Core,

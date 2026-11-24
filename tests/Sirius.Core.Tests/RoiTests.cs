@@ -5,8 +5,8 @@ using Emgu.CV.CvEnum;
 using Sirius.Core.Graph;
 using Sirius.Core.Shapes;
 using Sirius.IV;
-using Sirius.Studio.App.Controls;
-using Sirius.Studio.App.Imaging;
+using Sirius.UI.Controls;
+using Sirius.UI.Imaging;
 using Xunit;
 
 namespace Sirius.Core.Tests;

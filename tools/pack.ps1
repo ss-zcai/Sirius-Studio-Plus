@@ -64,7 +64,7 @@ $staging = Join-Path ([System.IO.Path]::GetTempPath()) "sirius-pack-$version"
 if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
 
 Write-Host 'Publishing...'
-dotnet publish src/Apps/Sirius.Studio.App/Sirius.Studio.App.csproj `
+dotnet publish src/Apps/Sirius.Studio/Sirius.Studio.csproj `
     --configuration Release `
     --runtime win-x64 `
     --self-contained true `
@@ -191,6 +191,7 @@ Copy-Item 'docs/overview.md', 'docs/design/annotation-format.md', 'docs/design/p
 $required = @(
     'SiriusStudioPlus.exe'
     'SiriusStudioPlus.dll'
+    'Sirius.UI.dll'
     'sirius-run.exe'
     'SiriusBuilder.exe'
     'SiriusEdge.exe'
