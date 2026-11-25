@@ -28,12 +28,15 @@ Trigger (PLC Monitor, M0.0 rising)
   → Part Number (PLC Read, MW10 as Int16)
   → Part (Gather: PartNumber)
   → Inspect (the first station, told the part number)
-      Done   → Result (PLC Write M0.1 ← Passed)  → Done (PLC Pulse M0.2)
-      Failed → Error (PLC Write M0.3 ← true)
+      Judged   → Result (PLC Write M0.1 ← Passed)  → Done (PLC Pulse M0.2)
+      Failed   → Error (PLC Write M0.3 ← true)
+      Received → Shot Taken (PLC Pulse M0.4)        a station of several shots a part only
 ```
 
 It runs as it is: Test Run, set M0.0 in the simulator, and the station
-inspects.
+inspects. When the first station takes several pictures a part (F26),
+each rise of M0.0 is the next shot: M0.4 pulses for each before the
+last, and the last answers for the part on M0.1 and M0.2 (§4.7).
 
 **Where workflows run.** Builder's **Test Run** and **Sirius Edge** run every
 controller beside the stations: connected when the screen opens,
@@ -299,6 +302,34 @@ PLC told each result:
 Station Result (Top)
   Finished → Write Result ← Passed → Pulse Done
 ```
+
+### 4.7 Several shots a part
+
+A station of 3 shots a part (Builder ▸ Shots per Part). Inspect fires
+**Received** for a shot before the last - the station has the picture,
+the part is not judged - and **Judged** with the last, carrying the
+part's verdict. **Done** fires for every shot.
+
+```
+Monitor (Trigger rising)
+  → Read Part ID (DB1.DBW0, Int16), Read Shot (DB1.DBW2, Int16)   both from Triggered
+  → Gather (Part ID)
+  → Inspect (Part ← Gather's Part, Shot ← Read Shot)
+      Received → Pulse Shot Taken          the PLC moves to the next light
+      Judged   → Write Result ← Passed → Pulse Done
+```
+
+Each shot is a pass of its own; the part is kept open across them by its
+**Part ID** and judged once. With no Part ID read - the starter - the
+shots at a station are counted into sets in order, as Studio does at the
+desk: fine for trying it, but a trigger lost puts every set after it
+out, so a line gives the ID. A Shot of 1 from the PLC always begins a
+new set. Inspect's **Last**, wired, says which shot ends a set when it
+varies by product.
+
+To try it all at the desk, `tools/ShotSample` writes a project of six
+parts of three pictures - parts 2 and 4 marked under one light only -
+with a recipe, the station and the starter; its README says what to do.
 
 ---
 

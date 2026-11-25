@@ -211,6 +211,35 @@ public sealed class BuilderControllerTests : IDisposable
         });
     }
 
+    /// <summary>For a station of several shots a part, the starter answers each shot and the part (F26).</summary>
+    [Fact]
+    public void A_controller_added_for_a_station_of_three_shots_starts_with_the_shots_starter()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_root, "Line 5", new VisionGraph(), "Top");
+            Assert.True(project.SetShotsPerPart(project.Stations[0], 3));
+            var model = Builder(project);
+
+            var added = model.AddController("Line 5 PLC")!;
+            var workflow = WorkflowFile.Load(project.WorkflowPath(added)).Graph;
+
+            Assert.Equal(
+                ["Trigger", "Part Number", "Part", "Inspect", "Result", "Done", "Error", "Shot Taken"],
+                workflow.Nodes.Select(node => node.Name));
+
+            var inspect = workflow.Nodes.OfType<InspectNode>().Single();
+            var result = workflow.Nodes.OfType<PlcWriteNode>().Single(node => node.Name == "Result");
+            var taken = workflow.Nodes.OfType<PlcPulseNode>().Single(node => node.Name == "Shot Taken");
+
+            Assert.Same(inspect.Judged, result.Trigger.Connection?.Source);
+            Assert.Same(inspect.Received, taken.Trigger.Connection?.Source);
+            Assert.Equal("M0.4", taken.Address);
+            Assert.Empty(new WorkflowRunner(workflow, new SimulatedPlc(), new FakeStations("Top")).Check());
+            Assert.Contains("3 shots a part", model.StatusText, StringComparison.Ordinal);
+        });
+    }
+
     [Fact]
     public void A_station_renamed_is_followed_by_workflows_open_and_not()
     {

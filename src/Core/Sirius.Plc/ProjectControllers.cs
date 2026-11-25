@@ -141,7 +141,14 @@ public static class StarterWorkflow
     /// "done". M0.3 is set when the station could not inspect. Siemens-style
     /// addresses, which the simulated PLC takes as they are.
     /// </summary>
-    public static VisionGraph For(string? station)
+    /// <remarks>
+    /// For a station taking several pictures a part (F26), each rise of M0.0
+    /// is the next shot: M0.4 pulses "shot taken" for each before the last,
+    /// and the last has M0.1 and M0.2 answer for the part. No Part ID is
+    /// read, so the shots are counted into sets in order - the PLC need
+    /// only flip M0.0 - until a Part ID and a Shot are wired from the PLC.
+    /// </remarks>
+    public static VisionGraph For(string? station, int shotsPerPart = 1)
     {
         var graph = new VisionGraph();
 
@@ -160,10 +167,17 @@ public static class StarterWorkflow
         graph.TryConnect(partNumber.ValueOut, gather.Values[0]);
         graph.TryConnect(gather.Gathered, inspect.Trigger);
         graph.TryConnect(gather.PartOut, inspect.PartIn);
-        graph.TryConnect(inspect.Done, result.Trigger);
+        graph.TryConnect(inspect.Judged, result.Trigger);
         graph.TryConnect(inspect.PassedOut, result.ValueIn);
         graph.TryConnect(result.Done, done.Trigger);
         graph.TryConnect(inspect.Failed, error.Trigger);
+
+        if (shotsPerPart > 1)
+        {
+            var shotTaken = new PlcPulseNode { Name = "Shot Taken", Address = "M0.4", Width = 500, X = 960, Y = 180 };
+            graph.Add(shotTaken);
+            graph.TryConnect(inspect.Received, shotTaken.Trigger);
+        }
 
         return graph;
     }

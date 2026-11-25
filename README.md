@@ -47,6 +47,7 @@ the drivers build empty and the programs list no such cameras.
 | `samples/SampleNodes`, `PythonNodes`, `CppNodes` | Custom node samples, shipped in the package and the SDK. |
 | `samples/PlcDrivers` | The PLC kit's sample driver and its conformance tests - built only in the kit (`pack-plc-kit.ps1`). |
 | `tools/NodeDocGen` | Generates `docs/reference/node-reference.md` from the node library. |
+| `tools/ShotSample` | Writes a sample project of three shots a part - pictures, recipe, station, simulated PLC - to try the whole process. |
 
 `Sirius.Core` has no dependency on OpenCV or WPF, which is what makes the
 engine testable without either - and would make a change of CV backend a
@@ -57,6 +58,7 @@ rewrite of node bodies rather than an architectural one.
 ```bash
 dotnet test                                              # the whole suite, about two minutes
 dotnet run --project tools/NodeDocGen -- docs/reference/node-reference.md
+dotnet run --project tools/ShotSample -- <folder> [--images <your sets>]   # the several-shots sample
 python tools/svg2xaml.py src/Shared/Sirius.UI/Themes/Icons.xaml "res/ui icons"
 ```
 

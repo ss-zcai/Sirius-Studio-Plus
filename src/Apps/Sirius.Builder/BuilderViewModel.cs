@@ -1361,7 +1361,8 @@ public sealed partial class BuilderViewModel : ObservableObject
 
     /// <summary>
     /// Adds a controller with a simulated PLC of its own name and the starter
-    /// workflow: M0.0 rising has the first station inspect.
+    /// workflow: M0.0 rising has the first station inspect - each rise the
+    /// next shot, when it takes several pictures a part.
     /// </summary>
     internal Controller? AddController(string name)
     {
@@ -1369,7 +1370,9 @@ public sealed partial class BuilderViewModel : ObservableObject
             return null;
 
         Controller? added = null;
-        var station = project.Stations.FirstOrDefault()?.Name;
+        var first = project.Stations.FirstOrDefault();
+        var station = first?.Name;
+        var shots = first?.ShotsPerPart ?? 1;
 
         Guard(() =>
         {
@@ -1377,12 +1380,14 @@ public sealed partial class BuilderViewModel : ObservableObject
                 name,
                 SimulatedPlcDriver.Key,
                 name.Trim(),
-                path => WorkflowFile.Save(StarterWorkflow.For(station), path, name.Trim()));
+                path => WorkflowFile.Save(StarterWorkflow.For(station, shots), path, name.Trim()));
 
             SelectedController = Find(added);
             StatusText = station is null
                 ? $"Added {added.Name}, a simulated PLC with a starter workflow. Add a station for it to inspect."
-                : $"Added {added.Name}, a simulated PLC: M0.0 rising has {station} inspect. Open its PLC window to try it, or Test Run.";
+                : shots > 1
+                    ? $"Added {added.Name}, a simulated PLC: each rise of M0.0 is the next of {station}'s {shots} shots a part - M0.4 pulses for each, M0.1 and M0.2 answer with the last. Open its PLC window to try it, or Test Run."
+                    : $"Added {added.Name}, a simulated PLC: M0.0 rising has {station} inspect. Open its PLC window to try it, or Test Run.";
         }, "Add Controller");
 
         return added;

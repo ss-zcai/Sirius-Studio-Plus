@@ -854,12 +854,6 @@ public sealed class Project
         return true;
     }
 
-    /// <summary>
-    /// Has <paramref name="station"/> take its pictures from
-    /// <paramref name="camera"/>, or - null - from its recipe's own Camera
-    /// node. Written at once.
-    /// </summary>
-    /// <returns>Whether anything changed.</returns>
     /// <summary>How many pictures make a part at a station (F26), 1 to <see cref="Station.MostShots"/>.</summary>
     /// <returns>Whether it changed.</returns>
     public bool SetShotsPerPart(Station station, int shots)
@@ -878,6 +872,12 @@ public sealed class Project
         return true;
     }
 
+    /// <summary>
+    /// Has <paramref name="station"/> take its pictures from
+    /// <paramref name="camera"/>, or - null - from its recipe's own Camera
+    /// node. Written at once.
+    /// </summary>
+    /// <returns>Whether anything changed.</returns>
     public bool SetStationCamera(Station station, CameraUnit? camera)
     {
         ArgumentNullException.ThrowIfNull(station);

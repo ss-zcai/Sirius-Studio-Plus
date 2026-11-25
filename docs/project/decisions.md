@@ -3829,3 +3829,36 @@ line whose sets vary by product.
 Not yet: two cameras on one trigger (F26b); a product across stations
 (F26c); a Collect inside a sub-graph sees no shot (a picture a part);
 REVIEW and the result codes (F33).
+
+## 96. Trying several shots end to end: the starter, Judged, and a sample
+
+25 November 2026, asked for to test the whole process with sets of
+three pictures before going further.
+
+- **Image Sequence, not a simulated camera.** The simulated camera gives
+  a test pattern; Image Sequence plays real pictures, one an inspection
+  in file-name order, wrapping at the end - in Studio and on a station
+  alike. Files named so sets sort together (`part01_1`, `part01_2`,
+  `part01_3`, `part02_1`); the recipe saved on the first picture, which
+  the first trigger takes.
+- **The starter fits its station.** Not a second choice when adding a
+  controller: Add Controller looks at the first station, and for
+  several shots a part adds **Shot Taken** (M0.4 pulsed on Received).
+  M0.1 and M0.2 answer for the part, as they do for one picture.
+- **Inspect's Judged.** Done fires for every shot, so the result could
+  not be written from it without answering "fail" for each shot before
+  the last. Judged fires when the part has its verdict - every
+  inspection at a station of one picture a part - and the starter writes
+  the result from it for both.
+- **Shots without a Part ID** are counted into sets at their station, in
+  order - the open set there carried on - unless the PLC says shot 1. So
+  the PLC need only flip the trigger to try it. Kept for the desk: a
+  trigger lost puts every set after it out, and the docs say a line
+  gives the ID.
+- **`tools/ShotSample`** writes the sample project where it is told -
+  a recipe holds its picture folder as a full path, so a project checked
+  in would point nowhere on another PC. Six parts of three pictures, a
+  disc lit from the left, the top and the right; parts 2 and 4 carry a
+  mark one light shows, part 6 one every light shows. `--images` uses
+  the user's own sets instead. The tests write it and run it - Run
+  Folder, and a station driven by the starter - so it cannot go stale.

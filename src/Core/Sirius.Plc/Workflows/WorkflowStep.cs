@@ -35,6 +35,9 @@ internal sealed class WorkflowPass
     /// <summary>The part's ID: Part ID from the PLC, or its number.</summary>
     public string? PartId { get; set; }
 
+    /// <summary>Its ID is its number: the PLC gave none.</summary>
+    public bool Numbered { get; set; }
+
     /// <summary>Each inspection of the part, in the order taken.</summary>
     public List<InspectionResult> Shots { get; } = [];
 
@@ -92,11 +95,12 @@ public sealed class WorkflowStep
     /// What a station is to be told about the part about to be inspected:
     /// <paramref name="given"/> - what Gather read - with its Part ID, and
     /// which shot of the part this is. The first asks the controller for
-    /// the part's number.
+    /// the part's number - or, with no Part ID from the PLC, carries on
+    /// the set under way at <paramref name="station"/> (F26).
     /// </summary>
-    public PartValues PartFor(PartValues? given, object? shot = null, object? last = null)
+    public PartValues PartFor(PartValues? given, object? shot = null, object? last = null, string? station = null)
     {
-        _runner.BeginPart(_pass, given);
+        _runner.BeginPart(_pass, given, station, shot);
 
         var values = (given ?? PartValues.Empty)
             .Where(pair => !string.Equals(pair.Key, PartValues.ShotName, StringComparison.OrdinalIgnoreCase) &&

@@ -417,6 +417,86 @@ public sealed class PlcWorkflowTests : IDisposable
     }
 
     /// <summary>
+    /// The starter for a station of three shots, the PLC only flipping M0.0:
+    /// with no Part ID the shots are counted into sets in order at the
+    /// station; Shot Taken pulses for each before the last, and the result
+    /// is written once a part, with its last (Judged).
+    /// </summary>
+    [Fact]
+    public async Task The_starter_for_three_shots_counts_them_into_parts_from_the_trigger_alone()
+    {
+        var plc = new SimulatedPlc();
+        var stations = new FakeStations { Receives = part => ShotOf(part) < 3 };
+        var graph = StarterWorkflow.For("Top", 3);
+
+        foreach (var pulse in graph.Nodes.OfType<PlcPulseNode>())
+            pulse.Width = 20;
+
+        graph.Nodes.OfType<PlcMonitorNode>().Single().PollInterval = 5;
+        await using var runner = new WorkflowRunner(graph, plc, stations, "Line 1 PLC");
+
+        var parts = new List<PartRecord>();
+        runner.PartFinished += (_, part) => parts.Add(part);
+
+        Assert.Empty(runner.Check());
+        await StartAsync(runner, plc);
+
+        for (var trigger = 1; trigger <= 6; trigger++)
+        {
+            await PassAfter(runner, () => plc.Set("M0.0", true));
+            plc.Set("M0.0", false);
+            var reads = plc.Reads;
+            await Until(() => plc.Reads > reads + 1);
+
+            // Two shots in: received, nothing answered for the part yet.
+            if (trigger == 2)
+            {
+                Assert.Empty(parts);
+                Assert.DoesNotContain(plc.Writes, write => write.Address == "M0.1");
+            }
+        }
+
+        Assert.Equal([1, 2, 3, 1, 2, 3], stations.Asked.Select(asked => ShotOf(asked.Part)));
+        Assert.Equal(["1", "1", "1", "2", "2", "2"], stations.Asked.Select(asked => PartValues.ItemIn(asked.Part)));
+        Assert.Equal([("1", PartVerdict.Passed), ("2", PartVerdict.Passed)], parts.Select(part => (part.Id, part.Verdict)));
+        Assert.All(parts, part => Assert.Equal(3, part.Shots.Count));
+        Assert.Empty(runner.OpenParts);
+
+        Assert.Equal(2, plc.Writes.Count(write => write.Address == "M0.1"));
+        Assert.Equal(4, plc.Writes.Count(write => write.Address == "M0.4" && write.Value is true));
+    }
+
+    /// <summary>Without a Part ID, the PLC saying shot 1 begins a new set: the one under way is given up.</summary>
+    [Fact]
+    public async Task Without_a_part_id_shot_one_from_the_plc_begins_a_new_set()
+    {
+        var plc = new SimulatedPlc();
+        var stations = new FakeStations { Receives = part => ShotOf(part) < 3 };
+        var flow = new ShotWorkflow();
+        flow.Gather.Name1 = "Tray";
+        await using var runner = new WorkflowRunner(flow.Graph, plc, stations, "Line 1 PLC");
+
+        var parts = new List<PartRecord>();
+        runner.PartFinished += (_, part) => parts.Add(part);
+
+        await StartAsync(runner, plc);
+
+        foreach (var shot in new short[] { 1, 2, 1 })
+        {
+            plc.Set("DB1.2", shot);
+            await PassAfter(runner, () => plc.Set("M0.0", true));
+            plc.Set("M0.0", false);
+            var reads = plc.Reads;
+            await Until(() => plc.Reads > reads + 1);
+        }
+
+        var given = Assert.Single(parts);
+        Assert.Equal(("1", PartVerdict.NotInspected), (given.Id, given.Verdict));
+        Assert.Equal("its set was not completed: 2 shots taken", given.Problem);
+        Assert.Equal(["2"], runner.OpenParts);
+    }
+
+    /// <summary>
     /// What Builder lights its workflow by during a Test Run (F23f): each
     /// node of a pass as it starts, finishes or fails, by its ID.
     /// </summary>

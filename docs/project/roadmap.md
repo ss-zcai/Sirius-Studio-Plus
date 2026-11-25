@@ -117,6 +117,12 @@ node again (decision 78), saved pictures and Sirius IV, and controllers.
   on each, Collect nodes keeping them until the last judges the part
   once; earlier shots answered "received", their pictures held until
   the part is judged; Studio's Run Folder over sets.
+- **Trying several shots end to end** (decision 96): a new controller's
+  starter fits its station - for several shots a part, each rise of the
+  trigger the next shot, "shot taken" pulsed for each, the result with
+  the last; Inspect's **Judged**; shots without a Part ID counted into
+  sets in order; `tools/ShotSample` writes a sample project of six parts
+  under three lights.
 
 - **The earlier image viewer's annotation files** (decision 92), in
   Sirius IV **1.0.4**, packed alone for internal test on 24 November:

@@ -501,7 +501,14 @@ public sealed class WorkflowRunner : IAsyncDisposable
     /// its ID from <paramref name="given"/> - Part ID from the PLC - or else
     /// the number.
     /// </summary>
-    internal void BeginPart(WorkflowPass pass, PartValues? given)
+    /// <remarks>
+    /// A part whose set is under way (F26) is carried on: by its ID, or -
+    /// the PLC giving none - at <paramref name="station"/>, one set at a
+    /// time there, unless the PLC says this is shot 1. Without an ID the
+    /// shots are counted into sets in order, as Studio does at the desk:
+    /// a trigger lost puts every set after it out, so a line says the ID.
+    /// </remarks>
+    internal void BeginPart(WorkflowPass pass, PartValues? given, string? station = null, object? shot = null)
     {
         if (pass.PartNumber is not null)
             return;
@@ -511,10 +518,18 @@ public sealed class WorkflowRunner : IAsyncDisposable
         lock (_partGate)
         {
             // A part whose earlier shots came in passes before this one (F26).
-            if (id is not null && _openParts.Remove(id, out var open))
+            var open = id is not null
+                ? _openParts.GetValueOrDefault(id)
+                : station is not null && !IsFirstShot(shot)
+                    ? _openParts.Values.FirstOrDefault(part => part.Numbered && string.Equals(part.Station, station, StringComparison.OrdinalIgnoreCase))
+                    : null;
+
+            if (open is not null)
             {
+                _openParts.Remove(open.Id);
                 pass.PartNumber = open.Number;
-                pass.PartId = id;
+                pass.PartId = open.Id;
+                pass.Numbered = open.Numbered;
                 pass.Shots.InsertRange(0, open.Shots);
                 return;
             }
@@ -522,11 +537,25 @@ public sealed class WorkflowRunner : IAsyncDisposable
             pass.PartNumber = _nextPart++;
         }
 
+        pass.Numbered = id is null;
         pass.PartId = id ?? pass.PartNumber.Value.ToString(CultureInfo.InvariantCulture);
     }
 
-    /// <summary>A part with shots taken and its set's last still to come (F26).</summary>
-    private sealed record OpenPart(long Number, string Id, IReadOnlyList<Nodes.InspectionResult> Shots, DateTime Opened, string Station);
+    /// <summary>The PLC says this is a set's first picture.</summary>
+    private static bool IsFirstShot(object? shot)
+    {
+        try
+        {
+            return shot is not null && Convert.ToInt64(PartValues.Plain(shot), CultureInfo.InvariantCulture) <= 1;
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidCastException or OverflowException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>A part with shots taken and its set's last still to come (F26); numbered when the PLC gave no ID.</summary>
+    private sealed record OpenPart(long Number, string Id, IReadOnlyList<Nodes.InspectionResult> Shots, DateTime Opened, string Station, bool Numbered);
 
     private readonly Dictionary<string, OpenPart> _openParts = new(StringComparer.Ordinal);
 
@@ -621,7 +650,7 @@ public sealed class WorkflowRunner : IAsyncDisposable
             Announce(GiveUpOpenParts(pass.Shots[^1].Station, pass.PartId));
 
             lock (_partGate)
-                _openParts[pass.PartId!] = new OpenPart(pass.PartNumber!.Value, pass.PartId!, pass.Shots.ToArray(), DateTime.Now, pass.Shots[^1].Station);
+                _openParts[pass.PartId!] = new OpenPart(pass.PartNumber!.Value, pass.PartId!, pass.Shots.ToArray(), DateTime.Now, pass.Shots[^1].Station, pass.Numbered);
 
             return null;
         }

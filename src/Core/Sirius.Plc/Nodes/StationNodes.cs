@@ -85,7 +85,8 @@ public sealed record InspectionResult(
     Category = NodeCategory.Stations,
     Description = "Has a station inspect once when triggered, telling it about the part - what Gather put " +
                   "together - which is kept with the picture. Pass or Fail fires by the verdict; Done either way; " +
-                  "Failed when the station could not inspect.")]
+                  "Failed when the station could not inspect. A station taking several pictures a part fires " +
+                  "Received for each before the last, and Judged with the part's verdict at the last.")]
 public sealed class InspectNode : WorkflowNode
 {
     private string _station = string.Empty;
@@ -98,6 +99,7 @@ public sealed class InspectNode : WorkflowNode
         ShotIn = AddInput<object>("Shot", isRequired: false);
         LastIn = AddInput<object>("Last", isRequired: false);
         Done = AddFired("Done");
+        Judged = AddFired("Judged");
         Received = AddFired("Received");
         Pass = AddFired("Pass");
         Fail = AddFired("Fail");
@@ -123,8 +125,14 @@ public sealed class InspectNode : WorkflowNode
     /// </summary>
     public InputPort LastIn { get; }
 
-    /// <summary>The station has inspected, whatever it found.</summary>
+    /// <summary>The station has inspected, whatever it found - each shot of a part.</summary>
     public OutputPort Done { get; }
+
+    /// <summary>
+    /// The part has its verdict: every inspection of a station taking a
+    /// picture a part, the last of a set (F26). What writes the result.
+    /// </summary>
+    public OutputPort Judged { get; }
 
     /// <summary>
     /// The station has the picture, and the part is not judged yet: a shot
@@ -193,7 +201,7 @@ public sealed class InspectNode : WorkflowNode
             throw new WorkflowException("This controller runs without the project's stations.");
 
         var given = step.Get(PartIn) as PartValues;
-        var part = step.PartFor(given, step.IsWired(ShotIn) ? step.Get(ShotIn) : null, step.IsWired(LastIn) ? step.Get(LastIn) : null);
+        var part = step.PartFor(given, step.IsWired(ShotIn) ? step.Get(ShotIn) : null, step.IsWired(LastIn) ? step.Get(LastIn) : null, Station);
 
         // Waited for only until the deadline: a node still running in the
         // recipe is cancelled when it finishes, but the PLC is answered now.
@@ -214,6 +222,9 @@ public sealed class InspectNode : WorkflowNode
         step.Set(PassedOut, result.Passed == true);
         step.Set(ResultOut, result);
         step.Fire(Done);
+
+        if (!result.Received)
+            step.Fire(Judged);
 
         if (result.Received)
             step.Fire(Received);

@@ -38,6 +38,9 @@
       application loads one.
     -->
     <ProjectReference Include="..\..\samples\SampleNodes\SampleNodes.csproj" />
+
+    <!-- The several-shots sample project's maker: what it writes is run end to end. -->
+    <ProjectReference Include="..\..\tools\ShotSample\ShotSample.csproj" />
   </ItemGroup>
 
   <!-- The sample Python library, run through the application when numpy and OpenCV are there. -->
