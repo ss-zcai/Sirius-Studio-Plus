@@ -37,7 +37,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\Sirius.UI\Sirius.UI.csproj" />
 
-    <!-- Beside it in a build, as in the package: Browse Saved Images starts it. -->
+    <!--
+      Beside it in a build, as in the package: Open in Studio starts Studio,
+      Browse Saved Images starts Sirius IV. Referenced for their programs
+      only - Builder uses nothing of theirs.
+    -->
+    <ProjectReference Include="..\Sirius.Studio\Sirius.Studio.csproj" />
     <ProjectReference Include="..\Sirius.IV\Sirius.IV.csproj" />
   </ItemGroup>
 

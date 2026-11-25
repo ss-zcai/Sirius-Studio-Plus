@@ -219,6 +219,20 @@ public sealed class BuilderTests : IDisposable
         Assert.Null(bottom.ChangeSetting("Level", 200));
     }
 
+    /// <summary>
+    /// Builder's own build has Studio and Sirius IV beside it, as the
+    /// package does - the tests' folder has them anyway, so would not see
+    /// them gone (Open in Studio was lost so when Sirius.UI was split out).
+    /// </summary>
+    [Fact]
+    public void Builder_builds_with_studio_and_the_image_viewer_beside_it()
+    {
+        var project = File.ReadAllText(Path.Combine(Repository.Project("Sirius.Builder"), "Sirius.Builder.csproj"));
+
+        Assert.Contains(@"<ProjectReference Include=""..\Sirius.Studio\Sirius.Studio.csproj"" />", project, StringComparison.Ordinal);
+        Assert.Contains(@"<ProjectReference Include=""..\Sirius.IV\Sirius.IV.csproj"" />", project, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Studio_says_when_a_recipe_has_settings_changed_on_the_line()
     {
