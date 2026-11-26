@@ -528,19 +528,22 @@ public sealed class BrowserViewModel : ObservableObject
     /// Makes the list again: sorted, matched into sets, then filtered. Sets
     /// are made from every picture, before the filter - so "Failed" shows
     /// each set with a failure in it whole, rather than pairing failures
-    /// that do not belong together - and a set is listed when any picture
-    /// in it passes the filter and search, by its first picture.
+    /// that do not belong together. A set is listed, by its first picture,
+    /// when its verdict - the worst of its pictures', as its badge shows -
+    /// passes the filter, and any picture in it the search.
     /// </summary>
     private void ApplyFilter(IReadOnlyCollection<string>? keep)
     {
         var search = _search.Trim();
 
-        bool Passes(ImageFileItem item) => _filter switch
+        // By the set's verdict: a set of a passed picture and a failed one
+        // failed, so is not "Passed" - every set had a passing picture.
+        bool Passes(IReadOnlyList<ImageFileItem> set) => _filter switch
         {
-            FileFilter.Failed => item.Failed,
-            FileFilter.Passed => item.Passed,
+            FileFilter.Failed => set.Any(item => item.Failed),
+            FileFilter.Passed => set[0].SetVerdict == "PASS",
             _ => true,
-        } && (search.Length == 0 || item.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase));
+        } && (search.Length == 0 || set.Any(item => item.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase)));
 
         var sets = _match.Sets(Sorted(_all).ToList(), _all);
 
@@ -554,7 +557,7 @@ public sealed class BrowserViewModel : ObservableObject
         _largestSet = sets.Count == 0 ? 0 : sets.Max(set => set.Count);
 
         // In one go: a station's folder can hold tens of thousands.
-        Files.ReplaceAll(sets.Where(set => set.Any(Passes)).Select(set => set[0]));
+        Files.ReplaceAll(sets.Where(Passes).Select(set => set[0]));
 
         OnPropertyChanged(nameof(CountText));
         OnPropertyChanged(nameof(IsEmpty));

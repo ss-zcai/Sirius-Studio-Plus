@@ -247,6 +247,12 @@ public sealed class SiriusIvMatchingTests : IDisposable
             Assert.Equal(["p01_cam1_PASS.png", "p01_cam2_FAIL.png"], line.Set.Select(item => item.Name));
             Assert.StartsWith("1 shown of 3 sets of 5 pictures", model.CountText);
 
+            // Passed is by the set's verdict, as its badge says: part 1 has a
+            // picture that passed, but failed.
+            model.Filter = FileFilter.Passed;
+            Assert.Equal(["p02_cam1_PASS.png", "p03_cam1_PASS.png"], model.Files.Select(file => file.Name));
+            Assert.All(model.Files, file => Assert.Equal("PASS", file.SetVerdict));
+
             // Searching finds a set by any picture in it.
             model.Filter = FileFilter.All;
             model.SearchText = "p02_cam2";
