@@ -12,7 +12,7 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>Sirius.Tools.LicenceMakerApp</RootNamespace>
     <AssemblyName>SiriusLicenceMaker</AssemblyName>
-    <ApplicationIcon>..\..\res\Sirius Image Viewer.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\res\Sirius LM.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <IsPackable>false</IsPackable>
   </PropertyGroup>

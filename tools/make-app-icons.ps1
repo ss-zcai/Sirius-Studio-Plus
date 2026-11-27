@@ -29,15 +29,24 @@ $icons = [ordered]@{
     'Icon.SiriusBuilder'     = 'res/Sirius Builder.ico'
     'Icon.SiriusEdge'        = 'res/Sirius Edge.ico'
     'Icon.SiriusImageViewer' = 'res/Sirius Image Viewer.ico'
+    'Icon.SiriusLM'          = 'res/Sirius LM.ico'
 }
 
-$stream = [System.IO.File]::OpenRead($logos)
-try {
-    $dictionary = [System.Windows.Markup.XamlReader]::Load($stream)
+function Read-Dictionary([string] $path) {
+    $stream = [System.IO.File]::OpenRead($path)
+    try {
+        return [System.Windows.Markup.XamlReader]::Load($stream)
+    }
+    finally {
+        $stream.Dispose()
+    }
 }
-finally {
-    $stream.Dispose()
-}
+
+$dictionary = Read-Dictionary $logos
+
+# The licence maker's logo is kept with it, not in Sirius.UI, which ships:
+#   python tools/svg2xaml.py tools/LicenceMakerApp/Logo.xaml "res/Sirius LM.svg"
+$dictionary.MergedDictionaries.Add((Read-Dictionary (Join-Path $root 'tools/LicenceMakerApp/Logo.xaml')))
 
 function Render-Png([System.Windows.Media.ImageSource] $image, [int] $size) {
     $visual = New-Object System.Windows.Media.DrawingVisual

@@ -1,0 +1,29 @@
+<!--
+    Generated from SVG artwork in res/ - do not edit by hand.
+
+    Regenerate with:
+      python tools/svg2xaml.py tools/LicenceMakerApp/Logo.xaml "res/Sirius LM.svg"
+
+    Each icon is a DrawingImage keyed Icon.<file stem>, keeping the
+    artwork's own colours - a white glyph over a dark keyline, or the
+    logo's gradients - so a single tintable Geometry would lose them.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <DrawingImage x:Key="Icon.SiriusLM">
+    <DrawingImage.Drawing>
+      <DrawingGroup>
+        <GeometryDrawing Brush="#00000000" Geometry="F1 M0,0L128,0L128,128L0,128Z" />
+        <GeometryDrawing Brush="#FF801E18" Geometry="F1 M32,24L112,24A8,8 0 0 1 120,32L120,112A8,8 0 0 1 112,120L32,120A8,8 0 0 1 24,112L24,32A8,8 0 0 1 32,24Z" />
+        <GeometryDrawing Brush="#FFFF3B30" Geometry="F1 M16,8L96,8A8,8 0 0 1 104,16L104,80A8,8 0 0 1 96,88L16,88A8,8 0 0 1 8,80L8,16A8,8 0 0 1 16,8Z" />
+        <GeometryDrawing Brush="#FFFF6259" Geometry="F1 M80,24c8.24,0,16.27.9,24,2.59v-10.59c0-4.42-3.58-8-8-8H16c-4.42,0-8,3.58-8,8v34.22C27.47,33.86,52.58,24,80,24Z" />
+        <GeometryDrawing Brush="#40000000" Geometry="F1 M23.02,26.14h6.88v31.97h15.52v5.77h-22.4V26.14Z" />
+        <GeometryDrawing Brush="#40000000" Geometry="F1 M82.49,48.48c-.23-4.87-.51-10.75-.45-15.85h-.17c-1.23,4.59-2.8,9.69-4.48,14.45l-5.49,16.35h-5.32l-5.04-16.13c-1.45-4.81-2.8-9.96-3.8-14.67h-.12c-.16,4.93-.39,10.92-.67,16.07l-.84,15.18h-6.44l2.52-37.74h9.07l4.93,15.17c1.35,4.43,2.52,8.91,3.47,13.11h.17c1.01-4.09,2.3-8.74,3.75-13.16l5.21-15.12h8.96l2.19,37.74h-6.72L82.49,48.48Z" />
+        <GeometryDrawing Brush="#FFFFFFFF" Geometry="F1 M23.02,30.14h6.88v31.97h15.52v5.77h-22.4V30.14Z" />
+        <GeometryDrawing Brush="#FFFFFFFF" Geometry="F1 M82.49,52.48c-.23-4.87-.51-10.75-.45-15.85h-.17c-1.23,4.59-2.8,9.69-4.48,14.45l-5.49,16.35h-5.32l-5.04-16.13c-1.45-4.81-2.8-9.96-3.8-14.67h-.12c-.16,4.93-.39,10.92-.67,16.07l-.84,15.18h-6.44l2.52-37.74h9.07l4.93,15.17c1.35,4.43,2.52,8.91,3.47,13.11h.17c1.01-4.09,2.3-8.74,3.75-13.16l5.21-15.12h8.96l2.19,37.74h-6.72L82.49,52.48Z" />
+      </DrawingGroup>
+    </DrawingImage.Drawing>
+  </DrawingImage>
+
+</ResourceDictionary>
