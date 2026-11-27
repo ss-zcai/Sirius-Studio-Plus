@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sirius Licence Maker: LicenceMaker in a small window - a code for a PC's
+    machine ID, a trial of some days or no end, signed with the private key
+    kept outside the repository. For whoever hands out licences; never
+    shipped. Plain WPF, without Sirius.UI, so it stays small.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Sirius.Tools.LicenceMakerApp</RootNamespace>
+    <AssemblyName>SiriusLicenceMaker</AssemblyName>
+    <ApplicationIcon>..\..\res\Sirius Image Viewer.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sirius.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Core\Sirius.Core\Sirius.Core.csproj" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+
+    <!-- The signing, key file and log, as the command line has them. -->
+    <Compile Include="..\LicenceMaker\Signing.cs" Link="Signing.cs" />
+  </ItemGroup>
+
+</Project>

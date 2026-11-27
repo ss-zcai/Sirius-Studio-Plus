@@ -3905,6 +3905,14 @@ Sirius IV alone.
   key means a new build and new codes for everyone.
 - **Sirius IV only.** Studio, Builder and Edge are not licensed yet; the
   store and the codes take a product name, so they can follow.
+- **Making codes in a window** (asked for the same day):
+  `tools/LicenceMakerApp`, Sirius Licence Maker - the machine ID pasted
+  or This PC, a name, a trial of days, to a day, or no end; Make Code,
+  Copy; and a code sent in read back. Plain WPF, without Sirius.UI, so
+  it stays a 1 MB program beside the key. Both it and the command line
+  log every code made in `issued-codes.csv` beside the key, to look up
+  who has which trial; and both warn when the key is not the one the
+  programs were built for.
 
 ## 98. Sirius IV's installer: Inno Setup, for the user alone
 

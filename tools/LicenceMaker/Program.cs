@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using Sirius.Core.Licensing;
+using Sirius.Tools.LicenceMaker;
 
 // Makes Sirius licence codes.
 //
@@ -22,7 +23,9 @@ using Sirius.Core.Licensing;
 //
 // The key file is %LOCALAPPDATA%\Sirius Licensing\signing-key.pem unless
 // --key or SIRIUS_LICENCE_KEY says otherwise. It must never be in the
-// repository or a package: anyone with it can make codes.
+// repository or a package: anyone with it can make codes. Every code made
+// is logged in issued-codes.csv beside it. LicenceMakerApp is the same in
+// a window.
 
 return Run(args);
 
@@ -74,9 +77,7 @@ static Dictionary<string, string?> Options(string[] args)
 }
 
 static string KeyFile(Dictionary<string, string?> options) =>
-    options.GetValueOrDefault("key")
-    ?? Environment.GetEnvironmentVariable("SIRIUS_LICENCE_KEY")
-    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sirius Licensing", "signing-key.pem");
+    options.GetValueOrDefault("key") ?? Signing.DefaultKeyFile;
 
 static int KeyGen(Dictionary<string, string?> options)
 {
@@ -117,17 +118,14 @@ static int Make(Dictionary<string, string?> options)
     if (!File.Exists(file))
         throw new IOException($"No signing key at {file}. Give it with --key, or make one with keygen.");
 
-    using var key = ECDsa.Create();
-    key.ImportFromPem(File.ReadAllText(file));
-
     var licence = new Licence(options.GetValueOrDefault("product") ?? "IV", machine, today, last, options.GetValueOrDefault("to"));
-    var code = LicenceCode.Make(licence, key);
+    var code = Signing.Make(licence, file);
 
-    Console.WriteLine(Describe(licence));
+    Console.WriteLine(Signing.Describe(licence));
     Console.WriteLine();
     Console.WriteLine(code);
 
-    if (LicenceCode.Read(code, SiriusLicensing.PublicKey) is null)
+    if (!Signing.TakenByPrograms(code))
     {
         Console.WriteLine();
         Console.WriteLine("Warning: this build's public key does not take the code - the key file is not the one the programs were built for.");
@@ -140,7 +138,7 @@ static int Read(string code)
 {
     if (LicenceCode.Read(code, SiriusLicensing.PublicKey) is { } licence)
     {
-        Console.WriteLine(Describe(licence));
+        Console.WriteLine(Signing.Describe(licence));
         return 0;
     }
 
@@ -153,12 +151,6 @@ static int Machine()
     Console.WriteLine(MachineId.Current());
     return 0;
 }
-
-static string Describe(Licence licence) =>
-    $"{licence.Product} for {licence.MachineId}"
-    + (licence.To is { } to ? $", to {to}" : string.Empty)
-    + $": made {LicenceStore.Day(licence.Issued)}, "
-    + (licence.LastDay is { } last ? $"runs to {LicenceStore.Day(last)} inclusive" : "no end");
 
 static bool InsideRepository(string file)
 {

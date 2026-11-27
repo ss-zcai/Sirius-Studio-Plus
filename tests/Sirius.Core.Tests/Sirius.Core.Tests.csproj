@@ -41,6 +41,9 @@
 
     <!-- The several-shots sample project's maker: what it writes is run end to end. -->
     <ProjectReference Include="..\..\tools\ShotSample\ShotSample.csproj" />
+
+    <!-- The licence maker's window: its model and window, with a test key. -->
+    <ProjectReference Include="..\..\tools\LicenceMakerApp\LicenceMakerApp.csproj" />
   </ItemGroup>
 
   <!-- The sample Python library, run through the application when numpy and OpenCV are there. -->
