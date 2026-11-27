@@ -591,11 +591,16 @@ public partial class ViewerWindow : Window
         return menu;
     }
 
-    /// <summary>The picture in a viewer's tab - from AvalonDock's item for it, or the tab itself.</summary>
+    /// <summary>
+    /// The picture in a viewer's tab - from AvalonDock's item for it, which
+    /// is what its menu is given (its Model is the tab's content, not the
+    /// tab), or the tab itself.
+    /// </summary>
     internal static ImageFileItem? ViewerFile(object? tab) => tab switch
     {
-        AvalonDock.Controls.LayoutItem item => ViewerFile(item.Model),
-        LayoutDocument { Content: ContentControl { Content: TileViewModel tile } } => tile.File,
+        AvalonDock.Controls.LayoutItem item => ViewerFile(item.LayoutElement),
+        LayoutDocument document => ViewerFile(document.Content),
+        ContentControl { Content: TileViewModel tile } => tile.File,
         _ => null,
     };
 

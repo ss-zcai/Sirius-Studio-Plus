@@ -503,7 +503,9 @@ public sealed class SiriusIvMatchingTests : IDisposable
                 var copied = new List<string>();
                 window.CopyText = copied.Add;
                 var menu = Assert.IsType<System.Windows.Controls.ContextMenu>(docking.DocumentContextMenu);
-                menu.DataContext = window.ViewerTabs[1];
+                // Given what AvalonDock gives it: its item for the tab, not the tab.
+                menu.DataContext = docking.GetLayoutItemFromModel(window.ViewerTabs[1]);
+                Assert.IsAssignableFrom<AvalonDock.Controls.LayoutItem>(menu.DataContext);
                 menu.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.ContextMenu.OpenedEvent));
 
                 System.Windows.Controls.MenuItem MenuItem(string header) =>
