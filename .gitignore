@@ -36,3 +36,6 @@ samples/PythonNodes/sirius.json
 # Licence signing keys: never in the repository (decision 97).
 *.pem
 signing-key*
+
+# Illustrator sources of the logos: kept by the user, not in the repository.
+res/*.ai
