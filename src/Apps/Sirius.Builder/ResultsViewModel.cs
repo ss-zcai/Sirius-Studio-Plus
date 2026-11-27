@@ -71,10 +71,18 @@ public sealed partial class ResultsViewModel : ObservableObject
     [ObservableProperty]
     private ResultRow? _notInspectedRow;
 
-    public ResultsViewModel(Project project, Station station)
+    private readonly IReadOnlyList<string>? _grades;
+    private string? _gradeNote;
+
+    /// <param name="grades">
+    /// The grades the station's recipe gives, to hold the list against; null
+    /// when the recipe could not be read, and nothing is said.
+    /// </param>
+    public ResultsViewModel(Project project, Station station, IReadOnlyList<string>? grades = null)
     {
         _project = project ?? throw new ArgumentNullException(nameof(project));
         Station = station ?? throw new ArgumentNullException(nameof(station));
+        _grades = grades;
 
         AddCommand = new RelayCommand(Add);
         RemoveCommand = new RelayCommand<ResultRow>(Remove);
@@ -132,7 +140,40 @@ public sealed partial class ResultsViewModel : ObservableObject
             NotInspectedRow is null || ReferenceEquals(NotInspectedRow, firstFail) ? null : NotInspectedRow.Name);
 
         Problem = list.Problem();
+        GradeNote = Problem is null && _grades is not null ? list.GradeMismatch(_grades) : null;
         return Problem is null ? list : null;
+    }
+
+    /// <summary>
+    /// Where the list and the grades of the station's recipe do not meet - a
+    /// grade no result is called, a result never given - or null. A note, not
+    /// a problem: the list can still be kept.
+    /// </summary>
+    public string? GradeNote
+    {
+        get => _gradeNote;
+        private set
+        {
+            if (SetProperty(ref _gradeNote, value))
+                OnPropertyChanged(nameof(HasGradeNote));
+        }
+    }
+
+    public bool HasGradeNote => _gradeNote is not null;
+
+    partial void OnLateRowChanged(ResultRow? value) => NoteAgain();
+
+    partial void OnNotInspectedRowChanged(ResultRow? value) => NoteAgain();
+
+    /// <summary>The note again, keeping any problem the window shows as it is.</summary>
+    private void NoteAgain()
+    {
+        if (_grades is null)
+            return;
+
+        var problem = Problem;
+        Draft();
+        Problem = problem;
     }
 
     /// <summary>Keeps the list in the project. Returns false, with <see cref="Problem"/> set, when it cannot be.</summary>
@@ -167,6 +208,7 @@ public sealed partial class ResultsViewModel : ObservableObject
         LateRow = RowFor(list.LateResult);
         NotInspectedRow = RowFor(list.NotInspectedResult);
         Problem = null;
+        GradeNote = _grades is null ? null : list.GradeMismatch(_grades);
     }
 
     private ResultRow? RowFor(ResultCode? result) =>

@@ -197,6 +197,54 @@ public sealed class ResultList : IEquatable<ResultList>, IReadOnlyList<ResultCod
         };
     }
 
+    /// <summary>
+    /// Where the list and its recipe's <paramref name="grades"/> do not meet,
+    /// or null: a grade no result is called, whose part is given the first
+    /// pass or the first fail; a result no grade is called, never given -
+    /// unless it is ERROR, the first pass or fail, or a missed part's.
+    /// Results are found by name, so renaming one alone loses it.
+    /// </summary>
+    public string? GradeMismatch(IEnumerable<string> grades)
+    {
+        // PASS and FAIL alone: every grade is a pass or a fail, as meant.
+        if (IsDefault)
+            return null;
+
+        var named = grades
+            .Select(Blank)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var lines = new List<string>();
+
+        var orphans = named.Where(grade => Find(grade) is null).ToArray();
+        if (orphans.Length > 0)
+        {
+            lines.Add($"The recipe grades {Join(orphans)}, which no result is called: " +
+                      $"{(orphans.Length == 1 ? "such a part is" : "those parts are")} given " +
+                      $"{FirstPass?.Name ?? "the first pass"} or {FirstFail?.Name ?? "the first fail"} as the recipe passes or fails it.");
+        }
+
+        var given = new HashSet<ResultCode?>([FirstPass, FirstFail, LateResult, NotInspectedResult, Find(ErrorName)]);
+        var unused = _results
+            .Where(result => !given.Contains(result) && !named.Contains(result.Name, StringComparer.OrdinalIgnoreCase))
+            .Select(result => result.Name)
+            .ToArray();
+
+        if (unused.Length > 0)
+        {
+            lines.Add(named.Length == 0
+                ? $"The recipe gives no grades, so {Join(unused)} {(unused.Length == 1 ? "is" : "are")} never given."
+                : $"No grade in the recipe is called {Join(unused, " or ")}, so {(unused.Length == 1 ? "it is" : "they are")} never given.");
+        }
+
+        return lines.Count == 0 ? null : string.Join(" ", lines);
+
+        static string Join(IReadOnlyList<string> names, string last = " and ") =>
+            names.Count == 1 ? names[0] : string.Join(", ", names.Take(names.Count - 1)) + last + names[^1];
+    }
+
     /// <summary>The same results, with the ones a missed part gets chosen again.</summary>
     public ResultList WithMissed(string? late, string? notInspected) => new(_results, late, notInspected);
 

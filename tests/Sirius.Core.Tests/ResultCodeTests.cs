@@ -701,11 +701,88 @@ public sealed class ResultCodeTests : IDisposable
                 Assert.Equal("REVIEW", model.LateRow!.Name);
                 Assert.Equal("REVIEW", ((ResultRow)window.LateBox.SelectedItem).Name);
                 Assert.Equal("FAIL", ((ResultRow)window.NotInspectedBox.SelectedItem).Name);
+
+                // Each row's buttons - up, down, Remove - inside the list, not cut off at its edge.
+                var list = Descendants<System.Windows.Controls.ScrollViewer>(window).First();
+                var buttons = Descendants<System.Windows.Controls.Button>(list).ToArray();
+                Assert.Equal(4 * 3, buttons.Length);
+                Assert.All(buttons, button =>
+                {
+                    var right = button.TranslatePoint(new System.Windows.Point(button.ActualWidth, 0), list).X;
+                    Assert.InRange(right, 1, list.ViewportWidth + 0.5);
+                });
             }
             finally
             {
                 window.Close();
             }
         });
+    }
+
+    [Fact]
+    public void A_result_list_says_where_it_and_the_recipes_grades_do_not_meet()
+    {
+        var list = LensResults();
+
+        // NoLens, given by no grade: never given.
+        Assert.Equal("No grade in the recipe is called NoLens, so it is never given.", list.GradeMismatch(["PASS", "REVIEW", "FAIL"]));
+        Assert.Null(list.GradeMismatch(["pass", "Review", "FAIL", "NoLens"]));
+
+        // REVIEW renamed BORDER in the list alone: the recipe's REVIEW finds nothing, BORDER is never given.
+        var renamed = new ResultList(list.Select(result => result.Name == "REVIEW" ? result with { Name = "BORDER" } : result));
+        Assert.Equal(
+            "The recipe grades REVIEW, which no result is called: such a part is given PASS or FAIL as the recipe passes or fails it. " +
+            "No grade in the recipe is called BORDER or NoLens, so they are never given.",
+            renamed.GradeMismatch(["PASS", "REVIEW", "FAIL"]));
+
+        // A missed part's result is given without a grade; so are the first pass and fail, and ERROR.
+        Assert.Null(LensResults(late: "NoLens").GradeMismatch(["REVIEW"]));
+        Assert.Equal("The recipe gives no grades, so REVIEW is never given.", LensResults(late: "NoLens").GradeMismatch([]));
+
+        // PASS and FAIL alone: every grade is a pass or a fail, as meant.
+        Assert.Null(ResultList.Default.GradeMismatch(["A", "B", "Reject"]));
+    }
+
+    [Fact]
+    public void Builder_says_when_a_result_is_renamed_away_from_the_recipes_grade()
+    {
+        VisionNodeLibrary.Register();
+        var project = Project.Create(_folder, "Line", GradedRecipe(), "Lens");
+        var station = project.Stations[0];
+        project.SetResults(station, new ResultList(LensResults().Where(result => result.Name != "NoLens")));
+
+        Assert.Equal(["PASS", "REVIEW", "FAIL"], BuilderViewModel.GradesOf(project, station));
+
+        var model = new ResultsViewModel(project, station, BuilderViewModel.GradesOf(project, station));
+        Assert.False(model.HasGradeNote);
+
+        model.Rows[1].Name = "BORDER";
+        Assert.True(model.HasGradeNote);
+        Assert.Contains("The recipe grades REVIEW", model.GradeNote, StringComparison.Ordinal);
+        Assert.Contains("called BORDER", model.GradeNote, StringComparison.Ordinal);
+
+        // A note, not a problem: the list can still be kept.
+        Assert.True(model.Apply());
+
+        model.Rows[1].Name = "REVIEW";
+        Assert.Null(model.GradeNote);
+
+        // No recipe to read: nothing said.
+        Assert.Null(new ResultsViewModel(project, station).GradeNote);
+    }
+
+    private static IEnumerable<T> Descendants<T>(System.Windows.DependencyObject root)
+        where T : System.Windows.DependencyObject
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+
+            if (child is T found)
+                yield return found;
+
+            foreach (var deeper in Descendants<T>(child))
+                yield return deeper;
+        }
     }
 }

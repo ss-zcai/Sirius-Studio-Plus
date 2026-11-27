@@ -33,6 +33,12 @@ public interface IGradingNode : IJudgingNode
 {
     /// <summary>The port carrying the <see cref="Nodes.Grade"/>, read after a run.</summary>
     OutputPort GradePort { get; }
+
+    /// <summary>
+    /// The grades it gives, by name, for Builder to hold a station's results
+    /// against (F33); empty when it gives what it is wired, not grades of its own.
+    /// </summary>
+    IReadOnlyList<string> GradeNames => [];
 }
 
 /// <summary>

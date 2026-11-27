@@ -4003,6 +4003,14 @@ px² REVIEW).
   counts, never both: a first try with a line of results under Pass and
   Fail showed two PASS counts and two FAIL counts that did not agree. The
   yield stays passes out of what is counted (the user's choice).
+- **Results are found by name**, so Builder's Results window says, in
+  amber, where the list and the recipe's grades do not meet: a grade no
+  result is called (its part given the first pass or fail), a result no
+  grade is called (never given, unless ERROR, the first pass or fail, or a
+  missed part's). A note, not a problem: the list can still be kept. Found
+  when REVIEW was renamed BORDER in the list alone, and the REVIEW parts
+  became PASS. Counts already kept under an old name stay, in grey, until
+  the counts are reset.
 - **Image Saving: Chosen results** - a policy beside None, Failed and
   All, with a tick for each of the station's results and ERROR; choosing
   it starts from every result that is not a pass, and ERROR. Kept in the

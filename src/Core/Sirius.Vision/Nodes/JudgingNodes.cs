@@ -305,6 +305,8 @@ public sealed class GradeNode : VisionNode, IGradingNode
 
     OutputPort IGradingNode.GradePort => GradeOut;
 
+    IReadOnlyList<string> IGradingNode.GradeNames => Split(_grades);
+
     [Param("Value", Connectable = true, Description = "The number to grade. Wire a measurement in.")]
     public double Value
     {

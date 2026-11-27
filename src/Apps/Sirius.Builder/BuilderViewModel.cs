@@ -999,8 +999,26 @@ public sealed partial class BuilderViewModel : ObservableObject
         if (station is null || _project is not { } project)
             return;
 
-        if (ResultsWindow.Show(Application.Current?.MainWindow, new ResultsViewModel(project, station.Station)))
+        if (ResultsWindow.Show(Application.Current?.MainWindow, new ResultsViewModel(project, station.Station, GradesOf(project, station.Station))))
             StatusText = $"{station.Name} gives {station.Station.Results.Summary}.";
+    }
+
+    /// <summary>The grades a station's recipe gives, by name; null when it cannot be read.</summary>
+    internal static IReadOnlyList<string>? GradesOf(Project project, Station station)
+    {
+        try
+        {
+            return GraphSerializer.Load(project.RecipePath(station)).Graph.Nodes
+                .Where(node => node.Enabled)
+                .OfType<IGradingNode>()
+                .SelectMany(node => node.GradeNames)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
