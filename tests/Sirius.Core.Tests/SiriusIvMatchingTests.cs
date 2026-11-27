@@ -498,6 +498,23 @@ public sealed class SiriusIvMatchingTests : IDisposable
                 Assert.Equal(["p01_cam2_FAIL.png", "FAIL"], Texts(header));
                 Assert.Contains("p01_cam2_FAIL.png", (string)header.ToolTip);
 
+                // Right-clicked, its tab copies its own picture's name and path:
+                // the list's line is the set's first picture only.
+                var copied = new List<string>();
+                window.CopyText = copied.Add;
+                var menu = Assert.IsType<System.Windows.Controls.ContextMenu>(docking.DocumentContextMenu);
+                menu.DataContext = window.ViewerTabs[1];
+                menu.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.ContextMenu.OpenedEvent));
+
+                System.Windows.Controls.MenuItem MenuItem(string header) =>
+                    menu.Items.OfType<System.Windows.Controls.MenuItem>().Single(item => (string)item.Header == header);
+
+                Assert.True(MenuItem("Copy Full _Path").IsEnabled);
+                MenuItem("Copy Full _Path").RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                MenuItem("Copy _Name").RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+                Assert.Equal([model.Files[0].Set[1].Path, "p01_cam2_FAIL.png"], copied);
+                Assert.EndsWith("p01_cam2_FAIL.png", copied[0]);
+
                 // Stepping on: the titles follow; an empty viewer is numbered.
                 model.Choose([model.Files[2]]);
                 Assert.Equal(["p03_cam1_PASS.png", "Viewer 2"], window.ViewerTabs.Select(tab => tab.Title));

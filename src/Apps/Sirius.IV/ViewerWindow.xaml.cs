@@ -41,7 +41,8 @@ public partial class ViewerWindow : Window
         GroupByFolder();
         Sync.IsOn = model.SyncViews;
 
-        // A tab for each viewer, in the layout's grid.
+        // A tab for each viewer, in the layout's grid; right-clicked, its picture's name and path.
+        Docking.DocumentContextMenu = ViewerTabMenu();
         ArrangeViewerTabs();
         model.TilesArranged += (_, _) => ArrangeViewerTabs();
 
@@ -553,6 +554,51 @@ public partial class ViewerWindow : Window
             .OfType<ILayoutElement>()
             .FirstOrDefault(element => element is LayoutDocumentPane or LayoutDocumentPaneGroup && element.Parent is LayoutPanel);
 
+    /// <summary>
+    /// A viewer's tab's right-click menu: its own picture's name and path.
+    /// With pictures matched, the list has a line a set, by its first
+    /// picture - this is how another of the set's is had.
+    /// </summary>
+    internal ContextMenu ViewerTabMenu()
+    {
+        var menu = new ContextMenu();
+
+        MenuItem Item(string header, Action<ImageFileItem> act)
+        {
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) =>
+            {
+                if (ViewerFile(menu.DataContext) is { } file)
+                    act(file);
+            };
+            return item;
+        }
+
+        menu.Items.Add(Item("Copy _Name", file => CopyText(file.Name)));
+        menu.Items.Add(Item("Copy Full _Path", file => CopyText(file.Path)));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Show in _Explorer", ShowInExplorer));
+
+        // An empty viewer has nothing to copy.
+        menu.Opened += (_, _) =>
+        {
+            var has = ViewerFile(menu.DataContext) is not null;
+
+            foreach (var item in menu.Items.OfType<MenuItem>())
+                item.IsEnabled = has;
+        };
+
+        return menu;
+    }
+
+    /// <summary>The picture in a viewer's tab - from AvalonDock's item for it, or the tab itself.</summary>
+    internal static ImageFileItem? ViewerFile(object? tab) => tab switch
+    {
+        AvalonDock.Controls.LayoutItem item => ViewerFile(item.Model),
+        LayoutDocument { Content: ContentControl { Content: TileViewModel tile } } => tile.File,
+        _ => null,
+    };
+
     private LayoutDocument ViewerTab(TileViewModel tile)
     {
         var tab = new LayoutDocument
@@ -777,10 +823,13 @@ public partial class ViewerWindow : Window
     }
 
     private void OnCopyName(object sender, ExecutedRoutedEventArgs e) =>
-        Copy(string.Join(Environment.NewLine, ChosenFiles.Select(file => file.Name)));
+        CopyText(string.Join(Environment.NewLine, ChosenFiles.Select(file => file.Name)));
 
     private void OnCopyPath(object sender, ExecutedRoutedEventArgs e) =>
-        Copy(string.Join(Environment.NewLine, ChosenFiles.Select(file => file.Path)));
+        CopyText(string.Join(Environment.NewLine, ChosenFiles.Select(file => file.Path)));
+
+    /// <summary>Puts text on the clipboard - a test reads it instead.</summary>
+    internal Action<string> CopyText { get; set; } = Copy;
 
     private static void Copy(string text)
     {
@@ -797,9 +846,12 @@ public partial class ViewerWindow : Window
     /// <summary>Opens Explorer on the first picture chosen's folder, with it selected.</summary>
     private void OnShowInExplorer(object sender, ExecutedRoutedEventArgs e)
     {
-        if (ChosenFiles.FirstOrDefault() is not { } file)
-            return;
+        if (ChosenFiles.FirstOrDefault() is { } file)
+            ShowInExplorer(file);
+    }
 
+    private void ShowInExplorer(ImageFileItem file)
+    {
         try
         {
             Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{file.Path}\"") { UseShellExecute = true });
