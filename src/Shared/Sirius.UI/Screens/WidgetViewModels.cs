@@ -231,6 +231,18 @@ public sealed record ResultLook(Brush Edge, Brush Fill, Brush Word)
 public sealed record ResultCount(string Name, long Count, Brush Colour)
 {
     public string Text => $"{Name} {Count.ToString(CultureInfo.CurrentCulture)}";
+
+    /// <summary>The result's colour lightened, for its number on a dark panel.</summary>
+    public Brush Word { get; init; } = Colour;
+}
+
+/// <summary>
+/// One column of a counter: its heading, its number, the number's colour,
+/// and for a result (F33) a dot of the result's colour by the heading.
+/// </summary>
+public sealed record CounterCell(string Label, string Value, Brush Foreground, Brush? Dot)
+{
+    public bool HasDot => Dot is not null;
 }
 
 /// <summary>A station's PASS or FAIL - or its own result, REVIEW, in that result's colour (F33).</summary>
@@ -348,10 +360,16 @@ public sealed class CounterWidgetViewModel(Widget widget) : WidgetViewModel(widg
             .DistinctBy(result => result.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var rows = known.Select(result => new ResultCount(result.Name, tally[result.Name], ResultLook.Of(result.Colour).Edge));
+        ResultCount Count(string name, long count, string? colour)
+        {
+            var look = ResultLook.Of(colour);
+            return new ResultCount(name, count, look.Edge) { Word = look.Word };
+        }
+
+        var rows = known.Select(result => Count(result.Name, tally[result.Name], result.Colour));
         var others = tally.Counts
             .Where(pair => !known.Any(result => string.Equals(result.Name, pair.Key, StringComparison.OrdinalIgnoreCase)))
-            .Select(pair => new ResultCount(pair.Key, pair.Value, ResultLook.Of(null).Edge));
+            .Select(pair => Count(pair.Key, pair.Value, null));
 
         return rows.Concat(others).ToArray();
     }
@@ -429,6 +447,47 @@ public sealed class CounterWidgetViewModel(Widget widget) : WidgetViewModel(widg
         : _counts.Passed + _counts.Failed == 0
             ? "—"
             : _counts.Yield.ToString("0.0", CultureInfo.CurrentCulture) + " %";
+
+    private static readonly Brush TotalBrush = FrozenBrush(0xE6, 0xE6, 0xE6);
+    private static readonly Brush PassBrush = FrozenBrush(0xB7, 0xE8, 0xA0);
+    private static readonly Brush FailBrush = FrozenBrush(0xF8, 0xC4, 0xC4);
+
+    /// <summary>
+    /// The counter's columns, left to right: Total, Pass, Fail, Yield - or,
+    /// for a station with its own results (F33), Total, each result in its
+    /// colour, Yield. One set of counts, never both.
+    /// </summary>
+    public IReadOnlyList<CounterCell> Cells
+    {
+        get
+        {
+            var cells = new List<CounterCell> { new("Total", Total, TotalBrush, null) };
+
+            if (HasBreakdown)
+            {
+                cells.AddRange(_breakdown.Select(result => new CounterCell(
+                    result.Name,
+                    result.Count.ToString(CultureInfo.CurrentCulture),
+                    result.Word,
+                    result.Colour)));
+            }
+            else
+            {
+                cells.Add(new CounterCell("Pass", Passed, PassBrush, null));
+                cells.Add(new CounterCell(FailLabel, Failed, FailBrush, null));
+            }
+
+            cells.Add(new CounterCell("Yield", Yield, TotalBrush, null));
+            return cells;
+        }
+    }
+
+    private static SolidColorBrush FrozenBrush(byte r, byte g, byte b)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+        brush.Freeze();
+        return brush;
+    }
 
     internal override void StationChanged(StationRunner station)
     {

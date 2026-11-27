@@ -550,6 +550,27 @@ public sealed class ResultCodeTests : IDisposable
             Assert.Equal("2", counter.Total);
             Assert.Equal("0", counter.Failed);
             Assert.Equal(100.0.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture) + " %", counter.Yield);
+
+            // One set of columns: the results in place of Pass and Fail, never both.
+            var yield = counter.Yield;
+            Assert.Equal(
+                [("Total", "2"), ("PASS", "1"), ("REVIEW", "1"), ("FAIL", "0"), ("NoLens", "0"), ("Yield", yield)],
+                counter.Cells.Select(cell => (cell.Label, cell.Value)));
+            Assert.False(counter.Cells[0].HasDot);
+            Assert.True(counter.Cells[2].HasDot);
+            Assert.Equal("#FFE3B341", counter.Cells[2].Dot!.ToString());
+        });
+    }
+
+    [Fact]
+    public void A_counter_of_pass_and_fail_alone_has_its_four_columns()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var counter = new CounterWidgetViewModel(new Widget { Kind = WidgetKind.Counter, Station = "Lens" });
+
+            Assert.Equal(["Total", "Pass", "Fail", "Yield"], counter.Cells.Select(cell => cell.Label));
+            Assert.All(counter.Cells, cell => Assert.False(cell.HasDot));
         });
     }
 

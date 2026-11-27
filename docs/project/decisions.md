@@ -3996,10 +3996,13 @@ px² REVIEW).
 - **The verdict widget** shows a station's own result by name in the
   colour Builder's Results gave it - edge, a dark fill, a light word. A
   station of PASS and FAIL looks as before.
-- **The counter** gains a line of results under its counts - each with
-  its colour and how many - for a station with its own list, and for a
-  controller's parts with the lists of the stations it inspects; none for
-  PASS and FAIL alone. Its yield already leaves out what is not counted.
+- **The counter** shows each result as a column of its own, in its
+  colour - Total, PASS, REVIEW, FAIL, Yield - for a station with its own
+  list, and for a controller's parts with the lists of the stations it
+  inspects; Total, Pass, Fail, Yield for PASS and FAIL alone. One set of
+  counts, never both: a first try with a line of results under Pass and
+  Fail showed two PASS counts and two FAIL counts that did not agree. The
+  yield stays passes out of what is counted (the user's choice).
 - **Image Saving: Chosen results** - a policy beside None, Failed and
   All, with a tick for each of the station's results and ERROR; choosing
   it starts from every result that is not a pass, and ERROR. Kept in the
