@@ -18,6 +18,13 @@ public enum ImageSavePolicy
 
     /// <summary>Every inspection.</summary>
     All,
+
+    /// <summary>
+    /// The inspections given one of the results chosen - REVIEW and FAIL, say
+    /// (F33): <see cref="ImageSaving.KeepResults"/>.
+    /// </summary>
+    [System.ComponentModel.Description("Chosen results")]
+    Chosen,
 }
 
 /// <summary>The file a saved picture is written as.</summary>
@@ -74,6 +81,10 @@ public enum ImageFileFormat
 /// which housekeeping never touches: 1 keeps every inspection numbered a
 /// multiple of 100. 0 keeps none.
 /// </param>
+/// <param name="KeepResults">
+/// For <see cref="ImageSavePolicy.Chosen"/>: the results whose pictures are
+/// kept, by name, separated by commas - "REVIEW, FAIL, ERROR" (F33).
+/// </param>
 public sealed record ImageSaving(
     ImageSavePolicy Policy = ImageSavePolicy.None,
     ImageFileFormat Format = ImageFileFormat.Tiff,
@@ -82,7 +93,8 @@ public sealed record ImageSaving(
     bool Annotations = true,
     double MaxGigabytes = 0,
     double LeaveFreeGigabytes = 0,
-    double SamplePercent = 0)
+    double SamplePercent = 0,
+    string? KeepResults = null)
 {
     /// <summary>The project folder's own place for pictures.</summary>
     public const string DefaultFolder = "images";
@@ -122,8 +134,32 @@ public sealed record ImageSaving(
     {
         ImageSavePolicy.All => true,
         ImageSavePolicy.Failed => verdict.Accepted == false || nodeErrors > 0,
+        ImageSavePolicy.Chosen => Keeps(VerdictWord(verdict, nodeErrors)),
         _ => false,
     };
+
+    /// <summary>The results chosen, by name, as <see cref="KeepResults"/> lists them; none for none.</summary>
+    public IReadOnlyList<string> KeptResults => Split(KeepResults);
+
+    /// <summary>Whether a picture named with <paramref name="word"/> - a result, ERROR, NONE - is among those chosen.</summary>
+    public bool Keeps(string word) => KeptResults.Contains(word, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The same settings, keeping these results' pictures when the results are chosen.</summary>
+    public ImageSaving Keeping(IEnumerable<string> results) =>
+        this with { KeepResults = Join(results) };
+
+    /// <summary>"REVIEW, FAIL" - names as the settings keep them; null for none.</summary>
+    public static string? Join(IEnumerable<string>? results)
+    {
+        var names = Split(string.Join(",", results ?? []));
+        return names.Count == 0 ? null : string.Join(", ", names);
+    }
+
+    private static IReadOnlyList<string> Split(string? text) =>
+        (text ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     /// <summary>The folder every station of <paramref name="project"/> saves under, in full.</summary>
     public string RootFor(Project project)
@@ -159,6 +195,9 @@ public sealed record ImageSaving(
         if (double.IsNaN(SamplePercent) || SamplePercent is < 0 or > 100)
             return "Keep a sample is a percentage from 0 (none) to 100.";
 
+        if (Policy == ImageSavePolicy.Chosen && KeptResults.Count == 0)
+            return "Choose at least one result to keep the pictures of - or save failed images, or all.";
+
         if (!string.IsNullOrWhiteSpace(Folder))
         {
             try
@@ -182,7 +221,12 @@ public sealed record ImageSaving(
             if (!IsOn)
                 return "Saves no images";
 
-            var which = Policy == ImageSavePolicy.All ? "Saves every image" : "Saves failed images";
+            var which = Policy switch
+            {
+                ImageSavePolicy.All => "Saves every image",
+                ImageSavePolicy.Chosen => $"Saves {string.Join(", ", KeptResults)} images",
+                _ => "Saves failed images",
+            };
             var kept = KeepDays > 0 ? $", {KeepDays} days" : string.Empty;
             var most = MaxGigabytes > 0 ? string.Create(CultureInfo.CurrentCulture, $", {MaxGigabytes:0.#} GB at most") : string.Empty;
             return $"{which}, {NameOf(Format)}{kept}{most}";

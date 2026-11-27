@@ -3983,3 +3983,29 @@ result; the REVIEW cycle - the part's inspection number, branching by
 result, the workflow giving the part its final result, counted once - and
 a trigger per result on Inspect; a node grading by rules (blobs under N
 px² REVIEW).
+
+## 100. Result codes on the screens and in saving (F33b); the REVIEW cycle is the PLC's
+
+27 November 2026.
+
+- **The REVIEW cycle is not ours** (the user's decision): tracking a
+  part's ID, bringing it back, counting it once at its final result - all
+  of it is the PLC's. The vision system gives each inspection its result
+  and code, and counts what it gave. F33c is dropped; a trigger per result
+  on Inspect and a node grading by rules stay as small items, if asked.
+- **The verdict widget** shows a station's own result by name in the
+  colour Builder's Results gave it - edge, a dark fill, a light word. A
+  station of PASS and FAIL looks as before.
+- **The counter** gains a line of results under its counts - each with
+  its colour and how many - for a station with its own list, and for a
+  controller's parts with the lists of the stations it inspects; none for
+  PASS and FAIL alone. Its yield already leaves out what is not counted.
+- **Image Saving: Chosen results** - a policy beside None, Failed and
+  All, with a tick for each of the station's results and ERROR; choosing
+  it starts from every result that is not a pass, and ERROR. Kept in the
+  project as `"save": "chosen"` and `"results": [...]`.
+- **Sirius IV's Show box** lists, after All, Failed and Passed, each
+  other result the folder's pictures are named by - REVIEW, NoLens - and
+  shows the sets with a picture of it. Not remembered: a folder's results
+  are its stations'. Such a result's badge is amber; IV has no colour of
+  the station's to give it.

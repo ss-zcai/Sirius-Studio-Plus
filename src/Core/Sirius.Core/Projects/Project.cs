@@ -355,7 +355,8 @@ public sealed class Project
                     images.Annotations ?? true,
                     images.MaxGb ?? 0,
                     images.LeaveFreeGb ?? 0,
-                    images.SamplePercent ?? 0);
+                    images.SamplePercent ?? 0,
+                    ImageSaving.Join(images.Results));
 
                 if (saving.Problem() is { } problem)
                     warnings.Add($"Station '{name}': its image saving could not be used ({problem}); it saves nothing.");
@@ -481,6 +482,7 @@ public sealed class Project
                         MaxGb = station.Saving.MaxGigabytes == 0 ? null : station.Saving.MaxGigabytes,
                         LeaveFreeGb = station.Saving.LeaveFreeGigabytes == 0 ? null : station.Saving.LeaveFreeGigabytes,
                         SamplePercent = station.Saving.SamplePercent == 0 ? null : station.Saving.SamplePercent,
+                        Results = station.Saving.KeptResults.Count == 0 ? null : [.. station.Saving.KeptResults],
                     },
                 })
                 .ToList(),
@@ -1347,6 +1349,10 @@ public sealed class Project
         /// <summary>The share of pictures deleted kept in the Kept folder; absent for none.</summary>
         [JsonPropertyName("samplePercent")]
         public double? SamplePercent { get; set; }
+
+        /// <summary>For "chosen": the results whose pictures are kept (F33); absent for none.</summary>
+        [JsonPropertyName("results")]
+        public List<string>? Results { get; set; }
     }
 
     private sealed class LimitRecord

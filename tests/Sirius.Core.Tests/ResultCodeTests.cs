@@ -8,6 +8,8 @@ using Sirius.Core.Graph;
 using Sirius.Core.Nodes;
 using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
+using Sirius.Core.Screens;
+using Sirius.UI.Screens;
 using Sirius.Vision;
 using Sirius.Vision.Nodes;
 using Sirius.Vision.Runtime;
@@ -450,6 +452,152 @@ public sealed class ResultCodeTests : IDisposable
             item.Set = set;
 
         Assert.Equal("REVIEW", set[0].SetVerdict);
+    }
+
+    // ---- F33b: saving by result, the screens, Sirius IV's filter ---------------------------
+
+    [Fact]
+    public void Image_saving_keeps_the_pictures_of_the_results_chosen()
+    {
+        var results = LensResults();
+        var saving = new ImageSaving(ImageSavePolicy.Chosen).Keeping(["review", "FAIL", "review", " "]);
+
+        Assert.Equal("review, FAIL", saving.KeepResults);
+        Assert.Null(saving.Problem());
+        Assert.Equal("Saves review, FAIL images, TIF", saving.Summary);
+
+        Verdict Given(bool? passed, string? grade = null) => Judged(passed, grade) with { Result = results.For(Judged(passed, grade), 0) };
+
+        Assert.True(saving.Wants(Given(true, "REVIEW"), 0));
+        Assert.True(saving.Wants(Given(false), 0));
+        Assert.False(saving.Wants(Given(true), 0));
+        Assert.False(saving.Wants(Given(false, "NoLens"), 0));
+
+        // ERROR and NONE are words a picture can be named by, so chosen as any result.
+        Assert.False(saving.Wants(Given(true), 1));
+        Assert.True(saving.Keeping(["ERROR"]).Wants(Given(true), 1));
+
+        Assert.Contains("at least one result", new ImageSaving(ImageSavePolicy.Chosen).Problem());
+
+        // Kept in the project.
+        var project = Project.Create(_folder, "Line", new VisionGraph(), "Lens");
+        project.SetSaving(project.Stations[0], saving);
+        var text = File.ReadAllText(project.FilePath);
+        Assert.Contains("\"save\": \"chosen\"", text, StringComparison.Ordinal);
+        Assert.Equal(saving, Project.Load(project.FilePath).Project.Stations[0].Saving);
+    }
+
+    [Fact]
+    public void Builder_offers_each_result_to_keep_and_starts_from_those_not_passed()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", new VisionGraph(), "Lens");
+            project.SetResults(project.Stations[0], LensResults());
+            var model = new ImageSavingViewModel(project, project.Stations[0]);
+
+            Sirius.Builder.PropertyRow Row(string name) => model.Categories.SelectMany(category => category.Rows).Single(row => row.Name == name);
+
+            Assert.Equal(["PASS", "REVIEW", "FAIL", "NoLens", "ERROR"], model.ChoosableResults);
+            Assert.False(Row("REVIEW").IsEnabled);
+
+            // Chosen results: what is not a pass, and ERROR, to start from.
+            Row("Save").Value = ImageSavePolicy.Chosen;
+            Assert.True(Row("REVIEW").IsEnabled);
+            Assert.Equal(["REVIEW", "FAIL", "NoLens", "ERROR"], model.Draft.KeptResults);
+
+            Row("NoLens").Value = false;
+            Row("PASS").Value = true;
+            Assert.Equal(["REVIEW", "FAIL", "ERROR", "PASS"], model.Draft.KeptResults);
+            Assert.Equal(true, Row("PASS").Value);
+
+            Assert.True(model.Apply());
+            Assert.True(project.Stations[0].Saving.Keeps("pass"));
+            Assert.False(project.Stations[0].Saving.Keeps("NoLens"));
+        });
+    }
+
+    /// <summary>
+    /// On the running screen: the verdict is the station's result in its
+    /// colour, and the counter says how many of each.
+    /// </summary>
+    [Fact]
+    public void A_running_screen_shows_the_result_in_its_colour_and_counts_each()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var project = Project.Create(_folder, "Line", GradedRecipe(), "Lens");
+            project.SetResults(project.Stations[0], LensResults());
+
+            using var runtime = new ProjectRuntime(project);
+            using var view = new ScreenViewModel(ScreenLayout.Standard(project.Name, runtime.Stations), runtime, project.Folder);
+
+            var trigger = view.Widgets.OfType<ButtonWidgetViewModel>().First(b => b.Station == "Lens" && b.Widget.Action == WidgetAction.Trigger);
+            var verdict = view.Widgets.OfType<VerdictWidgetViewModel>().Single();
+            var counter = view.Widgets.OfType<CounterWidgetViewModel>().Single();
+
+            WpfTestHost.Wait(trigger.Command.ExecuteAsync(null));
+            Assert.Equal(("PASS", VerdictLook.Result), (verdict.Text, verdict.Look));
+
+            WpfTestHost.Wait(trigger.Command.ExecuteAsync(null));
+            Assert.Equal(("REVIEW", VerdictLook.Result), (verdict.Text, verdict.Look));
+            Assert.Equal("#FFE3B341", verdict.ResultLook!.Edge.ToString());
+
+            Assert.True(counter.HasBreakdown);
+            Assert.Equal(["PASS 1", "REVIEW 1", "FAIL 0", "NoLens 0"], counter.Breakdown.Select(count => count.Text));
+
+            // REVIEW not counted: the yield is the one pass of one.
+            Assert.Equal("2", counter.Total);
+            Assert.Equal("0", counter.Failed);
+            Assert.Equal(100.0.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture) + " %", counter.Yield);
+        });
+    }
+
+    [Fact]
+    public void A_counter_has_no_line_of_results_for_pass_and_fail_alone()
+    {
+        var tally = ResultTally.Empty.Add(ResultList.Default[0]).Add(ResultList.Default[1]);
+
+        Assert.Empty(CounterWidgetViewModel.BreakdownOf(tally, [ResultList.Default]));
+        Assert.Empty(CounterWidgetViewModel.BreakdownOf(ResultTally.Empty, []));
+
+        // A part counted with a result no list has any more: said after the rest, in grey.
+        var parts = tally.Add(new ResultCode("OLD", 7, ResultCounting.Fail, "#000000"));
+        Assert.Equal(["PASS 1", "REVIEW 0", "FAIL 1", "NoLens 0", "OLD 1"], CounterWidgetViewModel.BreakdownOf(parts, [LensResults(), ResultList.Default]).Select(count => count.Text));
+    }
+
+    [Fact]
+    public void Sirius_iv_shows_the_pictures_of_one_result()
+    {
+        WpfTestHost.OnStaThread(() =>
+        {
+            var folder = Path.Combine(_folder, "pictures");
+            Directory.CreateDirectory(folder);
+
+            foreach (var (serial, word) in new[] { (1, "PASS"), (2, "REVIEW"), (3, "FAIL"), (4, "REVIEW"), (5, "NoLens") })
+            {
+                using var mat = new Mat(8, 8, DepthType.Cv8U, 1);
+                CvInvoke.Imwrite(Path.Combine(folder, ImageSaving.FileStem(new DateTime(2026, 11, 27, 10, 0, serial), serial, word) + ".png"), mat);
+            }
+
+            var model = new Sirius.IV.BrowserViewModel();
+            WpfTestHost.Wait(model.OpenAsync(folder));
+
+            Assert.Equal(["All", "Failed", "Passed", "NoLens", "REVIEW"], model.FilterChoices.Select(choice => choice.Label));
+
+            model.FilterValue = "REVIEW";
+            Assert.Equal(2, model.Files.Count);
+            Assert.All(model.Files, file => Assert.Equal("REVIEW", file.Verdict));
+            Assert.True(model.Files[0].SetVerdictIsOther);
+
+            // Failed: everything not passed - REVIEW and NoLens among them.
+            model.FilterValue = Sirius.IV.FileFilter.Failed;
+            Assert.Null(model.ResultFilter);
+            Assert.Equal(4, model.Files.Count);
+
+            model.FilterValue = Sirius.IV.FileFilter.All;
+            Assert.Equal(5, model.Files.Count);
+        });
     }
 
     // ---- Builder ------------------------------------------------------------------------

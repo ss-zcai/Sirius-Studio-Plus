@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -181,14 +182,71 @@ public enum VerdictLook
     Pass,
     Fail,
     Fault,
+
+    /// <summary>One of a station's own results (F33), in its colour.</summary>
+    Result,
 }
 
-/// <summary>A station's PASS or FAIL.</summary>
+/// <summary>A result's colour, as a screen shows it: the edge, a dark fill, a light word.</summary>
+public sealed record ResultLook(Brush Edge, Brush Fill, Brush Word)
+{
+    /// <summary>The look of <paramref name="colour"/>, "#RRGGBB"; grey for one that cannot be read.</summary>
+    public static ResultLook Of(string? colour)
+    {
+        var edge = Parse(colour) ?? Color.FromRgb(0x8B, 0x94, 0x9E);
+
+        return new ResultLook(
+            Frozen(edge),
+            Frozen(Mix(Color.FromRgb(0x1E, 0x1F, 0x22), edge, 0.25)),
+            Frozen(Mix(edge, Colors.White, 0.6)));
+    }
+
+    private static Color? Parse(string? colour)
+    {
+        try
+        {
+            return colour is { Length: 7 } && colour[0] == '#' ? (Color)ColorConverter.ConvertFromString(colour) : null;
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary><paramref name="a"/> with <paramref name="share"/> of <paramref name="b"/> in it.</summary>
+    private static Color Mix(Color a, Color b, double share) => Color.FromRgb(
+        (byte)Math.Round(a.R + ((b.R - a.R) * share)),
+        (byte)Math.Round(a.G + ((b.G - a.G) * share)),
+        (byte)Math.Round(a.B + ((b.B - a.B) * share)));
+
+    private static SolidColorBrush Frozen(Color colour)
+    {
+        var brush = new SolidColorBrush(colour);
+        brush.Freeze();
+        return brush;
+    }
+}
+
+/// <summary>How many of one result, for a counter's line of them (F33).</summary>
+public sealed record ResultCount(string Name, long Count, Brush Colour)
+{
+    public string Text => $"{Name} {Count.ToString(CultureInfo.CurrentCulture)}";
+}
+
+/// <summary>A station's PASS or FAIL - or its own result, REVIEW, in that result's colour (F33).</summary>
 public sealed class VerdictWidgetViewModel(Widget widget) : WidgetViewModel(widget)
 {
     private string _text = "—";
     private string? _detail;
     private VerdictLook _look;
+    private ResultLook? _resultLook;
+
+    /// <summary>The result's colours, when <see cref="Look"/> is <see cref="VerdictLook.Result"/>.</summary>
+    public ResultLook? ResultLook
+    {
+        get => _resultLook;
+        private set => SetProperty(ref _resultLook, value);
+    }
 
     public string Text
     {
@@ -221,7 +279,19 @@ public sealed class VerdictWidgetViewModel(Widget widget) : WidgetViewModel(widg
             return;
         }
 
-        (Text, Look) = verdict.Passed switch
+        // A station's own results: the result's name, in its colour.
+        if (verdict.Result is { } result && !station.Results.IsDefault)
+        {
+            ResultLook = Screens.ResultLook.Of(result.Colour);
+            (Text, Look) = (ImageSaving.VerdictWord(verdict, snapshot.NodeErrors), VerdictLook.Result);
+            Detail = station.LastError ?? (verdict.Grade is { } named && named != Grade.Pass && named != Grade.Fail &&
+                                           !string.Equals(named.Name, result.Name, StringComparison.OrdinalIgnoreCase)
+                ? named.Name
+                : null);
+            return;
+        }
+
+        (Text, Look) = verdict.Accepted switch
         {
             true => ("PASS", VerdictLook.Pass),
             false => ("FAIL", VerdictLook.Fail),
@@ -253,6 +323,38 @@ public sealed class CounterWidgetViewModel(Widget widget) : WidgetViewModel(widg
     private StationTiming _timing = StationTiming.Zero;
     private PartCounts? _parts;
     private PartRecord? _lastPart;
+    private ResultTally _results = ResultTally.Empty;
+    private IReadOnlyList<ResultCount> _breakdown = [];
+
+    /// <summary>
+    /// How many of each result, in the stations' order and colours (F33);
+    /// empty where the results are PASS and FAIL alone, which the counts say.
+    /// </summary>
+    public IReadOnlyList<ResultCount> Breakdown => _breakdown;
+
+    public bool HasBreakdown => _breakdown.Count > 0;
+
+    /// <summary>
+    /// The tally as a line of results: in the order the lists give them, any
+    /// counted that no list has after them, grey; none when every list is PASS
+    /// and FAIL.
+    /// </summary>
+    internal static IReadOnlyList<ResultCount> BreakdownOf(ResultTally tally, IReadOnlyList<ResultList> lists)
+    {
+        if (lists.All(list => list.IsDefault) && tally.Counts.Keys.All(name => ResultList.Default.Find(name) is not null))
+            return [];
+
+        var known = lists.SelectMany(list => list)
+            .DistinctBy(result => result.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var rows = known.Select(result => new ResultCount(result.Name, tally[result.Name], ResultLook.Of(result.Colour).Edge));
+        var others = tally.Counts
+            .Where(pair => !known.Any(result => string.Equals(result.Name, pair.Key, StringComparison.OrdinalIgnoreCase)))
+            .Select(pair => new ResultCount(pair.Key, pair.Value, ResultLook.Of(null).Edge));
+
+        return rows.Concat(others).ToArray();
+    }
 
     /// <summary>The controller whose parts it counts, or null for a station's pictures.</summary>
     public string? Controller => string.IsNullOrWhiteSpace(Widget.Controller) ? null : Widget.Controller;
@@ -293,14 +395,21 @@ public sealed class CounterWidgetViewModel(Widget widget) : WidgetViewModel(widg
             : line;
     }
 
-    /// <summary>The controller's counts, as it has them now.</summary>
-    internal void PartsChanged(PartCounts counts, PartRecord? last)
+    /// <summary>
+    /// The controller's counts, as it has them now - and by result, with the
+    /// lists of the stations it inspects (F33).
+    /// </summary>
+    internal void PartsChanged(PartCounts counts, PartRecord? last, ResultTally? results = null, IReadOnlyList<ResultList>? lists = null)
     {
-        if (_parts == counts && ReferenceEquals(_lastPart, last))
+        results ??= ResultTally.Empty;
+
+        if (_parts == counts && ReferenceEquals(_lastPart, last) && _results.Equals(results))
             return;
 
         _parts = counts;
         _lastPart = last;
+        _results = results;
+        _breakdown = BreakdownOf(results, lists ?? []);
         OnPropertyChanged(string.Empty);
     }
 
@@ -323,11 +432,13 @@ public sealed class CounterWidgetViewModel(Widget widget) : WidgetViewModel(widg
 
     internal override void StationChanged(StationRunner station)
     {
-        if (Controller is not null || (_counts == station.Counts && _timing == station.Timing))
+        if (Controller is not null || (_counts == station.Counts && _timing == station.Timing && _results.Equals(station.ResultCounts)))
             return;
 
         _counts = station.Counts;
         _timing = station.Timing;
+        _results = station.ResultCounts;
+        _breakdown = BreakdownOf(_results, [station.Results]);
         OnPropertyChanged(string.Empty);
     }
 }

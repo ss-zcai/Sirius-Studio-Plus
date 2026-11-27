@@ -89,6 +89,12 @@
                     <Setter TargetName="Box" Property="BorderBrush" Value="#D9A33A" />
                     <Setter TargetName="Word" Property="Foreground" Value="#F7EBD4" />
                 </DataTrigger>
+                <!-- A station's own result (F33): in the colour Builder's Results gave it. -->
+                <DataTrigger Binding="{Binding Look}" Value="Result">
+                    <Setter TargetName="Box" Property="Background" Value="{Binding ResultLook.Fill}" />
+                    <Setter TargetName="Box" Property="BorderBrush" Value="{Binding ResultLook.Edge}" />
+                    <Setter TargetName="Word" Property="Foreground" Value="{Binding ResultLook.Word}" />
+                </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
 
@@ -106,6 +112,25 @@
                            FontSize="10"
                            TextTrimming="CharacterEllipsis"
                            Foreground="{StaticResource Text.Secondary}" />
+                <!-- How many of each of the station's own results (F33): REVIEW 3, NoLens 1. -->
+                <ItemsControl DockPanel.Dock="Bottom"
+                              ItemsSource="{Binding Breakdown}"
+                              Margin="0,2,0,0"
+                              Visibility="{Binding HasBreakdown, Converter={StaticResource BoolToVisibility}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                                <Ellipse Width="8" Height="8" Fill="{Binding Colour}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <TextBlock Text="{Binding Text}" FontSize="11" Foreground="{StaticResource Text.Primary}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
                 <UniformGrid Columns="4" VerticalAlignment="Center">
                     <StackPanel>
                         <TextBlock Text="Total" FontSize="11" Foreground="{StaticResource Text.Secondary}" />

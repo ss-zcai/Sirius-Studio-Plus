@@ -553,7 +553,10 @@ public sealed class ScreenViewModel : ObservableObject, IDisposable, IScreenNavi
         foreach (var counter in _all.Select(entry => entry.Widget).OfType<CounterWidgetViewModel>())
         {
             if (counter.Controller is { } name && Controller(name) is { } runner)
-                counter.PartsChanged(runner.PartCounts, runner.LastPart);
+            {
+                var lists = runner.Stations is { } stations ? stations.Stations.Select(stations.ResultsOf).ToArray() : [];
+                counter.PartsChanged(runner.PartCounts, runner.LastPart, runner.PartResultCounts, lists);
+            }
         }
 
         foreach (var widget in _all.Select(entry => entry.Widget).OfType<ControllerWidgetViewModel>())

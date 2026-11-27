@@ -202,6 +202,26 @@ public sealed class ImageSavingViewModel : ObservableObject
             description,
             enabled: () => _draft.IsOn);
 
+    /// <summary>
+    /// The settings with <paramref name="policy"/>; Chosen results, with none
+    /// chosen yet, starting from every result that is not a pass, and ERROR.
+    /// </summary>
+    private ImageSaving Choosing(ImageSavePolicy policy)
+    {
+        var draft = _draft with { Policy = policy };
+
+        return policy == ImageSavePolicy.Chosen && draft.KeptResults.Count == 0
+            ? draft.Keeping(Station.Results.Where(result => !result.Accepts).Select(result => result.Name).Append(ResultList.ErrorName))
+            : draft;
+    }
+
+    /// <summary>The results whose pictures can be chosen: the station's, in its order, and ERROR.</summary>
+    public IReadOnlyList<string> ChoosableResults =>
+        Station.Results.Select(result => result.Name)
+            .Append(ResultList.ErrorName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
     private IEnumerable<PropertyRow> Rows()
     {
         bool On() => _draft.IsOn;
@@ -209,9 +229,30 @@ public sealed class ImageSavingViewModel : ObservableObject
         yield return new PropertyRow(
             "Saving", "Save", PropertyEditor.Choice,
             () => _draft.Policy,
-            value => { if (value is ImageSavePolicy policy) Change(_draft with { Policy = policy }); },
-            "Which inspections keep their picture: none, those that failed - and those a node went wrong in - or all of them.",
+            value => { if (value is ImageSavePolicy policy) Change(Choosing(policy)); },
+            "Which inspections keep their picture: none, those that failed - and those a node went wrong in - all of them, " +
+            "or those given the results ticked below: REVIEW and FAIL, say.",
             options: () => Enum.GetValues<ImageSavePolicy>().Select(policy => new PropertyOption(TypeNames.OptionName(policy), policy)).ToArray());
+
+        // Each of the station's results, and ERROR, to tick for Chosen results (F33).
+        foreach (var result in ChoosableResults)
+        {
+            yield return new PropertyRow(
+                "Results kept", result, PropertyEditor.Check,
+                () => _draft.Keeps(result),
+                value =>
+                {
+                    if (value is not bool keep)
+                        return;
+
+                    var kept = _draft.KeptResults.Where(name => !string.Equals(name, result, StringComparison.OrdinalIgnoreCase));
+                    Change(_draft.Keeping(keep ? kept.Append(result) : kept));
+                },
+                result == ResultList.ErrorName
+                    ? "Inspections a node went wrong in, without failing the part."
+                    : $"Keep the pictures of parts given {result}.",
+                enabled: () => _draft.Policy == ImageSavePolicy.Chosen);
+        }
 
         yield return new PropertyRow(
             "Saving", "Format", PropertyEditor.Choice,

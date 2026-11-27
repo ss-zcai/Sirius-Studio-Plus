@@ -275,6 +275,7 @@ public sealed class BrowserViewModel : ObservableObject
             item.IsModified = _unsaved.ContainsKey(item.Path);
 
         _all = found;
+        RefreshFilterChoices();
         ApplyFilter(keep);
         FitLayoutToSets();
 
@@ -328,6 +329,93 @@ public sealed class BrowserViewModel : ObservableObject
 
     /// <summary>The filter's choices, as the toolbar lists them.</summary>
     public static IReadOnlyList<Choice> Filters { get; } = Choice.Of<FileFilter>();
+
+    private string? _resultFilter;
+
+    /// <summary>
+    /// The filter's choices for the folder open: All, Failed, Passed, then
+    /// each other result its stations named pictures by - REVIEW, NoLens
+    /// (F33).
+    /// </summary>
+    public System.Collections.ObjectModel.ObservableCollection<Choice> FilterChoices { get; } = [.. Choice.Of<FileFilter>()];
+
+    /// <summary>
+    /// Only the pictures - the sets - with this result, by name; null for
+    /// the filter's own choices. Not remembered: a folder's results are its
+    /// stations'.
+    /// </summary>
+    public string? ResultFilter
+    {
+        get => _resultFilter;
+        set
+        {
+            value = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+            if (SetProperty(ref _resultFilter, value))
+            {
+                OnPropertyChanged(nameof(FilterValue));
+                ApplyFilter(_chosen.Select(item => item.Path).ToArray());
+            }
+        }
+    }
+
+    /// <summary>What the toolbar's Show box has chosen: a <see cref="FileFilter"/>, or a result's name.</summary>
+    public object FilterValue
+    {
+        get => (object?)_resultFilter ?? _filter;
+        set
+        {
+            switch (value)
+            {
+                case string result:
+                    ResultFilter = result;
+                    break;
+
+                case FileFilter filter:
+                    _resultFilter = null;
+
+                    if (_filter == filter)
+                        ApplyFilter(_chosen.Select(item => item.Path).ToArray());
+
+                    Filter = filter;
+                    OnPropertyChanged(nameof(FilterValue));
+                    break;
+            }
+        }
+    }
+
+    /// <summary>The results other than PASS, FAIL, ERROR and NONE the pictures listed are named by.</summary>
+    internal IReadOnlyList<string> OtherResults =>
+        _all.Select(item => item.Verdict)
+            .OfType<string>()
+            .Where(word => word is not ("PASS" or "FAIL" or "ERROR" or "NONE"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private void RefreshFilterChoices()
+    {
+        var results = OtherResults;
+        var shown = FilterChoices.Skip(Filters.Count).Select(choice => (string)choice.Value).ToArray();
+
+        if (!shown.SequenceEqual(results, StringComparer.Ordinal))
+        {
+            while (FilterChoices.Count > Filters.Count)
+                FilterChoices.RemoveAt(FilterChoices.Count - 1);
+
+            foreach (var result in results)
+                FilterChoices.Add(new Choice(result, result));
+        }
+
+        // A result no picture here has: everything again.
+        if (_resultFilter is not null && !results.Contains(_resultFilter, StringComparer.OrdinalIgnoreCase))
+        {
+            _resultFilter = null;
+            OnPropertyChanged(nameof(ResultFilter));
+        }
+
+        OnPropertyChanged(nameof(FilterValue));
+    }
 
     /// <summary>
     /// Only the pictures whose name - or sub-folder - holds this, ignoring
@@ -552,12 +640,14 @@ public sealed class BrowserViewModel : ObservableObject
 
         // By the set's verdict: a set of a passed picture and a failed one
         // failed, so is not "Passed" - every set had a passing picture.
-        bool Passes(IReadOnlyList<ImageFileItem> set) => _filter switch
-        {
-            FileFilter.Failed => set.Any(item => item.Failed),
-            FileFilter.Passed => set[0].SetVerdict == "PASS",
-            _ => true,
-        } && (search.Length == 0 || set.Any(item => item.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase)));
+        bool Passes(IReadOnlyList<ImageFileItem> set) => (_resultFilter is { } result
+            ? set.Any(item => string.Equals(item.Verdict, result, StringComparison.OrdinalIgnoreCase))
+            : _filter switch
+            {
+                FileFilter.Failed => set.Any(item => item.Failed),
+                FileFilter.Passed => set[0].SetVerdict == "PASS",
+                _ => true,
+            }) && (search.Length == 0 || set.Any(item => item.RelativePath.Contains(search, StringComparison.OrdinalIgnoreCase)));
 
         var sets = _match.Sets(Sorted(_all).ToList(), _all);
 
@@ -1782,6 +1872,7 @@ public sealed class ImageFileItem : ObservableObject
             OnPropertyChanged(nameof(Set));
             OnPropertyChanged(nameof(SetCountText));
             OnPropertyChanged(nameof(SetVerdict));
+            OnPropertyChanged(nameof(SetVerdictIsOther));
             OnPropertyChanged(nameof(Description));
         }
     }
@@ -1803,6 +1894,12 @@ public sealed class ImageFileItem : ObservableObject
                    ?? new[] { "PASS", "NONE" }.FirstOrDefault(word => Set.Any(item => item.Verdict == word));
         }
     }
+
+    /// <summary>
+    /// Its set's verdict is a result other than PASS, FAIL, ERROR and NONE -
+    /// REVIEW, NoLens (F33) - for the badge's own colour.
+    /// </summary>
+    public bool SetVerdictIsOther => SetVerdict is not (null or "PASS" or "FAIL" or "ERROR" or "NONE");
 
     /// <summary>Its width and height have been read - or tried, and it had none to read.</summary>
     internal bool HasDimensions => _dimensions == 2;

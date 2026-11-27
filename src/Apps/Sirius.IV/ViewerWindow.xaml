@@ -131,6 +131,10 @@
                 <DataTrigger Binding="{Binding SetVerdict}" Value="ERROR">
                     <Setter Property="Background" Value="#A36A1F" />
                 </DataTrigger>
+                <!-- Another of a station's results - REVIEW, NoLens (F33) -->
+                <DataTrigger Binding="{Binding SetVerdictIsOther}" Value="True">
+                    <Setter Property="Background" Value="#8A6D1C" />
+                </DataTrigger>
                 <DataTrigger Binding="{Binding SetVerdict}" Value="{x:Null}">
                     <Setter Property="Visibility" Value="Collapsed" />
                 </DataTrigger>
@@ -314,12 +318,12 @@
                     <Separator />
 
                     <TextBlock Text="Show" VerticalAlignment="Center" Margin="6,0,6,0" Foreground="{StaticResource Text.Secondary}" />
-                    <ComboBox ItemsSource="{x:Static local:BrowserViewModel.Filters}"
+                    <ComboBox ItemsSource="{Binding FilterChoices}"
                               DisplayMemberPath="Label"
                               SelectedValuePath="Value"
-                              SelectedValue="{Binding Filter}"
+                              SelectedValue="{Binding FilterValue}"
                               MinWidth="90"
-                              ToolTip="Every picture, or only those a station saved as failed - or passed" />
+                              ToolTip="Every picture, or only those a station saved as failed - or passed, or with one of its other results: REVIEW" />
 
                     <TextBlock Text="Viewers" VerticalAlignment="Center" Margin="14,0,6,0" Foreground="{StaticResource Text.Secondary}" />
                     <ComboBox ItemsSource="{x:Static local:BrowserViewModel.Layouts}"

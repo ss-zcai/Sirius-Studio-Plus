@@ -9,9 +9,10 @@ where the product stands; this says what could come next. Updated
 - **Sirius IV 1.0.5** packed with an installer (decision 98) for the
   team's trial, needing a **licence code** per PC - a trial of some days
   or no end (decision 97) - made with the Sirius Licence Maker.
-- **F33a, result codes** (decision 99): a result list per station in
+- **F33, result codes** (decisions 99-100): a result list per station in
   Builder, the code to the PLC, missed parts given a result, counts by
-  result, pictures named by it.
+  result on the screens, pictures named and saved by it, IV's filter. The
+  REVIEW cycle is the PLC's, so dropped.
 
 **Before that** (18-24 November):
 
@@ -29,9 +30,8 @@ where the product stands; this says what could come next. Updated
 
 1. ~~**F26a, a set of shots at one station**~~ - done 24 November
    (decision 95).
-2. **F33, result codes beyond PASS/FAIL** - first slice done 27
-   November (decision 99); next, counts per result on Edge's screens and
-   saving by result (F33b), then the REVIEW cycle (F33c).
+2. ~~**F33, result codes beyond PASS/FAIL**~~ - done 27 November
+   (decisions 99-100); the REVIEW cycle left to the PLC.
 3. **F26b** (two cameras on one trigger), **F26c** (a product across
    stations), and **F20e** (an item's pictures side by side).
 4. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
@@ -326,14 +326,14 @@ part, how the PLC tracks parts - size F26-F28.
     Not counted out of the yield, a tally per result kept with the
     counts, pictures and `.sann` by result, housekeeping and IV reading
     any result.
-  - **F33b. On the screens and in saving** (S-M): counts per result and
-    the yield in Edge (the counts and controller widgets, the verdict
-    widget in the result's colour); Image Saving choosing which results
-    to keep; IV's filter by result and its badge in the result's colour.
-  - **F33c. The REVIEW cycle** (M): the part's inspection number, a
-    trigger per result on Inspect, the workflow giving a part its final
-    result, the part counted once with re-inspections on their own; the
-    node grading by rules.
+  - ~~**F33b. On the screens and in saving**~~ - done 27 November 2026
+    (decision 100): the verdict widget in the result's colour, the
+    counter's line of results, Image Saving's Chosen results, IV's Show
+    box by result.
+  - ~~**F33c. The REVIEW cycle**~~ - dropped 27 November 2026: tracking
+    IDs and repeats is the PLC's (decision 100). Left, if asked: a
+    trigger per result on Inspect (S), and a node grading by rules -
+    blobs under N px² REVIEW (S-M).
 
   As designed:
   - **A result list per station** in Builder, as long as the line needs:

@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:Sirius.Builder"
         Title="Image Saving"
         Width="620"
-        Height="660"
+        Height="780"
         MinWidth="460"
         MinHeight="480"
         ShowInTaskbar="False"
