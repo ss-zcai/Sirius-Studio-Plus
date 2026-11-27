@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Makes Sirius licence codes, signed with the private key - which is kept
+    outside the repository, and never shipped. See Program.cs.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Sirius.Tools.LicenceMaker</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Core\Sirius.Core\Sirius.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -545,7 +545,8 @@ pictures across folders.
 11. **Project editing in Studio** (my proposal) or a separate designer?
 12. **Licensing per machine**: agreed in principle - how is it enforced
     (a licence file bound to the PC, a dongle, the Server)? And L1 (Emgu)
-    and L2 (pylon) must be settled before any runtime ships.
+    and L2 (pylon) must be settled before any runtime ships. Sirius IV:
+    a signed code per PC, offline (decision 97).
 
 ---
 

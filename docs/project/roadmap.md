@@ -123,6 +123,11 @@ node again (decision 78), saved pictures and Sirius IV, and controllers.
   the last; Inspect's **Judged**; shots without a Part ID counted into
   sets in order; `tools/ShotSample` writes a sample project of six parts
   under three lights.
+- **Sirius IV licence codes** (decision 97): a code for one PC's machine
+  ID, a trial of the days chosen or no end, checked offline against a
+  signature; without a good one only the licence window opens, and a
+  trial ending with the window open locks it. `tools/LicenceMaker` makes
+  them. Sirius IV only, for now.
 
 - **The earlier image viewer's annotation files** (decision 92), in
   Sirius IV **1.0.4**, packed alone for internal test on 24 November:

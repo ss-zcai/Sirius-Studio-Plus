@@ -1032,6 +1032,72 @@ public partial class ViewerWindow : Window
             e.Cancel = true;
     }
 
+    // ---- the licence ------------------------------------------------------------------------
+
+    private Sirius.Core.Licensing.LicenceStore? _licence;
+    private System.Windows.Threading.DispatcherTimer? _licenceTimer;
+    private bool _askingLicence;
+
+    /// <summary>
+    /// Keeps the licence checked while it runs - a trial can end with the
+    /// window open - and its days left in the title.
+    /// </summary>
+    internal void WatchLicence(Sirius.Core.Licensing.LicenceStore store)
+    {
+        _licence = store;
+        CheckLicence();
+
+        _licenceTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(10) };
+        _licenceTimer.Tick += (_, _) => CheckLicence();
+        _licenceTimer.Start();
+        Closed += (_, _) => _licenceTimer.Stop();
+    }
+
+    /// <summary>
+    /// A good licence: its days left shown. Any other locks the window
+    /// behind the licence window, and without a good code it closes - asking
+    /// first to save measurements, as closing does.
+    /// </summary>
+    internal void CheckLicence()
+    {
+        if (_licence is null || _askingLicence)
+            return;
+
+        var state = _licence.Check();
+
+        if (!state.IsValid)
+        {
+            _askingLicence = true;
+
+            try
+            {
+                if (LicenceWindow.Ask(this, _licence, state))
+                    state = _licence.Check();
+            }
+            finally
+            {
+                _askingLicence = false;
+            }
+
+            if (!state.IsValid)
+            {
+                Close();
+                return;
+            }
+        }
+
+        _model.LicenceNote = state.TrialNote;
+    }
+
+    private void OnLicenceClick(object sender, RoutedEventArgs e)
+    {
+        if (_licence is null)
+            return;
+
+        LicenceWindow.Ask(this, _licence, _licence.Check());
+        CheckLicence();
+    }
+
     private void OnAboutClick(object sender, RoutedEventArgs e) =>
         new AboutWindow(
             BrowserViewModel.AppTitle,

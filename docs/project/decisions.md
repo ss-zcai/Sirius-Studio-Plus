@@ -3862,3 +3862,46 @@ three pictures before going further.
   mark one light shows, part 6 one every light shows. `--images` uses
   the user's own sets instead. The tests write it and run it - Run
   Folder, and a station driven by the starter - so it cannot go stale.
+
+## 97. Sirius IV licence codes: trials and full licences, offline
+
+27 November 2026, asked for so Sirius IV can be handed out on trial for
+a set number of days, and locked when the trial is over. The first
+answer to runtime-design.md question 12 (licensing per machine), for
+Sirius IV alone.
+
+- **A code per PC.** Sirius IV shows the PC's machine ID - Windows'
+  MachineGuid, hashed, 16 letters - and a code is made for that ID. Only
+  whoever holds the private key can grant or extend a trial; a code
+  passed on works nowhere else. A reinstalled Windows is a new ID, and
+  needs a new code.
+- **Signed, checked offline.** A code says the product, the machine ID,
+  the day made, the last day (or none) and, optionally, who it is for,
+  signed with ECDSA P-256; the program holds only the public key. No
+  server, nothing to reach on a line's PC. Crockford base32 in groups of
+  five, about 130 letters - pasted, not typed.
+- **The trial's days count from the day the code is made**, the last
+  day included: `--days 7` made today runs to the sixth day after. A
+  date in the code, not a count started on the PC, so there is nothing
+  on the PC to reset.
+- **No end** is the same code without a last day: trials and sales are
+  one system.
+- **Locked when over.** Without a good licence only the licence window
+  opens - the machine ID, with Copy, and a box for the code; its button
+  quits. With the program open it is checked every ten minutes: a trial
+  ending locks it behind the licence window, and without a new code it
+  closes, asking first to save measurements. The title says "Trial - N
+  days left"; Help ▸ Licence takes a new code at any time.
+- **The clock.** The latest time it ran is kept with the code and in the
+  registry; a clock more than two hours behind it, or before the day the
+  code was made, stops a trial until it is set right. A licence with no
+  end does not mind the clock. None of this is proof against someone
+  set on breaking it - it keeps honest users honest.
+- **The private key** was made with `LicenceMaker keygen` into
+  `%LOCALAPPDATA%\Sirius Licensing\signing-key.pem` on the development
+  PC, and is never in the repository or a package (`.gitignore` refuses
+  `*.pem`; keygen refuses a folder inside a repository). Lost, no new
+  codes can be made with this key; leaked, anyone can make them. A new
+  key means a new build and new codes for everyone.
+- **Sirius IV only.** Studio, Builder and Edge are not licensed yet; the
+  store and the codes take a product name, so they can follow.

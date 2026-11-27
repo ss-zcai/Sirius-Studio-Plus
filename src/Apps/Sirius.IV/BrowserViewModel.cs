@@ -152,7 +152,21 @@ public sealed class BrowserViewModel : ObservableObject
 
     public string Title =>
         (HasUnsavedChanges ? "*" : string.Empty) +
-        (_folder is null ? AppTitle : $"{Path.GetFileName(_folder.TrimEnd(Path.DirectorySeparatorChar))} - {AppTitle}");
+        (_folder is null ? AppTitle : $"{Path.GetFileName(_folder.TrimEnd(Path.DirectorySeparatorChar))} - {AppTitle}") +
+        (LicenceNote is null ? string.Empty : $" ({LicenceNote})");
+
+    private string? _licenceNote;
+
+    /// <summary>"Trial - 3 days left", after the title; null with a licence with no end.</summary>
+    public string? LicenceNote
+    {
+        get => _licenceNote;
+        set
+        {
+            if (SetProperty(ref _licenceNote, value))
+                OnPropertyChanged(nameof(Title));
+        }
+    }
 
     /// <summary>Lists the pictures in sub-folders too: a station saves a folder for each day.</summary>
     public bool IncludeSubfolders

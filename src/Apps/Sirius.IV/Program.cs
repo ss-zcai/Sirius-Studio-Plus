@@ -1,4 +1,5 @@
 using System.IO;
+using Sirius.Core.Licensing;
 using Sirius.UI;
 using Sirius.UI.Hosting;
 
@@ -16,6 +17,9 @@ namespace Sirius.IV;
 /// </remarks>
 public static class Program
 {
+    /// <summary>What Sirius IV's licence codes are made for: <c>LicenceMaker make --product IV</c>.</summary>
+    public const string LicenceProduct = "IV";
+
     [STAThread]
     public static int Main(string[] args)
     {
@@ -28,11 +32,21 @@ public static class Program
             return 2;
         }
 
+        // A licence for this PC first (decision 97): without one, only the
+        // licence window opens.
+        var licence = LicenceStore.ForThisPc(LicenceProduct, BrowserViewModel.AppTitle);
+        var state = licence.Check();
+
+        if (!state.IsValid && !LicenceWindow.Ask(null, licence, state))
+            return 3;
+
         var model = new BrowserViewModel(Path.Combine(SiriusHost.SettingsFolder, "sirius-iv.json"));
         var window = new ViewerWindow(model)
         {
             StartWith = args.FirstOrDefault(arg => !arg.StartsWith("--", StringComparison.Ordinal)),
         };
+
+        window.WatchLicence(licence);
 
         // Where it was, maximised or not, as Studio does.
         Sirius.UI.Layout.WindowPlacement.Remember(window, Path.Combine(SiriusHost.SettingsFolder, "iv-window.json"));

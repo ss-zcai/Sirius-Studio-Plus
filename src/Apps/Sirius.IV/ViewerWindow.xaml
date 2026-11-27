@@ -249,6 +249,8 @@
                 <MenuItem Header="_Annotations" Click="OnShowAnnotations" />
             </MenuItem>
             <MenuItem Header="_Help">
+                <MenuItem Header="_Licence…" Click="OnLicenceClick" />
+                <Separator />
                 <MenuItem Header="_About Sirius IV…" Click="OnAboutClick" />
             </MenuItem>
         </Menu>
