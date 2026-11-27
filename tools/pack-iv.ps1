@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-    Publishes Sirius IV on its own and zips it, for testing the image
-    viewer without the rest of the suite.
+    Publishes Sirius IV on its own, and zips it and makes its installer,
+    for testing the image viewer without the rest of the suite.
 
 .DESCRIPTION
     Self-contained, as the full package is: a tester needs nothing
@@ -12,6 +12,11 @@
     the package name and its About box cannot disagree. The full package,
     tools/pack.ps1, carries the same SiriusIV.exe beside the other programs.
 
+    The installer, SiriusIV-<version>-Setup.exe, is made from the same
+    published folder by Inno Setup 6 (tools/installer/SiriusIV.iss); its
+    compiler is looked for where Inno Setup installs, or given with
+    -InnoSetup.
+
 .EXAMPLE
     pwsh tools/pack-iv.ps1
 #>
@@ -21,7 +26,13 @@ param(
     [string] $OutputDirectory = 'dist',
 
     # Skip the tests. For a quick local package only.
-    [switch] $SkipTests
+    [switch] $SkipTests,
+
+    # The zip only, without the installer.
+    [switch] $NoInstaller,
+
+    # Inno Setup's compiler, ISCC.exe, when not where it installs.
+    [string] $InnoSetup
 )
 
 $ErrorActionPreference = 'Stop'
@@ -112,7 +123,37 @@ if (Test-Path $zip) { Remove-Item $zip -Force }
 Write-Host 'Compressing...'
 Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zip -CompressionLevel Optimal
 
-Remove-Item $staging -Recurse -Force
-
 $size = [math]::Round((Get-Item $zip).Length / 1MB, 1)
 Write-Host "Wrote $zip ($size MB)" -ForegroundColor Green
+
+# ---- installer ---------------------------------------------------------------
+
+if (-not $NoInstaller) {
+    $iscc = @(
+        $InnoSetup
+        (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe')
+        (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe')
+        (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
+    ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+
+    if (-not $iscc) {
+        Remove-Item $staging -Recurse -Force
+        throw 'Inno Setup 6 is not installed (winget install JRSoftware.InnoSetup), or give -InnoSetup; -NoInstaller for the zip alone.'
+    }
+
+    $output = (Resolve-Path $OutputDirectory).Path
+    $setup = Join-Path $output "SiriusIV-$version-Setup.exe"
+    if (Test-Path $setup) { Remove-Item $setup -Force }
+
+    Write-Host 'Making the installer...'
+    & $iscc /Q "/DAppVersion=$version" "/DSourceDir=$staging" "/DOutputDir=$output" 'tools/installer/SiriusIV.iss'
+    if ($LASTEXITCODE -ne 0) {
+        Remove-Item $staging -Recurse -Force
+        throw 'The installer was not made.'
+    }
+
+    $size = [math]::Round((Get-Item $setup).Length / 1MB, 1)
+    Write-Host "Wrote $setup ($size MB)" -ForegroundColor Green
+}
+
+Remove-Item $staging -Recurse -Force

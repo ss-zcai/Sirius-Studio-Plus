@@ -5,6 +5,55 @@ what is worth pointing a tester at.
 
 ---
 
+## Sirius IV 1.0.5 — 27 November 2026 (a package of its own, with an installer)
+
+Sirius IV alone, for the team's trial, now with an installer:
+`SiriusIV-1.0.5-Setup.exe`. It installs for you alone - no
+administrator needed - into `%LOCALAPPDATA%\Programs\Sirius IV`, with
+a Start menu entry, a desktop icon if you choose one, and an uninstaller
+in Windows Settings ▸ Apps. Windows may warn that the publisher is
+unknown: the installer is not signed yet - **More info ▸ Run anyway**.
+`SiriusIV-1.0.5-win-x64.zip` is the same, to unzip and run. The rest of
+the suite is as in 1.0.14.
+
+### What to try first
+
+> Start Sirius IV: it asks for a licence code
+
+Sirius IV now needs a licence code for each PC (decision 97). The first
+start shows only the licence window, with this PC's **machine ID**:
+**Copy** it and send it to whoever hands out the trial, then paste the
+code you get back and **Enter Code**. A trial runs to the day it says -
+the title shows the days left - and a code with no end runs for good.
+Help ▸ Licence takes a new code at any time.
+
+### New
+
+- **Licence codes**: a trial of some days, or no end, for one PC. When a
+  trial ends, Sirius IV locks - with it open, within ten minutes - and
+  opens again only with a new code; measurements not saved are asked
+  about first. A PC clock put back stops a trial until it is right.
+- **Copy a picture's path from its viewer**: right-click a viewer's tab
+  for **Copy Name**, **Copy Full Path** and **Show in Explorer** of the
+  picture in that viewer. With pictures matched, the list's line is the
+  set's first picture, so this is how the third or fourth of a set is
+  copied.
+
+### Changes
+
+- **Show ▸ Passed** with pictures matched lists the sets whose badge
+  says PASS. It listed every set with any picture that passed - almost
+  all of them, as a station's set nearly always holds one.
+
+### Known issues
+
+- The installer and program are not code-signed, so Windows SmartScreen
+  warns on first run.
+- A code is for one Windows installation: a PC reinstalled needs a new
+  one.
+
+---
+
 ## Sirius IV 1.0.4 — 24 November 2026 (a package of its own)
 
 Sirius IV alone, for testing the earlier image viewer's annotation files:

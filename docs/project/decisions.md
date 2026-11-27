@@ -3905,3 +3905,23 @@ Sirius IV alone.
   key means a new build and new codes for everyone.
 - **Sirius IV only.** Studio, Builder and Edge are not licensed yet; the
   store and the codes take a product name, so they can follow.
+
+## 98. Sirius IV's installer: Inno Setup, for the user alone
+
+27 November 2026, asked for to hand Sirius IV to the team for an
+internal trial.
+
+- **Inno Setup 6**, free (jrsoftware.org asks commercial users to
+  consider a licence), over WiX: one `SiriusIV-<version>-Setup.exe` from
+  the same published folder as the zip, by `tools/pack-iv.ps1`, from
+  `tools/installer/SiriusIV.iss`. An MSI can follow if an IT department
+  asks for one.
+- **For the user alone** by default - no administrator - into
+  `%LOCALAPPDATA%\Programs\Sirius IV`; all users and Program Files when
+  chosen, with administrator rights. A Start menu entry, a desktop icon
+  if chosen, an uninstaller in Settings ▸ Apps; one AppId for every
+  version, so a newer one installs over the older.
+- **The licence outlives it**: the code is kept in the user's folder,
+  not the program's, so reinstalling or updating does not ask again.
+- **Not signed** yet: SmartScreen warns on first run until there is a
+  code-signing certificate.

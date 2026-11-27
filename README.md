@@ -130,8 +130,10 @@ Two rules the engine depends on:
 | `tools/pack.ps1` | `dist/SiriusStudioPlus-<version>-win-x64.zip` | testers: all five programs, the samples, the guides |
 | `tools/pack-sdk.ps1` | `dist/Sirius.Plugins-SDK-<version>.zip` | teams writing custom nodes |
 | `tools/pack-plc-kit.ps1` | `dist/Sirius-PLC-Kit-<interface>-Builder-<builder>-win-x64.zip` | the PLC team: Builder, the driver SDK, a sample driver |
+| `tools/pack-iv.ps1` | `dist/SiriusIV-<version>-Setup.exe` and `-win-x64.zip` | Sirius IV alone; the installer needs Inno Setup 6 (`winget install JRSoftware.InnoSetup`) |
 
-Every package is self-contained - unzip and run, nothing installed - and
+Every package is self-contained - unzip and run, nothing installed, or
+Sirius IV's installer - and
 each script checks its output before zipping: the tests pass, the files
 that must ship are there (licence notices, the node reference), the
 programs' stamped versions match, and the samples build and pass their
