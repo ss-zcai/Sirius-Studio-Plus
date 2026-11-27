@@ -44,6 +44,9 @@ internal sealed class WorkflowPass
     /// <summary>Late or not inspected, when a station gave no result; null when every one did.</summary>
     public PartVerdict? Missed { get; set; }
 
+    /// <summary>The result a missed part gets, from its station's list (F33); null for none.</summary>
+    public Sirius.Core.Projects.ResultCode? MissedResult { get; set; }
+
     /// <summary>Why it was missed.</summary>
     public string? MissedWhy { get; set; }
 }
@@ -189,6 +192,13 @@ public sealed class WorkflowStep
 
     /// <summary>A detail in the controller's log - each read and write - shown when asked for.</summary>
     public void Trace(string message) => _runner.Write(WorkflowLogLevel.Trace, Node, message);
+
+    /// <summary>The outputs' values kept for the pass, without what was fired: a node that failed giving some.</summary>
+    internal void CommitValues()
+    {
+        foreach (var (output, value) in _set)
+            _pass.Values[output] = value;
+    }
 
     internal void Commit()
     {

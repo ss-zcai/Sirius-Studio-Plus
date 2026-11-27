@@ -26,6 +26,12 @@ public interface IStationBus
     StationState? StateOf(string station) => null;
 
     /// <summary>
+    /// The results <paramref name="station"/> gives (F33) - for a part it
+    /// gave none in time; PASS and FAIL when not known.
+    /// </summary>
+    Projects.ResultList ResultsOf(string station) => Projects.ResultList.Default;
+
+    /// <summary>
     /// Raised after every inspection of every station, however it was
     /// started - on the stations' thread, so a handler copies what it needs
     /// and returns. The snapshot's pictures are valid only during the call.
@@ -61,6 +67,9 @@ public sealed class ProjectStationBus : IStationBus, IDisposable
 
     /// <remarks>Read as it is, from whichever thread asks: a state is one value, and a moment old is fine.</remarks>
     public StationState? StateOf(string station) => _runtime.Find(station)?.State;
+
+    /// <remarks>Read as it is: a station's list is set when it is opened, and does not change while it runs.</remarks>
+    public Projects.ResultList ResultsOf(string station) => _runtime.Find(station)?.Results ?? Projects.ResultList.Default;
 
     public event EventHandler<InspectionSnapshot>? Inspected;
 

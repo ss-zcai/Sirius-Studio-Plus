@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sirius.Core.Projects;
 
 namespace Sirius.Core.Runtime;
 
@@ -60,7 +61,10 @@ public static class StationCountsFile
                     Math.Max(0, kept.Passed),
                     Math.Max(0, kept.Failed),
                     Math.Max(0, kept.Unjudged),
-                    Math.Max(0, kept.WithErrors));
+                    Math.Max(0, kept.WithErrors))
+                {
+                    NotCounted = Math.Max(0, kept.NotCounted),
+                };
 
                 var timing = new StationTiming(
                     Math.Max(0, kept.Timed),
@@ -79,9 +83,25 @@ public static class StationCountsFile
         return (StationCounts.Zero, StationTiming.Zero);
     }
 
-    /// <summary>Keeps the counts and timing.</summary>
+    /// <summary>How many of each result were kept (F33); none when there are none or they cannot be read.</summary>
+    public static ResultTally LoadResults(string path)
+    {
+        try
+        {
+            if (File.Exists(path) && JsonSerializer.Deserialize<Document>(File.ReadAllText(path), Options) is { } kept)
+                return ResultTally.Of(kept.Results);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // Counts that cannot be read start again.
+        }
+
+        return ResultTally.Empty;
+    }
+
+    /// <summary>Keeps the counts and timing, and how many of each result.</summary>
     /// <returns>Why they could not be kept, or null.</returns>
-    public static string? Save(string path, StationCounts counts, StationTiming timing)
+    public static string? Save(string path, StationCounts counts, StationTiming timing, ResultTally? results = null)
     {
         try
         {
@@ -94,6 +114,8 @@ public static class StationCountsFile
                 Failed = counts.Failed,
                 Unjudged = counts.Unjudged,
                 WithErrors = counts.WithErrors,
+                NotCounted = counts.NotCounted,
+                Results = results is null || results.Counts.Count == 0 ? null : results.Counts.ToDictionary(StringComparer.OrdinalIgnoreCase),
                 Timed = timing.Count,
                 TotalMs = timing.Total.TotalMilliseconds,
                 WorstMs = timing.Worst.TotalMilliseconds,
@@ -123,6 +145,12 @@ public static class StationCountsFile
         public long Unjudged { get; set; }
 
         public long WithErrors { get; set; }
+
+        public long NotCounted { get; set; }
+
+        /// <summary>How many of each result, by name (F33).</summary>
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        public Dictionary<string, long>? Results { get; set; }
 
         public long Timed { get; set; }
 

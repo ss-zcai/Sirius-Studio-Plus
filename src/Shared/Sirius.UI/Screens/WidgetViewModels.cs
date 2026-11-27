@@ -289,7 +289,7 @@ public sealed class CounterWidgetViewModel(Widget widget) : WidgetViewModel(widg
         var line = $"Late {parts.Late} · not inspected {parts.NotInspected}";
 
         return _lastPart is { } last
-            ? $"{line} · last {last.Id}: {last.VerdictWord}"
+            ? $"{line} · last {last.Id}: {last.Word}"
             : line;
     }
 

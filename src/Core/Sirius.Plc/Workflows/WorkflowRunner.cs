@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Threading.Channels;
 using Sirius.Core.Graph;
+using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 
 namespace Sirius.Plc.Workflows;
@@ -118,6 +119,7 @@ public sealed class WorkflowRunner : IAsyncDisposable
 
     private readonly object _partGate = new();
     private PartCounts _partCounts = PartCounts.Zero;
+    private ResultTally _partResults = ResultTally.Empty;
     private long _nextPart = 1;
     private PartRecord? _lastPart;
     private string? _countsPath;
@@ -167,6 +169,16 @@ public sealed class WorkflowRunner : IAsyncDisposable
         }
     }
 
+    /// <summary>How many parts had each result (F33), by name - kept and reset with <see cref="PartCounts"/>.</summary>
+    public ResultTally PartResultCounts
+    {
+        get
+        {
+            lock (_partGate)
+                return _partResults;
+        }
+    }
+
     /// <summary>The last part judged, or null.</summary>
     public PartRecord? LastPart
     {
@@ -186,11 +198,13 @@ public sealed class WorkflowRunner : IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         var (counts, next) = PartCountsFile.Load(path);
+        var results = PartCountsFile.LoadResults(path);
 
         lock (_partGate)
         {
             _countsPath = path;
             _partCounts = counts;
+            _partResults = results;
             _nextPart = next;
         }
     }
@@ -202,7 +216,10 @@ public sealed class WorkflowRunner : IAsyncDisposable
     public void ResetPartCounts()
     {
         lock (_partGate)
+        {
             _partCounts = PartCounts.Zero;
+            _partResults = ResultTally.Empty;
+        }
 
         SaveCounts();
         StatusChanged?.Invoke(this, EventArgs.Empty);
@@ -610,7 +627,10 @@ public sealed class WorkflowRunner : IAsyncDisposable
                 PartVerdict.NotInspected,
                 open.Opened,
                 now - open.Opened,
-                $"its set was not completed: {taken} shot{(taken == 1 ? string.Empty : "s")} taken");
+                $"its set was not completed: {taken} shot{(taken == 1 ? string.Empty : "s")} taken")
+            {
+                Result = Stations?.ResultsOf(open.Station).NotInspectedResult,
+            };
 
             Count(part);
             return part;
@@ -621,7 +641,8 @@ public sealed class WorkflowRunner : IAsyncDisposable
     {
         lock (_partGate)
         {
-            _partCounts = _partCounts.Add(part.Verdict);
+            _partCounts = _partCounts.Add(part.Verdict, part.Result);
+            _partResults = _partResults.Add(part.Result);
             _lastPart = part;
         }
 
@@ -630,7 +651,7 @@ public sealed class WorkflowRunner : IAsyncDisposable
         Write(
             part.Verdict == PartVerdict.Passed ? WorkflowLogLevel.Info : WorkflowLogLevel.Warning,
             null,
-            $"Part {part.Id}: {part.VerdictWord}{(part.Problem is null ? string.Empty : $" - {part.Problem}")}.");
+            $"Part {part.Id}: {part.Word}{(part.Problem is null ? string.Empty : $" - {part.Problem}")}.");
     }
 
     /// <summary>The part a pass judged, counted and kept; null when it inspected nothing.</summary>
@@ -665,7 +686,10 @@ public sealed class WorkflowRunner : IAsyncDisposable
             verdict,
             DateTime.Now - duration,
             duration,
-            pass.MissedWhy);
+            pass.MissedWhy)
+        {
+            Result = PartRecord.ResultOf(pass.Shots, pass.Missed, pass.MissedResult),
+        };
 
         Count(part);
         return part;
@@ -682,16 +706,18 @@ public sealed class WorkflowRunner : IAsyncDisposable
     {
         string? path;
         PartCounts counts;
+        ResultTally results;
         long next;
 
         lock (_partGate)
         {
             path = _countsPath;
             counts = _partCounts;
+            results = _partResults;
             next = _nextPart;
         }
 
-        if (path is not null && PartCountsFile.Save(path, counts, next) is { } problem)
+        if (path is not null && PartCountsFile.Save(path, counts, next, results) is { } problem)
             Write(WorkflowLogLevel.Warning, null, problem);
     }
 
@@ -713,8 +739,17 @@ public sealed class WorkflowRunner : IAsyncDisposable
             .ToArray();
 
         // A value that failed to come is that node's failure, said once
-        // there: what needed it does not run on without it.
-        if (feeding.Any(pass.Failed.Contains))
+        // there: what needed it does not run on without it. A node that
+        // failed may still have given some - Inspect's result and code for a
+        // part it missed (F33) - and what reads only those runs.
+        var failedFeeding = node.Inputs
+            .Where(input => input.DataType != typeof(Signal))
+            .Select(input => input.Connection?.Source)
+            .Any(source => source is not null && source.DataType != typeof(Signal)
+                           && pass.Reached.Contains(source.Node) && pass.Failed.Contains(source.Node)
+                           && !pass.Values.ContainsKey(source));
+
+        if (failedFeeding)
             return false;
 
         if (triggers.Length > 0)
@@ -752,14 +787,14 @@ public sealed class WorkflowRunner : IAsyncDisposable
 
             // A station past its deadline: the part is late, a reject.
             if (node.Inspects)
-                Missed(pass, PartVerdict.Late, $"{node.Name}: no result within {timeout.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture)} ms");
+                Missed(pass, PartVerdict.Late, $"{node.Name}: no result within {timeout.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture)} ms", MissedOutputs(node, step, late: true));
 
             Fail(node, pass, why);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (node.Inspects)
-                Missed(pass, PartVerdict.NotInspected, $"{node.Name}: {ex.Message.TrimEnd('.')}");
+                Missed(pass, PartVerdict.NotInspected, $"{node.Name}: {ex.Message.TrimEnd('.')}", MissedOutputs(node, step, late: false));
 
             Fail(node, pass, ex.Message);
         }
@@ -767,18 +802,43 @@ public sealed class WorkflowRunner : IAsyncDisposable
         return false;
     }
 
+    /// <summary>
+    /// What a node gives for a part it missed - the result and its code (F33) -
+    /// kept for what follows Failed; a node that throws doing it gives nothing.
+    /// </summary>
+    private static ResultCode? MissedOutputs(WorkflowNode node, WorkflowStep step, bool late)
+    {
+        try
+        {
+            var result = node.Missed(step, late);
+            step.CommitValues();
+            return result;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>A station gave no result for the part; late wins over not inspected, the first reason is kept.</summary>
-    private static void Missed(WorkflowPass pass, PartVerdict how, string why)
+    private static void Missed(WorkflowPass pass, PartVerdict how, string why, ResultCode? result)
     {
         if (pass.Missed == PartVerdict.Late)
             return;
 
         pass.Missed = how;
         pass.MissedWhy ??= why;
+        pass.MissedResult = ResultCodeWorst(pass.MissedResult, result);
 
         if (how == PartVerdict.Late)
+        {
             pass.MissedWhy = why;
+            pass.MissedResult = result ?? pass.MissedResult;
+        }
     }
+
+    private static ResultCode? ResultCodeWorst(ResultCode? a, ResultCode? b) =>
+        ResultCode.Worst([a, b]);
 
     /// <summary>Tells whoever watches - an editor lighting its nodes - and never lets them stop the pass.</summary>
     private void Report(WorkflowPass pass, VisionNode node, WorkflowNodeState state, TimeSpan took, string? message = null)

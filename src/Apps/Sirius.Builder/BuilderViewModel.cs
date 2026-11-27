@@ -72,6 +72,7 @@ public sealed partial class BuilderViewModel : ObservableObject
         OpenInStudioCommand = new RelayCommand<StationViewModel>(station => OpenInStudio(station));
         LineSettingsCommand = new RelayCommand<StationViewModel>(ShowLineSettings);
         ImageSavingCommand = new RelayCommand<StationViewModel>(ShowImageSaving);
+        ResultsCommand = new RelayCommand<StationViewModel>(ShowResults);
         BrowseImagesCommand = new RelayCommand<StationViewModel>(station => BrowseImages(station));
         TestRunCommand = new RelayCommand(() => TestRun(), () => HasProject);
 
@@ -509,6 +510,9 @@ public sealed partial class BuilderViewModel : ObservableObject
     public IRelayCommand<StationViewModel> LineSettingsCommand { get; }
 
     public IRelayCommand<StationViewModel> ImageSavingCommand { get; }
+
+    /// <summary>The results a station gives its parts, and their PLC codes (F33).</summary>
+    public IRelayCommand<StationViewModel> ResultsCommand { get; }
 
     public IRelayCommand<StationViewModel> BrowseImagesCommand { get; }
 
@@ -988,6 +992,15 @@ public sealed partial class BuilderViewModel : ObservableObject
 
         if (ImageSavingWindow.Show(Application.Current?.MainWindow, new ImageSavingViewModel(project, station.Station)))
             StatusText = $"{station.Name}: {station.SavingText.ToLowerInvariant()}.";
+    }
+
+    private void ShowResults(StationViewModel? station)
+    {
+        if (station is null || _project is not { } project)
+            return;
+
+        if (ResultsWindow.Show(Application.Current?.MainWindow, new ResultsViewModel(project, station.Station)))
+            StatusText = $"{station.Name} gives {station.Station.Results.Summary}.";
     }
 
     /// <summary>

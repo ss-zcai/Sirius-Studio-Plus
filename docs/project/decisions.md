@@ -3933,3 +3933,53 @@ internal trial.
   not the program's, so reinstalling or updating does not ask again.
 - **Not signed** yet: SmartScreen warns on first run until there is a
   code-signing certificate.
+
+## 99. Result codes: a station's own list, first slice (F33a)
+
+Built 27 November 2026 to the F33 design agreed on 23 November: lines
+with three results, or four, or more, the list and its meaning the
+line's, not ours.
+
+- **A list per station**, set in Builder (Station ▸ Results…): each
+  result a **name** (letters, digits and '-', as it goes into the
+  pictures' names; NONE, RECEIVED and LATE taken), a **colour**, a **PLC
+  code**, and **counts as** - Pass, Fail, or Not counted. Best first:
+  further down is worse. At least one Pass and one Fail; no two names or
+  codes alike. A station without a list has **PASS 1 and FAIL 2**, not
+  written in the project, so a project from before runs as it did.
+- **What an inspection is given**: the recipe's grade with a result's
+  name is that result, whether the recipe passed the grade or not; else a
+  part the recipe passed is the first Pass result and one it failed the
+  first Fail. A result called **ERROR**, if the list has one, is given
+  when a node went wrong without failing the part; without one, ERROR
+  stays a picture's word, as before. A recipe that judges nothing gives
+  no result: code 0.
+- **Accepted by the result.** `Verdict.Accepted` is the line's answer -
+  a REVIEW is not accepted though the recipe's Grade node passed it - and
+  is what Inspect's Passed and Pass/Fail, the counts, "Failed only"
+  saving and the `.sann`'s `passed` go by. `Verdict.Passed` stays the
+  recipe's own.
+- **Missed parts**: the list says what a **late** part and one **not
+  inspected** get - FAIL unless chosen, never a Pass result. Inspect
+  gives that Verdict and Code before Failed fires, so the write after
+  Failed sends the code; a node that failed may now feed what reads only
+  the values it gave.
+- **Combining**: a part judged at several stations in one pass takes the
+  worst: a Fail over a Not counted over a Pass, then the further down its
+  list. Late and not inspected stay counted by what happened, whatever
+  result they were given.
+- **Counts**: a result Not counted is counted on its own (`NotCounted`)
+  and left out of the yield - a station's, and a controller's parts'. A
+  tally per result, by name, is kept in each counts file beside the
+  totals and reset with them.
+- **Pictures**: named by the result (`_REVIEW`), the `.sann` gaining
+  `result` and `code`. Housekeeping deletes pictures of a Pass result
+  first, as PASS; any other result is kept as long as a failure. Sirius IV
+  reads any result from a name; anything but PASS and NONE is not passed.
+
+Left for the next slices: counts per result and the yield on Edge's
+screens; Image Saving choosing results; IV's filter and colours by
+result; the REVIEW cycle - the part's inspection number, branching by
+result, the workflow giving the part its final result, counted once - and
+a trigger per result on Inspect; a node grading by rules (blobs under N
+px² REVIEW).

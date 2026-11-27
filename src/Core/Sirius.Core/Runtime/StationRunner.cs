@@ -27,21 +27,35 @@ public enum StationState
 }
 
 /// <summary>A station's tally since it started or was last reset.</summary>
+/// <remarks>
+/// Passed and failed are by the station's results (F33): a result that is
+/// not counted - NoLens, nothing to inspect - is counted on its own, in
+/// <see cref="NotCounted"/>, and left out of the yield.
+/// </remarks>
 public sealed record StationCounts(long Total, long Passed, long Failed, long Unjudged, long WithErrors)
 {
     public static readonly StationCounts Zero = new(0, 0, 0, 0, 0);
 
+    /// <summary>Given a result that is not counted: neither passed nor failed, out of the yield.</summary>
+    public long NotCounted { get; init; }
+
     /// <summary>Passed as a percentage of those judged.</summary>
     public double Yield => Passed + Failed == 0 ? 0 : 100.0 * Passed / (Passed + Failed);
 
-    internal StationCounts Add(Verdict verdict, bool hadErrors) => this with
+    internal StationCounts Add(Verdict verdict, bool hadErrors)
     {
-        Total = Total + 1,
-        Passed = Passed + (verdict.Passed == true ? 1 : 0),
-        Failed = Failed + (verdict.Passed == false ? 1 : 0),
-        Unjudged = Unjudged + (verdict.Passed is null ? 1 : 0),
-        WithErrors = WithErrors + (hadErrors ? 1 : 0),
-    };
+        var notCounted = verdict.Result?.CountsAs == ResultCounting.NotCounted;
+
+        return this with
+        {
+            Total = Total + 1,
+            Passed = Passed + (verdict.Accepted == true ? 1 : 0),
+            Failed = Failed + (verdict.Accepted == false && !notCounted ? 1 : 0),
+            Unjudged = Unjudged + (verdict.Accepted is null ? 1 : 0),
+            WithErrors = WithErrors + (hadErrors ? 1 : 0),
+            NotCounted = NotCounted + (notCounted ? 1 : 0),
+        };
+    }
 }
 
 /// <summary>
@@ -154,6 +168,8 @@ public sealed class StationRunner : ObservableObject, IDisposable
     private bool _inPass;
     private StationState _state;
     private StationCounts _counts = StationCounts.Zero;
+    private ResultTally _resultCounts = ResultTally.Empty;
+    private ResultList _results = ResultList.Default;
     private StationTiming _timing = StationTiming.Zero;
     private string? _countsPath;
     private DateTime _countsSaved;
@@ -245,6 +261,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
             {
                 RecipeName = Path.GetFileName(path),
                 ShotsPerPart = station.ShotsPerPart,
+                Results = station.Results,
             };
 
             // Its counts carry on from the last run (F4).
@@ -320,6 +337,23 @@ public sealed class StationRunner : ObservableObject, IDisposable
         private set => SetProperty(ref _counts, value);
     }
 
+    /// <summary>How many of each result it has given (F33), by name, since its counts were last reset.</summary>
+    public ResultTally ResultCounts
+    {
+        get => _resultCounts;
+        private set => SetProperty(ref _resultCounts, value);
+    }
+
+    /// <summary>
+    /// The results it gives its parts (F33): the station's list in the
+    /// project, PASS and FAIL unless chosen.
+    /// </summary>
+    public ResultList Results
+    {
+        get => _results;
+        set => _results = value ?? ResultList.Default;
+    }
+
     /// <summary>How long its inspections take: average, worst, the last.</summary>
     public StationTiming Timing
     {
@@ -338,6 +372,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
 
         _countsPath = path;
         (Counts, Timing) = StationCountsFile.Load(path);
+        ResultCounts = StationCountsFile.LoadResults(path);
     }
 
     /// <summary>Writes the counts, now or - <paramref name="soon"/> - when a second has passed since the last time.</summary>
@@ -348,7 +383,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
 
         _countsSaved = DateTime.UtcNow;
 
-        if (StationCountsFile.Save(path, Counts, Timing) is { } problem)
+        if (StationCountsFile.Save(path, Counts, Timing, ResultCounts) is { } problem)
             LastError = problem;
     }
 
@@ -454,6 +489,7 @@ public sealed class StationRunner : ObservableObject, IDisposable
     public void ResetCounts()
     {
         Counts = StationCounts.Zero;
+        ResultCounts = ResultTally.Empty;
         Timing = StationTiming.Zero;
         SaveCounts();
     }
@@ -693,6 +729,10 @@ public sealed class StationRunner : ObservableObject, IDisposable
         var received = result.IsWaiting;
         var verdict = received ? new Verdict(null, null, 0, 0) : Verdicts.Of(Recipe, scheduler.GetOutput);
 
+        // The station's result for it (F33): its grade by name, else passed or failed.
+        if (!received)
+            verdict = verdict with { Result = Results.For(verdict, result.Failed) };
+
         var snapshot = new InspectionSnapshot(
             Name,
             ++_serial,
@@ -711,7 +751,10 @@ public sealed class StationRunner : ObservableObject, IDisposable
 
         // A part is counted once, at its last shot.
         if (!received)
+        {
             Counts = Counts.Add(verdict, result.Failed > 0);
+            ResultCounts = ResultCounts.Add(verdict.Result);
+        }
 
         Timing = Timing.Add(snapshot.Duration);
         LastError = result.Failed > 0 ? FailureText() : null;

@@ -22,6 +22,7 @@ public sealed class Station : ObservableObject
     private ImageSaving _saving = ImageSaving.Off;
     private string? _camera;
     private int _shotsPerPart = 1;
+    private ResultList _results = ResultList.Default;
 
     public Station(string name, string recipe)
     {
@@ -76,6 +77,17 @@ public sealed class Station : ObservableObject
 
     /// <summary>The most pictures a part may take: 2 cameras under 4 lights is 8; room beyond.</summary>
     public const int MostShots = 16;
+
+    /// <summary>
+    /// The results it gives its parts (F33) - name, colour, PLC code, how
+    /// each counts - and which a late part, or one not inspected, gets.
+    /// PASS and FAIL unless chosen in Builder.
+    /// </summary>
+    public ResultList Results
+    {
+        get => _results;
+        internal set => SetProperty(ref _results, value ?? ResultList.Default);
+    }
 
     /// <summary>
     /// The project camera it takes its pictures from, by name; null for the
@@ -308,6 +320,23 @@ public sealed class Project
             if (record.Shots is { } shots)
                 station.ShotsPerPart = shots;
 
+            if (record.Results is { } results)
+            {
+                var list = new ResultList(
+                    results.List?.Where(result => result is not null).Select(result => new ResultCode(
+                        result!.Name?.Trim() ?? string.Empty,
+                        result.Code,
+                        ParseEnum(result.Counts?.Replace(" ", string.Empty, StringComparison.Ordinal), ResultCounting.Fail),
+                        result.Colour?.Trim() ?? "#8B949E")) ?? [],
+                    results.Late,
+                    results.NotInspected);
+
+                if (list.Problem() is { } problem)
+                    warnings.Add($"Station '{name}': its results could not be used ({problem}); it gives PASS and FAIL.");
+                else
+                    station.Results = list;
+            }
+
             if (!string.IsNullOrWhiteSpace(record.Camera))
             {
                 if (project.FindCamera(record.Camera) is { } camera)
@@ -423,6 +452,20 @@ public sealed class Project
                     Recipe = station.Recipe,
                     Camera = station.Camera,
                     Shots = station.ShotsPerPart > 1 ? station.ShotsPerPart : null,
+                    Results = station.Results.IsDefault ? null : new ResultsRecord
+                    {
+                        List = station.Results
+                            .Select(result => (ResultRecord?)new ResultRecord
+                            {
+                                Name = result.Name,
+                                Code = result.Code,
+                                Counts = Camel(result.CountsAs),
+                                Colour = result.Colour,
+                            })
+                            .ToList(),
+                        Late = station.Results.Late,
+                        NotInspected = station.Results.NotInspected,
+                    },
                     Limits = station.Limits.Count == 0
                         ? null
                         : station.Limits.ToDictionary(
@@ -854,6 +897,26 @@ public sealed class Project
         return true;
     }
 
+    /// <summary>The results <paramref name="station"/> gives its parts (F33). Written at once.</summary>
+    /// <returns>Whether it changed.</returns>
+    /// <exception cref="ArgumentException">The list cannot be a station's: <see cref="ResultList.Problem"/> says why.</exception>
+    public bool SetResults(Station station, ResultList results)
+    {
+        ArgumentNullException.ThrowIfNull(station);
+        ArgumentNullException.ThrowIfNull(results);
+
+        if (results.Problem() is { } problem)
+            throw new ArgumentException(problem, nameof(results));
+
+        if (station.Results.Equals(results))
+            return false;
+
+        station.Results = results;
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
     /// <summary>How many pictures make a part at a station (F26), 1 to <see cref="Station.MostShots"/>.</summary>
     /// <returns>Whether it changed.</returns>
     public bool SetShotsPerPart(Station station, int shots)
@@ -1098,6 +1161,14 @@ public sealed class Project
 
     private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>"pass", "notCounted" - an enum as the project file writes it.</summary>
+    private static string Camel<T>(T value)
+        where T : struct, Enum
+    {
+        var text = value.ToString();
+        return char.ToLowerInvariant(text[0]) + text[1..];
+    }
+
     private static T ParseEnum<T>(string? text, T fallback)
         where T : struct, Enum =>
         Enum.TryParse<T>(text, ignoreCase: true, out var value) && Enum.IsDefined(value) ? value : fallback;
@@ -1210,6 +1281,40 @@ public sealed class Project
         /// <summary>Which pictures it keeps; absent for none.</summary>
         [JsonPropertyName("images")]
         public ImagesRecord? Images { get; set; }
+
+        /// <summary>The results it gives (F33); absent for PASS and FAIL.</summary>
+        [JsonPropertyName("results")]
+        public ResultsRecord? Results { get; set; }
+    }
+
+    private sealed class ResultsRecord
+    {
+        [JsonPropertyName("list")]
+        public List<ResultRecord?>? List { get; set; }
+
+        /// <summary>The result a late part gets; absent for the first that fails.</summary>
+        [JsonPropertyName("late")]
+        public string? Late { get; set; }
+
+        /// <summary>The result a part not inspected gets; absent for the first that fails.</summary>
+        [JsonPropertyName("notInspected")]
+        public string? NotInspected { get; set; }
+    }
+
+    private sealed class ResultRecord
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("code")]
+        public int Code { get; set; }
+
+        /// <summary>pass, fail or notCounted.</summary>
+        [JsonPropertyName("counts")]
+        public string? Counts { get; set; }
+
+        [JsonPropertyName("colour")]
+        public string? Colour { get; set; }
     }
 
     private sealed class ImagesRecord

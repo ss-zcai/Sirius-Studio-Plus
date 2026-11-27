@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Sirius.Core.Projects;
 using Sirius.Core.Runtime;
 using Sirius.Plc.Nodes;
 
@@ -48,6 +49,22 @@ public sealed record PartRecord(
     TimeSpan Duration,
     string? Problem)
 {
+    /// <summary>
+    /// The part's result (F33): the worst its stations gave - or, missed,
+    /// what its station gives a late part or one not inspected. Null when
+    /// nothing judged it.
+    /// </summary>
+    public ResultCode? Result { get; init; }
+
+    /// <summary>"REVIEW", "FAIL (late)" - its result, and why when it was missed; else <see cref="VerdictWord"/>.</summary>
+    public string Word => Result is not { } result ? VerdictWord
+        : Verdict switch
+        {
+            PartVerdict.Late => $"{result.Name} (late)",
+            PartVerdict.NotInspected => $"{result.Name} (not inspected)",
+            _ => result.Name,
+        };
+
     /// <summary>The name a part's ID goes to a station under, and to the PLC by Result Value.</summary>
     public const string PartIdName = "Part ID";
 
@@ -100,30 +117,65 @@ public sealed record PartRecord(
         var judged = shots.Where(shot => !shot.Received).ToArray();
         return judged.Length > 0 && judged.All(shot => shot.Passed == true) ? PartVerdict.Passed : PartVerdict.Failed;
     }
+
+    /// <summary>
+    /// The result of a part judged from <paramref name="shots"/> - the worst
+    /// any gave: a fail over anything not counted over a pass (F33) - or
+    /// <paramref name="missed"/>'s when a station gave none in time. None
+    /// when a shot was judged without one: a recipe that judges nothing.
+    /// </summary>
+    internal static ResultCode? ResultOf(IReadOnlyList<InspectionResult> shots, PartVerdict? missed, ResultCode? missedResult)
+    {
+        if (missed is not null)
+            return missedResult;
+
+        var judged = shots.Where(shot => !shot.Received).ToArray();
+        return judged.Length == 0 || judged.Any(shot => shot.ResultCode is null)
+            ? null
+            : ResultCode.Worst(judged.Select(shot => shot.ResultCode));
+    }
 }
 
 /// <summary>
 /// A controller's parts: how many, and how they went. What a line is judged
 /// by - beside, or instead of, each station's count of pictures.
 /// </summary>
+/// <remarks>
+/// Late and not inspected are counted by what happened, whatever result
+/// the line gives such a part. A part whose result is not counted (F33) -
+/// NoLens, nothing to inspect - is counted in <see cref="NotCounted"/> and
+/// left out of the yield; judged, it is not among the failed.
+/// </remarks>
 public sealed record PartCounts(long Total, long Passed, long Failed, long Late, long NotInspected)
 {
     public static readonly PartCounts Zero = new(0, 0, 0, 0, 0);
 
-    /// <summary>Every reject: failed, late and not inspected.</summary>
-    public long Rejected => Failed + Late + NotInspected;
+    /// <summary>Given a result that is not counted: out of the yield.</summary>
+    public long NotCounted { get; init; }
 
-    /// <summary>Passed as a percentage of all parts.</summary>
-    public double Yield => Total == 0 ? 0 : 100.0 * Passed / Total;
+    /// <summary>Every part not accepted: failed, late, not inspected, and those given a result not counted.</summary>
+    public long Rejected => Total - Passed;
 
-    internal PartCounts Add(PartVerdict verdict) => this with
+    /// <summary>Passed as a percentage of the parts that count: all, less those given a result not counted.</summary>
+    public double Yield => Total - NotCounted <= 0 ? 0 : 100.0 * Passed / (Total - NotCounted);
+
+    internal PartCounts Add(PartVerdict verdict) => Add(verdict, null);
+
+    internal PartCounts Add(PartVerdict verdict, ResultCode? result)
     {
-        Total = Total + 1,
-        Passed = Passed + (verdict == PartVerdict.Passed ? 1 : 0),
-        Failed = Failed + (verdict == PartVerdict.Failed ? 1 : 0),
-        Late = Late + (verdict == PartVerdict.Late ? 1 : 0),
-        NotInspected = NotInspected + (verdict == PartVerdict.NotInspected ? 1 : 0),
-    };
+        var notCounted = result?.CountsAs == ResultCounting.NotCounted;
+        var passed = verdict == PartVerdict.Passed;
+
+        return this with
+        {
+            Total = Total + 1,
+            Passed = Passed + (passed ? 1 : 0),
+            Failed = Failed + (verdict == PartVerdict.Failed && !passed && !notCounted ? 1 : 0),
+            Late = Late + (verdict == PartVerdict.Late ? 1 : 0),
+            NotInspected = NotInspected + (verdict == PartVerdict.NotInspected ? 1 : 0),
+            NotCounted = NotCounted + (notCounted ? 1 : 0),
+        };
+    }
 }
 
 /// <summary>
@@ -162,7 +214,10 @@ public static class PartCountsFile
                     Math.Max(0, kept.Passed),
                     Math.Max(0, kept.Failed),
                     Math.Max(0, kept.Late),
-                    Math.Max(0, kept.NotInspected));
+                    Math.Max(0, kept.NotInspected))
+                {
+                    NotCounted = Math.Max(0, kept.NotCounted),
+                };
 
                 return (counts, Math.Max(1, kept.NextPart));
             }
@@ -175,9 +230,25 @@ public static class PartCountsFile
         return (PartCounts.Zero, 1);
     }
 
-    /// <summary>Keeps the counts and the next part's number.</summary>
+    /// <summary>How many parts had each result (F33); none when there are none or they cannot be read.</summary>
+    public static ResultTally LoadResults(string path)
+    {
+        try
+        {
+            if (File.Exists(path) && JsonSerializer.Deserialize<Document>(File.ReadAllText(path), Options) is { } kept)
+                return ResultTally.Of(kept.Results);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // Counts that cannot be read start again.
+        }
+
+        return ResultTally.Empty;
+    }
+
+    /// <summary>Keeps the counts, how many parts had each result, and the next part's number.</summary>
     /// <returns>Why they could not be kept, or null.</returns>
-    public static string? Save(string path, PartCounts counts, long nextPart)
+    public static string? Save(string path, PartCounts counts, long nextPart, ResultTally? results = null)
     {
         try
         {
@@ -190,6 +261,8 @@ public static class PartCountsFile
                 Failed = counts.Failed,
                 Late = counts.Late,
                 NotInspected = counts.NotInspected,
+                NotCounted = counts.NotCounted,
+                Results = results is null || results.Counts.Count == 0 ? null : results.Counts.ToDictionary(StringComparer.OrdinalIgnoreCase),
                 NextPart = nextPart,
                 Saved = DateTime.Now,
             };
@@ -216,6 +289,12 @@ public static class PartCountsFile
         public long Late { get; set; }
 
         public long NotInspected { get; set; }
+
+        public long NotCounted { get; set; }
+
+        /// <summary>How many parts had each result, by name (F33).</summary>
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        public Dictionary<string, long>? Results { get; set; }
 
         public long NextPart { get; set; } = 1;
 

@@ -192,6 +192,14 @@ public sealed class PlcWorkflowTests : IDisposable
 
         public StationState? StateOf(string station) => State;
 
+        /// <summary>The stations' results (F33); PASS and FAIL unless a test says.</summary>
+        public ResultList Results { get; set; } = ResultList.Default;
+
+        /// <summary>The grade the recipe gives, by name; none unless a test says.</summary>
+        public string? Grade { get; set; }
+
+        public ResultList ResultsOf(string station) => Results;
+
         /// <summary>Whether the last inspection asked for was cancelled while it ran.</summary>
         public bool WasCancelled { get; private set; }
 
@@ -220,12 +228,17 @@ public sealed class PlcWorkflowTests : IDisposable
                 }
             }
 
+            var errors = CameraFails || RecipeFails ? 1 : 0;
+            var received = Receives?.Invoke(part) ?? false;
+            var verdict = new Verdict(Passes, Grade is null ? null : new Grade(Grade, 1, Passes == true), 1, Passes == false ? 1 : 0);
+
             var snapshot = Snapshot(station, Passes, Interlocked.Increment(ref _serial)) with
             {
+                Verdict = received ? new Verdict(null, null, 0, 0) : verdict with { Result = Results.For(verdict, errors) },
                 Part = part,
-                NodeErrors = CameraFails || RecipeFails ? 1 : 0,
+                NodeErrors = errors,
                 SourceFailed = CameraFails,
-                Received = Receives?.Invoke(part) ?? false,
+                Received = received,
             };
             Inspected?.Invoke(this, snapshot);
             return snapshot;
@@ -994,6 +1007,127 @@ public sealed class PlcWorkflowTests : IDisposable
         Assert.Contains("busy or faulted", pass.Part.Problem);
         Assert.Equal(new PartCounts(1, 0, 0, 0, 1), runner.PartCounts);
         Assert.Equal(1, runner.PartCounts.Rejected);
+    }
+
+    // ---- result codes (F33) -----------------------------------------------------------------
+
+    /// <summary>PASS 1, REVIEW 3 (not counted), FAIL 2.</summary>
+    private static ResultList ReviewResults(string? late = null) => new(
+        [
+            new ResultCode("PASS", 1, ResultCounting.Pass, "#3FB950"),
+            new ResultCode("REVIEW", 3, ResultCounting.NotCounted, "#E3B341"),
+            new ResultCode("FAIL", 2, ResultCounting.Fail, "#DB5C5C"),
+        ],
+        late);
+
+    /// <summary>
+    /// The line's workflow with the result's code written to DB34.30 as well:
+    /// when the station has inspected, and - a write of its own, an input
+    /// taking one wire - when it failed to.
+    /// </summary>
+    private static LineWorkflow CodeLine()
+    {
+        var line = new LineWorkflow();
+        var code = new PlcWriteNode { Name = "Result Code", Address = "DB34.30", Type = PlcType.Int16 };
+        var missed = new PlcWriteNode { Name = "Missed Code", Address = "DB34.30", Type = PlcType.Int16 };
+        line.Graph.Add(code);
+        line.Graph.Add(missed);
+        line.Wire(line.Inspect.CodeOut, code.ValueIn);
+        line.Wire(line.Inspect.Done, code.Trigger);
+        line.Wire(line.Inspect.CodeOut, missed.ValueIn);
+        line.Wire(line.Inspect.Failed, missed.Trigger);
+        return line;
+    }
+
+    /// <summary>
+    /// A grade with a result's name is that result: its code goes to the PLC,
+    /// the part is not accepted - Fail fires - and, REVIEW not counted, is
+    /// counted on its own, out of the yield.
+    /// </summary>
+    [Fact]
+    public async Task Inspect_sends_the_results_code_and_the_part_takes_its_result()
+    {
+        var plc = Line();
+        var stations = new FakeStations { Results = ReviewResults(), Grade = "REVIEW" };
+        var line = CodeLine();
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+
+        var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+        var part = pass.Part!;
+
+        Assert.Equal((short)3, plc.Get("DB34.30", PlcType.Int16));
+        Assert.Equal((short)0, plc.Get("DB34.28", PlcType.Int16));
+
+        Assert.Equal("REVIEW", part.Result!.Name);
+        Assert.Equal("REVIEW", part.Word);
+        Assert.Equal("REVIEW", Assert.Single(part.Shots).Verdict);
+        Assert.Equal(3, part.Shots[0].Code);
+        Assert.Equal(PartVerdict.Failed, part.Verdict);
+
+        Assert.Equal(new PartCounts(1, 0, 0, 0, 0) { NotCounted = 1 }, runner.PartCounts);
+        Assert.Equal(0, runner.PartCounts.Yield);
+        Assert.Equal(1, runner.PartCounts.Rejected);
+        Assert.Equal(1, runner.PartResultCounts["REVIEW"]);
+
+        // The next, passed: the yield counts it alone.
+        stations.Grade = null;
+        plc.Set("DB34.20.0", false);
+        var readsSince = plc.Reads;
+        await Until(() => plc.Reads > readsSince + 1);
+        await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+
+        Assert.Equal((short)1, plc.Get("DB34.30", PlcType.Int16));
+        Assert.Equal(100, runner.PartCounts.Yield);
+        Assert.Equal(ResultTally.Of([new("PASS", 1), new("REVIEW", 1)]), runner.PartResultCounts);
+    }
+
+    /// <summary>
+    /// A station past its deadline: the part gets the result the line chose
+    /// for a late part - REVIEW, a second chance - and its code is there for
+    /// the write after Failed.
+    /// </summary>
+    [Fact]
+    public async Task A_late_part_gets_the_result_chosen_for_it_and_its_code()
+    {
+        var plc = Line();
+        var stations = new FakeStations { Takes = TimeSpan.FromSeconds(5), Results = ReviewResults(late: "REVIEW") };
+        var line = CodeLine();
+        line.Inspect.Timeout = 150;
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+
+        var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+
+        Assert.Equal(PartVerdict.Late, pass.Part!.Verdict);
+        Assert.Equal("REVIEW", pass.Part.Result!.Name);
+        Assert.Equal("REVIEW (late)", pass.Part.Word);
+        Assert.Equal((short)3, plc.Get("DB34.30", PlcType.Int16));
+        Assert.Contains(plc.Writes, written => written.Address == "DB34.20.2");
+
+        // Late by what happened; not counted by its result.
+        Assert.Equal(new PartCounts(1, 0, 0, 1, 0) { NotCounted = 1 }, runner.PartCounts);
+    }
+
+    /// <summary>A station busy: the part is not inspected, FAIL unless chosen, and FAIL's code sent.</summary>
+    [Fact]
+    public async Task A_part_not_inspected_is_fail_unless_chosen()
+    {
+        var plc = Line();
+        var stations = new FakeStations { Busy = true, Results = ReviewResults(late: "REVIEW") };
+        var line = CodeLine();
+
+        await using var runner = new WorkflowRunner(line.Graph, plc, stations);
+        await StartAsync(runner, plc);
+
+        var pass = await PassAfter(runner, () => plc.Set("DB34.20.0", true));
+
+        Assert.Equal("FAIL (not inspected)", pass.Part!.Word);
+        Assert.Equal((short)2, plc.Get("DB34.30", PlcType.Int16));
+        Assert.Equal(new PartCounts(1, 0, 0, 0, 1), runner.PartCounts);
+        Assert.Equal(1, runner.PartResultCounts["FAIL"]);
     }
 
     /// <summary>A pass that inspects nothing - a heartbeat, a reset - is not a part.</summary>

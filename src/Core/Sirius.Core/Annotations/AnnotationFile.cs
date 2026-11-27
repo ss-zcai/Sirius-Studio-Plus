@@ -65,8 +65,17 @@ public sealed class AnnotationFile
 
     public DateTime? Time { get; init; }
 
-    /// <summary>True passed, false failed, null not judged.</summary>
+    /// <summary>
+    /// True passed, false failed, null not judged - at a station, whether
+    /// the part was accepted, by its result (F33).
+    /// </summary>
     public bool? Passed { get; init; }
+
+    /// <summary>The station's result - PASS, FAIL, REVIEW (F33) - or null where none was given.</summary>
+    public string? Result { get; init; }
+
+    /// <summary>The code the PLC was sent for <see cref="Result"/>, or null.</summary>
+    public int? Code { get; init; }
 
     /// <summary>The worst grade, when the recipe grades.</summary>
     public string? Grade { get; init; }
@@ -99,7 +108,7 @@ public sealed class AnnotationFile
     /// The same, judged otherwise: a shot taken before its set's last,
     /// written once the part has been judged (F26).
     /// </summary>
-    public AnnotationFile WithVerdict(bool? passed, string? grade, int nodeErrors) => new()
+    public AnnotationFile WithVerdict(bool? passed, string? grade, int nodeErrors, string? result = null, int? code = null) => new()
     {
         Image = Image,
         Width = Width,
@@ -110,6 +119,8 @@ public sealed class AnnotationFile
         Serial = Serial,
         Time = Time,
         Passed = passed,
+        Result = result,
+        Code = code,
         Grade = grade,
         NodeErrors = nodeErrors,
         Results = Results,
@@ -118,8 +129,9 @@ public sealed class AnnotationFile
         Measurements = Measurements,
     };
 
-    /// <summary>"PASS", "FAIL", "ERROR" or "NONE", as the picture's name says.</summary>
+    /// <summary>"PASS", "FAIL", "ERROR" or "NONE" - or the station's result, REVIEW - as the picture's name says.</summary>
     public string VerdictWord => NodeErrors > 0 && Passed != false ? "ERROR"
+        : Result is { Length: > 0 } result ? result
         : Passed switch
         {
             true => "PASS",
@@ -208,6 +220,12 @@ public sealed class AnnotationFile
 
         json["verdict"] = VerdictWord;
         json["passed"] = Passed;
+
+        if (Result is not null)
+            json["result"] = Result;
+
+        if (Code is { } code)
+            json["code"] = code;
 
         if (Grade is not null)
             json["grade"] = Grade;
@@ -358,6 +376,8 @@ public sealed class AnnotationFile
                     "FAIL" => false,
                     _ => null,
                 },
+            Result = Text(json, "result"),
+            Code = json["code"] is JsonValue code && code.TryGetValue<int>(out var sent) ? sent : null,
             Grade = Text(json, "grade"),
             NodeErrors = Int(json, "nodeErrors"),
             Results = results,

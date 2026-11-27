@@ -192,7 +192,26 @@ Without a trigger it runs once every value wired in has been read.
 |---|---|
 | In | ● **Trigger** · ○ **Part** (from Gather) |
 | Settings | **Station** (one of the project's), **Deadline** (ms, 10000) |
-| Out | ● **Done** (whatever the verdict) · ● **Pass** · ● **Fail** · ● **Failed** (could not inspect: busy, faulted, past its deadline) · ○ **Verdict** (PASS, FAIL, ERROR, NONE) · ○ **Passed** · ○ **Result** |
+| Out | ● **Done** (whatever the verdict) · ● **Pass** · ● **Fail** · ● **Failed** (could not inspect: busy, faulted, past its deadline) · ○ **Verdict** (the station's result - PASS, FAIL, REVIEW - or ERROR, NONE) · ○ **Code** · ○ **Passed** · ○ **Result** |
+
+**Result codes** (F33, decision 99). A station's results are its own,
+set in Builder (Station ▸ Results…): PASS and FAIL unless chosen, or as
+many as the line needs - REVIEW, NoLens - each with a **PLC code** and
+whether it counts as a pass, a fail, or not at all. **Code** is the
+number for the result, so one PLC Write sends it:
+
+```
+Inspect
+  Code → Write DB34.30 (Int16)      triggered by Done
+  Code → Write DB34.30 (Int16)      triggered by Failed - an input takes one wire, so a write of its own
+```
+
+A part the station missed - past its deadline, or busy - still has a
+Verdict and Code when Failed fires: the result Builder's Results gives a
+late part, or one not inspected (FAIL unless chosen; REVIEW where the
+machine gives a second chance). **Passed** and Pass are by the result:
+a REVIEW is not accepted, whatever the recipe's grade said. What a
+result means for the part - reject it, bring it back - is the PLC's.
 
 The part's values go with the inspection: into its picture's `.sann` as
 `"part": { "PalletId": 12, ..., "Part ID": "1043", "Shot": 1 }` - the
@@ -206,7 +225,7 @@ however it was started: a PLC, a button, running.
 | | |
 |---|---|
 | Settings | **Station** |
-| Out | ● **Finished** · ● **Pass** · ● **Fail** · ○ **Verdict** · ○ **Passed** · ○ **Result** |
+| Out | ● **Finished** · ● **Pass** · ● **Fail** · ○ **Verdict** · ○ **Code** · ○ **Passed** · ○ **Result** |
 
 A workflow that both Inspects a station and hears its Station Result gets
 two passes per part. Answer from Inspect's outputs, usually; Station

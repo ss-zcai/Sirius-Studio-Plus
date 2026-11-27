@@ -121,7 +121,7 @@ public sealed record ImageSaving(
     public bool Wants(Verdict verdict, int nodeErrors) => Policy switch
     {
         ImageSavePolicy.All => true,
-        ImageSavePolicy.Failed => verdict.Passed == false || nodeErrors > 0,
+        ImageSavePolicy.Failed => verdict.Accepted == false || nodeErrors > 0,
         _ => false,
     };
 
@@ -212,9 +212,13 @@ public sealed record ImageSaving(
     public static string FileStem(DateTime time, long serial, string verdictWord) =>
         string.Create(CultureInfo.InvariantCulture, $"{time:yyyyMMdd-HHmmss-fff}_{serial:000000}_{verdictWord}");
 
-    /// <summary>PASS, FAIL, ERROR - a node went wrong - or NONE when nothing judges.</summary>
+    /// <summary>
+    /// The station's result - PASS, FAIL, REVIEW (F33) - or ERROR, a node went
+    /// wrong, or NONE when nothing judges.
+    /// </summary>
     public static string VerdictWord(Verdict verdict, int nodeErrors) =>
-        nodeErrors > 0 && verdict.Passed != false ? "ERROR"
+        nodeErrors > 0 && verdict.Passed != false ? ResultList.ErrorName
+        : verdict.Result is { } result ? result.Name
         : verdict.Passed switch
         {
             true => "PASS",

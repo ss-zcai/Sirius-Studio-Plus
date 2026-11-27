@@ -34,15 +34,26 @@ public sealed record InspectionResult(
             snapshot.Serial,
             snapshot.Time,
             snapshot.Received ? ReceivedWord : ImageSaving.VerdictWord(snapshot.Verdict, snapshot.NodeErrors),
-            snapshot.Verdict.Passed,
+            snapshot.Verdict.Accepted,
             snapshot.NodeErrors,
             new PartValues(results),
             snapshot.Part)
         {
             SourceFailed = snapshot.SourceFailed,
             Received = snapshot.Received,
+            ResultCode = snapshot.Received ? null : snapshot.Verdict.Result,
         };
     }
+
+    /// <summary>
+    /// The station's result (F33) - PASS, FAIL, REVIEW, with its code and how
+    /// it counts - or null for a shot only received, or a recipe that judges
+    /// nothing.
+    /// </summary>
+    public ResultCode? ResultCode { get; init; }
+
+    /// <summary>The code the PLC is sent: the result's, or 0 when there is none.</summary>
+    public int Code => ResultCode?.Code ?? 0;
 
     /// <summary>The verdict word of a shot before its set's last: taken, not judged (F26).</summary>
     public const string ReceivedWord = "RECEIVED";
@@ -85,8 +96,10 @@ public sealed record InspectionResult(
     Category = NodeCategory.Stations,
     Description = "Has a station inspect once when triggered, telling it about the part - what Gather put " +
                   "together - which is kept with the picture. Pass or Fail fires by the verdict; Done either way; " +
-                  "Failed when the station could not inspect. A station taking several pictures a part fires " +
-                  "Received for each before the last, and Judged with the part's verdict at the last.")]
+                  "Failed when the station could not inspect. Verdict is the station's result - PASS, FAIL, REVIEW - " +
+                  "and Code the number the PLC is sent for it, a late part's or one not inspected's too, as " +
+                  "Builder's Results set them. A station taking several pictures a part fires Received for each " +
+                  "before the last, and Judged with the part's verdict at the last.")]
 public sealed class InspectNode : WorkflowNode
 {
     private string _station = string.Empty;
@@ -105,6 +118,7 @@ public sealed class InspectNode : WorkflowNode
         Fail = AddFired("Fail");
         Failed = AddFired("Failed");
         VerdictOut = AddOutput<string>("Verdict");
+        CodeOut = AddOutput<int>("Code");
         PassedOut = AddOutput<bool>("Passed");
         ResultOut = AddOutput<InspectionResult>("Result");
     }
@@ -147,9 +161,19 @@ public sealed class InspectNode : WorkflowNode
     /// <summary>The station could not inspect: busy, faulted, or too slow.</summary>
     public OutputPort Failed { get; }
 
-    /// <summary>PASS, FAIL, ERROR or NONE - or RECEIVED, a shot before its set's last.</summary>
+    /// <summary>
+    /// The station's result - PASS, FAIL, REVIEW (F33) - or ERROR, NONE, or
+    /// RECEIVED, a shot before its set's last.
+    /// </summary>
     public OutputPort VerdictOut { get; }
 
+    /// <summary>
+    /// The number the PLC is sent for the result (F33); 0 for none - a shot
+    /// only received. Given for a part missed as well, before Failed fires.
+    /// </summary>
+    public OutputPort CodeOut { get; }
+
+    /// <summary>Whether the part is accepted: by its result, so a REVIEW is not.</summary>
     public OutputPort PassedOut { get; }
 
     public OutputPort ResultOut { get; }
@@ -219,6 +243,7 @@ public sealed class InspectNode : WorkflowNode
         step.AddShot(result);
 
         step.Set(VerdictOut, result.Verdict);
+        step.Set(CodeOut, result.Code);
         step.Set(PassedOut, result.Passed == true);
         step.Set(ResultOut, result);
         step.Fire(Done);
@@ -236,6 +261,22 @@ public sealed class InspectNode : WorkflowNode
         step.Log(given is { Count: > 0 }
             ? $"{Station} inspection {result.Serial}: {result.Verdict} ({given})."
             : $"{Station} inspection {result.Serial}: {result.Verdict}.");
+    }
+
+    /// <summary>
+    /// A part the station missed: the result its list gives a late part, or
+    /// one not inspected - FAIL, or REVIEW where the line chose - as Verdict
+    /// and Code, for the PLC Write after Failed.
+    /// </summary>
+    protected internal override ResultCode? Missed(WorkflowStep step, bool late)
+    {
+        var results = step.Stations?.ResultsOf(Station) ?? ResultList.Default;
+        var result = late ? results.LateResult : results.NotInspectedResult;
+
+        step.Set(VerdictOut, result?.Name ?? (late ? "LATE" : "NOT INSPECTED"));
+        step.Set(CodeOut, result?.Code ?? 0);
+        step.Set(PassedOut, false);
+        return result;
     }
 }
 
@@ -257,6 +298,7 @@ public sealed class StationResultNode : WorkflowEventNode
         Pass = AddFired("Pass");
         Fail = AddFired("Fail");
         VerdictOut = AddOutput<string>("Verdict");
+        CodeOut = AddOutput<int>("Code");
         PassedOut = AddOutput<bool>("Passed");
         ResultOut = AddOutput<InspectionResult>("Result");
     }
@@ -267,7 +309,11 @@ public sealed class StationResultNode : WorkflowEventNode
 
     public OutputPort Fail { get; }
 
+    /// <summary>The station's result - PASS, FAIL, REVIEW (F33) - or ERROR or NONE.</summary>
     public OutputPort VerdictOut { get; }
+
+    /// <summary>The number the PLC is sent for the result (F33); 0 for none.</summary>
+    public OutputPort CodeOut { get; }
 
     public OutputPort PassedOut { get; }
 
@@ -313,6 +359,7 @@ public sealed class StationResultNode : WorkflowEventNode
                 {
                     step.AddShot(result);
                     step.Set(VerdictOut, result.Verdict);
+                    step.Set(CodeOut, result.Code);
                     step.Set(PassedOut, result.Passed == true);
                     step.Set(ResultOut, result);
                     step.Fire(Finished);

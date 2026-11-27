@@ -34,6 +34,12 @@ public sealed class StationViewModel : ObservableObject
                 OnPropertyChanged(nameof(HasShots));
             }
 
+            if (e.PropertyName == nameof(Station.Results))
+            {
+                OnPropertyChanged(nameof(ResultsText));
+                OnPropertyChanged(nameof(HasOwnResults));
+            }
+
             if (e.PropertyName == nameof(Station.Saving))
             {
                 OnPropertyChanged(nameof(SavesImages));
@@ -67,6 +73,12 @@ public sealed class StationViewModel : ObservableObject
 
     /// <summary>"4 shots a part".</summary>
     public string ShotsText => $"{Station.ShotsPerPart} shots a part";
+
+    /// <summary>Whether it gives results of its own, not only PASS and FAIL (F33).</summary>
+    public bool HasOwnResults => !Station.Results.IsDefault;
+
+    /// <summary>"results: PASS, FAIL, REVIEW".</summary>
+    public string ResultsText => $"results: {Station.Results.Summary}";
 
     /// <summary>Whether it keeps any pictures when it runs.</summary>
     public bool SavesImages => Station.Saving.IsOn;

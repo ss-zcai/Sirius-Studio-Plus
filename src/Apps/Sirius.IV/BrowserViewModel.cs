@@ -1619,13 +1619,24 @@ public sealed class ImageFileItem : ObservableObject
         var sub = System.IO.Path.GetDirectoryName(RelativePath);
         Subfolder = string.IsNullOrEmpty(sub) ? null : sub;
 
-        // A station's pictures say how they went in their names.
+        // A station's pictures say how they went in their names - any of its results, REVIEW too (F33).
         var stem = System.IO.Path.GetFileNameWithoutExtension(path);
-        Verdict = new[] { "FAIL", "ERROR", "PASS", "NONE" }
-            .FirstOrDefault(word => stem.EndsWith("_" + word, StringComparison.OrdinalIgnoreCase) ||
-                                    stem.Contains("_" + word + "_", StringComparison.OrdinalIgnoreCase))
-            ?? Sirius.Core.Annotations.LegacyAnnotations.VerdictWordFor(path);
+        Verdict = StationName.Match(stem) is { Success: true } named
+            ? Known(named.Groups["word"].Value)
+            : new[] { "FAIL", "ERROR", "PASS", "NONE" }
+                  .FirstOrDefault(word => stem.EndsWith("_" + word, StringComparison.OrdinalIgnoreCase) ||
+                                          stem.Contains("_" + word + "_", StringComparison.OrdinalIgnoreCase))
+              ?? Sirius.Core.Annotations.LegacyAnnotations.VerdictWordFor(path);
     }
+
+    /// <summary>A station's picture: "20261111-142305-123_000042_REVIEW", perhaps with "_2".</summary>
+    private static readonly System.Text.RegularExpressions.Regex StationName = new(
+        @"^\d{8}-\d{6}-\d{3}_\d+_(?<word>[A-Za-z0-9-]+?)(_\d+)?$",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>PASS, FAIL, ERROR and NONE as written; any other result as the station named it.</summary>
+    private static string Known(string word) =>
+        new[] { "FAIL", "ERROR", "PASS", "NONE" }.FirstOrDefault(known => known.Equals(word, StringComparison.OrdinalIgnoreCase)) ?? word;
 
     public string Path { get; }
 
@@ -1638,7 +1649,10 @@ public sealed class ImageFileItem : ObservableObject
     /// <summary>The sub-folder it is in - a station's day folder - or null.</summary>
     public string? Subfolder { get; }
 
-    /// <summary>FAIL, ERROR, PASS or NONE from a station's file name; null for any other picture.</summary>
+    /// <summary>
+    /// FAIL, ERROR, PASS or NONE - or another of the station's results,
+    /// REVIEW (F33) - from a station's file name; null for any other picture.
+    /// </summary>
     public string? Verdict { get; }
 
     /// <summary>Has measurements drawn on it that are not saved yet.</summary>
@@ -1648,7 +1662,8 @@ public sealed class ImageFileItem : ObservableObject
         set => SetProperty(ref _modified, value);
     }
 
-    public bool Failed => Verdict is "FAIL" or "ERROR";
+    /// <summary>Not passed: FAIL, ERROR, or any other result but PASS - REVIEW, NoLens - for a closer look.</summary>
+    public bool Failed => Verdict is not (null or "PASS" or "NONE");
 
     public bool Passed => Verdict is "PASS";
 
@@ -1774,7 +1789,7 @@ public sealed class ImageFileItem : ObservableObject
     /// <summary>"+2" beside a set's first picture in the list; null for a picture on its own.</summary>
     public string? SetCountText => Set.Count > 1 ? $"+{Set.Count - 1}" : null;
 
-    /// <summary>How its set went, the worst of them: ERROR, then FAIL, PASS, NONE.</summary>
+    /// <summary>How its set went, the worst of them: ERROR, then FAIL, any other result, PASS, NONE.</summary>
     public string? SetVerdict
     {
         get
@@ -1782,8 +1797,10 @@ public sealed class ImageFileItem : ObservableObject
             if (Set.Count == 1)
                 return Verdict;
 
-            string[] worstFirst = ["ERROR", "FAIL", "PASS", "NONE"];
-            return worstFirst.FirstOrDefault(word => Set.Any(item => item.Verdict == word));
+            string[] worstFirst = ["ERROR", "FAIL"];
+            return worstFirst.FirstOrDefault(word => Set.Any(item => item.Verdict == word))
+                   ?? Set.Select(item => item.Verdict).FirstOrDefault(word => word is not (null or "PASS" or "NONE"))
+                   ?? new[] { "PASS", "NONE" }.FirstOrDefault(word => Set.Any(item => item.Verdict == word));
         }
     }
 

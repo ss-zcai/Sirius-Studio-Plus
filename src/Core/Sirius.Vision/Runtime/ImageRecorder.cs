@@ -72,7 +72,11 @@ public sealed class ImageRecorder : IInspectionRecorder
     /// <param name="folder">The station's own folder: day folders go under it.</param>
     /// <param name="station">The station's name, written into each annotation file.</param>
     /// <param name="freeSpace">Free bytes on the disk holding a folder; Windows' answer unless a test gives its own.</param>
-    public ImageRecorder(ImageSaving saving, string folder, string station, Func<string, long>? freeSpace = null)
+    /// <param name="results">
+    /// The station's results (F33), so housekeeping knows which of the
+    /// pictures' names are passes; PASS and FAIL when not given.
+    /// </param>
+    public ImageRecorder(ImageSaving saving, string folder, string station, Func<string, long>? freeSpace = null, ResultList? results = null)
     {
         ArgumentNullException.ThrowIfNull(saving);
         ArgumentException.ThrowIfNullOrWhiteSpace(folder);
@@ -83,7 +87,7 @@ public sealed class ImageRecorder : IInspectionRecorder
         _freeSpace = freeSpace ?? FreeSpace;
 
         if (saving.HasHousekeeping)
-            _housekeeper = new ImageHousekeeper(saving, folder, _freeSpace);
+            _housekeeper = new ImageHousekeeper(saving, folder, _freeSpace) { Results = results ?? ResultList.Default };
 
         _writer = Task.Run(WriteAsync);
 
@@ -161,7 +165,7 @@ public sealed class ImageRecorder : IInspectionRecorder
 
     /// <summary>The recorder for a station of a project; the runtime's <see cref="InspectionRecorders.Factory"/>.</summary>
     public static IInspectionRecorder? For(Project project, Station station) =>
-        station.Saving.IsOn ? new ImageRecorder(station.Saving, station.Saving.FolderFor(project, station), station.Name) : null;
+        station.Saving.IsOn ? new ImageRecorder(station.Saving, station.Saving.FolderFor(project, station), station.Name, results: station.Results) : null;
 
     public ImageSaving Saving { get; }
 
@@ -249,7 +253,7 @@ public sealed class ImageRecorder : IInspectionRecorder
             var judged = job with
             {
                 Verdict = word,
-                Annotations = job.Annotations?.WithVerdict(verdict.Passed, verdict.Grade?.Name, nodeErrors),
+                Annotations = job.Annotations?.WithVerdict(verdict.Accepted, verdict.Grade?.Name, nodeErrors, verdict.Result?.Name, verdict.Result?.Code),
             };
 
             if (!_queue.Writer.TryWrite(judged))
@@ -355,7 +359,9 @@ public sealed class ImageRecorder : IInspectionRecorder
             Recipe = record.Recipe,
             Serial = snapshot.Serial,
             Time = snapshot.Time,
-            Passed = snapshot.Verdict.Passed,
+            Passed = snapshot.Verdict.Accepted,
+            Result = snapshot.Verdict.Result?.Name,
+            Code = snapshot.Verdict.Result?.Code,
             Grade = snapshot.Verdict.Grade?.Name,
             NodeErrors = snapshot.NodeErrors,
             Results = results,

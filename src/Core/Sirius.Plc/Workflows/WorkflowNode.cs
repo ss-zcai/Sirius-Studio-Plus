@@ -74,6 +74,15 @@ public abstract class WorkflowNode : VisionNode
     /// </summary>
     public virtual bool Inspects => false;
 
+    /// <summary>
+    /// A node that <see cref="Inspects"/> missed its part - past its deadline
+    /// when <paramref name="late"/>, or the station could not inspect - and
+    /// may give its outputs for that before Failed fires: the result the
+    /// station's list gives such a part, and its code (F33).
+    /// </summary>
+    /// <returns>The part's result, or null for none.</returns>
+    protected internal virtual Sirius.Core.Projects.ResultCode? Missed(WorkflowStep step, bool late) => null;
+
     /// <summary>Does this node's work, for one pass of the workflow.</summary>
     protected internal abstract Task RunAsync(WorkflowStep step);
 

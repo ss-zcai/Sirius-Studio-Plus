@@ -44,9 +44,12 @@ public sealed record HousekeepingResult(int Deleted, int Sampled, long Freed, IR
 /// </remarks>
 public sealed class ImageHousekeeper
 {
-    /// <summary>What a station's picture is called: "20261122-142248-000_000042_FAIL", perhaps with "_2".</summary>
+    /// <summary>
+    /// What a station's picture is called: "20261122-142248-000_000042_FAIL",
+    /// perhaps with "_2" - or with any result of the station's, "_REVIEW" (F33).
+    /// </summary>
     private static readonly Regex StationName = new(
-        @"^\d{8}-\d{6}-\d{3}_(?<serial>\d+)_(?<verdict>PASS|FAIL|ERROR|NONE)(_\d+)?$",
+        @"^\d{8}-\d{6}-\d{3}_(?<serial>\d+)_(?<verdict>[A-Za-z0-9-]+)(_\d+)?$",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     /// <summary>Pictures this new are left: the one being written may not have its .sann yet.</summary>
@@ -66,6 +69,13 @@ public sealed class ImageHousekeeper
     }
 
     public ImageSaving Saving { get; }
+
+    /// <summary>
+    /// The station's results (F33): a picture named by one that counts as a
+    /// pass goes first, as PASS does; any other result is kept as long as a
+    /// failure.
+    /// </summary>
+    public ResultList Results { get; init; } = ResultList.Default;
 
     public string Folder { get; }
 
@@ -240,8 +250,12 @@ public sealed class ImageHousekeeper
             .ToArray();
     }
 
+    /// <summary>Whether a picture named with <paramref name="word"/> passed - or was not judged, NONE - and so goes first.</summary>
+    private bool Passes(string word) =>
+        word is "PASS" or "NONE" || Results.Find(word) is { Accepts: true };
+
     /// <summary>A day's pictures named as a station names them, each with its .sann; files half written left out.</summary>
-    private static IEnumerable<Picture> PicturesIn(string folder, DateTime day)
+    private IEnumerable<Picture> PicturesIn(string folder, DateTime day)
     {
         FileInfo[] files;
 
@@ -269,7 +283,7 @@ public sealed class ImageHousekeeper
                 day,
                 group.Key,
                 long.Parse(match.Groups["serial"].Value, CultureInfo.InvariantCulture),
-                match.Groups["verdict"].Value is "FAIL" or "ERROR",
+                !Passes(match.Groups["verdict"].Value),
                 group.Select(file => file.FullName).ToArray(),
                 group.Sum(file => file.Length),
                 group.Max(file => file.LastWriteTime));

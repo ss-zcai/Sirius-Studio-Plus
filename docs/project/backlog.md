@@ -2,9 +2,18 @@
 
 What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
-24 November 2026.
+27 November 2026.
 
-**Since the last update** (18-24 November):
+**Since the last update** (25-27 November):
+
+- **Sirius IV 1.0.5** packed with an installer (decision 98) for the
+  team's trial, needing a **licence code** per PC - a trial of some days
+  or no end (decision 97) - made with the Sirius Licence Maker.
+- **F33a, result codes** (decision 99): a result list per station in
+  Builder, the code to the PLC, missed parts given a result, counts by
+  result, pictures named by it.
+
+**Before that** (18-24 November):
 
 - **1.0.14 packed** (23 November): the part and its counts (F25, F4),
   user levels, cameras in the project (F29, two slices), a controller on
@@ -20,8 +29,9 @@ where the product stands; this says what could come next. Updated
 
 1. ~~**F26a, a set of shots at one station**~~ - done 24 November
    (decision 95).
-2. **F33, result codes beyond PASS/FAIL** - REVIEW and NoLens, which
-   cases 2 and 4 answer, and a set that times out as FAIL or REVIEW.
+2. **F33, result codes beyond PASS/FAIL** - first slice done 27
+   November (decision 99); next, counts per result on Edge's screens and
+   saving by result (F33b), then the REVIEW cycle (F33c).
 3. **F26b** (two cameras on one trigger), **F26c** (a product across
    stations), and **F20e** (an item's pictures side by side).
 4. **F23d** - the S7 driver, by us or the PLC team from the kit; needs
@@ -307,7 +317,25 @@ part, how the PLC tracks parts - size F26-F28.
   grade is already saved in the `.sann` and shown in IV, the CSV and the
   verdict widget. The line side is still yes/no: Inspect, `PartVerdict`,
   counts, yield, file names, saving policy, housekeeping and IV's filter.
-  To build:
+  In slices:
+  - ~~**F33a. The list and the code**~~ - done 27 November 2026
+    (decision 99): the list per station in Builder (Station ▸ Results…),
+    a grade matched by name, ERROR when listed, Inspect's and Station
+    Result's **Code**, a late part and one not inspected given the
+    list's choice with its code before Failed, the part's worst result,
+    Not counted out of the yield, a tally per result kept with the
+    counts, pictures and `.sann` by result, housekeeping and IV reading
+    any result.
+  - **F33b. On the screens and in saving** (S-M): counts per result and
+    the yield in Edge (the counts and controller widgets, the verdict
+    widget in the result's colour); Image Saving choosing which results
+    to keep; IV's filter by result and its badge in the result's colour.
+  - **F33c. The REVIEW cycle** (M): the part's inspection number, a
+    trigger per result on Inspect, the workflow giving a part its final
+    result, the part counted once with re-inspections on their own; the
+    node grading by rules.
+
+  As designed:
   - **A result list per station** in Builder, as long as the line needs:
     name, colour, **PLC code**, and **counts as** - **Pass**, **Fail**,
     or **Not counted** (out of the yield, counted on its own). PASS/FAIL/

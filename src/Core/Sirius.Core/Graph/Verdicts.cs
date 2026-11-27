@@ -7,7 +7,22 @@ namespace Sirius.Core.Graph;
 /// <param name="Grade">The worst grade any final check gave, or null when none grades.</param>
 /// <param name="Checks">How many checks the verdict is drawn from.</param>
 /// <param name="Failed">How many of them failed.</param>
-public readonly record struct Verdict(bool? Passed, Grade? Grade, int Checks, int Failed);
+public readonly record struct Verdict(bool? Passed, Grade? Grade, int Checks, int Failed)
+{
+    /// <summary>
+    /// The station's result for it (F33) - PASS, FAIL, REVIEW - from the
+    /// station's list; null at the desk, where there is no station, and when
+    /// nothing in the recipe judges.
+    /// </summary>
+    public Projects.ResultCode? Result { get; init; }
+
+    /// <summary>
+    /// Whether the part is accepted: by its result where it has one - a
+    /// REVIEW is not, whatever the recipe's grade said - else as the recipe
+    /// judged; null when nothing judges.
+    /// </summary>
+    public bool? Accepted => Result is { } result ? result.Accepts : Passed;
+}
 
 /// <summary>
 /// Reading a recipe's verdict - for the status line, a folder run and the
