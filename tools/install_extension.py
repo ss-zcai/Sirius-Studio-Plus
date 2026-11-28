@@ -177,6 +177,9 @@ PHOSPHOR = {
     # A controller's Handshake (F25): the PLC and the vision system
     # keeping each other told - Ready, Busy, an error code.
     "handshake": "ph_handshake",
+
+    # Ridge Filter: a scratch, which is what it is for finding.
+    "scribble": "ph_ridge",
 }
 
 # source file -> the resource key it supplies

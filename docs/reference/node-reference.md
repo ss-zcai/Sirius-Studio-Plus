@@ -11,12 +11,12 @@ over the data type, which the socket's shape and colour already convey.
 
 Socket shapes: square = image, circle = everything else.
 
-**77 nodes** across 14 categories.
+**78 nodes** across 14 categories.
 
 - **Source** — Blank Image, Camera, Image File, Image Sequence, Matrix, Number, Shot, Text
 - **Basic** — Adaptive Threshold, Brightness / Contrast, Canny, Colour Convert, Colour Range, Invert, Region of Interest, Resize, RGB Channel, Rotate and Mirror, Threshold
 - **Combine** — Blend, Collect Images, Collect Numbers, Collect Verdicts, Logic, Mask
-- **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise
+- **Filtering** — 2D Filter, Box Filter, Gaussian Blur, High-pass Filter, Median Blur, Normalise, Ridge Filter
 - **Morphology** — Advanced Morphology, Dilate, Erode
 - **Blob** — Filter Shapes, Find Blobs, Offset Shapes, Select Shape, Shape Style, Transform Shapes
 - **Fitting** — Find Circle, Find Curve, Find Line, Find Rectangle, Fit Circle, Fit Ellipse, Fit Line, Line Calipers, Points to Polygon, Ring Calipers
@@ -811,6 +811,32 @@ Flattens uneven illumination by dividing out a blurred copy.
 | --- | --- | --- | --- |
 | Kernel Size | `Integer` | Slider | 3 to 501, odd only |
 | Scale | `Number` | Slider | 1 to 255 |
+
+### Ridge Filter
+
+`filter.ridge`
+
+Makes thin lines such as scratches stand out in any direction, and spots and flat ground drop away.
+
+**Inputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| In | `Image` | square | yes |
+
+**Outputs**
+
+| Port | Type | Shape | Required |
+| --- | --- | --- | --- |
+| Out | `Image` | square | - |
+
+**Parameters**
+
+| Name | Type | Editor | Range |
+| --- | --- | --- | --- |
+| Line Width | `Number` | Slider | 1 to 40 |
+| Polarity | `LinePolarity` | ComboBox | - |
+| Gain | `Number` | Slider | 0.1 to 50 |
 
 ## Morphology
 

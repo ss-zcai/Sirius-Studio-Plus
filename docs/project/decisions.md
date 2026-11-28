@@ -4020,3 +4020,28 @@ px² REVIEW).
   shows the sets with a picture of it. Not remembered: a folder's results
   are its stations'. Such a result's badge is amber; IV has no colour of
   the station's to give it.
+
+## 101. Ridge Filter: scratches by how the brightness curves
+
+28 November 2026.
+
+Scratches on a lens came out of Adaptive Threshold as dashes where they
+fade, and Find Blobs' aspect filter missed them once the pieces were
+short. Lowering the threshold lets the dust in first.
+
+- **The Hessian, not a bank of line filters.** The second derivatives,
+  smoothed at the line's scale, give the curvature across and along each
+  pixel and its direction, without trying angles. Strength is the
+  curvature across less that along: a line keeps it all, a round spot
+  almost none. Three separable filters and a pass over the pixels - about
+  130 ms for the whole scratch recipe on a 2448 x 2048 picture.
+- **Line Width, Polarity, Gain.** The smoothing is half the width. The
+  output is scaled so a line of that width reads its depth times the
+  Gain (4 by default), and flat ground 0, so a plain Threshold follows.
+  Single-channel only, like Adaptive Threshold; 10- and 12-bit pictures
+  stay within their bits.
+- **What it does not do:** join a scratch across a true break. On the
+  44 pictures of the scratch set, at width 3 and threshold 28, it kept
+  the scratches as long as or longer than Adaptive Threshold did and
+  dropped most of the speckle, but the faintest stretches still part.
+  Joining along the direction it finds is the next step if needed.
