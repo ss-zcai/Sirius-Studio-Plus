@@ -5,6 +5,90 @@ what is worth pointing a tester at.
 
 ---
 
+## 1.0.15 — 28 November 2026
+
+Parts of **several pictures**, judged once; results **beyond PASS and
+FAIL**, each with its code to the PLC; and a **Ridge Filter** for
+scratches. Studio, Edge and sirius-run **1.0.15**, Builder **1.0.5**,
+Sirius IV **1.0.6**. The custom node SDK stays **1.0.4**. Recipes and
+projects saved in 1.0.14 open unchanged. Sirius IV now asks for a
+**licence code** - read the Sirius IV 1.0.5 entry below.
+
+### What to try first
+
+> In Builder, Station ▸ Results…: add **REVIEW** between PASS and FAIL,
+> Not counted, code 3; then a recipe whose **Grade** node grades
+> "PASS, REVIEW, FAIL"
+
+Each part gets the result its grade is called, and the PLC its code
+from Inspect's **Code**. The running screen shows the result in its own
+colour, and a Counter shows it as a column of its own - Total, PASS,
+REVIEW, FAIL, Yield. Pictures are named by it (`_REVIEW`), and Image
+Saving can keep just the results chosen.
+
+> In Studio: Image Sequence → **Ridge Filter** → Threshold → Find Blobs,
+> on pictures of scratches
+
+A scratch that fades along its length came out of Adaptive Threshold as
+dashes. Ridge Filter makes thin lines stand out whichever way they run,
+faint stretches included, and leaves round dust and flat ground dark:
+start at Line Width 3, Gain 4 and a Threshold of about 28. Polarity says
+dark scratches, light, or both.
+
+> In Builder, Station ▸ Shots per Part: 3; feed it sets of three pictures
+
+The recipe runs on each picture; **Collect Images**, **Collect
+Verdicts** and **Collect Numbers** keep them until the last, and the
+part is judged and counted once. The screen says SHOT 1, SHOT 2 before
+it. In Studio, **Run Folder** over a folder of sets runs them as parts -
+"6 images, 3 parts".
+
+### New
+
+- **Several shots per part** (F26a, decisions 93, 95 and 96): Shots per
+  Part on a station, or the PLC's **Last** on Inspect for lines whose
+  sets vary. A new **Shot** node says which picture this is. Inspect
+  fires **Received** for each shot before the last and **Judged** when
+  the part has its verdict. A set's early pictures are held and saved
+  with the part's verdict. A set left unfinished - another part
+  starting, or a minute without its next shot - is a part not
+  inspected. A new controller's starter fits its station: for several
+  shots, each rise of the trigger is the next shot, and "shot taken"
+  (M0.4) is pulsed for each.
+- **Result codes** (F33, decisions 99 and 100): a list of results per
+  station, best first - a name, a colour, a PLC code, and whether it
+  counts as Pass, Fail or Not counted - and what a late part and one
+  not inspected get. A station without a list is PASS 1 and FAIL 2, as
+  before. Not counted results are left out of the yield. Image Saving's
+  **Chosen results**; Sirius IV's **Show** box lists each result its
+  pictures are named by.
+- **Ridge Filter** (decision 101), in Filtering: thin lines in any
+  direction, at their depth times the Gain, for a plain Threshold to
+  follow. 8-, 10-, 12- and 16-bit pictures.
+- **Sirius IV 1.0.6**: everything in 1.0.5 - licence codes, Copy Path
+  from a viewer's tab - and the Show box's results.
+
+### Changes
+
+- **Results are found by name**: the recipe's grade and the station's
+  result must be called the same. Builder's Results window says in
+  amber where they do not meet - a grade no result is called, or a
+  result no grade is called. Rename in both places.
+- **The counter** shows one set of columns: a station's own results in
+  their colours, or Total, Pass, Fail and Yield for PASS and FAIL alone.
+
+### Known issues
+
+- Counts kept under a result's old name stay, in grey, until **Reset
+  Counts**.
+- Ridge Filter lifts a faint stretch of a scratch but does not join it
+  across a true break, where it is no darker than around it.
+- Not yet: two cameras on one trigger (F26b), a product across stations
+  (F26c); a Collect node inside a sub-graph sees no shot.
+- Sirius IV is not code-signed: Windows may warn on first run.
+
+---
+
 ## Sirius IV 1.0.5 — 27 November 2026 (a package of its own, with an installer)
 
 Sirius IV alone, for the team's trial, now with an installer:

@@ -1,6 +1,6 @@
 # Roadmap
 
-Where the product stands. **1.0.14** is the latest package (23 November
+Where the product stands. **1.0.15** is the latest package (28 November
 2026). What could come next, in a proposed
 order, is in **`backlog.md`** - this page is what is done, and the one
 thing that blocks shipping.
@@ -25,92 +25,10 @@ same time: backlog items L1-L6, all set out in `licences.md`.
 
 ---
 
-## New in 1.0.14
+## New in 1.0.15
 
-Studio, Edge and sirius-run 1.0.14, Builder 1.0.4, Sirius IV 1.0.3 (23
+Studio, Edge and sirius-run 1.0.15, Builder 1.0.5, Sirius IV 1.0.6 (28
 November 2026).
-
-- **A controller on the line** (F23c, decision 91): a Controller widget;
-  a lost PLC as a red alarm across the running screen; the PLC window in
-  Edge, for an Engineer.
-- **Studio and the line agreeing on a camera** (F29, decision 90): Open
-  in Studio grabbing from the station's camera with the line's settings;
-  Take from Recipe and Give to Recipe.
-- **The workflow editor** (F23f): rename on the canvas, each node lit as
-  a Test Run goes through it, zoom to fit, a node's help from Properties.
-- **Gather** gives Gathered over Part.
-- **Cameras in the project** (F29, decision 80): a camera set up in
-  Builder - found, chosen, its exposure, gain and trigger, a live view,
-  sample pictures saved - and named by stations, so it is changed
-  without opening the recipe. Studio keeps its Camera node. A camera
-  held by another program says so.
-- **A rectangle in every viewer, and ROIs** (F31, F32, decision 81):
-  measured as L x W and its angle, turned and resized by its handles;
-  its crop saved upright with the picture's own bits - one, or all
-  numbered as artboards are - and in Sirius IV cut from every picture in
-  the list, a day's pictures into a training set.
-- **Find Rectangle** (F30, decision 82): a board's outline or a chip's
-  body, by calipers across the four sides of a turned region - fitted
-  as a true rectangle, or as four lines for a part not square, and held
-  square with a checkbox.
-- **To Folder in Sirius IV** (F20f, decision 89): the pictures chosen - a
-  matched set whole - copied or moved into another folder, each with its
-  `.sann`; the folder dialog opens in the last folder used.
-- **A folder run's annotations** (F20a, decision 88): Run Folder and
-  `sirius-run.exe` write a `.sann` beside each picture they run - the
-  verdict, results and shapes - so Sirius IV shows a folder judged at the
-  desk as it shows a station's. `sirius-run --no-annotations` writes none.
-- **Housekeeping of saved pictures** (F20c, decision 87): a most size
-  and a free space left on the drive beside Keep for (days) - the oldest
-  passed pictures go first, then the oldest failures - and a sample of
-  what goes (1% keeps 1 in 100 inspections) moved to the station's Kept
-  folder for records. Saving, stopped by a full disk, starts again once
-  there is room.
-- **12-bit pictures without a `.sann` in Sirius IV** - crops among them -
-  are shown as 12 bits, judged by their brightest value, not nearly black;
-  and IV's viewers offer the bit-depth picker Studio's have.
-- **ROIs from All cuts each picture's own** rectangles, where they were
-  drawn; one picture's from every picture is still offered, for a
-  training set. Crops keep their picture's format (TIF crops from TIFs)
-  and go into a folder beside the pictures (decision 81, changed 22
-  November).
-- **TIF for saved pictures** (decision 86): lossless, 10-, 12- and
-  16-bit kept; where a station starts. And **Export Pictures with
-  Annotations Drawn** in Sirius IV (Ctrl+Shift+E): the pictures chosen, or
-  all listed, as PNGs drawn as Save Image with Overlays draws them - the
-  station itself still keeps only the picture as taken and its `.sann`.
-- **Sirius IV's Annotations panel** (F20b, decision 85): below the
-  viewers, the picture last clicked - its results, and its shapes a row
-  each with their layer, place, size and measurements; a row picking its
-  shape, double-clicked zooming to it; layers switched on and off in
-  every viewer; **Export Annotations as CSV** (Ctrl+E), a row per picture
-  or per shape, for the pictures chosen or all listed.
-- **Line profiles in Sirius IV**: a profile line drawn on a picture
-  opens its chart, floated as in Studio, in the picture's own bits; IV
-  drew the line and charted nothing.
-- **The part** (F25, F4, decision 83): a controller's pass that inspects
-  is a part - numbered, its ID from the PLC's Part ID, PASS, FAIL, LATE or
-  NOT INSPECTED - and counted, the counts kept over a restart, on a
-  Counter chosen as the controller's parts. A station's deadline answers
-  the PLC on time and cancels the inspection. Each station's processing
-  time, average and worst, under its counts, which are kept too. A
-  **Handshake** node writes Ready, Busy and an error code.
-- **User levels** (F2, decision 84): Operator, Technician and Engineer;
-  users with their own PINs in the project (Run ▸ Users in Builder); a
-  Needs level on each button, setting and screen; a login popup when
-  something locked is used; back to Operator after 5 minutes idle; who
-  changed a setting kept with it.
-- **A camera on a busy network**: a frame that comes incomplete is asked
-  for again, up to three times (not on a hardware trigger, whose next
-  frame is the next part's), and the camera is kept rather than let go;
-  Builder's Live goes on past one. A camera just let go of by another
-  program is tried again for three seconds before it is said to be in use.
-
-1.0.13 (18 November) brought several screens - pages and popups
-(decision 79). 1.0.12 (16 November) brought a file saved over running its
-node again (decision 78), saved pictures and Sirius IV, and controllers.
-
-## Since 1.0.14
 
 - **Several shots per part** (F26a, decisions 93 and 95): a station of
   N pictures a part - Shots per Part, or the PLC's Last - its recipe run
@@ -128,12 +46,33 @@ node again (decision 78), saved pictures and Sirius IV, and controllers.
   signature; without a good one only the licence window opens, and a
   trial ending with the window open locks it. `tools/LicenceMaker` makes
   them. Sirius IV only, for now.
-
 - **The earlier image viewer's annotation files** (decision 92), in
   Sirius IV **1.0.4**, packed alone for internal test on 24 November:
   a picture's `name.tiff.json` read - never written - where it has no
   `.sann`: circles, turned rectangles and ellipses in their layers, a
   defect's sizes, PASS or FAIL from its result and defect code.
+- **Result codes** (F33, decisions 99 and 100): a result list per station
+  in Builder - name, colour, PLC code, Pass, Fail or Not counted - the
+  code to the PLC, missed parts given a result, each result on the
+  screens and the Counter, pictures named and saved by it, Sirius IV's
+  Show box. The REVIEW cycle is the PLC's. Results are found by the
+  recipe's grade names, and Builder says where they do not meet.
+- **Ridge Filter** (decision 101): scratches by how the brightness
+  curves - thin lines in any direction stand out, dust and flat ground
+  drop away.
+- **The repository reorganised** (decision 94): Sirius Vision Desktop,
+  `src` in Core, Drivers, Shared and Apps, docs in four folders.
+
+1.0.14 (23 November) brought the part and its counts, user levels,
+cameras in the project, a controller on the line, Find Rectangle and
+ROIs, and saved pictures kept in check. 1.0.13 (18 November) brought
+several screens - pages and popups (decision 79). 1.0.12 (16 November)
+brought a file saved over running its node again (decision 78), saved
+pictures and Sirius IV, and controllers.
+
+## Since 1.0.15, not yet packed
+
+Nothing yet.
 
 ---
 
@@ -148,7 +87,7 @@ ownership, `.sgraph` serialisation with legacy migrations, and partial
 evaluation: a recipe slower than 60 ms runs the edited node and its
 ancestors at once and the rest when the edits pause.
 
-**73 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
+**78 nodes** across Source, Basic, Combine, Filtering, Morphology, Blob,
 Fitting, Transformation, Analysis, Calibration, Text and Code Reading,
 Judging, Output and Sub Graph. `node-reference.md` lists every one.
 

@@ -2,9 +2,15 @@
 
 What is left to do, in a proposed order, for review. `roadmap.md` says
 where the product stands; this says what could come next. Updated
-27 November 2026.
+28 November 2026.
 
-**Since the last update** (25-27 November):
+**Since the last update** (28 November):
+
+- **1.0.15 packed**: several shots per part (F26a), result codes (F33),
+  the **Ridge Filter** for scratches (decision 101). Builder 1.0.5,
+  Sirius IV 1.0.6; the PLC kit packed again.
+
+**Before that** (25-27 November):
 
 - **Sirius IV 1.0.5** packed with an installer (decision 98) for the
   team's trial, needing a **licence code** per PC - a trial of some days
@@ -14,7 +20,7 @@ where the product stands; this says what could come next. Updated
   result on the screens, pictures named and saved by it, IV's filter. The
   REVIEW cycle is the PLC's, so dropped.
 
-**Before that** (18-24 November):
+**Earlier** (18-24 November):
 
 - **1.0.14 packed** (23 November): the part and its counts (F25, F4),
   user levels, cameras in the project (F29, two slices), a controller on

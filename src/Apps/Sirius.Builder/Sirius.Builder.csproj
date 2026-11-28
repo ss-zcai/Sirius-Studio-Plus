@@ -22,7 +22,7 @@
 
     <!-- Versioned on its own, not with Studio's Directory.Build.props one. -->
     <Product>Sirius Builder</Product>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
 
     <!-- Studio is an executable too; all are published self-contained, together. -->
     <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
